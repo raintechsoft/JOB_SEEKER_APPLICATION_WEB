@@ -10,21 +10,15 @@ import { workspaceDialogs } from "@/features/workspace/dialogs";
 
 export function EmployerMenu({ variant = "public" }: { variant?: "public" | "auth" }) {
   const ref = useRef<HTMLDetailsElement>(null);
+  const pathname = usePathname();
   useDismissableDetails(ref);
   if (variant === "auth") {
+    const onEmployer = pathname.startsWith("/employer/");
     return (
-      <details className="auth-employer-menu" ref={ref}>
-        <summary aria-controls="auth-employer-links">
-          For Employer <Icon name="down" />
-        </summary>
-        <nav id="auth-employer-links" aria-label="Employer access">
-          <Link href="/employer/login">
-            <Icon name="users" />
-            Employer Login
-            <Icon name="arrow" />
-          </Link>
-        </nav>
-      </details>
+      <Link className="auth-role-switch" href={onEmployer ? "/login?role=professional" : "/employer/login"}>
+        {onEmployer ? "Job seeker login" : "Employer Login"}
+        <Icon name="arrow" />
+      </Link>
     );
   }
   return (
