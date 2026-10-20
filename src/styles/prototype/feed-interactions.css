@@ -1,0 +1,26 @@
+/* /feed-interactions.css */
+/* An illustrated outline treatment, with stable icon dimensions in every state. */
+body.professional-theme .feed-action-icon {color:#667085;fill:none!important;stroke:none!important;overflow:visible;flex-shrink:0;}
+.feed-action-icon .feed-icon-surface {fill:#D5E7FC;stroke:none;}
+.feed-action-icon .feed-action-stroke {fill:none;stroke:currentColor;stroke-width:2.05;stroke-linecap:round;stroke-linejoin:round;}
+body.professional-theme .feed-post-actions>.is-liked>.feed-action-icon,
+body.professional-theme .feed-post-actions>[aria-expanded="true"]>.feed-action-icon,
+body.professional-theme .feed-post-actions>.is-sharing>.feed-action-icon {color:#202A36;}
+body.professional-theme .feed-post-actions>.is-liked,
+body.professional-theme .feed-post-actions>[aria-expanded="true"],
+body.professional-theme .feed-post-actions>.is-sharing {color:#202A36;}
+body.professional-theme .feed-post-actions>.is-liked>.feed-action-icon .feed-action-stroke,
+body.professional-theme .feed-post-actions>[aria-expanded="true"]>.feed-action-icon .feed-action-stroke,
+body.professional-theme .feed-post-actions>.is-sharing>.feed-action-icon .feed-action-stroke {stroke-width:2.65;}
+body.professional-theme .feed-post-actions>.is-saved>.feed-action-icon,
+body.professional-theme .feed-bookmark.is-saved>.feed-action-icon {color:#0F766E;}
+.feed-post-actions>.is-saved>.feed-action-icon .feed-action-stroke,
+.feed-bookmark.is-saved>.feed-action-icon .feed-action-stroke {fill:#0F766E;stroke:#0F766E;}
+.feed-post-actions>.is-saved>.feed-action-icon .feed-icon-surface,
+.feed-bookmark.is-saved>.feed-action-icon .feed-icon-surface {fill:#E0F1EB;}
+.feed-post-actions>button:focus-visible {outline:2px solid #315EF4;outline-offset:1px;border-radius:5px;}
+body.professional-theme .reaction-dot {background:transparent;}
+body.professional-theme .reaction-dot>.feed-action-icon {width:14px;height:14px;}
+#post-live-preview .feed-post-actions>button:disabled {color:#667085;}
+/* Larger primary feed actions on desktop and mobile. */
+body.professional-theme .feed-post-actions .feed-action-icon {width:24px;height:24px;}

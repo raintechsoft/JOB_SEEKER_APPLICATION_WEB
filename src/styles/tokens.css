@@ -1,0 +1,50 @@
+/*
+ * Design tokens extracted from the prototype (see docs/design-system.md).
+ *
+ * The prototype stylesheets declare the live values per scope (`:root`, `body.professional-theme`,
+ * `.public`), and their cascade is preserved. This file adds the values that the prototype used as raw
+ * literals, and exposes everything to Tailwind utilities through `@theme inline`, so new UI
+ * resolves to the same palette in every scope (for example, `text-accent` is violet on the base
+ * scope and blue in the workspace).
+ */
+:root {
+  --color-primary-hover: #244ad1;
+  --color-navy: #244a73;
+  --color-graphite: #202a36;
+  --color-text-emphasis: #4169a1;
+  --color-teal: #0f766e;
+  --color-error: #d92d20;
+  --color-success: #14765b;
+  --pulse-0: #eff1f1;
+  --pulse-1: #d5eddf;
+  --pulse-2: #a6d7bd;
+  --pulse-3: #66b58b;
+  --pulse-4: #2e8c60;
+  --radius-control: 7px;
+  --radius-icon-button: 8px;
+  --radius-tag: 5px;
+  --radius-dialog: 14px;
+  --shadow-card-workspace: 0 3px 16px #202a3606;
+  --shadow-dialog: 0 24px 100px #22213d33;
+  --header-height: 83px;
+  --container-max-width: 1380px;
+  --feed-max-width: 1420px;
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-surface: var(--paper);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-green: var(--green);
+  --color-navy: var(--color-navy);
+  --color-error: var(--color-error);
+  --radius-card: var(--radius);
+  --radius-control: var(--radius-control);
+  --shadow-card: var(--shadow);
+  --font-sans: "DM Sans", sans-serif;
+  --font-display: "Manrope", sans-serif;
+}

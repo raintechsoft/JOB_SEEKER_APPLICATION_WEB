@@ -1,0 +1,29 @@
+/** Accessible names for the workspace `<main>` (the prototype's `shell(content, title)`). */
+const TITLES: [RegExp, string][] = [
+  [/^\/app\/dashboard$/, "Your feed"],
+  [/^\/app\/applications$/, "My Application"],
+  [/^\/app\/profile$/, "Profile"],
+  [/^\/app\/work-pulse$/, "Work Pulse"],
+  [/^\/app\/updates$/, "My Activity"],
+  [/^\/app\/projects$/, "Projects"],
+  [/^\/app\/portfolio$/, "Portfolio"],
+  [/^\/app\/portfolio\/preview$/, "Portfolio preview"],
+  [/^\/(app|recruiter)\/messages$/, "Messages"],
+  [/^\/app\/settings$/, "Settings"],
+  [/^\/(app|recruiter)\/posts\/new$/, "Create a post"],
+  [/^\/organizations\//, "Organization Profile"],
+  [/^\/recruiters\//, "Recruiter Profile"],
+  [/^\/recruiter\/dashboard$/, "Recruiter feed"],
+  [/^\/recruiter\/(applications|jobs)$/, "Job & Responses"],
+  [/^\/recruiter\/jobs\/new$/, "Post a job"],
+  [/^\/recruiter\/activity$/, "My Activity"],
+  [/^\/recruiter\/overview$/, "Overview"],
+  [/^\/recruiter\/discover$/, "Discover Talent"],
+  [/^\/recruiter\/shortlists$/, "Shortlists"],
+  [/^\/recruiter\/compare$/, "Compare Candidates"],
+  [/^\/recruiter\/(company|organization)(\/preview)?$/, "Organization Profile"],
+  [/^\/recruiter\/(profile(\/preview)?|team\/.+)$/, "Recruiter Profile"],
+  [/^\/recruiter\/talent\//, "Candidate profile"],
+];
+
+export const workspaceTitle = (pathname: string) => TITLES.find(([re]) => re.test(pathname.replace(/\/$/, "")))?.[1] ?? "Workspace";

@@ -1,0 +1,98 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import type { SettingKey } from "@/services/workspace/workspace.service";
+import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
+import { modal } from "@/stores/modal-store";
+import { toast } from "@/stores/toast-store";
+import { useUiStore } from "@/stores/ui-store";
+import { Button, LinkButton, PageHeading } from "@/components/ui/primitives";
+import { confirmAction } from "@/components/ui/feedback";
+import { resetOrganizationDrafts } from "@/features/organization/draft-store";
+
+export function SettingsScreen() {
+  const run = useServiceAction();
+  const router = useRouter();
+  const setUi = useUiStore((s) => s.setUi);
+  const setOnboarding = useUiStore((s) => s.setOnboarding);
+  const { data } = useServiceQuery(["settings"], (s) => s.workspace.getSettings());
+  const update = async (key: SettingKey, value: boolean) => {
+    const ok = await run((s) => s.workspace.updateSetting(key, value));
+    if (ok !== undefined) toast(ok ? "Preference saved in this browser." : "Saved for this page only. Browser storage is full or unavailable.");
+  };
+  const rows: [string, string, SettingKey, boolean][] = data
+    ? [
+        ["Profile visibility", "Show your profile in public profile views and talent discovery.", "profile-public", data.profilePublic],
+        ["Portfolio visibility", "Allow portfolio preview through the shareable demo URL.", "portfolio-public", data.portfolioPublic],
+        ["Default work update visibility", "New updates start public. You can change each update individually.", "updates-public", data.updatesPublic],
+        ["Demo notifications", "Show illustrative activity notifications in your workspace.", "notifications", data.notifications],
+      ]
+    : [];
+  const reset = () =>
+    confirmAction(
+      "Start the demo fresh?",
+      "This clears your local edits, projects, shortlists, and messages and restores all sample content.",
+      async () => {
+        await run((s) => s.workspace.resetDemo());
+        resetOrganizationDrafts();
+        setUi({ shortlistTab: "s0", compared: ["p0", "p3"] });
+        setOnboarding({ step: 0, cvName: "", cvParsed: false });
+        modal.close();
+        toast("All sample content restored.");
+      },
+      "Reset demo",
+    );
+  const logout = async () => {
+    await run((s) => s.workspace.signOut());
+    router.push("/");
+    toast("You’ve left the demo workspace. Local changes are kept.");
+  };
+  return (
+    <>
+      <PageHeading title="A little control goes a long way." subtitle="Manage your account, visibility, and demo preferences." />
+      <section className="card form-card">
+        <h2>Privacy & visibility</h2>
+        {rows.map(([title, description, key, value]) => (
+          <div className="settings-row" key={key}>
+            <div>
+              <h3>{title}</h3>
+              <p>{description}</p>
+            </div>
+            <label className="switch">
+              <input type="checkbox" checked={value} aria-label={title} onChange={(e) => update(key, e.target.checked)} />
+              <span />
+            </label>
+          </div>
+        ))}
+        <div className="notice" style={{ marginTop: 22 }}>
+          Visibility controls demonstrate product behavior in this browser. They are not server-enforced security. Demo messages, sample analytics, CV parsing, expiry dates, and OTP are simulations.
+        </div>
+        <hr className="divider" />
+        <h2>Demo account</h2>
+        <div className="settings-row">
+          <div>
+            <h3>{data?.name}</h3>
+            <p>{data?.email} · Professional demo account</p>
+          </div>
+          <LinkButton href="/app/profile" variant="sm" icon="edit">
+            Edit profile
+          </LinkButton>
+        </div>
+        <div className="settings-row">
+          <div>
+            <h3>Reset demo data</h3>
+            <p>Remove local changes and restore the original sample profiles, projects, and messages.</p>
+          </div>
+          <Button variant="danger sm" icon="trash" onClick={reset}>
+            Reset data
+          </Button>
+        </div>
+        <div className="form-actions">
+          <Button icon="logout" onClick={logout}>
+            Log out
+          </Button>
+        </div>
+      </section>
+    </>
+  );
+}

@@ -1,0 +1,29 @@
+/* /notifications.css */
+
+html:has(dialog.notification-sheet[open]) { overflow: hidden; }
+dialog.notification-sheet {
+ position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0;
+ width: min(500px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh;
+ border: 1px solid #e7e5ec; border-right: 0; border-radius: 22px 0 0 22px;
+ color: #252536; background: #fff; box-shadow: -12px 0 48px #20203418; overflow: auto;
+}
+dialog.notification-sheet::backdrop { background: #24233355; backdrop-filter: none; }
+.notification-sheet .modal-head { position: sticky; top: 0; z-index: 1; background: #fff; border: 0; padding: 26px 28px; }
+.notification-sheet .modal-head h2 { font-size: 21px; letter-spacing: -.5px; }
+.notification-sheet .modal-head .icon-btn { color: #9692a4; }
+.notification-sheet .modal-body { padding: 0 32px 32px; min-height: calc(100% - 91px); display: flex; }
+.notifications-empty { width: 100%; align-self: center; text-align: center; padding: 28px 0 70px; }
+.notifications-illustration { width: 160px; margin: 0 auto 24px; color: #252536; }
+.notifications-illustration svg { display: block; width: 100%; height: auto; }
+.notifications-empty h3 { font-size: 21px; line-height: 1.4; margin: 0 0 10px; letter-spacing: -.4px; }
+.notifications-empty p { color: #858094; font-size: 14px; line-height: 1.65; max-width: 345px; margin: 0 auto 22px; }
+.notifications-empty .btn { border-radius: 24px; padding: 11px 20px; }
+@media (prefers-reduced-motion: no-preference) {
+ dialog.notification-sheet[open] { animation: notification-enter .22s ease-out; }
+ @keyframes notification-enter { from { transform: translateX(100%); } to { transform: translateX(0); } }
+}
+@media (max-width: 540px) {
+ dialog.notification-sheet { width: 100vw; border-radius: 0; }
+ .notification-sheet .modal-head { padding: 22px; }
+ .notification-sheet .modal-body { padding: 0 24px 24px; }
+}

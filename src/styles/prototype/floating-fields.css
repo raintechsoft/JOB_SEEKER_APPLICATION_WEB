@@ -1,0 +1,50 @@
+/* /floating-fields.css */
+/* Outlined floating labels: the label remains visible after a value is entered. */
+.floating-field {position:relative;display:block;width:100%;min-width:0;flex:1;--field-surface:#fff;--field-ink:#202A36;--field-muted:#626B76;--field-accent:#315EF4;}
+body .floating-field>input,body .floating-field>textarea,body .floating-field>select,
+body.professional-theme .floating-field>input,body.professional-theme .floating-field>textarea,body.professional-theme .floating-field>select {
+ display:block;box-sizing:border-box;width:100%;max-width:none;min-width:0;min-height:54px;margin:0;padding:15px 15px;border:1px solid #C9D1DD;border-radius:8px;background:var(--field-surface);color:var(--field-ink);font-family:inherit;font-size:15px;font-weight:400;line-height:22px;outline:none;box-shadow:0 1px 2px #202a3605;transition:border-color .16s ease,box-shadow .16s ease;
+}
+body .floating-field>textarea,body.professional-theme .floating-field>textarea {min-height:120px;padding-top:16px;resize:vertical;}
+body .floating-field>select,body.professional-theme .floating-field>select {padding-right:32px;}
+.floating-label {position:absolute;z-index:1;left:12px;top:27px;max-width:calc(100% - 28px);transform:translateY(-50%);padding:0 4px;background:var(--field-surface);color:var(--field-muted);font-size:15px;font-weight:400;line-height:20px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;pointer-events:none;transition:top .16s ease,font-size .16s ease,color .16s ease;}
+.floating-field.is-textarea>.floating-label {top:26px;}
+.floating-field:focus-within>.floating-label,.floating-field.has-value>.floating-label,.floating-field.is-select>.floating-label {top:0;font-size:12px;line-height:18px;font-weight:550;}
+.floating-field:focus-within>.floating-label {color:var(--field-accent);}
+body .floating-field>:is(input,textarea,select):hover:not(:disabled) {border-color:#8D9CAF;}
+body .floating-field>:is(input,textarea,select):focus {border-color:var(--field-accent);box-shadow:0 0 0 3px #315ef412;outline:none;}
+.floating-required {margin-left:1px;}
+.floating-required[hidden] {display:none;}
+body .floating-field>:is(input,textarea)::placeholder {color:transparent;}
+body .floating-field.is-date:not(.has-value):not(:focus-within)>input {color:transparent;}
+.floating-field.is-date:not(.has-value):not(:focus-within)>input::-webkit-datetime-edit {color:transparent;}
+body .floating-field.is-disabled>:is(input,textarea,select) {background:#F4F6F8;color:#7B8491;cursor:not-allowed;box-shadow:none;}
+.floating-field.is-disabled {--field-surface:#F4F6F8;--field-muted:#7B8491;}
+.floating-field.is-readonly {--field-surface:#F8F8FB;}
+body .floating-field>:is(input,textarea,select):user-invalid {border-color:#D92D20;}
+.floating-field:has(>:user-invalid)>.floating-label {color:#D92D20;}
+.field:has(>.floating-field) {gap:8px;min-width:0;padding-top:7px;}
+body .floating-field.is-compact>input,body.professional-theme .floating-field.is-compact>input {min-height:46px;padding:11px 14px;}
+.floating-field.is-compact>.floating-label {top:23px;}
+.floating-field.is-compact:focus-within>.floating-label,.floating-field.is-compact.has-value>.floating-label {top:0;font-size:12px;}
+body :is(.professional-search,.application-search,.search-box,.search-mini):has(.floating-field) {position:relative;padding:0;border:0;background:transparent;box-shadow:none;overflow:visible;}
+body :is(.professional-search,.application-search,.search-box,.search-mini):has(.floating-field)>.icon {position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;pointer-events:none;color:#626B76;}
+body :is(.professional-search,.application-search,.search-box,.search-mini)>.floating-field>input {padding-left:39px;}
+body :is(.professional-search,.application-search,.search-box,.search-mini) .floating-label {left:35px;max-width:calc(100% - 56px);}
+body .professional-search:has(.floating-field) kbd {position:absolute;right:12px;pointer-events:none;color:#626B76;}
+body .professional-search>.floating-field>input {padding-right:48px;}
+body .filters>.floating-field {min-width:140px;width:auto;}
+body .filters .floating-field:has(#talent-query) {flex:2;min-width:200px;}
+body .feed-comment-form>.floating-field {flex:1;min-width:0;}
+body .chat-compose>.floating-field {flex:1;}
+body .feed-sort-label>.floating-field {width:106px;flex:0 0 106px;}
+body .feed-sort-label .floating-field>select {min-height:40px;font-size:13px;padding:8px 27px 8px 12px;}
+body .feed-sort-label .floating-label {font-size:11px;}
+body .application-toolbar form>.floating-field {flex:0 1 180px;min-width:135px;}
+body .application-toolbar .application-search {flex:1;}
+body .application-toolbar .application-search .floating-field {width:100%;}
+@media(max-width:680px){body .floating-field>input,body .floating-field>textarea,body .floating-field>select,body.professional-theme .floating-field>input,body.professional-theme .floating-field>textarea,body.professional-theme .floating-field>select {font-size:16px;}body .floating-field.is-compact>input {font-size:14px;}body .filters>.floating-field {min-width:140px;}body .application-toolbar form>.floating-field {flex:1;}.floating-label{max-width:calc(100% - 30px);}}
+@media(prefers-reduced-motion:reduce){.floating-label,body .floating-field>:is(input,textarea,select) {transition:none;}}
+/* Browser autofill must raise the label even before an input event is fired. */
+.floating-field:has(>input:autofill)>.floating-label {top:0;font-size:12px;line-height:18px;font-weight:550;}
+.floating-field:has(>input:-webkit-autofill)>.floating-label {top:0;font-size:12px;line-height:18px;font-weight:550;}

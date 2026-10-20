@@ -1,0 +1,139 @@
+/* /employer-registration.css */
+/* Employer registration follows the shared workspace form and card system. */
+.er-page {min-height:100dvh;background:#F6F8FA;color:#202A36;padding-bottom:35px;}
+.er-page [hidden] {display:none!important;}
+.er-page .auth-workspace-header {min-height:72px;}
+.er-login-link {display:flex;align-items:center;gap:8px;margin-left:auto;color:#E4E9EF;font-size:15px;font-weight:550;}
+.er-login-link>.icon {width:17px;height:17px;}
+.er-layout {max-width:1180px;margin:32px auto 0;padding:0 25px;display:grid;grid-template-columns:255px minmax(0,1fr);gap:25px;align-items:start;}
+body.professional-theme .er-page .card {border:1px solid #E4E9EF;border-radius:12px;background:#FFF;box-shadow:0 3px 16px #202A3606;}
+body.professional-theme .er-progress {padding:23px 15px;position:sticky;top:20px;}
+body.professional-theme .er-progress>.eyebrow {display:block;font-size:11px;letter-spacing:1px;color:#4169A1;margin:0 9px 10px;}
+body.professional-theme .er-progress>h2 {font-size:19px;margin:0 9px 22px;}
+.er-progress nav {display:flex;flex-direction:column;gap:9px;}
+.er-progress nav>button {display:flex;align-items:center;gap:11px;padding:12px 10px;text-align:left;border-radius:8px;color:#626B76;opacity:1;}
+.er-progress nav>button>span {display:grid;place-items:center;width:30px;height:30px;flex-shrink:0;border-radius:50%;background:#EEF2F7;color:#626B76;font-size:13px;}
+.er-progress nav>button>span>.icon {height:17px;width:17px;}
+.er-progress nav>button>strong {font-size:14px;font-weight:550;line-height:1.5;}
+.er-progress nav>button[aria-current=step] {background:#EAF0FF;color:#315EF4;}
+.er-progress nav>button[aria-current=step]>span {background:#315EF4;color:#FFF;box-shadow:0 0 0 4px #315ef410;}
+.er-progress nav>button:not(:disabled)>span {color:#14765B;background:#E9F5EF;}
+.er-progress nav>button:not(:disabled):hover {background:#F6F8FA;}
+body.professional-theme .er-progress>p {display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.8;color:#7B8797;border-top:1px solid #E4E9EF;margin:22px 9px 0;padding-top:18px;}
+.er-progress>p>.icon {width:16px;height:16px;margin-top:3px;flex-shrink:0;}
+body.professional-theme .er-panel {padding:30px;min-width:0;max-width:760px;}
+.er-stage-header {padding-bottom:22px;border-bottom:1px solid #E4E9EF;margin-bottom:23px;}
+.er-stage-header>span {font-size:11px;color:#4169A1;letter-spacing:1.2px;font-weight:600;}
+body.professional-theme .er-stage-header>h1 {font-size:28px;line-height:1.4;letter-spacing:-.7px;margin-top:9px;}
+.er-form {display:flex;flex-direction:column;gap:18px;}
+body.professional-theme .er-lead {font-size:15px;line-height:1.8;color:#626B76;}
+.er-lead strong {color:#344054;font-weight:550;}
+.er-phone-grid {display:grid;grid-template-columns:minmax(160px,.85fr) minmax(0,1.15fr);gap:15px;}
+body.professional-theme .er-hint,body.professional-theme .er-field-hint {font-size:13px;line-height:1.8;color:#7B8797;}
+.er-field-hint {margin-top:-16px;}
+.er-actions {display:flex;justify-content:space-between;align-items:center;gap:15px;padding-top:22px;border-top:1px solid #E4E9EF;margin-top:4px;}
+body.professional-theme .er-actions .btn {font-size:15px;min-height:43px;padding:10px 17px;border-radius:8px;}
+.er-actions>.btn:first-child:not(.primary)>.icon {transform:rotate(180deg);}
+.er-text {display:inline-flex;gap:6px;align-items:center;color:#315EF4;font-size:14px;text-align:left;align-self:flex-start;padding:0;line-height:1.6;}
+.er-text:hover:not(:disabled) {text-decoration:underline;}
+.er-text>.icon {height:15px;width:15px;}
+.er-otp {border:0;padding:0;margin:8px 0 0;}
+.er-otp>legend {font-size:14px;color:#626B76;margin-bottom:13px;}
+.er-otp>div {display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;max-width:420px;}
+body.professional-theme .er-otp input {width:100%;min-width:0;height:58px;border:1px solid #C9D1DD;border-radius:8px;background:#FFF;text-align:center;font-size:26px;color:#202A36;padding:7px;}
+body.professional-theme .er-otp input:focus {outline:2px solid #315EF4;outline-offset:2px;border-color:#315EF4;}
+.er-resend {display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;font-size:14px;color:#626B76;line-height:1.8;}
+.er-resend .er-text {align-self:center;}
+#er-resend-clock {font-size:13px;color:#7B8797;font-variant-numeric:tabular-nums;}
+body.professional-theme .er-demo {font-size:13px;line-height:1.8;padding:12px 14px;border:1px solid #DAE3F1;border-radius:8px;background:#F4F7FC;color:#626B76;}
+.er-demo strong {font-variant-numeric:tabular-nums;color:#315EF4;letter-spacing:1px;}
+.er-choice {display:flex;flex-wrap:wrap;gap:12px;border:0;padding:0;margin:0;}
+.er-choice>legend {font-size:15px;font-weight:550;margin-bottom:12px;}
+.er-choice>label {display:flex;align-items:center;gap:9px;flex:1;min-width:180px;border:1px solid #E4E9EF;border-radius:8px;padding:13px;font-size:15px;color:#626B76;cursor:pointer;}
+.er-choice>label:has(:checked) {color:#315EF4;border-color:#315EF4;background:#EAF0FF;}
+.er-choice input {width:16px;height:16px;accent-color:#315EF4;flex-shrink:0;}
+body.professional-theme .er-verified {display:flex;align-items:center;gap:9px;font-size:14px;line-height:1.7;color:#14765B;padding:12px 14px;border:1px solid #D0E7DA;border-radius:8px;background:#F4FAF6;}
+.er-verified>.icon {height:17px;width:17px;}
+.er-verified>.er-text {margin-left:auto;}
+.er-password {position:relative;}
+.er-password .floating-field>input {padding-right:52px!important;}
+.er-password>.iconbtn {position:absolute;right:10px;top:16px;width:30px;height:30px;border:0;background:transparent;color:#626B76;}
+.er-grid {display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+body.professional-theme .er-error {font-size:14px;line-height:1.7;padding:12px 14px;border:1px solid #F1CDC7;background:#FFF4F1;border-radius:8px;color:#B42318;}
+body.professional-theme .auth-create-employer {margin-top:20px;width:100%;white-space:normal;font-size:14px;line-height:1.7;text-align:center;}
+@media(max-width:900px){.er-layout{grid-template-columns:210px minmax(0,1fr);gap:20px;padding:0 20px;}body.professional-theme .er-panel{padding:25px;}.er-phone-grid{grid-template-columns:1fr;}}
+@media(max-width:680px){
+ .er-page .auth-workspace-header {min-height:62px;}
+ .er-layout {display:flex;flex-direction:column;gap:18px;margin-top:20px;padding:0 16px;}
+ body.professional-theme .er-progress {position:static;width:100%;padding:14px 10px;}
+ body.professional-theme .er-progress>.eyebrow,.er-progress>h2,.er-progress>p {display:none!important;}
+ .er-progress nav {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;}
+ .er-progress nav>button {flex-direction:column;gap:8px;padding:9px 2px;text-align:center;}
+ .er-progress nav>button>strong {font-size:11px;}
+ .er-progress nav>button>span {height:27px;width:27px;}
+ body.professional-theme .er-panel {padding:22px 18px;width:100%;}
+ body.professional-theme .er-stage-header>h1 {font-size:24px;}
+ .er-phone-grid,.er-grid {grid-template-columns:1fr;}
+ .er-choice {gap:9px;}
+ .er-choice>label {min-width:100%;}
+ .er-otp>div {gap:8px;}
+ body.professional-theme .er-otp input {height:49px;font-size:22px;padding:5px;}
+ .er-actions {gap:10px;}
+ body.professional-theme .er-actions .btn {font-size:14px;padding:10px 12px;}
+ .er-actions>.er-text {font-size:13px;}
+ .er-login-link {font-size:13px;}
+ .er-verified {flex-wrap:wrap;}
+ .er-page .floating-field>input {font-size:16px!important;}
+}
+@media(max-height:600px) and (min-width:650px){
+ .is-employer-login .auth-create-employer {grid-column:1;grid-row:2;align-self:start;}
+ .is-employer-login .auth-methods {grid-row:1 / span 2;}
+}
+/* Registration shares the auth artwork; progress stays with the form. */
+body.professional-theme .is-employer-registration .er-panel {width:100%;max-width:none;padding:25px;}
+body.professional-theme .is-employer-registration .er-progress {position:static;padding:0;margin:0 0 23px;background:transparent;border:0;box-shadow:none;}
+.is-employer-registration .er-progress>.eyebrow,.is-employer-registration .er-progress>h2,.is-employer-registration .er-progress>p {display:none!important;}
+.is-employer-registration .er-progress nav {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;}
+.is-employer-registration .er-progress nav>button {flex-direction:column;text-align:center;gap:8px;padding:10px 2px;}
+.is-employer-registration .er-progress nav>button>strong {font-size:11px;}
+.is-employer-registration .er-progress nav>button>span {width:27px;height:27px;}
+.is-employer-registration .er-phone-grid,.is-employer-registration .er-grid {grid-template-columns:1fr;}
+.is-employer-registration .er-choice>label {min-width:100%;}
+@media(max-width:680px){body.professional-theme .is-employer-registration .er-panel{padding:22px 18px;}}
+
+/* Pair related fields; longer entries retain the full form width. */
+body.professional-theme .is-employer-registration .er-panel {padding:22px 25px;}
+.is-employer-registration .er-stage-header {padding-bottom:14px;margin-bottom:16px;}
+.is-employer-registration .er-form {gap:14px;}
+body.professional-theme .is-employer-registration .er-lead {line-height:1.5;}
+body.professional-theme .is-employer-registration .er-hint,
+body.professional-theme .is-employer-registration .er-field-hint {line-height:1.5;}
+.is-employer-registration .er-field-group {min-width:0;display:flex;flex-direction:column;gap:5px;}
+.is-employer-registration .er-field-hint {margin:0;}
+.is-employer-registration .er-grid,
+.is-employer-registration .er-phone-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start;}
+.is-employer-registration .er-grid>.field,.is-employer-registration .er-phone-grid>.field {min-width:0;}
+.is-employer-registration .er-choice {gap:10px;}
+.is-employer-registration .er-choice>legend {margin-bottom:8px;}
+.is-employer-registration .er-choice>label {min-width:0;padding:10px;font-size:14px;gap:7px;}
+body.professional-theme .is-employer-registration .floating-field>input,
+body.professional-theme .is-employer-registration .floating-field>select {min-height:48px;height:48px;padding-top:12px;padding-bottom:12px;}
+.is-employer-registration .floating-label {top:24px;font-size:14px;}
+.is-employer-registration .floating-field:focus-within>.floating-label,
+.is-employer-registration .floating-field.has-value>.floating-label {top:0;}
+body.professional-theme .is-employer-registration .floating-field>textarea {min-height:64px;height:64px;padding-top:16px;padding-bottom:10px;}
+.is-employer-registration .er-password>.iconbtn {top:9px;}
+.is-employer-registration .er-actions {padding-top:14px;margin-top:0;}
+body.professional-theme .is-employer-registration .er-verified {padding:9px 12px;}
+@media(max-width:550px){
+ .is-employer-registration .er-grid,.is-employer-registration .er-phone-grid {grid-template-columns:minmax(0,1fr);}
+ .is-employer-registration .er-choice>label {min-width:100%;}
+ body.professional-theme .is-employer-registration .er-panel {padding:20px 18px;}
+}
+@media(min-width:851px) and (max-height:780px){
+ body.professional-theme .is-employer-registration .auth-workspace-layout {padding-top:14px;padding-bottom:14px;}
+ body.professional-theme .is-employer-registration .er-panel {padding-top:18px;padding-bottom:18px;}
+ .is-employer-registration .er-form {gap:11px;}
+ .is-employer-registration .er-stage-header {margin-bottom:12px;padding-bottom:10px;}
+ body.professional-theme .is-employer-registration .er-stage-header>h1 {font-size:26px;margin-top:5px;}
+}

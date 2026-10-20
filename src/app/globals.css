@@ -1,0 +1,10 @@
+/*
+ * Tailwind CSS v4 without Preflight: the prototype ships its own element styles, and Preflight's
+ * reset would change them. Only the theme and utilities layers are included; layered rules have
+ * lower priority than the (unlayered) prototype stylesheets.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "../styles/tokens.css";
+@import "../styles/app.css";

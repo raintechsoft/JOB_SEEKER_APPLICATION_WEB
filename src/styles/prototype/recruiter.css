@@ -1,0 +1,32 @@
+/* /recruiter.css */
+/* Recruiter workspace shares the professional feed's grid, cards, and tokens. */
+body.professional-theme .professional-account-menu {max-height:calc(100dvh - 105px);overflow-y:auto;overscroll-behavior:contain;}
+body.professional-theme .recruiter-summary {padding:20px;}
+body.professional-theme .recruiter-summary h2 {font-size:16px;margin-bottom:14px;}
+.recruiter-summary>a {display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #E4E9EF;font-size:14px;}
+.recruiter-summary>a:last-child {border:0;padding-bottom:0;}
+.recruiter-summary>a>span {color:#626B76;}
+.recruiter-summary>a>strong {color:#315EF4;font-size:18px;}
+.recruiter-hiring-rail {display:flex;flex-direction:column;gap:20px;align-self:start;position:sticky;top:108px;max-height:calc(100dvh - 128px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+body.professional-theme .recruiter-rail-card {padding:20px 16px;}
+.recruiter-rail-card>.eyebrow {font-size:12px;letter-spacing:1px;}
+body.professional-theme .recruiter-rail-card h2 {font-size:18px;margin:10px 0;}
+body.professional-theme .recruiter-rail-card p {font-size:14px;color:#626B76;}
+.recruiter-rail-card>.btn {margin-top:14px;}
+.recruiter-mini-app {width:100%;display:flex;text-align:left;align-items:center;gap:10px;padding:18px 0;border-bottom:1px solid #E4E9EF;}
+.recruiter-mini-app>span:not(.avatar) {flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+.recruiter-mini-app strong {font-size:14px;}
+.recruiter-mini-app small {font-size:12px;color:#626B76;}
+.recruiter-mini-app>.icon {width:14px;flex-shrink:0;}
+.recruiter-rail-job {padding:18px 0;border-bottom:1px solid #E4E9EF;}
+.recruiter-rail-job strong {font-size:15px;}
+.recruiter-rail-job>a {display:flex;gap:8px;align-items:center;font-size:14px;margin-top:8px;color:#315EF4;}
+.recruiter-rail-job>a>.icon {width:14px;}
+.recruiter-applied-for {margin:16px 0 0;font-size:15px;color:#626B76;}
+.recruiter-own-comment {padding:20px;margin-top:-12px;}
+.recruiter-own-comment time {font-size:13px;margin-left:auto;color:#626B76;}
+.recruiter-own-comment p {margin-top:14px;}
+@media(max-width:1050px) and (min-width:681px){.recruiter-hiring-rail{position:static;grid-column:2;grid-row:2;max-height:none;}.recruiter-feed-layout>.feed-timeline{grid-row:1 / span 2;grid-column:2;}.recruiter-feed-layout>.recruiter-hiring-rail{grid-column:1;grid-row:2;}.recruiter-feed-layout>.feed-profile-column{position:static;max-height:none;}}
+@media(max-width:680px){.recruiter-hiring-rail{position:static;max-height:none;grid-column:1;}.recruiter-feed-layout>.feed-profile-column{display:flex;}.recruiter-feed-layout>.feed-profile-column>.recruiter-summary,.recruiter-feed-layout>.feed-profile-column>.feed-connections,.recruiter-feed-layout>.feed-profile-column>.feed-local-note{display:none;}.recruiter-app .professional-nav>a{min-width:70px;}.recruiter-own-comment{padding:16px;}}
+
+@media(max-width:680px){.recruiter-feed-layout>.feed-timeline{grid-column:1;grid-row:2;}.recruiter-feed-layout>.recruiter-hiring-rail{grid-column:1;grid-row:3;}}
