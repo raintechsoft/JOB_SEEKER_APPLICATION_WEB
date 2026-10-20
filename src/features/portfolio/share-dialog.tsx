@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { Id } from "@/types/domain";
 import { today } from "@/lib/utils/date";
+import { devCopy, isDevelopment } from "@/lib/env/app-env";
+import { DevOnly } from "@/components/ui/dev-only";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
@@ -58,7 +60,7 @@ function ShareBody({ ownerId }: { ownerId: Id }) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url);
-      toast("Portfolio link copied. Local edits stay in this browser.");
+      toast(devCopy("Portfolio link copied. Local edits stay in this browser.", "Portfolio link copied."));
     } catch {
       modal.show("Your portfolio link", <CopyFallback url={url} />);
     }
@@ -70,10 +72,12 @@ function ShareBody({ ownerId }: { ownerId: Id }) {
         <span className="grow">{url}</span>
         <IconButton icon="copy" label="Copy link" onClick={copy} />
       </div>
-      <QrRepresentation />
-      <p className="small muted center" style={{ fontSize: 9 }}>
-        QR representation · Not a scannable code
-      </p>
+      <DevOnly>
+        <QrRepresentation />
+        <p className="small muted center" style={{ fontSize: 9 }}>
+          QR representation · Not a scannable code
+        </p>
+      </DevOnly>
       <form
         id="sharing-form"
         className="stack"
@@ -81,22 +85,24 @@ function ShareBody({ ownerId }: { ownerId: Id }) {
         onSubmit={async (e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
-          const ok = await run((s) => s.portfolio.saveSharing(ownerId, { public: f.has("public"), otp: f.has("otp"), expiry: String(f.get("expiry") || "") }));
+          const ok = await run((s) => s.portfolio.saveSharing(ownerId, { public: f.has("public"), otp: isDevelopment ? f.has("otp") : view.config.otp, expiry: isDevelopment ? String(f.get("expiry") || "") : view.config.expiry }));
           if (ok === undefined) return;
-          toast(ok ? "Sharing preferences saved. Expiry and OTP remain simulations." : "Saved for this page only. Browser storage is full or unavailable.");
+          toast(ok ? devCopy("Sharing preferences saved. Expiry and OTP remain simulations.", "Sharing preferences saved.") : "Saved for this page only. Browser storage is full or unavailable.");
           modal.close();
         }}
       >
         <label className="check-row">
           <input type="checkbox" name="public" defaultChecked={view.config.public} />
-          Portfolio visible in this browser demo
+          {devCopy("Portfolio visible in this browser demo", "Portfolio visible to anyone with the link")}
         </label>
-        <TextField label="Link expiry (simulation)" name="expiry" type="date" defaultValue={view.config.expiry} min={today()} />
-        <label className="check-row">
-          <input type="checkbox" name="otp" defaultChecked={view.config.otp} />
-          Demonstrate OTP protection setting
-        </label>
-        <div className="notice">Expiry and OTP settings are simulations and do not restrict access. A link opened on another device uses that browser’s sample data. Local edits are not uploaded or synchronized.</div>
+        <DevOnly>
+          <TextField label="Link expiry (simulation)" name="expiry" type="date" defaultValue={view.config.expiry} min={today()} />
+          <label className="check-row">
+            <input type="checkbox" name="otp" defaultChecked={view.config.otp} />
+            Demonstrate OTP protection setting
+          </label>
+          <div className="notice">Expiry and OTP settings are simulations and do not restrict access. A link opened on another device uses that browser’s sample data. Local edits are not uploaded or synchronized.</div>
+        </DevOnly>
         <div className="modal-footer">
           <Link className="btn" href={"/portfolio/" + view.config.slug}>
             <Icon name="external" />

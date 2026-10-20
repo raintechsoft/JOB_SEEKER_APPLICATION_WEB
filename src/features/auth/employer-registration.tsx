@@ -11,6 +11,8 @@ import { useServiceAction, useServices } from "@/hooks/use-services";
 import { toast } from "@/stores/toast-store";
 import { resetOrganizationDrafts } from "@/features/organization/draft-store";
 import { Icon } from "@/components/ui/icon";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { IconButton } from "@/components/ui/primitives";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { AuthHeader, AuthStory } from "@/components/layout/auth-chrome";
@@ -227,7 +229,7 @@ export function EmployerRegistrationScreen() {
         resetOrganizationDrafts();
         set({ draft: EMPTY, challenge: null, phoneVerified: "", emailVerified: "", error: "" });
         router.push("/recruiter/profile");
-        toast("Demo recruiter account created. Review your profile.");
+        toast(devCopy("Demo recruiter account created. Review your profile.", "Your recruiter account is ready. Review your profile."));
       }
     }
   };
@@ -251,9 +253,11 @@ export function EmployerRegistrationScreen() {
 
   const step = draft.step;
   const demoCode = (kind: string) => (
-    <p className="er-demo">
-      Demo verification · No {kind} is sent. Enter <strong data-demo-code>{challenge?.demoCode || ""}</strong> to continue.
-    </p>
+    <DevOnly>
+      <p className="er-demo">
+        Demo verification · No {kind} is sent. Enter <strong data-demo-code>{challenge?.demoCode || ""}</strong> to continue.
+      </p>
+    </DevOnly>
   );
 
   return (
@@ -323,7 +327,7 @@ export function EmployerRegistrationScreen() {
                   <TextField label="Create password" name="password" type={showPassword ? "text" : "password"} required minLength={8} maxLength={128} autoComplete="new-password" placeholder="Enter new password" />
                   <IconButton icon="eye" label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((v) => !v)} />
                 </div>
-                <p className="er-hint">At least 8 characters. Passwords are not saved in this demo.</p>
+                <p className="er-hint">{devCopy("At least 8 characters. Passwords are not saved in this demo.", "At least 8 characters.")}</p>
               </>
             )}
             {step === 3 && (
@@ -362,7 +366,9 @@ export function EmployerRegistrationScreen() {
                   <TextField label="Pin code" name="pincode" defaultValue={draft.pincode} required maxLength={10} autoComplete="postal-code" placeholder="Enter company pincode" />
                 </div>
                 <TextAreaField label="Company address" name="address" defaultValue={draft.address} required minLength={8} maxLength={500} autoComplete="street-address" placeholder="Enter company address" />
-                <p className="er-hint">Company details are saved locally in this prototype. No invoice is generated.</p>
+                <DevOnly>
+                  <p className="er-hint">Company details are saved locally in this prototype. No invoice is generated.</p>
+                </DevOnly>
               </>
             )}
             <p id="er-error" className="er-error" role="alert" hidden={!error} ref={errorRef}>

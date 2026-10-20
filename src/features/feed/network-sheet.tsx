@@ -10,6 +10,7 @@ import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, LinkButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
 
 type Tab = "following" | "followers";
@@ -108,7 +109,9 @@ function NetworkPanel({ role }: { role: Role }) {
         <LinkButton href={role === "recruiter" ? "/recruiter/discover" : "/app/dashboard"} variant="text sm" icon="search">
           Discover people
         </LinkButton>
-        <small>Fictional demo network · Changes stay in this browser.</small>
+        <DevOnly>
+          <small>Fictional demo network · Changes stay in this browser.</small>
+        </DevOnly>
       </footer>
     </div>
   );

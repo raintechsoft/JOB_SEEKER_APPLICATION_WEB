@@ -12,6 +12,7 @@ import { useUiStore } from "@/stores/ui-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingSelect } from "@/components/ui/field";
 import { Heatmap } from "@/components/work/pulse";
 import { useUpdateDialogs } from "@/features/work/dialogs";
@@ -115,19 +116,23 @@ export function ProfileColumn() {
           <strong>{data.savedCount}</strong>
         </Link>
       </section>
-      <div className="feed-local-note">
-        <Icon name="shield" />
-        <p>
-          Demo feed · Fictional people and jobs.
-          <br />
-          Your posts and interactions stay in this browser.
-        </p>
-      </div>
+      <DevOnly>
+        <div className="feed-local-note">
+          <Icon name="shield" />
+          <p>
+            Demo feed · Fictional people and jobs.
+            <br />
+            Your posts and interactions stay in this browser.
+          </p>
+        </div>
+      </DevOnly>
       <nav className="feed-footer">
         <Link href="/how-it-works">About Skillora</Link>
-        <button type="button" onClick={workspaceDialogs.privacy}>
-          Privacy & demo data
-        </button>
+        <DevOnly>
+          <button type="button" onClick={workspaceDialogs.privacy}>
+            Privacy & demo data
+          </button>
+        </DevOnly>
         <Link href="/app/settings">Settings</Link>
       </nav>
     </aside>

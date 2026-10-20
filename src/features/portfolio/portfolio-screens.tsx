@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { toast } from "@/stores/toast-store";
@@ -65,7 +66,7 @@ export function PortfolioBuilderScreen() {
                     e.preventDefault();
                     const result = await run((s) => s.portfolio.saveSettings(values()));
                     if (!result) return;
-                    toast(!result.ok ? "That slug belongs to another demo profile. Choose another." : result.persisted ? "Portfolio settings saved." : STORAGE_FALLBACK);
+                    toast(!result.ok ? devCopy("That slug belongs to another demo profile. Choose another.", "That slug belongs to another profile. Choose another.") : result.persisted ? "Portfolio settings saved." : STORAGE_FALLBACK);
                   }}
                 >
                   <TextField label="Portfolio title" name="title" defaultValue={view.config.title} required />
@@ -77,7 +78,7 @@ export function PortfolioBuilderScreen() {
                   </label>
                   <label className="check-row">
                     <input name="public" type="checkbox" defaultChecked={view.config.public} />
-                    Public portfolio in demo
+                    {devCopy("Public portfolio in demo", "Public portfolio")}
                   </label>
                   <button className="btn primary sm" type="submit">
                     Save portfolio
@@ -164,7 +165,7 @@ export function PublicPortfolioScreen({ slug }: { slug: string }) {
           </main>
         ) : !view.config.public ? (
           <main id="main" className="container section">
-            <EmptyState title="This portfolio is private." description="Its owner has turned off visibility in this browser prototype." action={<LinkButton href="/talent">Explore talent</LinkButton>} />
+            <EmptyState title="This portfolio is private." description={devCopy("Its owner has turned off visibility in this browser prototype.", "Its owner has turned off visibility.")} action={<LinkButton href="/talent">Explore talent</LinkButton>} />
           </main>
         ) : (
           <main id="main" style={{ padding: "30px 16px 60px" }}>

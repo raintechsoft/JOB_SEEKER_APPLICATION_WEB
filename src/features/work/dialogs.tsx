@@ -6,6 +6,7 @@ import type { Id, IsoDate, Project, WorkUpdate } from "@/types/domain";
 import { formatLongDate, formatShortDate, today } from "@/lib/utils/date";
 import { parseSkills } from "@/lib/utils/text";
 import { safeUrl } from "@/lib/utils/url";
+import { devCopy } from "@/lib/env/app-env";
 import { useZodForm } from "@/lib/validation/form";
 import { projectSchema, updateSchema, type ProjectFormValues, type UpdateFormValues } from "@/lib/validation/work";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
@@ -13,6 +14,7 @@ import { modal, useModalStore } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Badge, Button, EmptyState } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { CheckRow, FileField, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { confirmAction, FormError } from "@/components/ui/feedback";
 import { ProjectCard } from "@/components/work/project-card";
@@ -62,7 +64,9 @@ function ProjectDetails({ id }: { id: Id }) {
             </Button>
           )}
         </div>
-        <p className="notice">Sample projects and external example links illustrate the prototype. Uploaded covers stay in this browser.</p>
+        <DevOnly>
+          <p className="notice">Sample projects and external example links illustrate the prototype. Uploaded covers stay in this browser.</p>
+        </DevOnly>
       </div>
     </>
   );
@@ -289,7 +293,7 @@ export function useUpdateDialogs() {
       if (u) modal.show(u.title, <UpdateDetails id={id} />);
     },
     remove: (id: Id) =>
-      confirmAction("Delete this update?", "It will be removed from your feed and Work Pulse in this browser.", async () => {
+      confirmAction("Delete this update?", devCopy("It will be removed from your feed and Work Pulse in this browser.", "It will be removed from your feed and Work Pulse."), async () => {
         await run((s) => s.work.deleteUpdate(id));
         modal.close();
         toast("Update removed. Your Work Pulse is up to date.");

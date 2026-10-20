@@ -3,6 +3,7 @@
 import { Fragment, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FeedFilter } from "@/services/feed/feed.service";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Button, EmptyState } from "@/components/ui/primitives";
@@ -75,7 +76,7 @@ export function ProfessionalFeedScreen() {
                 <span>
                   {data.total} {label} {feed.query ? "matching “" + feed.query + "”" : ""}
                 </span>
-                <span>From your demo community</span>
+                <span>{devCopy("From your demo community", "From your community")}</span>
               </div>
               {data.items.length ? (
                 data.items.map((entry, i) => (

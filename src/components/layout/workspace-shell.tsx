@@ -5,6 +5,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Role } from "@/types/domain";
 import { track } from "@/lib/analytics";
+import { devCopy } from "@/lib/env/app-env";
 import { workspaceTitle } from "@/lib/routing/titles";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { useNavigationDock } from "@/hooks/use-navigation-dock";
@@ -93,7 +94,7 @@ function useLogout() {
   return async () => {
     await run((s) => s.workspace.signOut());
     router.push("/");
-    toast("You’ve left the demo workspace. Local changes are kept.");
+    toast(devCopy("You’ve left the demo workspace. Local changes are kept.", "You’ve signed out."));
   };
 }
 
@@ -153,7 +154,7 @@ export function ProfessionalShell({ children }: { children: ReactNode }) {
       account={
         <AccountMenu person={data?.person}>
           <strong>{data?.person.name}</strong>
-          <span>Professional demo account</span>
+          <span>{devCopy("Professional demo account", "Professional account")}</span>
           <Link href="/app/profile">
             <Icon name="user" />
             Profile

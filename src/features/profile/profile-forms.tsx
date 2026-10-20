@@ -5,6 +5,7 @@ import type { ProfileCollection, ProfileRecord, Professional, ProfessionalDetail
 import type { ProfileSection } from "@/services/profile/profile.service";
 import { ACCOMPLISHMENT_TYPES } from "@/lib/domain/profile";
 import { today } from "@/lib/utils/date";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction } from "@/hooks/use-services";
 import { modal, useModalStore } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
@@ -187,7 +188,7 @@ export function SectionForm({ section, person: p, details: d }: { section: Profi
             Open to opportunities
           </CheckRow>
           <CheckRow name="public" defaultChecked={p.public}>
-            Make my professional profile public in the demo
+            {devCopy("Make my professional profile public in the demo", "Make my professional profile public")}
           </CheckRow>
           <CheckRow name="publicEmail" defaultChecked={d.privacy.email}>
             Show my email on public profiles and portfolio
@@ -235,7 +236,7 @@ export function PhotoForm({ person }: { person: Professional }) {
       <div className="center">
         <Avatar person={person} size="xl" />
       </div>
-      <FileField label="Choose a photo" name="photo" accept="image/png,image/jpeg,image/webp" required hint="PNG, JPEG, or WebP up to 1 MB. Saved locally." />
+      <FileField label="Choose a photo" name="photo" accept="image/png,image/jpeg,image/webp" required hint={devCopy("PNG, JPEG, or WebP up to 1 MB. Saved locally.", "PNG, JPEG, or WebP up to 1 MB.")} />
       <div id="profile-form-error">
         <FormError message={error} />
       </div>

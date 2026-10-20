@@ -7,6 +7,7 @@ import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-serv
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Button, IconButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { SelectField, TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
 
@@ -54,7 +55,9 @@ function AlertEditor({ alert }: { alert: JobAlert | null }) {
         <input name="enabled" type="checkbox" defaultChecked={!alert || alert.enabled} />
         Keep this alert active
       </label>
-      <p className="notice">Alerts filter the fictional jobs in this browser. They don’t send email or monitor external job boards.</p>
+      <DevOnly>
+        <p className="notice">Alerts filter the fictional jobs in this browser. They don’t send email or monitor external job boards.</p>
+      </DevOnly>
       <div className="modal-footer">
         {alert && (
           <Button variant="danger sm" icon="trash" onClick={() => dialogs.remove(alert.id)}>

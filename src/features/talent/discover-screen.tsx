@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { TalentFilters } from "@/services/talent/talent.service";
 import { EMPTY_TALENT_FILTERS } from "@/services/talent/talent.service";
 import { track } from "@/lib/analytics";
+import { DevOnly } from "@/components/ui/dev-only";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
@@ -26,7 +27,10 @@ function TalentResults({ publicMode }: { publicMode: boolean }) {
     <>
       <div className="row between wrap" style={{ marginBottom: 20 }}>
         <p className="small muted">
-          <strong style={{ color: "var(--ink)" }}>{list?.length ?? 0}</strong> professionals to explore <span style={{ marginLeft: 7 }}>· Fictional demo directory</span>
+          <strong style={{ color: "var(--ink)" }}>{list?.length ?? 0}</strong> professionals to explore{" "}
+          <DevOnly>
+            <span style={{ marginLeft: 7 }}>· Fictional demo directory</span>
+          </DevOnly>
         </p>
         <div className="row gap8">
           <label className="small muted" htmlFor="talent-sort">

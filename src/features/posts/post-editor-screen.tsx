@@ -6,6 +6,8 @@ import type { PostDraft, Project, Role } from "@/types/domain";
 import type { PersonSummary } from "@/types/api";
 import type { FeedEntry } from "@/services/feed/feed.service";
 import { track } from "@/lib/analytics";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { IMAGE_TYPES, MB, readImage } from "@/lib/utils/files";
 import { safeVideoUrl } from "@/lib/utils/url";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
@@ -54,14 +56,14 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
   const [d, setD] = useState(initial);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("Your draft stays in this browser.");
+  const [saveStatus, setSaveStatus] = useState(devCopy("Your draft stays in this browser.", "Your draft is saved as you write."));
   const fileInput = useRef<HTMLInputElement>(null);
   const home = role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard";
   const publicProjects = projects.filter((p) => p.visibility === "Public");
 
   const persist = async (next: PostDraft) => {
     const ok = await services.jobPosts.storePostDraft(role, next);
-    setSaveStatus(ok ? "Draft saved in this browser" : "Draft is only kept on this page. Browser storage is full.");
+    setSaveStatus(ok ? devCopy("Draft saved in this browser", "Draft saved") : "Draft is only kept on this page. Browser storage is full.");
     return ok;
   };
   const update = (patch: Partial<PostDraft>) => {
@@ -138,7 +140,7 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
     track("post_published", { mediaCount: draft.media.length, hasProject: !!draft.project });
     setFeed({ filter: "all", sort: "recent", query: "" });
     router.push(home + "?post=" + encodeURIComponent(result.id));
-    toast("Your demo post is now in your feed.");
+    toast(devCopy("Your demo post is now in your feed.", "Your post is now in your feed."));
   };
 
   return (
@@ -312,7 +314,9 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
                     </Button>
                   </div>
                 </div>
-                <p className="notice">Your post will appear in the public demo feed in this browser. It won’t be sent to an external social network.</p>
+                <DevOnly>
+                  <p className="notice">Your post will appear in the public demo feed in this browser. It won’t be sent to an external social network.</p>
+                </DevOnly>
               </>
             )}
           </form>
@@ -336,7 +340,7 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
             </Button>
             <button className="btn primary" form="post-editor-form" type="submit" disabled={busy}>
               <Icon name={d.step === 2 ? "send" : "arrow"} />
-              {d.step === 2 ? "Publish demo post" : "Next"}
+              {d.step === 2 ? devCopy("Publish demo post", "Publish post") : "Next"}
             </button>
           </div>
           <p className="small muted post-editor-footer-note">{busy ? "Adding your media…" : "Progress is saved as you write."}</p>

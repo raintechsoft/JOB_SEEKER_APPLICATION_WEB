@@ -10,6 +10,8 @@ import { useServiceAction } from "@/hooks/use-services";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { Button } from "@/components/ui/primitives";
 import { TextField } from "@/components/ui/field";
 import { AuthHeader, AuthStory } from "@/components/layout/auth-chrome";
@@ -21,7 +23,7 @@ function GoogleSignInButton() {
       <div className="auth-method-divider">
         <span>or</span>
       </div>
-      <button type="button" className="auth-google-button" onClick={() => toast("Google sign-in is not connected yet. Please use email or a demo login.")}>
+      <button type="button" className="auth-google-button" onClick={() => toast(devCopy("Google sign-in is not connected yet. Please use email or a demo login.", "Google sign-in is not available yet. Please use your email address."))}>
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
           <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.36Z" />
           <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.41l-3.24-2.51c-.9.6-2.05.96-3.38.96-2.61 0-4.83-1.76-5.62-4.12H3.03v2.59A10 10 0 0 0 12 22Z" />
@@ -45,7 +47,7 @@ function SignInForm({ role }: { role: Role }) {
       onSubmit={handleSubmit(async () => {
         await run((s) => s.workspace.signIn(role));
         router.push(role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard");
-        toast("Welcome to the demo. Authentication is simulated.");
+        toast(devCopy("Welcome to the demo. Authentication is simulated.", "Welcome back."));
       })}
     >
       <TextField label="Email address" type="email" required autoComplete="email" placeholder="you@example.com" {...register("email")} />
@@ -134,28 +136,32 @@ function AuthLayout({ signup, role }: { signup: boolean; role: Role }) {
                 Don’t have a registered email? Create account <Icon name="arrow" />
               </Link>
             ) : (
-              <div className="demo-login">
-                <p>JUST LOOKING AROUND? JUMP RIGHT IN.</p>
-                <div className="grid cols2">
-                  <Button icon="user" onClick={() => demo("professional")}>
-                    Professional demo
-                  </Button>
-                  <Button icon="users" onClick={() => demo("recruiter")}>
-                    Recruiter demo
-                  </Button>
+              <DevOnly>
+                <div className="demo-login">
+                  <p>JUST LOOKING AROUND? JUMP RIGHT IN.</p>
+                  <div className="grid cols2">
+                    <Button icon="user" onClick={() => demo("professional")}>
+                      Professional demo
+                    </Button>
+                    <Button icon="users" onClick={() => demo("recruiter")}>
+                      Recruiter demo
+                    </Button>
+                  </div>
+                  <Link className="auth-admin-link" href="/admin/dashboard">
+                    Explore the optional admin demo
+                  </Link>
                 </div>
-                <Link className="auth-admin-link" href="/admin/dashboard">
-                  Explore the optional admin demo
-                </Link>
-              </div>
+              </DevOnly>
             )}
           </div>
         </section>
       </div>
       {signup && (
-        <footer className="auth-workspace-footer">
-          <Icon name="shield" />A frontend prototype. Your demo data stays in this browser.
-        </footer>
+        <DevOnly>
+          <footer className="auth-workspace-footer">
+            <Icon name="shield" />A frontend prototype. Your demo data stays in this browser.
+          </footer>
+        </DevOnly>
       )}
     </main>
   );

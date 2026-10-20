@@ -16,6 +16,8 @@ import { Icon } from "@/components/ui/icon";
 import { Button, EmptyState, IconButton, LinkButton } from "@/components/ui/primitives";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { ScreenFallback } from "@/components/ui/feedback";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { JobArtwork, JobMediaExtras, type JobVisualData } from "@/components/jobs/job-visuals";
 
 const STEPS = ["Job details", "Preferred candidate details", "Job description", "Screening questions", "Advanced options", "Media & thumbnail", "Review & publish"];
@@ -90,7 +92,9 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
       }}
     >
       <p className="job-ai-intro">Give us the essentials. We’ll prepare the job text, suggested skills, and screening questions for your final review.</p>
-      <span className="job-ai-demo-label">Demo generator · Role-based templates</span>
+      <DevOnly>
+        <span className="job-ai-demo-label">Demo generator · Role-based templates</span>
+      </DevOnly>
       <TextField label="Role name" name="role" defaultValue={values.role || values.title} required maxLength={100} />
       <div className="grid cols2">
         <TextField label="Minimum experience (years)" name="experienceMin" type="number" defaultValue={String(values.experienceMin)} required min={0} max={50} step={1} />
@@ -144,7 +148,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
   const [d, setD] = useState<JobDraft>(ctx.draft);
   const [errors, setErrors] = useState<Errors>({});
   const [uploadBusy, setUploadBusy] = useState(false);
-  const [savedNote, setSavedNote] = useState(ctx.draft.savedAt ? "Progress saved in this browser" : "Your progress is saved as you work.");
+  const [savedNote, setSavedNote] = useState(ctx.draft.savedAt ? devCopy("Progress saved in this browser", "Progress saved") : "Your progress is saved as you work.");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -158,7 +162,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
 
   const store = async (next: JobDraft) => {
     const ok = await services.jobPosts.storeJobDraft(ctx.key, next);
-    if (ok) setSavedNote("Progress saved in this browser");
+    if (ok) setSavedNote(devCopy("Progress saved in this browser", "Progress saved"));
     return ok;
   };
   /** Updates values; any edit invalidates a generated draft's verification, as in the prototype. */
@@ -221,7 +225,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
     void store(next).then((ok) => !ok && toast("Browser storage is full. The generated draft is only available on this page."));
     modal.close();
     window.scrollTo(0, 0);
-    toast("Demo draft ready. Review, edit, and verify before publishing.");
+    toast(devCopy("Demo draft ready. Review, edit, and verify before publishing.", "Draft ready. Review, edit, and verify before publishing."));
   };
 
   const submit = async () => {
@@ -245,7 +249,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
     if (ok === undefined) return;
     if (!ok) return toast("Browser storage is full. Remove some uploaded media and try again.");
     router.push("/recruiter/applications");
-    toast("Your job is published in the local demo feed.");
+    toast(devCopy("Your job is published in the local demo feed.", "Your job is published."));
   };
 
   const saveAndExit = async () => {
@@ -507,9 +511,11 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
         </div>
         <p className="wizard-help">Recruiter contact details are kept out of the public feed.</p>
         {check("Require candidates to include their portfolio", "requirePortfolio")}
-        {check("Keep response notifications enabled in this demo", "notifyResponses")}
+        {check(devCopy("Keep response notifications enabled in this demo", "Keep response notifications enabled"), "notifyResponses")}
         {area("Application instructions (optional)", "applicationInstructions", { maxLength: 1500 })}
-        <p className="notice">Applications and notification preferences are simulated in this browser. No emails are sent.</p>
+        <DevOnly>
+          <p className="notice">Applications and notification preferences are simulated in this browser. No emails are sent.</p>
+        </DevOnly>
       </div>
     ),
     () => (
@@ -581,7 +587,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               }}
             />
           </label>
-          <p className="wizard-help">Images, PDFs, MP4, or WebM. Up to three files, 1 MB per file and 1.5 MB in total. Files stay in this browser.</p>
+          <p className="wizard-help">Images, PDFs, MP4, or WebM. Up to three files, 1 MB per file and 1.5 MB in total.{devCopy(" Files stay in this browser.", "")}</p>
           <div className="wizard-supporting-files">
             {v.jobMedia.files.map((f, i) => (
               <div key={f.id}>
@@ -643,7 +649,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               <div>
                 <Icon name="spark" />
                 <div>
-                  <strong>Your demo draft is ready</strong>
+                  <strong>{devCopy("Your demo draft is ready", "Your draft is ready")}</strong>
                   <p>Review the role-based suggestions below. Edit the text or remove individual items, then verify before publishing.</p>
                 </div>
               </div>
@@ -737,7 +743,9 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               <input type="checkbox" name="aiVerified" required checked={!!v.aiVerified} onChange={(e) => set({ aiVerified: e.target.checked })} />
               I’ve checked the job details and removed anything unnecessary.
             </label>
-            <p className="notice">This demo uses role-based templates rather than a connected AI service. Publishing saves the job in this browser’s demo feed.</p>
+            <DevOnly>
+              <p className="notice">This demo uses role-based templates rather than a connected AI service. Publishing saves the job in this browser’s demo feed.</p>
+            </DevOnly>
           </>
         );
       }
@@ -753,7 +761,9 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
         <>
           {artwork}
           {sections.map(([title, copy], i) => reviewSection(title, i, <p>{copy}</p>))}
-          <p className="notice">Publishing saves this demo job in your local feed. It does not publish to an external job board or send notifications.</p>
+          <DevOnly>
+            <p className="notice">Publishing saves this demo job in your local feed. It does not publish to an external job board or send notifications.</p>
+          </DevOnly>
         </>
       );
     },

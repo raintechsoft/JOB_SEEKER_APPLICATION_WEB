@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { Icon } from "@/components/ui/icon";
 import { Brand, IconButton, LinkButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { workspaceDialogs } from "@/features/workspace/dialogs";
 
 export function EmployerMenu({ variant = "public" }: { variant?: "public" | "auth" }) {
@@ -86,10 +87,12 @@ export function PublicFooter() {
         <nav>
           <Link href="/how-it-works">How it works</Link>
           <Link href="/talent">Explore talent</Link>
-          <button type="button" onClick={workspaceDialogs.privacy}>
-            Privacy & demo data
-          </button>
-          <Link href="/login">Try the demo</Link>
+          <DevOnly>
+            <button type="button" onClick={workspaceDialogs.privacy}>
+              Privacy & demo data
+            </button>
+            <Link href="/login">Try the demo</Link>
+          </DevOnly>
         </nav>
       </div>
     </footer>

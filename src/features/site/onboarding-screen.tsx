@@ -9,6 +9,8 @@ import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, Tags } from "@/components/ui/primitives";
 import { TextAreaField, TextField } from "@/components/ui/field";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 
 const HEADINGS = ["Let’s start with your story.", "Bring your experience with you.", "The things you bring to the table.", "Ready for your next chapter?"];
 const SUBTITLES = ["A few introductions", "CV review", "Skills & background", "One last look"];
@@ -31,7 +33,7 @@ export function OnboardingScreen() {
     if (recruiter) {
       await run((s) => s.onboarding.completeRecruiterOnboarding({ recruiter: get("recruiter"), email: get("email"), name: get("name"), title: get("title"), website: get("website"), interests: get("interests") }));
       router.push("/recruiter/dashboard");
-      toast("Your demo recruiter workspace is ready.");
+      toast(devCopy("Your demo recruiter workspace is ready.", "Your recruiter workspace is ready."));
       return;
     }
     const input = {
@@ -52,12 +54,12 @@ export function OnboardingScreen() {
 
   const parseCv = async () => {
     if (cvParsed) {
-      toast("Sample information is ready to edit below.");
+      toast(devCopy("Sample information is ready to edit below.", "Your CV details are ready to edit below."));
       return;
     }
     await run((s) => s.onboarding.loadSampleCv());
     setOnboarding({ cvParsed: true });
-    toast("Sample CV information loaded. This is simulated parsing.");
+    toast(devCopy("Sample CV information loaded. This is simulated parsing.", "CV details loaded. Review and edit them below."));
   };
 
   return (
@@ -83,7 +85,9 @@ export function OnboardingScreen() {
               <TextField label="Company website" name="website" type="url" defaultValue={company.website} />
               <TextField label="Hiring interests" name="interests" defaultValue={company.interests} />
             </div>
-            <p className="notice">Your company starts as Not verified. Verification in this prototype is a demo review status.</p>
+            <DevOnly>
+              <p className="notice">Your company starts as Not verified. Verification in this prototype is a demo review status.</p>
+            </DevOnly>
           </>
         ) : step === 0 ? (
           <div className="grid cols2">
@@ -114,11 +118,13 @@ export function OnboardingScreen() {
                   setOnboarding({ cvName: file?.name || "" });
                 }}
               />
-              <p id="cv-status">{cvName ? "Selected: " + cvName + " · Local only" : "No file selected. You can also continue without a CV."}</p>
+              <p id="cv-status">{cvName ? "Selected: " + cvName + devCopy(" · Local only", "") : "No file selected. You can also continue without a CV."}</p>
             </div>
-            <p className="notice">Simulated CV parsing: the file stays on your device. We use sample information, not extracted content. Review and edit it below before continuing.</p>
+            <DevOnly>
+              <p className="notice">Simulated CV parsing: the file stays on your device. We use sample information, not extracted content. Review and edit it below before continuing.</p>
+            </DevOnly>
             <Button icon="spark" onClick={parseCv}>
-              {cvParsed ? "Sample information loaded" : "Load sample CV information"}
+              {cvParsed ? devCopy("Sample information loaded", "CV details loaded") : devCopy("Load sample CV information", "Fill in from my CV")}
             </Button>
             <div id="cv-review" className="grid cols2">
               <TextField label="Skills (comma separated)" name="skills" defaultValue={p.skills.join(", ")} />
@@ -148,9 +154,11 @@ export function OnboardingScreen() {
             <p className="small muted">{p.experience}</p>
             <label className="check-row">
               <input name="public" type="checkbox" defaultChecked={p.public} />
-              Make my professional profile visible in the demo directory
+              {devCopy("Make my professional profile visible in the demo directory", "Make my professional profile visible in the talent directory")}
             </label>
-            <p className="notice">This is a local prototype setting. It does not create secure access controls. Your profile and updates are stored in this browser.</p>
+            <DevOnly>
+              <p className="notice">This is a local prototype setting. It does not create secure access controls. Your profile and updates are stored in this browser.</p>
+            </DevOnly>
           </>
         )}
         <div className="form-actions">

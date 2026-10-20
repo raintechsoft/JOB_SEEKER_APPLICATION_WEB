@@ -9,6 +9,8 @@ import { useServiceQuery } from "@/hooks/use-services";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, LinkButton } from "@/components/ui/primitives";
 import { ScreenFallback } from "@/components/ui/feedback";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { VerificationBadge } from "@/components/organization/controls";
 import { useJobActions } from "@/features/feed/job-dialogs";
 import { recruiterAvatar } from "./team-section";
@@ -68,7 +70,7 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
           <div>
             <Icon name="eye" />
             <span>
-              <strong>Public profile preview</strong>Reflects your current local edits. {o.profileVisibility === "Hidden" ? "Organization visibility is Hidden." : ""}
+              <strong>Public profile preview</strong>{devCopy("Reflects your current local edits. ", "Reflects your current edits. ")}{o.profileVisibility === "Hidden" ? "Organization visibility is Hidden." : ""}
             </span>
           </div>
           <LinkButton href={"/recruiter/company?section=" + encodeURIComponent(section)} variant="sm" icon="edit">
@@ -76,7 +78,9 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
           </LinkButton>
         </div>
       ) : (
-        <p className="org-demo-caption">Demonstration organization · Browser-local prototype</p>
+        <DevOnly>
+          <p className="org-demo-caption">Demonstration organization · Browser-local prototype</p>
+        </DevOnly>
       )}
       <header className="card org-public-hero">
         <div className="org-public-cover">
@@ -233,7 +237,9 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
           </Section>
         </aside>
       </div>
-      <p className="org-demo-caption">Fictional company data. Verification badges represent explicit demo review states.</p>
+      <DevOnly>
+        <p className="org-demo-caption">Fictional company data. Verification badges represent explicit demo review states.</p>
+      </DevOnly>
     </div>
   );
 }
@@ -252,7 +258,9 @@ function RecruiterPage({ r, o, preview, editHref }: { r: PublicRecruiter; o: Pub
           </LinkButton>
         </div>
       ) : (
-        <p className="org-demo-caption">Demonstration recruiter profile</p>
+        <DevOnly>
+          <p className="org-demo-caption">Demonstration recruiter profile</p>
+        </DevOnly>
       )}
       <section className="card org-public-section org-recruiter-public-hero">
         <Avatar person={recruiterAvatar(r)} size="xl" />

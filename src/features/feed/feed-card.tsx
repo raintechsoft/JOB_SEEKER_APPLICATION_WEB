@@ -7,6 +7,7 @@ import type { Role } from "@/types/domain";
 import type { FeedEntry } from "@/services/feed/feed.service";
 import { timeAgo } from "@/lib/utils/date";
 import { firstName } from "@/lib/utils/text";
+import { devCopy } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
@@ -16,6 +17,7 @@ import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { FeedActionIcon, Icon } from "@/components/ui/icon";
 import { Avatar, Badge, Button, LinkButton, Tags } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingInput, TextField } from "@/components/ui/field";
 import { CompanyAvatar, JobArtwork, JobMediaExtras } from "@/components/jobs/job-visuals";
 import { FeedArtwork } from "@/components/feed/feed-artwork";
@@ -46,7 +48,7 @@ function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
             <Avatar person={c.author} />
             <div className="feed-comment-bubble">
               <strong>{c.author.name}</strong>
-              <span>{timeAgo(c.createdAt)} · Demo comment</span>
+              <span>{timeAgo(c.createdAt) + devCopy(" · Demo comment", "")}</span>
               <p>{c.text}</p>
             </div>
           </div>
@@ -63,7 +65,7 @@ function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
           await run((s) => s.feed.addComment(role, entry.id, text));
           form.reset();
           track("post_commented", { postId: entry.id });
-          toast("Comment saved locally.");
+          toast(devCopy("Comment saved locally.", "Comment posted."));
         }}
       >
         {identity ? <Avatar person={identity} /> : <span className="avatar" />}
@@ -75,7 +77,9 @@ function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
           <Icon name="send" />
         </button>
       </form>
-      <small>Comments are saved locally in this demo.</small>
+      <DevOnly>
+        <small>Comments are saved locally in this demo.</small>
+      </DevOnly>
     </section>
   );
 }
@@ -172,9 +176,9 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
     const url = window.location.origin + (role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard") + "?post=" + encodeURIComponent(entry.id);
     try {
       await navigator.clipboard.writeText(url);
-      toast("Post link copied. Local-only content stays in this browser.");
+      toast(devCopy("Post link copied. Local-only content stays in this browser.", "Post link copied."));
     } catch {
-      modal.show("Share this demo post", <TextField label="Post link" name="link" defaultValue={url} readOnly onClick={(e) => e.currentTarget.select()} />);
+      modal.show(devCopy("Share this demo post", "Share this post"), <TextField label="Post link" name="link" defaultValue={url} readOnly onClick={(e) => e.currentTarget.select()} />);
     }
   };
 
@@ -275,7 +279,7 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
             <div className="row between wrap feed-job-bottom">
               <div>
                 <strong>{entry.job!.salary}</strong>
-                <span>{entry.job!.hideSalary ? "Compensation details" : "Illustrative salary range"}</span>
+                <span>{entry.job!.hideSalary ? "Compensation details" : devCopy("Illustrative salary range", "Salary range")}</span>
               </div>
               {role === "recruiter" && entry.job!.ownedByViewer ? (
                 <LinkButton href={"/recruiter/applications?job=" + entry.id} variant="primary" icon="users">

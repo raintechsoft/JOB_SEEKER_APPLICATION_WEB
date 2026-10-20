@@ -2,6 +2,7 @@
 
 import type { Id, Role } from "@/types/domain";
 import type { FeedEntry } from "@/services/feed/feed.service";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
@@ -22,7 +23,7 @@ function EditPost({ entry, role }: { entry: FeedEntry; role: Role }) {
         const ok = await run((s) => s.feed.updatePost(role, entry.id, { title: String(f.get("title") || "").trim(), body: String(f.get("body") || "").trim() }));
         if (ok === undefined) return;
         modal.close();
-        toast(recruiter ? "Changes saved in your demo workspace." : "Changes saved.");
+        toast(recruiter ? devCopy("Changes saved in your demo workspace.", "Changes saved.") : "Changes saved.");
       }}
     >
       <TextField label={recruiter ? "Title" : "Post title"} name="title" defaultValue={entry.title} required maxLength={150} />
@@ -45,7 +46,7 @@ export function usePostDialogs() {
     remove: (role: Role, id: Id) =>
       confirmAction(
         "Delete this post?",
-        role === "recruiter" ? "Your post will be removed from this browser’s community feed." : "This removes your post and its comments from this browser.",
+        role === "recruiter" ? devCopy("Your post will be removed from this browser’s community feed.", "Your post will be removed from the community feed.") : devCopy("This removes your post and its comments from this browser.", "This removes your post and its comments."),
         async () => {
           await run((s) => s.feed.deletePost(role, id));
           modal.close();

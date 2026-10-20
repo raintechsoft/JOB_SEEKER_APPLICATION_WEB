@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { CandidateView } from "@/services/talent/talent.service";
 import { firstName } from "@/lib/utils/text";
+import { devCopy } from "@/lib/env/app-env";
+import { DevOnly } from "@/components/ui/dev-only";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
@@ -25,7 +27,9 @@ function Candidate({ view, publicView }: { view: CandidateView; publicView: bool
         <Link href={publicView ? "/talent" : "/recruiter/discover"} className="small muted">
           ← Back to talent
         </Link>
-        <span className="tag">Fictional demo professional</span>
+        <DevOnly>
+          <span className="tag">Fictional demo professional</span>
+        </DevOnly>
       </div>
       <div className="profile-cover" />
       <header className="profile-header">
@@ -152,7 +156,7 @@ export function PublicCandidateScreen({ slug }: { slug: string }) {
           </main>
         ) : !view.person.public ? (
           <main id="main" className="container section">
-            <EmptyState title="This profile is private." description="Explore other professionals in the demo directory." action={<LinkButton href="/talent">Explore talent</LinkButton>} />
+            <EmptyState title="This profile is private." description={devCopy("Explore other professionals in the demo directory.", "Explore other professionals in the directory.")} action={<LinkButton href="/talent">Explore talent</LinkButton>} />
           </main>
         ) : (
           <main id="main" className="container" style={{ paddingTop: 25, paddingBottom: 60 }}>

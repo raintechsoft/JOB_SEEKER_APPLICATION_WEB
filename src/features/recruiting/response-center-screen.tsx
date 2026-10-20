@@ -7,6 +7,7 @@ import type { HiringStage, Id } from "@/types/domain";
 import { RESPONSE_FILTER_KEYS, RESPONSE_TABS, type ResponseItem, type ResponseParams, type ResponseTab } from "@/services/recruiting/recruiting.service";
 import { formatLocaleDate, formatLongDate } from "@/lib/utils/date";
 import { downloadFile } from "@/lib/utils/files";
+import { devCopy } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
@@ -14,6 +15,7 @@ import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, IconButton, LinkButton, PageHeading } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingInput, FloatingSelect, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { useContactCandidate } from "@/features/talent/dialogs";
 import { openReview } from "./review-dialog";
@@ -68,10 +70,12 @@ function Filters({ q }: { q: ResponseParams }) {
           Clear
         </LinkButton>
       </div>
-      <Button variant="primary response-ai-button" icon="spark" onClick={() => modal.show("AI filter · Keyword matching demo", <AiFilterForm q={q} />, "project")}>
+      <Button variant="primary response-ai-button" icon="spark" onClick={() => modal.show(devCopy("AI filter · Keyword matching demo", "AI filter"), <AiFilterForm q={q} />, "project")}>
         AI filter
       </Button>
-      <span className="response-ai-label">Keyword-matching demo</span>
+      <DevOnly>
+        <span className="response-ai-label">Keyword-matching demo</span>
+      </DevOnly>
       <form
         id="response-advanced-filter"
         key={params.toString()}
@@ -219,7 +223,7 @@ function AiFilterForm({ q }: { q: ResponseParams }) {
         setResponses({ selection: [] });
         modal.close();
         router.push(BASE + "?" + next);
-        toast(result.matches + " keyword matches · " + result.shortlisted + " responses shortlisted in this demo.");
+        toast(result.matches + " keyword matches · " + result.shortlisted + devCopy(" responses shortlisted in this demo.", " responses shortlisted."));
       }}
     >
       <SelectField label="Job scope" name="job" defaultValue={q.job || ""} options={[{ value: "", label: "All job responses" }, ...page.jobs.map((j) => ({ value: j.id, label: j.title }))]} />
@@ -267,7 +271,7 @@ function NoteForm({ item }: { item: ResponseItem }) {
     >
       <h3>{item.profile.name}</h3>
       <TextAreaField label="Your note" name="note" defaultValue={item.application.recruiterNote} maxLength={2000} />
-      <p className="small muted">Private hiring notes are saved in this browser.</p>
+      <p className="small muted">{devCopy("Private hiring notes are saved in this browser.", "Hiring notes are private.")}</p>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
         <Button type="submit" variant="primary">
@@ -292,11 +296,13 @@ function ContactDialog({ item }: { item: ResponseItem }) {
       </div>
       <TextField label="Application email" name="email" defaultValue={p.email} readOnly />
       {p.phone ? <TextField label="Shared phone number" name="phone" defaultValue={p.phone} readOnly /> : <p className="small muted">Phone number not shared with this application.</p>}
-      <p className="notice">These are fictional or applicant-supplied demo details. No call or email is sent.</p>
+      <DevOnly>
+        <p className="notice">These are fictional or applicant-supplied demo details. No call or email is sent.</p>
+      </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Close</Button>
         <Button variant="primary" icon="message" onClick={() => contact(p.id)}>
-          Open demo message
+          {devCopy("Open demo message", "Send message")}
         </Button>
       </div>
     </div>
@@ -314,7 +320,7 @@ function OutreachForm({ ids, names }: { ids: Id[]; names: string[] }) {
         const f = new FormData(e.currentTarget);
         await run((s) => s.recruiting.saveOutreach(ids, String(f.get("subject") || "").trim(), String(f.get("message") || "").trim()));
         modal.close();
-        toast("Outreach draft saved locally. No email was sent.");
+        toast(devCopy("Outreach draft saved locally. No email was sent.", "Outreach draft saved."));
       }}
     >
       <p className="small muted">For {names.join(", ")}</p>
@@ -445,7 +451,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
       </aside>
       <footer className="response-candidate-footer">
         <span>
-          {a.sample ? "Sample application" : "Local demo response"} · Applied {formatLongDate(a.createdAt.slice(0, 10))}
+          {devCopy(a.sample ? "Sample application" : "Local demo response", "Application")} · Applied {formatLongDate(a.createdAt.slice(0, 10))}
         </span>
         <Button variant="text sm" icon="edit" onClick={() => openReview(a.id)}>
           Review tracking
@@ -597,7 +603,7 @@ export function ResponseCenterScreen() {
               <Icon name="spark" />
               <div>
                 <strong>Keyword match filter is on · {q.threshold || 60}% minimum</strong>
-                <p>{q.fitTerms ? "Terms: " + q.fitTerms : "Uses the skills listed on each applicant’s job post."} Matches use saved profile/project text and any supplied resume text. This is a local matching demo.</p>
+                <p>{q.fitTerms ? "Terms: " + q.fitTerms : "Uses the skills listed on each applicant’s job post."}{devCopy(" Matches use saved profile/project text and any supplied resume text. This is a local matching demo.", " Matches use saved profile/project text and any supplied resume text.")}</p>
               </div>
               <Button variant="text sm" icon="close" onClick={() => router.push(url({ fit: "", fitTerms: "", threshold: "", page: "" }))}>
                 Clear match filter
@@ -689,10 +695,12 @@ export function ResponseCenterScreen() {
                 </div>
               ))}
           </div>
-          <p className="response-local-note">
-            <Icon name="shield" />
-            Fictional and locally saved applications. Statuses, notes, match results, and outreach drafts stay in this browser. No external messages are sent.
-          </p>
+          <DevOnly>
+            <p className="response-local-note">
+              <Icon name="shield" />
+              Fictional and locally saved applications. Statuses, notes, match results, and outreach drafts stay in this browser. No external messages are sent.
+            </p>
+          </DevOnly>
         </section>
       </div>
     </div>

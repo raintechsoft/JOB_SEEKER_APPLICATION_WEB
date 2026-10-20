@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { Id } from "@/types/domain";
 import type { ManagedJob } from "@/services/recruiting/recruiting.service";
 import { formatLongDate } from "@/lib/utils/date";
+import { devCopy } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
@@ -14,6 +15,7 @@ import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Button, EmptyState, IconButton, LinkButton, PageHeading } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingSelect, TextAreaField, TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
 import { JobArtwork, JobMediaExtras } from "@/components/jobs/job-visuals";
@@ -105,7 +107,9 @@ function ShareJob({ job }: { job: ManagedJob }) {
     <div className="stack">
       <h3>{job.title}</h3>
       <TextField label="Job link" name="job-share-link" defaultValue={url} readOnly />
-      <p className="notice">This link opens the demo job in the job seeker feed. Local changes and jobs created in this browser are not synchronized to other devices.</p>
+      <DevOnly>
+        <p className="notice">This link opens the demo job in the job seeker feed. Local changes and jobs created in this browser are not synchronized to other devices.</p>
+      </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Close</Button>
         <Button
@@ -150,7 +154,9 @@ function Collaborate({ jobs }: { jobs: ManagedJob[] }) {
       <h3>{jobs.length === 1 ? jobs[0].title : jobs.length + " selected job posts"}</h3>
       <TextField label="Collaborator emails (comma separated)" name="emails" defaultValue={emails.join(", ")} placeholder="colleague@example.com" />
       <TextAreaField label="Team handoff note (optional)" name="note" defaultValue={jobs.length === 1 ? jobs[0].collaborationNote || "" : ""} maxLength={1500} />
-      <p className="notice">These are local demo collaboration settings. No invitations or emails are sent.</p>
+      <DevOnly>
+        <p className="notice">These are local demo collaboration settings. No invitations or emails are sent.</p>
+      </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
         <Button type="submit" variant="primary">
@@ -196,7 +202,7 @@ function JobMenu({ job }: { job: ManagedJob }) {
             variant="text sm"
             icon="trash"
             onClick={() =>
-              confirmAction("Delete draft?", "This unpublished draft will be removed from this browser.", async () => {
+              confirmAction("Delete draft?", devCopy("This unpublished draft will be removed from this browser.", "This unpublished draft will be removed."), async () => {
                 await run((s) => s.recruiting.deleteDraft(job.id));
                 useUiStore.getState().setJobsManager({ selected: useUiStore.getState().jobsManager.selected.filter((x) => x !== job.id) });
                 modal.close();
@@ -475,7 +481,7 @@ export function JobsManagerScreen() {
               icon="refresh"
               onClick={async () => {
                 await run(async () => undefined);
-                toast("Job list refreshed from this browser’s saved data.");
+                toast(devCopy("Job list refreshed from this browser’s saved data.", "Job list refreshed."));
               }}
             >
               Refresh
@@ -556,10 +562,12 @@ export function JobsManagerScreen() {
                 </div>
               ))}
           </div>
-          <p className="jobs-manager-note">
-            <Icon name="shield" />
-            Local prototype · Job posts, responses, and collaboration settings stay in this browser.
-          </p>
+          <DevOnly>
+            <p className="jobs-manager-note">
+              <Icon name="shield" />
+              Local prototype · Job posts, responses, and collaboration settings stay in this browser.
+            </p>
+          </DevOnly>
         </section>
       </div>
     </div>

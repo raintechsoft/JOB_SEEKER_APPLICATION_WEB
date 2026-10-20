@@ -6,6 +6,8 @@ import type { ProfileSection, ProfileView } from "@/services/profile/profile.ser
 import { ACCOMPLISHMENT_TYPES, type AccomplishmentType } from "@/lib/domain/profile";
 import { formatLocaleDate, formatMonth } from "@/lib/utils/date";
 import { downloadBlob } from "@/lib/utils/files";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
@@ -45,7 +47,7 @@ function useProfileActions(view: ProfileView) {
     section: (name: ProfileSection) =>
       modal.show("Edit " + { identity: "professional profile", headline: "resume headline", summary: "profile summary", career: "career preferences", personal: "personal details", diversity: "optional context" }[name], <SectionForm section={name} person={view.person} details={view.details} />),
     remove: (collection: ProfileCollection, id: string) =>
-      confirmAction("Remove this profile entry?", `This removes the saved entry${collection === "skills" ? " and its linked technical-skill details" : ""} from your profile in this browser.`, async () => {
+      confirmAction("Remove this profile entry?", `This removes the saved entry${collection === "skills" ? " and its linked technical-skill details" : ""} from your profile${devCopy(" in this browser", "")}.`, async () => {
         await run((s) => s.profile.deleteRecord(collection, id));
         modal.close();
         toast("Profile entry removed.");
@@ -324,7 +326,7 @@ function Profile({ view }: { view: ProfileView }) {
     const url = window.location.origin + "/professionals/" + p.slug;
     try {
       await navigator.clipboard.writeText(url);
-      toast("Public profile link copied. Local edits stay in this browser.");
+      toast(devCopy("Public profile link copied. Local edits stay in this browser.", "Public profile link copied."));
     } catch {
       modal.show("Your public profile link", <TextField label="Copy this link" name="copy" defaultValue={url} readOnly onClick={(e) => e.currentTarget.select()} />);
     }
@@ -439,7 +441,9 @@ function Profile({ view }: { view: ProfileView }) {
                   <p>
                     {(resume.size / 1024).toFixed(0)} KB · {resume.format} · Added {formatLocaleDate(resume.uploadedAt)}
                   </p>
-                  <span className="profile-visibility">Stored in this browser</span>
+                  <DevOnly>
+                    <span className="profile-visibility">Stored in this browser</span>
+                  </DevOnly>
                 </div>
                 <IconButton
                   icon="download"
@@ -458,7 +462,7 @@ function Profile({ view }: { view: ProfileView }) {
                   icon="trash"
                   label="Remove resume"
                   onClick={() =>
-                    confirmAction("Remove this resume?", "The resume file and its metadata will be removed from this browser.", async () => {
+                    confirmAction("Remove this resume?", devCopy("The resume file and its metadata will be removed from this browser.", "The resume file and its metadata will be removed from your profile."), async () => {
                       const result = await run((s) => s.profile.removeResume());
                       if (!result) return;
                       if (!result.ok) return toast(result.error);
@@ -482,12 +486,12 @@ function Profile({ view }: { view: ProfileView }) {
                     const file = e.target.files?.[0];
                     e.target.value = "";
                     if (!file) return;
-                    setResumeStatus("Saving to this browser…");
+                    setResumeStatus(devCopy("Saving to this browser…", "Saving…"));
                     const result = await run((s) => s.profile.uploadResume(file));
                     setResumeStatus("");
                     if (!result) return;
                     if (!result.ok) return result.error.startsWith("Choose") ? toast(result.error) : setResumeStatus(result.error);
-                    toast("Resume saved in this browser. No server upload occurred.");
+                    toast(devCopy("Resume saved in this browser. No server upload occurred.", "Resume saved."));
                   }}
                 />
                 <Icon name="upload" />
@@ -734,7 +738,9 @@ function Profile({ view }: { view: ProfileView }) {
           </Section>
         </div>
       </div>
-      <p className="profile-module-note">Skillora prototype · Your changes stay in this browser. Resume files use browser storage; no server upload or document extraction service is connected.</p>
+      <DevOnly>
+        <p className="profile-module-note">Skillora prototype · Your changes stay in this browser. Resume files use browser storage; no server upload or document extraction service is connected.</p>
+      </DevOnly>
     </div>
   );
 }

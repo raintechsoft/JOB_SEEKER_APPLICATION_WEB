@@ -3,11 +3,13 @@
 import { usePathname } from "next/navigation";
 import type { Id, Role } from "@/types/domain";
 import { formatLocaleDate } from "@/lib/utils/date";
+import { devCopy } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Badge, Button, LinkButton, Tags } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
 
@@ -74,7 +76,9 @@ function JobDetails({ id, role }: { id: Id; role: Role }) {
         </div>
       </div>
       <div className="row wrap">
-        <Badge tone="purple">Fictional demo opportunity</Badge>
+        <DevOnly>
+          <Badge tone="purple">Fictional demo opportunity</Badge>
+        </DevOnly>
         <span className="tag">{job.salary}</span>
       </div>
       <p className="small muted">{job.description}</p>
@@ -106,13 +110,15 @@ function JobDetails({ id, role }: { id: Id; role: Role }) {
           <p>{job.applicationInstructions}</p>
         </div>
       )}
-      <p className="notice">{application ? "Your demo application is saved in this browser. It has not been sent to this fictional company." : "Fictional role and salary. Applying saves a local demonstration; no real application is submitted."}</p>
+      <DevOnly>
+        <p className="notice">{application ? "Your demo application is saved in this browser. It has not been sent to this fictional company." : "Fictional role and salary. Applying saves a local demonstration; no real application is submitted."}</p>
+      </DevOnly>
       <div className="modal-footer">
         <Button icon="bookmark" onClick={() => actions.toggleSave("professional", job.id, "job")}>
           {saved ? "Saved" : "Save job"}
         </Button>
         <Button variant="primary" icon="arrow" onClick={() => actions.apply(job.id)}>
-          {application ? "View saved application" : "Apply in demo"}
+          {application ? "View saved application" : devCopy("Apply in demo", "Apply")}
         </Button>
       </div>
     </div>
@@ -132,7 +138,7 @@ function SavedApplication({ jobId }: { jobId: Id }) {
         {a.name} · {a.email}
       </p>
       <p className="small muted">{a.note || "No introduction added."}</p>
-      <p className="notice">Saved locally {formatLocaleDate(a.createdAt)}. Nothing was sent to a real employer.</p>
+      <p className="notice">{devCopy("Saved locally " + formatLocaleDate(a.createdAt) + ". Nothing was sent to a real employer.", "Applied " + formatLocaleDate(a.createdAt) + ".")}</p>
       <LinkButton href="/app/applications" variant="primary" icon="briefcase">
         Track application
       </LinkButton>
@@ -170,7 +176,7 @@ function ApplyForm({ jobId }: { jobId: Id }) {
         );
         track("job_application_completed", { jobId, screeningQuestions: job.screeningQuestions?.length ?? 0 });
         modal.close();
-        toast("Demo application saved locally. Nothing was sent to an employer.");
+        toast(devCopy("Demo application saved locally. Nothing was sent to an employer.", "Application submitted."));
       }}
     >
       <h3>
@@ -216,13 +222,15 @@ function ApplyForm({ jobId }: { jobId: Id }) {
       </details>
       <label className="check-row">
         <input name="portfolio" type="checkbox" defaultChecked required={job.requirePortfolio} />
-        Include my current portfolio in this demo application
+        {devCopy("Include my current portfolio in this demo application", "Include my current portfolio in this application")}
       </label>
-      <p className="notice">This fictional application is saved only in your browser. No CV, profile, or message is sent to an employer.</p>
+      <DevOnly>
+        <p className="notice">This fictional application is saved only in your browser. No CV, profile, or message is sent to an employer.</p>
+      </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
         <Button type="submit" variant="primary" icon="check">
-          Save demo application
+          {devCopy("Save demo application", "Submit application")}
         </Button>
       </div>
     </form>
@@ -246,7 +254,7 @@ export function useJobActions() {
     const data = await services.jobs.getJob(id, "professional");
     if (!data) return;
     if (data.application) {
-      modal.show("Your saved demo application", <SavedApplication jobId={id} />);
+      modal.show(devCopy("Your saved demo application", "Your application"), <SavedApplication jobId={id} />);
       return;
     }
     track("job_application_started", { jobId: id });

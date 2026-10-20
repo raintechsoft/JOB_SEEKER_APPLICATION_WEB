@@ -2,10 +2,12 @@
 
 import type { RecommendedJob } from "@/services/recommendations/recommendations.service";
 import { postedAgo } from "@/lib/utils/date";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Button, IconButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { useJobActions } from "./job-dialogs";
 import { useJobAlertDialogs } from "./job-alerts";
 
@@ -99,7 +101,7 @@ export function JobsPanel() {
           </div>
           <div className="rail-sort-note">
             <Icon name="clock" />
-            Newest first · Matches from demo jobs
+            {devCopy("Newest first · Matches from demo jobs", "Newest first")}
           </div>
         </section>
         <section className="card job-alerts-card">
@@ -134,10 +136,12 @@ export function JobsPanel() {
             Manage alerts <Icon name="arrow" />
           </button>
         </section>
-        <p className="rail-demo-note">
-          <Icon name="shield" />
-          In-app demo alerts · No emails or push notifications. New matching demo jobs appear here when you revisit or refresh.
-        </p>
+        <DevOnly>
+          <p className="rail-demo-note">
+            <Icon name="shield" />
+            In-app demo alerts · No emails or push notifications. New matching demo jobs appear here when you revisit or refresh.
+          </p>
+        </DevOnly>
       </div>
     </aside>
   );

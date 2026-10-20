@@ -5,10 +5,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import type { FeedFilter } from "@/services/feed/feed.service";
 import { timeAgo } from "@/lib/utils/date";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, LinkButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { FeedCard } from "@/features/feed/feed-card";
 import { FeedToolbar, useCompose } from "@/features/feed/feed-parts";
 import { useNetworkSheet } from "@/features/feed/network-sheet";
@@ -93,10 +95,12 @@ function ProfileRail() {
           <strong>{shell.savedCount}</strong>
         </Link>
       </section>
-      <div className="feed-local-note">
-        <Icon name="shield" />
-        <p>Recruiter demo · Fictional people and jobs. Posts, applications, and hiring notes stay in this browser.</p>
-      </div>
+      <DevOnly>
+        <div className="feed-local-note">
+          <Icon name="shield" />
+          <p>Recruiter demo · Fictional people and jobs. Posts, applications, and hiring notes stay in this browser.</p>
+        </div>
+      </DevOnly>
     </aside>
   );
 }
@@ -219,7 +223,7 @@ export function RecruiterFeedScreen() {
           <>
             <div className="feed-results-label">
               <span>{data.total} posts</span>
-              <span>Your demo community</span>
+              <span>{devCopy("Your demo community", "Your community")}</span>
             </div>
             <div className="feed-post-list">
               {data.items.length ? (

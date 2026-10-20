@@ -7,6 +7,7 @@ import type { ConversationFlag, ConversationView, MessageFilter } from "@/servic
 import { formatDay, formatTime } from "@/lib/utils/date";
 import { readAsDataUrl } from "@/lib/utils/files";
 import { uid } from "@/lib/utils/id";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { modal } from "@/stores/modal-store";
@@ -14,6 +15,7 @@ import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, IconButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingInput, SelectField, TextAreaField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
 
@@ -56,26 +58,26 @@ function ReportForm({ role, c }: { role: Role; c: ConversationView }) {
         const f = new FormData(e.currentTarget);
         await run((s) => s.messaging.report(role, c.id, String(f.get("reason") || ""), String(f.get("details") || "")));
         modal.close();
-        toast("Report recorded in this browser demo.");
+        toast(devCopy("Report recorded in this browser demo.", "Report submitted."));
       }}
     >
       <h3>{c.contact.name}</h3>
       <SelectField label="Reason" name="reason" defaultValue="Spam or unwanted messages" options={["Spam or unwanted messages", "Harassment", "Misleading job or identity", "Other"]} />
       <TextAreaField label="Additional details (optional)" name="details" maxLength={1500} />
-      <p className="notice">Reports are recorded only in this browser demo. Blocking prevents you from sending messages in this conversation until you unblock it.</p>
+      <p className="notice">{devCopy("Reports are recorded only in this browser demo. Blocking prevents you from sending messages in this conversation until you unblock it.", "Blocking prevents you from sending messages in this conversation until you unblock it.")}</p>
       <div className="modal-footer">
         <Button
           variant="danger"
           onClick={async () => {
             const blocked = await run((s) => s.messaging.toggleFlag(role, c.id, "blockedBy"));
             modal.close();
-            toast(blocked ? "Conversation blocked locally." : "Conversation unblocked.");
+            toast(blocked ? devCopy("Conversation blocked locally.", "Conversation blocked.") : "Conversation unblocked.");
           }}
         >
           {c.flags.blocked ? "Unblock" : "Block"}
         </Button>
         <Button type="submit" variant="primary">
-          Save demo report
+          {devCopy("Save demo report", "Submit report")}
         </Button>
       </div>
     </form>
@@ -86,7 +88,7 @@ function NewMessage({ role, onStart }: { role: Role; onStart: (id: string) => vo
   const { data } = useServiceQuery(["messaging", "recipients", role], (s) => s.messaging.listRecipients(role));
   return (
     <div className="stack">
-      <p className="small muted">Choose someone to start a local demo conversation.</p>
+      <p className="small muted">{devCopy("Choose someone to start a local demo conversation.", "Choose someone to start a conversation.")}</p>
       {data?.map((p) => (
         <button type="button" className="message-recipient" key={p.id} onClick={() => onStart(p.id)}>
           <Avatar person={p} />
@@ -178,7 +180,7 @@ export function MessagingScreen({ role }: { role: Role }) {
   const flag = async (key: ConversationFlag) => {
     if (!c) return;
     const on = await run((s) => s.messaging.toggleFlag(role, c.id, key));
-    if (key === "mutedBy") toast(on ? "Conversation muted in this demo." : "Conversation unmuted.");
+    if (key === "mutedBy") toast(on ? devCopy("Conversation muted in this demo.", "Conversation muted.") : "Conversation unmuted.");
     if (key === "archivedBy") {
       setMessaging({ conversation: null, mobileChat: false });
       toast(on ? "Conversation moved to Archived." : "Conversation returned to your inbox.");
@@ -219,7 +221,7 @@ export function MessagingScreen({ role }: { role: Role }) {
     clearDraft(draftKey);
     if (textRef.current) textRef.current.value = "";
     textRef.current?.focus();
-    toast("Message saved locally. It has not been sent to a real person.");
+    toast(devCopy("Message saved locally. It has not been sent to a real person.", "Message sent."));
   };
 
   const list = data?.threads ?? [];
@@ -232,10 +234,12 @@ export function MessagingScreen({ role }: { role: Role }) {
           <Icon name="search" />
           <FloatingInput label="Search messages" id="message-search" type="search" value={query} onChange={(e) => setMessaging({ query: e.target.value })} aria-label="Search messages" placeholder="Search messages" />
         </label>
-        <span className="messaging-local">
-          <Icon name="shield" />
-          Local demo
-        </span>
+        <DevOnly>
+          <span className="messaging-local">
+            <Icon name="shield" />
+            Local demo
+          </span>
+        </DevOnly>
         <IconButton icon="edit" label="New message" onClick={() => modal.show("New message", <NewMessage role={role} onStart={start} />)} />
       </header>
       <div className="messaging-filters" role="group" aria-label="Message filters">
@@ -245,7 +249,9 @@ export function MessagingScreen({ role }: { role: Role }) {
             {id === "unread" && !!data?.unreadCount && <span>{data.unreadCount}</span>}
           </button>
         ))}
-        <span>Messages stay in this browser.</span>
+        <DevOnly>
+          <span>Messages stay in this browser.</span>
+        </DevOnly>
       </div>
       <div className="messaging-panels">
         <aside className="message-threads" aria-label="Conversations" id="message-threads">
@@ -306,7 +312,7 @@ export function MessagingScreen({ role }: { role: Role }) {
                 onDelete={() =>
                   confirmAction(
                     "Delete conversation?",
-                    "This removes the conversation from your inbox in this browser. It will remain available in the other demo workspace.",
+                    devCopy("This removes the conversation from your inbox in this browser. It will remain available in the other demo workspace.", "This removes the conversation from your inbox."),
                     async () => {
                       await run((s) => s.messaging.toggleFlag(role, c.id, "deletedBy"));
                       clearDraft(role + ":" + c.id);

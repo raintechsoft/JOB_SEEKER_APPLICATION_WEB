@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Id } from "@/types/domain";
 import { firstName } from "@/lib/utils/text";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
@@ -110,7 +111,7 @@ function CompareChooser() {
         router.push("/recruiter/compare");
       }}
     >
-      <p className="small muted">Choose 2–4 fictional professionals to compare.</p>
+      <p className="small muted">{devCopy("Choose 2–4 fictional professionals to compare.", "Choose 2–4 professionals to compare.")}</p>
       {people.map((p) => (
         <label className="check-row" key={p.id}>
           <input type="checkbox" name="candidate" value={p.id} defaultChecked={compared.includes(p.id)} />
