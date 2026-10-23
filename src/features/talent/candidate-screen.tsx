@@ -1,5 +1,7 @@
 "use client";
 
+import { ScreenFallback } from "@/components/ui/feedback";
+
 import Link from "next/link";
 import type { CandidateView } from "@/services/talent/talent.service";
 import { firstName } from "@/lib/utils/text";
@@ -140,15 +142,15 @@ export function NotFoundState() {
 
 /** Candidate profile for recruiters (`/recruiter/talent/[id]`). */
 export function RecruiterCandidateScreen({ id }: { id: string }) {
-  const query = useServiceQuery(["candidate", id], (s) => s.talent.getCandidate(id));
-  return <QueryView query={query}>{(view) => (view ? <Candidate view={view} publicView={false} /> : <NotFoundState />)}</QueryView>;
+  const query = useServiceQuery(["candidate", id], (s) => s.talent.getCandidate(id),{ keepPreviousData: false });
+  return <QueryView query={query} fallback={<ScreenFallback layout="profile" />}>{(view) => (view ? <Candidate view={view} publicView={false} /> : <NotFoundState />)}</QueryView>;
 }
 
 /** Public professional profile (`/professionals/[slug]`). */
 export function PublicCandidateScreen({ slug }: { slug: string }) {
-  const query = useServiceQuery(["candidate", "slug", slug], (s) => s.talent.getCandidateBySlug(slug));
+  const query = useServiceQuery(["candidate", "slug", slug], (s) => s.talent.getCandidateBySlug(slug),{ keepPreviousData: false });
   return (
-    <QueryView query={query}>
+    <QueryView query={query} fallback={<ScreenFallback layout="profile" />}>
       {(view) =>
         !view ? (
           <main id="main" className="container section">

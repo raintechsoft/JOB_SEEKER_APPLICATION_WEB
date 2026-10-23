@@ -42,7 +42,7 @@ function AdminFrame({ children,adminName=ADMIN.name }: { children: ReactNode;adm
   return (
     <div className="workspace">
       <aside className={"sidebar" + (open ? " open" : "")} id="sidebar">
-        <Brand />
+        <Brand href="/admin/dashboard" />
         <div className="workspace-label">Administration</div>
         <nav className="side-nav">
           {NAV.map(([slug, label, icon]) => (
@@ -105,5 +105,5 @@ function AdminFrame({ children,adminName=ADMIN.name }: { children: ReactNode;adm
   );
 }
 
-function RealAdminGate({children}:{children:ReactNode}){const router=useRouter();const session=useServiceQuery(["admin","session"],(s)=>s.admin.session!());useEffect(()=>{if(session.error instanceof ApiError&&session.error.status===401)router.replace("/login?next=/admin/dashboard");},[session.error,router]);if(session.isPending)return <p role="status">Loading administration…</p>;if(session.isError||!session.data)return <div className="card"><h1>Administrator access required</h1><p>This account does not have access to platform administration.</p><Link href="/">Back to Skillora</Link></div>;return <AdminFrame adminName={session.data.name}>{children}</AdminFrame>;}
+function RealAdminGate({children}:{children:ReactNode}){const router=useRouter();const session=useServiceQuery(["admin","session"],(s)=>s.admin.session!());useEffect(()=>{if(session.error instanceof ApiError&&session.error.status===401)router.replace("/login?next=/admin/dashboard");},[session.error,router]);if(session.isPending)return null;if(session.isError||!session.data)return <div className="card"><h1>Administrator access required</h1><p>This account does not have access to platform administration.</p><Link href="/">Back to Skillora</Link></div>;return <AdminFrame adminName={session.data.name}>{children}</AdminFrame>;}
 export function AdminShell({children}:{children:ReactNode}){return apiConfig.dataSource==="http"?<RealAdminGate>{children}</RealAdminGate>:<AdminFrame>{children}</AdminFrame>;}

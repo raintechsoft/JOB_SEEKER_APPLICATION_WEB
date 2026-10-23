@@ -71,9 +71,9 @@ export function SignInForm({ role }: { role: Role }) {
         <TextField label="Password" type="password" required maxLength={256} autoComplete="current-password" {...props("password")} />
       </AuthField>
       <AuthError name="root" message={errors.root?.message} />
-      <button className="btn primary" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Signing in…" : "LOGIN"}
-      </button>
+      <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Signing in…"}>
+        {"LOGIN"}
+      </Button>
       <Link className="small muted" href="/forgot-password">Forgot password?</Link>
     </form>
   );
@@ -112,9 +112,9 @@ export function SignUpForm({ role }: { role: Role }) {
         <TextField label="Password" type="password" required minLength={8} maxLength={256} autoComplete="new-password" placeholder="At least 8 characters" {...props("password")} />
       </AuthField>
       <AuthError name="root" message={errors.root?.message} />
-      <button className="btn primary" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Creating account…" : "SUBMIT"}
-      </button>
+      <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Creating account…"}>
+        {"SUBMIT"}
+      </Button>
     </form>
   );
 }

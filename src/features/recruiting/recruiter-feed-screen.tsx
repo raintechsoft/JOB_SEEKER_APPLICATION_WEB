@@ -1,6 +1,11 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
+
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import Link from "next/link";
+import { apiConfig } from "@/services/api/config";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import type { FeedFilter } from "@/services/feed/feed.service";
@@ -26,9 +31,10 @@ const TABS: [FeedFilter, string, boolean][] = [
 ];
 
 function ProfileRail() {
-  const { data: shell } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
-  const { data: hiring } = useServiceQuery(["hiring-summary"], (s) => s.recruiting.getHiringSummary());
-  if (!shell || !hiring) return <aside className="feed-profile-column" tabIndex={0} aria-label="Recruiter profile and hiring" />;
+  const { data: shell, isError: shellError, refetch: retryShell } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
+  const { data: hiring, isError: hiringError } = useServiceQuery(["hiring-summary"], (s) => s.recruiting.getHiringSummary());
+  const saved = useServiceQuery(["feed-saved-count", "recruiter"], s => s.feed.getFeed({ role: "recruiter", filter: "saved", sort: "recent", q: "", limit: 1 }), { enabled: apiConfig.dataSource === "http" });
+  if (!shell) return <aside className="feed-profile-column" aria-label="Recruiter profile and hiring"><QueryFeedback data={shell} error={shellError} retry={retryShell} label="Loading recruiter profile" /></aside>;
   return (
     <aside className="feed-profile-column" tabIndex={0} aria-label="Recruiter profile and hiring">
       <section className="card feed-profile">
@@ -62,15 +68,15 @@ function ProfileRail() {
         <h2>Your hiring, in focus</h2>
         <Link href="/recruiter/jobs">
           <span>Open job posts</span>
-          <strong>{hiring.openJobs}</strong>
+          <strong>{hiring?.openJobs ?? (hiringError ? "—" : <Skeleton style={{ width: 28 }} />)}</strong>
         </Link>
         <Link href="/recruiter/applications?view=responses">
           <span>Received applications</span>
-          <strong>{hiring.received}</strong>
+          <strong>{hiring?.received ?? (hiringError ? "—" : <Skeleton style={{ width: 28 }} />)}</strong>
         </Link>
         <Link href="/recruiter/applications?stage=New">
           <span>New to review</span>
-          <strong>{hiring.newCount}</strong>
+          <strong>{hiring?.newCount ?? (hiringError ? "—" : <Skeleton style={{ width: 28 }} />)}</strong>
         </Link>
       </section>
       <section className="card feed-connections">
@@ -86,14 +92,14 @@ function ProfileRail() {
             <Icon name="bookmark" />
             Your shortlists
           </span>
-          <strong>{hiring.shortlistCount}</strong>
+          <strong>{hiring?.shortlistCount ?? (hiringError ? "—" : <Skeleton style={{ width: 28 }} />)}</strong>
         </Link>
         <Link href="/recruiter/dashboard?view=saved">
           <span>
             <Icon name="bookmark" />
             Saved posts
           </span>
-          <strong>{shell.savedCount}</strong>
+          <strong>{(apiConfig.dataSource === "http" ? saved.data?.total : shell.savedCount) ?? (saved.isError ? "—" : <Skeleton style={{ width: 28 }} />)}</strong>
         </Link>
       </section>
       <DevOnly>
@@ -108,14 +114,14 @@ function ProfileRail() {
 
 function HiringRail() {
   const router = useRouter();
-  const { data } = useServiceQuery(["hiring-summary"], (s) => s.recruiting.getHiringSummary());
+  const { data, isError, refetch } = useServiceQuery(["hiring-summary"], (s) => s.recruiting.getHiringSummary());
   return (
     <aside className="recruiter-hiring-rail" aria-label="Your hiring overview">
       <section className="card recruiter-rail-card">
         <span className="eyebrow">YOUR NEXT TEAMMATE</span>
         <h2>Applications to review</h2>
         <p>Keep your next connection in sight.</p>
-        {data?.newApplications.length ? (
+        {!data ? <QueryFeedback data={data} error={isError} retry={refetch} label="Loading applications" /> : data.newApplications.length ? (
           data.newApplications.map((a) => (
             <button type="button" className="recruiter-mini-app" key={a.id} onClick={() => openReview(a.id)}>
               <Avatar person={a.person} />
@@ -137,8 +143,10 @@ function HiringRail() {
       <section className="card recruiter-rail-card">
         <div className="row between">
           <h2>Your job posts</h2>
-          <span className="tag">{data?.openJobs ?? 0} open</span>
+          <span className="tag">{data?.openJobs ?? "…"} open</span>
         </div>
+        <QueryFeedback data={data} error={isError} retry={refetch} label="Loading job posts" />
+        {data?.jobs.length === 0 && <p>Your job posts will appear here.</p>}
         {data?.jobs.map((j) => (
           <div className="recruiter-rail-job" key={j.id}>
             <strong>{j.title}</strong>
@@ -176,14 +184,7 @@ export function RecruiterFeedScreen() {
     <div className="professional-feed-layout recruiter-feed-layout">
       <ProfileRail />
       <section className="feed-timeline" aria-label="Recruiter community feed">
-        <div className="feed-heading">
-          {isError && <p role="alert">The feed could not be loaded. <Button onClick={()=>void refetch()}>Try again</Button></p>}
-          <div>
-            <span className="eyebrow">GOOD WORK. GOOD PEOPLE.</span>
-            <h2>Your next great hire starts here.</h2>
-            <p>Discover the work, people, and ideas behind your next team.</p>
-          </div>
-        </div>
+
         <section className="card feed-composer">
           <div className="row">
             {shell ? <Avatar person={shell.identity} /> : <span className="avatar" />}
@@ -221,6 +222,7 @@ export function RecruiterFeedScreen() {
             </Button>
           </div>
         )}
+        <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
         {data && (
           <>
             <div className="feed-results-label">

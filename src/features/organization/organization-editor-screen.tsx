@@ -22,6 +22,7 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { Button, IconButton, LinkButton } from "@/components/ui/primitives";
 import { SelectField } from "@/components/ui/field";
 import { ScreenFallback } from "@/components/ui/feedback";
+import { Spinner } from "@/components/ui/spinner";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
 import { OrgArea, OrgCheck, OrgChips, OrgChoices, OrgField, OrgImageUpload, OrgPublicHint, OrgSelect, VerificationBadge } from "@/components/organization/controls";
@@ -69,7 +70,7 @@ export function OrganizationEditorScreen() {
   }, [key]);
 
   if (query.isError && !ctx) return <div className="org-workspace"><p role="alert">{errorMessage(query.error)}</p><Button onClick={() => void query.refetch()}>Try again</Button></div>;
-  if (!ctx || !draft) return <ScreenFallback />;
+  if (!ctx || !draft) return <ScreenFallback layout="form" />;
   const o = draft.organization;
   const v = draft.verification;
   const completion = organizationCompletion(o);
@@ -619,8 +620,8 @@ export function OrganizationEditorScreen() {
               {sections[key]()}
             </fieldset>
           </form>
-          <div id="org-upload-status" className="org-upload-status" role="status">
-            {uploads.busy ? "Loading selected image…" : ""}
+          <div id="org-upload-status" className="org-upload-status" role="status" aria-label={uploads.busy ? "Uploading image" : undefined} aria-busy={uploads.busy || undefined}>
+            {uploads.busy && <Spinner />}
           </div>
           <footer className="org-panel-footer">
             <span id="org-save-state">{dirty ? "Unsaved changes" : devCopy("All changes saved in this browser", "All changes saved")}</span>

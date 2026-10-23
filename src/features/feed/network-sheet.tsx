@@ -1,4 +1,5 @@
 "use client";
+import { ContentSkeleton } from "@/components/ui/skeleton";
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
@@ -21,7 +22,7 @@ function NetworkPanel({ role }: { role: Role }) {
   const { data, isError, refetch } = useServiceQuery(["network", role], (s) => s.feed.getNetwork(role));
   const tabsRef = useRef<HTMLDivElement>(null);
   if (isError) return <p role="alert">Your network could not be loaded. <button type="button" onClick={()=>void refetch()}>Try again</button></p>;
-  if (!data) return <p role="status">Loading your network…</p>;
+  if (!data) return <ContentSkeleton label="Loading your network" />;
   const count = data.following.length + data.companies.length;
   const isFollowing = tab === "following";
 

@@ -1,4 +1,5 @@
 "use client";
+import { QueryFeedback } from "@/components/ui/query-view";
 
 import type { Id, WorkUpdate } from "@/types/domain";
 import type { Pulse } from "@/services/work/work.service";
@@ -8,7 +9,6 @@ import { Icon } from "@/components/ui/icon";
 import { FloatingSelect } from "@/components/ui/field";
 import { IconButton, LinkButton, Tags } from "@/components/ui/primitives";
 import { useUpdateDialogs } from "@/features/work/dialogs";
-import { ScreenError } from "@/components/ui/feedback";
 
 const RAMP = ["#eff1f1", "#d5eddf", "#a6d7bd", "#66b58b", "#2e8c60"];
 
@@ -96,7 +96,7 @@ export function PulseCard({ ownerId, days = 365, full = false, onRangeChange }: 
           </LinkButton>
         )}
       </div>
-      {query.isError && <ScreenError onRetry={() => void query.refetch()} />}
+      <QueryFeedback data={pulse} error={query.isError} retry={query.refetch} layout="chart" label="Loading recorded work" />
       {pulse && (
         <>
           <Heatmap pulse={pulse} ownerId={ownerId} />

@@ -157,7 +157,7 @@ function WorkspaceFrame({ recruiter, nav, navLabel, account, children }: { recru
     <div className={recruiter ? "professional-app recruiter-app" : "professional-app"}>
       <header className="professional-header">
         <div className="professional-header-inner">
-          <Brand />
+          <Brand href={base + "/dashboard"} />
           <HeaderSearch role={recruiter ? "recruiter" : "professional"} />
           <WorkspaceNav items={nav} label={navLabel} />
           <div className="professional-header-tools">

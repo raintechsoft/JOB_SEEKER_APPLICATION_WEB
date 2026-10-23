@@ -3,10 +3,12 @@ import type { ComponentProps, ReactNode } from "react";
 import { PORTRAITS } from "@/mocks/data/professionals";
 import { cn, initials } from "@/lib/utils/text";
 import { Icon, type IconName } from "./icon";
+import { MediaImage } from "./media-image";
+export { Button, IconButton } from "./button";
 
-export function Brand() {
+export function Brand({ href = "/" }: { href?: string }) {
   return (
-    <Link className="brand" href="/" aria-label="Skillora home">
+    <Link className="brand" href={href} aria-label={href === "/" ? "Skillora home" : "Skillora workspace"}>
       <span className="brandmark">
         <svg viewBox="0 0 32 36" aria-hidden="true">
           <path d="M19 1 5 16l8 5-7 14 22-20-10-5 7-9z" />
@@ -29,24 +31,11 @@ export function Avatar({ person, size = "" }: { person: AvatarPerson; size?: "" 
   return (
     <span className={cn("avatar", size)} style={{ background: person.color || "#e6e0f4" }} aria-label={person.name}>
       {portrait ? (
-        // eslint-disable-next-line @next/next/no-img-element -- portraits are local SVGs or user-uploaded data URLs
-        <img src={portrait} alt={`${person.name}’s illustrated profile picture`} />
+        <MediaImage src={portrait} alt={`${person.name}’s profile picture`} loading={size === "xl" ? "eager" : "lazy"} fallback={initials(person.name)} />
       ) : (
         initials(person.name)
       )}
     </span>
-  );
-}
-
-type ButtonProps = Omit<ComponentProps<"button">, "className"> & { variant?: string; icon?: IconName; className?: string };
-
-/** Prototype `btn(label, action, type, icon)`: `.btn` plus variant classes (`primary`, `sm`, `text`, `danger`). */
-export function Button({ variant = "", icon, children, type = "button", className, ...rest }: ButtonProps) {
-  return (
-    <button type={type} className={cn("btn", variant, className)} {...rest}>
-      {icon && <Icon name={icon} />}
-      {children}
-    </button>
   );
 }
 
@@ -58,16 +47,6 @@ export function LinkButton({ variant = "", icon, children, ...rest }: LinkButton
       {icon && <Icon name={icon} />}
       {children}
     </Link>
-  );
-}
-
-type IconButtonProps = Omit<ComponentProps<"button">, "className" | "children"> & { icon: IconName; label: string; extra?: string };
-
-export function IconButton({ icon, label, extra, type = "button", ...rest }: IconButtonProps) {
-  return (
-    <button type={type} className={cn("iconbtn", extra)} aria-label={label} title={label} {...rest}>
-      <Icon name={icon} />
-    </button>
   );
 }
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import { Fragment, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FeedFilter } from "@/services/feed/feed.service";
@@ -47,17 +49,7 @@ export function ProfessionalFeedScreen() {
     <div className="professional-feed-layout">
       <ProfileColumn />
       <section className="feed-timeline" aria-label="Professional community feed">
-        <div className="feed-heading">
-          <div>
-            <span className="eyebrow">GOOD WORK. GOOD PEOPLE.</span>
-            <h2>Your next chapter is out there.</h2>
-            <p>A little inspiration. A meaningful connection. A new opportunity.</p>
-          </div>
-          <span className="feed-live-label">
-            <i />
-            Your feed
-          </span>
-        </div>
+
         <ProfessionalComposer identity={shell?.person} />
         <FeedToolbar tabs={TABS} onFilter={setFilter} />
         <div id="feed-search-status">
@@ -73,6 +65,7 @@ export function ProfessionalFeedScreen() {
         <div id="feed-post-list" className="feed-post-list">
           {isError && <p role="alert">The feed could not be loaded. <Button onClick={()=>void refetch()}>Try again</Button></p>}
           {highlight && data && !data.items.some((entry)=>entry.id===highlight) && <PermalinkEntry key={highlight} id={highlight} role="professional" />}
+          <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
           {data && (
             <>
               <div className="feed-results-label">

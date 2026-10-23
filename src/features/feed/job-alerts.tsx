@@ -73,7 +73,7 @@ function AlertEditor({ alert }: { alert: JobAlert | null }) {
           </Button>
         )}
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="bell" disabled={pending}>
+        <Button type="submit" variant="primary" icon="bell" loading={pending} disabled={pending}>
           Save alert
         </Button>
       </div>

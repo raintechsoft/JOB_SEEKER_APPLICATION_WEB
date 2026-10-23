@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import type { RecommendedJob } from "@/services/recommendations/recommendations.service";
 import { postedAgo } from "@/lib/utils/date";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
@@ -48,9 +50,9 @@ function RailJob({ item }: { item: RecommendedJob }) {
         <button type="button" onClick={open}>
           View opportunity <Icon name="arrow" />
         </button>
-        <button type="button" onClick={() => jobs.toggleSave("professional", item.id, "job")} aria-label={(item.saved ? "Unsave" : "Save") + " " + item.title} className={item.saved ? "saved" : ""}>
+        <Button unstyled type="button" onClick={() => jobs.toggleSave("professional", item.id, "job")} aria-label={(item.saved ? "Unsave" : "Save") + " " + item.title} className={item.saved ? "saved" : ""}>
           <Icon name="bookmark" />
-        </button>
+        </Button>
       </div>
     </article>
   );
@@ -61,7 +63,9 @@ export function JobsPanel() {
   const { view, mobileOpen } = useUiStore((s) => s.jobsPanel);
   const setJobsPanel = useUiStore((s) => s.setJobsPanel);
   const alertsDialogs = useJobAlertDialogs();
-  const { data } = useServiceQuery(["recommendations", "jobs"], (s) => s.recommendations.getJobsForYou());
+  const { data, isError, refetch } = useServiceQuery(["recommendations", "jobs"], (s) => s.recommendations.getJobsForYou());
+  const alertQuery = useServiceQuery(["job-alerts"], s => s.jobs.listAlerts(), { enabled: apiConfig.dataSource === "http" });
+  const alerts = apiConfig.dataSource === "http" ? alertQuery.data : data?.alerts;
   const list = data ? (view === "alerts" ? data.alertMatches : data.forYou) : [];
   const newCount = data?.newCount ?? 0;
   return (
@@ -85,13 +89,14 @@ export function JobsPanel() {
           </header>
           <div className="rail-job-tabs" role="tablist" aria-label="Relevant job filters">
             <button type="button" role="tab" aria-selected={view === "all"} onClick={() => setJobsPanel({ view: "all" })} className={view === "all" ? "active" : ""}>
-              For you <span>{data?.forYou.length ?? 0}</span>
+              For you <span>{data?.forYou.length ?? "—"}</span>
             </button>
             <button type="button" role="tab" aria-selected={view === "alerts"} onClick={() => setJobsPanel({ view: "alerts" })} className={view === "alerts" ? "active" : ""}>
               Alert
             </button>
           </div>
           <div className="rail-job-list">
+            <QueryFeedback data={data} error={isError} retry={refetch} label="Loading recommended jobs" />
             {list.length ? (
               list.map((item) => <RailJob key={item.id} item={item} />)
             ) : data ? (
@@ -120,8 +125,9 @@ export function JobsPanel() {
           </div>
           <p>The right role, a little easier to spot.</p>
           <div className="rail-alert-list">
-            {data?.alerts.length ? (
-              data.alerts.map((a) => (
+            <QueryFeedback data={alerts} error={apiConfig.dataSource === "http" ? alertQuery.isError : isError} retry={apiConfig.dataSource === "http" ? alertQuery.refetch : refetch} label="Loading job alerts" />
+            {alerts?.length ? (
+              alerts.map((a) => (
                 <div className="rail-alert" key={a.id}>
                   <button type="button" className="rail-alert-name" onClick={() => alertsDialogs.edit(a.id)}>
                     <strong>{a.name}</strong>
@@ -134,7 +140,7 @@ export function JobsPanel() {
                   </button>
                 </div>
               ))
-            ) : data ? (
+            ) : alerts ? (
               <p className="rail-alert-empty">No alerts set. Create one for your next role.</p>
             ) : null}
           </div>

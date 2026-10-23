@@ -15,11 +15,11 @@ import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
+import { QueryFeedback } from "@/components/ui/query-view";
 
 function ReviewForm({ id }: { id: Id }) {
-  const {data,isError}=useServiceQuery(["review",id],(s)=>s.recruiting.getReview(id),{keepPreviousData:false});
-  if(isError)return <p role="alert">This application could not be loaded. Please retry.</p>;
-  return data?<ReviewEditor initialData={data}/>:null;
+  const {data,isError,refetch}=useServiceQuery(["review",id],(s)=>s.recruiting.getReview(id),{keepPreviousData:false});
+  return data?<ReviewEditor initialData={data}/>:<QueryFeedback data={data} error={isError} retry={refetch} layout="form" label="Loading application review" />;
 }
 
 export function ReviewEditor({initialData}:{initialData:ReviewView}){
@@ -78,7 +78,7 @@ export function ReviewEditor({initialData}:{initialData:ReviewView}){
       {!!a.history?.length&&<details><summary>Private review history</summary>{a.history.map((event)=><p key={event.id} className="small"><strong>{event.author}</strong> · {event.kind==="stage"?`${event.from} → ${event.to}`:event.body||"Note cleared"}</p>)}</details>}
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
           Save review
         </Button>
       </div>

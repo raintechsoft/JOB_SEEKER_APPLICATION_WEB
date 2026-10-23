@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ScreenFallback } from "@/components/ui/feedback";
 import { RecruiterPreviewScreen } from "@/features/organization/public-screens";
 
 export const metadata: Metadata = { title: "preview" };
 
 export default function Page() {
   return (
-    <Suspense fallback={<ScreenFallback />}>
+    <Suspense fallback={null}>
       <RecruiterPreviewScreen />
     </Suspense>
   );

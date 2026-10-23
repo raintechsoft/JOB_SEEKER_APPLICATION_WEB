@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import Link from "next/link";
 import { useState } from "react";
 import { trackingSchema } from "@/lib/validation/application";
@@ -61,7 +63,7 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
       <p className="notice">{devCopy("This is your personal tracking record. Changing a status does not contact the employer or withdraw an application.","Notes and tracking stages are private. Selecting Withdrawn permanently withdraws this application from the employer’s workflow.")}</p>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check" disabled={pending}>
+        <Button type="submit" variant="primary" icon="check" loading={pending} disabled={pending}>
           Save tracking
         </Button>
       </div>
@@ -326,7 +328,7 @@ export function ApplicationsScreen() {
   const q = params.get("q") || "";
   const status = (params.get("status") || "") as ApplicationStatus | "";
   const { data: overview } = useServiceQuery(["applications", "overview"], (s) => s.applications.getOverview());
-  const { data: list } = useServiceQuery(["applications", tab, q, status], async (s): Promise<(ApplicationRecord | SavedJobRecord | AlertRecord)[]> => (tab === "applied" ? s.applications.listApplications({ q, status }) : tab === "saved" ? s.applications.listSavedJobs({ q }) : s.applications.listAlerts({ q })));
+  const { data: list, isError, refetch } = useServiceQuery(["applications", tab, q, status], async (s): Promise<(ApplicationRecord | SavedJobRecord | AlertRecord)[]> => (tab === "applied" ? s.applications.listApplications({ q, status }) : tab === "saved" ? s.applications.listSavedJobs({ q }) : s.applications.listAlerts({ q })));
 
   const submit = (form: HTMLFormElement) => {
     const f = new FormData(form);
@@ -421,6 +423,7 @@ export function ApplicationsScreen() {
             </span>
           </div>
           <section className="application-record-list" aria-label={TABS[tab]}>
+            <QueryFeedback data={list} error={isError} retry={refetch} label="Loading your applications" />
             {list && list.length
               ? list.map((item) => (tab === "applied" ? <AppliedCard key={item.id} a={item as ApplicationRecord} /> : tab === "saved" ? <SavedCard key={item.id} j={item as SavedJobRecord} /> : <AlertCard key={item.id} a={item as AlertRecord} />))
               : list && (

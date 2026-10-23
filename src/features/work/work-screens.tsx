@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Discipline, Visibility } from "@/types/domain";
@@ -12,7 +14,6 @@ import { FloatingInput, SelectField } from "@/components/ui/field";
 import { ProjectCard } from "@/components/work/project-card";
 import { PulseCard, UpdateItem } from "@/components/work/pulse";
 import { useProjectDialogs, useUpdateDialogs } from "./dialogs";
-import { ScreenError } from "@/components/ui/feedback";
 
 const CATEGORIES: Discipline[] = ["Design", "Engineering", "Data", "Business"];
 const CATEGORY_ICONS: Record<string, IconName> = { "": "folder", Design: "edit", Engineering: "monitor", Data: "grid", Business: "briefcase" };
@@ -101,7 +102,7 @@ export function ProjectsScreen() {
               </LinkButton>
             )}
           </form>
-          {(allQuery.isError || filtered && listQuery.isError) && <ScreenError onRetry={() => { void allQuery.refetch(); if (filtered) void listQuery.refetch(); }} />}
+          <QueryFeedback data={list} error={filtered ? listQuery.isError : allQuery.isError} retry={() => filtered ? listQuery.refetch() : allQuery.refetch()} layout="cards" label="Loading projects" />
           {list && (
             <>
               <p className="projects-result-count" role="status">
@@ -141,7 +142,7 @@ export function WorkPulseScreen() {
   const range = useUiStore((s) => s.pulseRange);
   const setUi = useUiStore((s) => s.setUi);
   const updates = useUpdateDialogs();
-  const { data } = useServiceQuery(["updates", "me", "latest"], (s) => s.work.listUpdates("me", { limit: 5 }));
+  const { data, isError, refetch } = useServiceQuery(["updates", "me", "latest"], (s) => s.work.listUpdates("me", { limit: 5 }));
   return (
     <>
       <PageHeading
@@ -162,6 +163,8 @@ export function WorkPulseScreen() {
               <p>Select any day in your Work Pulse to explore the details.</p>
             </div>
           </div>
+          <QueryFeedback data={data} error={isError} retry={refetch} label="Loading recent updates" />
+          {data?.length === 0 && <p className="small muted">Your recent updates will appear here.</p>}
           {data?.map((u) => (
             <UpdateItem key={u.id} update={u} manage />
           ))}

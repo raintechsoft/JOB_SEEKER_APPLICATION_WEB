@@ -2,6 +2,7 @@
 
 import { useCallback, useId, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils/text";
+import { Spinner } from "./spinner";
 import { Icon } from "@/components/ui/icon";
 
 /**
@@ -137,15 +138,15 @@ export type Option = string | { value: string; label: string };
 const optionValue = (o: Option) => (typeof o === "string" ? o : o.value);
 const optionLabel = (o: Option) => (typeof o === "string" ? o : o.label);
 
-export type FloatingSelectProps = Omit<ComponentProps<"select">, "ref" | "children"> & FloatingBase & { options: readonly Option[]; ref?: Ref<HTMLSelectElement> };
+export type FloatingSelectProps = Omit<ComponentProps<"select">, "ref" | "children"> & FloatingBase & { options: readonly Option[]; ref?: Ref<HTMLSelectElement>; loading?: boolean };
 
-export function FloatingSelect({ label, compact, wrapClassName, options, ref, ...props }: FloatingSelectProps) {
+export function FloatingSelect({ label, compact, wrapClassName, options, ref, loading = false, ...props }: FloatingSelectProps) {
   const id = useId();
   const { wrap, controlRef } = useFloatingSync(ref as Ref<Control>);
   const { placeholder: _placeholder, ...rest } = props as typeof props & { placeholder?: string };
   return (
     <span ref={wrap} className={cn("floating-field", "is-select", compact && "is-compact", wrapClassName)}>
-      <select ref={controlRef} {...rest} aria-labelledby={props["aria-label"] || props["aria-labelledby"] ? props["aria-labelledby"] : id}>
+      <select ref={controlRef} {...rest} disabled={props.disabled || loading} aria-busy={loading || undefined} aria-labelledby={props["aria-label"] || props["aria-labelledby"] ? props["aria-labelledby"] : id}>
         {options.map((o) => (
           <option key={optionValue(o)} value={optionValue(o)}>
             {optionLabel(o)}
@@ -153,6 +154,7 @@ export function FloatingSelect({ label, compact, wrapClassName, options, ref, ..
         ))}
       </select>
       <FloatingLabel id={id} label={label} required={props.required} />
+      {loading && <span className="select-loading" role="status" aria-label="Loading options"><Spinner /></span>}
     </span>
   );
 }

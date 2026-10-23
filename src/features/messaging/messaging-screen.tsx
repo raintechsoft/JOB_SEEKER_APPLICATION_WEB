@@ -1,5 +1,8 @@
 "use client";
 
+import { ContentSkeleton } from "@/components/ui/skeleton";
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { Role } from "@/types/domain";
 import type { ConversationFlag, ConversationView, MessageFilter } from "@/services/messaging/messaging.service";
@@ -69,7 +72,7 @@ function ReportForm({ role, c }: { role: Role; c: ConversationView }) {
         >
           {c.flags.blocked ? "Unblock" : "Block"}
         </Button>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
           {devCopy("Save demo report", "Submit report")}
         </Button>
       </div>
@@ -277,6 +280,7 @@ export function MessagingScreen({ role }: { role: Role }) {
       </div>
       <div className="messaging-panels">
         <aside className="message-threads" aria-label="Conversations" id="message-threads">
+          <QueryFeedback data={data} error={isError} retry={refetch} label="Loading conversations" />
           {data &&
             (list.length ? (
               list.map((t) => {
@@ -354,7 +358,7 @@ export function MessagingScreen({ role }: { role: Role }) {
             <div className="direct-message-history" id="chat-history" role="log" aria-label="Message history" aria-live="polite" ref={history}>
               {historyPage.isError&&<p role="alert">Message history could not be loaded. <Button onClick={()=>void historyPage.refetch()}>Try again</Button></p>}
               {historyPage.data?.nextBefore&&historyLimit<500&&<Button disabled={historyPage.isFetching} onClick={()=>setHistoryLimit((n)=>n+50)}>Load earlier messages</Button>}
-              {messages.length ? (
+              {real && !historyPage.data && !historyPage.isError && !messages.length ? <ContentSkeleton layout="list" label="Loading messages" /> : messages.length ? (
                 messages.map((m, i) => {
                   const d = formatDay(m.time);
                   const divider = previousDay !== d;
@@ -401,7 +405,7 @@ export function MessagingScreen({ role }: { role: Role }) {
                   );
                 })
               ) : (
-                <div className="message-start-hint">A thoughtful conversation starts with a simple hello.</div>
+                !historyPage.isError && <div className="message-start-hint">A thoughtful conversation starts with a simple hello.</div>
               )}
             </div>
             {c.canSend===false&&!c.flags.blocked&&<p role="status">Messaging is currently unavailable for this contact. Your previous messages remain available.</p>}
@@ -524,7 +528,7 @@ export function MessagingScreen({ role }: { role: Role }) {
               }
             />
           </div>
-        ) : null}
+        ) : !data && !isError ? <section className="direct-message"><ContentSkeleton label="Loading conversation" /></section> : null}
       </div>
     </section>
   );

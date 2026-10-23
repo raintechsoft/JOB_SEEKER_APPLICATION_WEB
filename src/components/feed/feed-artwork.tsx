@@ -1,5 +1,7 @@
 "use client";
 
+import { MediaImage } from "@/components/ui/media-image";
+
 import type { CSSProperties } from "react";
 import type { FeedEntry } from "@/services/feed/feed.service";
 import { safeUrl } from "@/lib/utils/url";
@@ -105,8 +107,7 @@ export function FeedArtwork({ entry, onViewProject }: { entry: FeedEntry; onView
   if (entry.image)
     return (
       <figure className="feed-upload">
-        {/* eslint-disable-next-line @next/next/no-img-element -- uploaded data URL */}
-        <img src={entry.image} alt={entry.imageAlt || entry.title} loading="lazy" />
+        <MediaImage src={entry.image} alt={entry.imageAlt || entry.title} loading="lazy" />
       </figure>
     );
   if (entry.media === "brand") return <BrandArt />;

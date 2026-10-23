@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import Link from "next/link";
 import { Fragment, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -49,7 +51,7 @@ function EditComment({ postId, comment }: { postId: Id; comment: Comment }) {
       <TextAreaField label="Comment" name="text" defaultValue={comment.text} required maxLength={1000} error={errors.text} disabled={pending} />
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
           Save comment
         </Button>
       </div>
@@ -91,7 +93,7 @@ export function ProfessionalActivityScreen() {
   const { tab, limit } = useActivityParams();
   const run = useServiceAction();
   const compose = useCompose("professional");
-  const { data } = useServiceQuery(["activity", "professional"], (s) => s.activity.getProfessionalActivity());
+  const { data, isError, refetch } = useServiceQuery(["activity", "professional"], (s) => s.activity.getProfessionalActivity());
   const { data: shell } = useServiceQuery(["shell", "professional"], (s) => s.workspace.getProfessionalShell());
   const me = shell?.person;
   const items = data ? (tab === "comments" ? data.comments : data[tab]) : [];
@@ -149,6 +151,7 @@ export function ProfessionalActivityScreen() {
             </div>
           </div>
           <section className="activity-stream feed-post-list" aria-label={"Your " + ACTIVITY_SECTIONS[tab].toLowerCase()}>
+            <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
             {data &&
               (items.length ? (
                 items.slice(0, limit).map((item) => {
@@ -228,7 +231,7 @@ export function RecruiterActivityScreen() {
   const { tab, limit } = useActivityParams();
   const run = useServiceAction();
   const compose = useCompose("recruiter");
-  const { data } = useServiceQuery(["activity", "recruiter"], (s) => s.activity.getRecruiterActivity());
+  const { data, isError, refetch } = useServiceQuery(["activity", "recruiter"], (s) => s.activity.getRecruiterActivity());
   const { data: shell } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
   const identity = shell?.identity;
   const list = data ? (tab === "comments" ? data.comments.map((g) => g.post) : data[tab]) : [];
@@ -256,6 +259,7 @@ export function RecruiterActivityScreen() {
             </div>
           </div>
           <section className="activity-stream feed-post-list">
+            <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
             {data &&
               (list.length ? (
                 list.slice(0, limit).map((entry) => (

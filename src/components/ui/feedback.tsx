@@ -5,6 +5,7 @@ import { devCopy } from "@/lib/env/app-env";
 import { modal } from "@/stores/modal-store";
 import { Button, Notice } from "./primitives";
 import type { IconName } from "./icon";
+import { ContentSkeleton, type SkeletonLayout } from "./skeleton";
 
 /** Confirmation dialog body (prototype `confirm()`). */
 export function ConfirmBody({ text, actionLabel = "Delete", icon = "trash", variant = "danger", onConfirm, textClassName = "small muted" }: { text: ReactNode; actionLabel?: string; icon?: IconName; variant?: string; onConfirm: () => void; textClassName?: string }) {
@@ -30,16 +31,8 @@ export function FormError({ message }: { message?: string | null }) {
 }
 
 /** Skeleton shown while browser-local data loads (store hydration). */
-export function ScreenFallback({ label = "Loading your workspace…" }: { label?: string }) {
-  return (
-    <div className="skeleton-screen" role="status" aria-live="polite" aria-busy="true">
-      <span className="sr-only">{label}</span>
-      <div className="skeleton-block skeleton-heading" />
-      <div className="skeleton-block" />
-      <div className="skeleton-block" />
-      <div className="skeleton-block skeleton-short" />
-    </div>
-  );
+export function ScreenFallback({ label = "Loading content", layout = "list" }: { label?: string; layout?: SkeletonLayout }) {
+  return <ContentSkeleton label={label} layout={layout} />;
 }
 
 /** Error state for a failed service request. */

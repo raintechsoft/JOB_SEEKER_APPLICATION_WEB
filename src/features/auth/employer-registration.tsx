@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/primitives";
+
 import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -357,19 +359,19 @@ export function EmployerRegistrationScreen() {
             )}
             <footer className="er-actions">
               {step ? (
-                <button type="button" className="btn" disabled={busy} onClick={() => go(real && step === 4 ? 2 : real && step === 2 ? 0 : Math.max(0, step - 1))}>
+                <Button type="button" disabled={busy} onClick={() => go(real && step === 4 ? 2 : real && step === 2 ? 0 : Math.max(0, step - 1))}>
                   <Icon name="arrow" />
                   Back
-                </button>
+                </Button>
               ) : (
                 <Link className="er-text" href="/employer/login">
                   Already registered? Login
                 </Link>
               )}
-              <button className="btn primary" type="submit" disabled={busy}>
-                {busy ? "Please wait…" : step === 4 ? "Create account" : step === 1 || step === 3 ? "Verify & continue" : step === 0 ? "Submit" : "Continue"}
+              <Button loading={busy} loadingLabel="Please wait" variant="primary" type="submit" disabled={busy}>
+                {step === 4 ? "Create account" : step === 1 || step === 3 ? "Verify & continue" : step === 0 ? "Submit" : "Continue"}
                 <Icon name="arrow" />
-              </button>
+              </Button>
             </footer>
           </form>
         </section>

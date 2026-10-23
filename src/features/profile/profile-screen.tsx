@@ -1,5 +1,7 @@
 "use client";
 
+import { ScreenFallback } from "@/components/ui/feedback";
+
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ProfileCollection, ProfileRecord } from "@/types/domain";
 import type { ProfileSection, ProfileView } from "@/services/profile/profile.service";
@@ -753,6 +755,6 @@ function Profile({ view }: { view: ProfileView }) {
 
 export function ProfileScreen() {
   const query = useServiceQuery(["profile"], (s) => s.profile.getProfile());
-  return <QueryView query={query}>{(view) => <Profile view={view} />}</QueryView>;
+  return <QueryView query={query} fallback={<ScreenFallback layout="profile" />}>{(view) => <Profile view={view} />}</QueryView>;
 }
 

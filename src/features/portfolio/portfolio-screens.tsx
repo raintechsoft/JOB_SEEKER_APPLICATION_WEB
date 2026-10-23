@@ -1,5 +1,7 @@
 "use client";
 
+import { ScreenFallback } from "@/components/ui/feedback";
+
 import { useEffect, useRef } from "react";
 import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
@@ -8,7 +10,7 @@ import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Button, EmptyState, IconButton, LinkButton, PageHeading } from "@/components/ui/primitives";
 import { TextField } from "@/components/ui/field";
-import { QueryView } from "@/components/ui/query-view";
+import { QueryView, QueryFeedback } from "@/components/ui/query-view";
 import { PortfolioSite } from "@/components/portfolio/portfolio-site";
 import { NotFoundState } from "@/features/talent/candidate-screen";
 import { useSharePortfolio } from "./share-dialog";
@@ -21,7 +23,7 @@ export function PortfolioBuilderScreen() {
   const previewMobile = useUiStore((s) => s.previewMobile);
   const setUi = useUiStore((s) => s.setUi);
   const query = useServiceQuery(["portfolio", "me"], (s) => s.portfolio.getPortfolio("me"));
-  const { data: projects } = useServiceQuery(["projects", "me", "all"], (s) => s.work.listProjects({ ownerId: "me" }));
+  const { data: projects, isError: projectsError, refetch: retryProjects } = useServiceQuery(["projects", "me", "all"], (s) => s.work.listProjects({ ownerId: "me" }));
   const formRef = useRef<HTMLFormElement>(null);
   const autosave = usePortfolioAutosave(query.data);
   useEffect(() => { if (!autosave.dirty && !autosave.pending) formRef.current?.reset(); }, [query.data, autosave.dirty, autosave.pending]);
@@ -47,7 +49,7 @@ export function PortfolioBuilderScreen() {
           </>
         }
       />
-      <QueryView query={query}>
+      <QueryView query={query} fallback={<ScreenFallback layout="cards" />}>
         {(view) =>
           view && (
             <div className="builder">
@@ -81,9 +83,9 @@ export function PortfolioBuilderScreen() {
                   </label>
                   {autosave.errors._form && <p role="alert">{autosave.errors._form}</p>}
                   <p role="status">{autosave.pending ? "Saving…" : autosave.dirty ? "Unsaved changes" : "All changes saved"}</p>
-                  <button className="btn primary sm" type="submit" disabled={autosave.pending}>
+                  <Button variant="primary sm" type="submit" loading={autosave.pending}>
                     Save portfolio
-                  </button>
+                  </Button>
                 </form>
                 <hr className="divider" />
                 <h3 style={{ fontSize: 12, marginBottom: 10 }}>Your sections</h3>
@@ -99,6 +101,7 @@ export function PortfolioBuilderScreen() {
                   </div>
                 ))}
                 <h3 style={{ fontSize: 12, margin: "20px 0 12px" }}>Featured projects</h3>
+                <QueryFeedback data={projects} error={projectsError} retry={retryProjects} label="Loading portfolio projects" />
                 {projects?.map((pr) => (
                   <label className="check-row" style={{ marginBottom: 12, fontSize: 10 }} key={pr.id}>
                     <input type="checkbox" checked={pr.featured} onChange={(e) => run((sv) => sv.work.setProjectFeatured(pr.id, e.target.checked))} />
@@ -150,7 +153,7 @@ export function PortfolioPreviewScreen() {
           </>
         }
       />
-      <QueryView query={query}>{(view) => view && <PortfolioSite view={view} />}</QueryView>
+      <QueryView query={query} fallback={<ScreenFallback layout="cards" />}>{(view) => view && <PortfolioSite view={view} />}</QueryView>
     </>
   );
 }
@@ -158,7 +161,7 @@ export function PortfolioPreviewScreen() {
 export function PublicPortfolioScreen({ slug }: { slug: string }) {
   const query = useServiceQuery(["portfolio", "slug", slug, portfolioShareContext()], (s) => s.portfolio.getPortfolioBySlug(slug), { keepPreviousData: false });
   return (
-    <QueryView query={query}>
+    <QueryView query={query} fallback={<ScreenFallback layout="cards" />}>
       {(view) =>
         !view ? (
           <main id="main" className="container section">

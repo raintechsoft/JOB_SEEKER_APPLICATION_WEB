@@ -1,5 +1,7 @@
 "use client";
 
+import { MediaImage } from "@/components/ui/media-image";
+
 import { useRef, useState } from "react";
 import type { MediaItem } from "@/types/domain";
 import { isInlineImage } from "@/lib/utils/url";
@@ -49,8 +51,7 @@ export function PostCarousel({ items, id }: { items: MediaItem[]; id: string }) 
             {m.type === "video" ? (
               <video controls playsInline preload="metadata" src={m.src} aria-label={m.alt || "Post video"} />
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element -- user media is a data URL or external URL
-              <img src={m.src} alt={m.alt || "Post image " + (i + 1)} loading="lazy" />
+              <MediaImage src={m.src} alt={m.alt || "Post image " + (i + 1)} loading="lazy" />
             )}
           </figure>
         ))}

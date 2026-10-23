@@ -16,7 +16,7 @@ import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { FeedActionIcon, Icon } from "@/components/ui/icon";
-import { Avatar, Badge, Button, LinkButton, Tags } from "@/components/ui/primitives";
+import { Avatar, Badge, Button, IconButton, LinkButton, Tags } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingInput, TextField } from "@/components/ui/field";
 import { CompanyAvatar, JobArtwork, JobMediaExtras } from "@/components/jobs/job-visuals";
@@ -85,9 +85,7 @@ export function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
           Write a comment
         </label>
         <FloatingInput label="Write a comment" compact id={"comment-" + entry.id} name="comment" required maxLength={1000} placeholder="Add a thoughtful comment..." aria-invalid={!!errors.comment} aria-describedby={errors.comment ? "comment-error-" + entry.id : undefined} disabled={pending} />
-        <button type="submit" className="iconbtn" aria-label="Post comment" disabled={pending}>
-          <Icon name="send" />
-        </button>
+        <IconButton type="submit" icon="send" label="Post comment" loading={pending} />
       </form>
       {errors.comment && <p className="error" role="alert" id={"comment-error-" + entry.id}>{errors.comment}</p>}
       {errors._form && <p className="error" role="alert">{errors._form}</p>}
@@ -205,9 +203,9 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
       <div className="feed-post-context">
         <Icon name={job ? "briefcase" : entry.type === "update" ? "pulse" : "users"} />
         <span>{contextLine}</span>
-        <button type="button" onClick={save} aria-label={(entry.viewer.saved ? "Unsave" : "Save") + " post"} aria-pressed={entry.viewer.saved} className={"feed-bookmark" + (entry.viewer.saved ? " is-saved" : "")}>
+        <Button unstyled type="button" onClick={save} aria-label={(entry.viewer.saved ? "Unsave" : "Save") + " post"} aria-pressed={entry.viewer.saved} className={"feed-bookmark" + (entry.viewer.saved ? " is-saved" : "")}>
           <FeedActionIcon name="save" />
-        </button>
+        </Button>
       </div>
       <header className="feed-post-header">
         <div className="row">
@@ -232,10 +230,10 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
         {entry.viewer.own ? (
           activity ? <ActivityMenu entry={entry} role={role} /> : null
         ) : job && entry.company?.confidential ? null : (
-          <button type="button" className={"feed-follow" + (entry.viewer.following ? " following" : "")} onClick={follow} aria-label={(entry.viewer.following ? "Unfollow " : "Follow ") + p.name}>
+          <Button unstyled type="button" className={"feed-follow" + (entry.viewer.following ? " following" : "")} onClick={follow} aria-label={(entry.viewer.following ? "Unfollow " : "Follow ") + p.name}>
             <Icon name={entry.viewer.following ? "check" : "plus"} />
             {entry.viewer.following ? "Following" : "Follow"}
-          </button>
+          </Button>
         )}
       </header>
       <div className="feed-post-body">
@@ -323,34 +321,34 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
         </button>
       )}
       <div className="feed-social-counts">
-        <button type="button" onClick={like} aria-label={(entry.viewer.liked ? "Unlike" : "Like") + " post"}>
+        <Button unstyled type="button" onClick={like} aria-label={(entry.viewer.liked ? "Unlike" : "Like") + " post"}>
           <span className="reaction-dot">
             <FeedActionIcon name="like" />
           </span>
           {likes}
           {entry.viewer.liked ? " · You liked this" : ""}
-        </button>
+        </Button>
         <button type="button" onClick={toggleComments}>
           {entry.comments.length}{entry.commentsNextCursor ? "+" : ""} {entry.comments.length === 1 ? "comment" : "comments"}
         </button>
       </div>
       <div className="feed-post-actions">
-        <button type="button" className={entry.viewer.liked ? "is-liked" : ""} onClick={like} aria-pressed={entry.viewer.liked}>
+        <Button unstyled type="button" className={entry.viewer.liked ? "is-liked" : ""} onClick={like} aria-pressed={entry.viewer.liked}>
           <FeedActionIcon name="like" />
           Like
-        </button>
+        </Button>
         <button type="button" onClick={toggleComments} aria-expanded={open}>
           <FeedActionIcon name="comment" />
           Comment
         </button>
-        <button type="button" className={sharing ? "is-sharing" : ""} onClick={share}>
+        <Button unstyled type="button" className={sharing ? "is-sharing" : ""} onClick={share}>
           <FeedActionIcon name="share" />
           Share
-        </button>
-        <button type="button" className={entry.viewer.saved ? "is-saved" : ""} onClick={save} aria-pressed={entry.viewer.saved}>
+        </Button>
+        <Button unstyled type="button" className={entry.viewer.saved ? "is-saved" : ""} onClick={save} aria-pressed={entry.viewer.saved}>
           <FeedActionIcon name="save" />
           {entry.viewer.saved ? "Saved" : "Save"}
-        </button>
+        </Button>
       </div>
       {open && <Comments entry={entry} role={role} />}
     </article>

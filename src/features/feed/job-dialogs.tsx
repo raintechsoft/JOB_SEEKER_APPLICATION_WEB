@@ -21,6 +21,7 @@ import { Badge, Button, LinkButton, Tags } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import { QueryFeedback } from "@/components/ui/query-view";
 
 function CandidatePreferences({ values }: { values: Record<string, unknown> | undefined }) {
   if (!values) return null;
@@ -38,9 +39,9 @@ function CandidatePreferences({ values }: { values: Record<string, unknown> | un
 }
 
 function JobDetails({ id, role }: { id: Id; role: Role }) {
-  const { data } = useServiceQuery(["job", id, role], (s) => s.jobs.getJob(id, role));
+  const { data, isError, refetch } = useServiceQuery(["job", id, role], (s) => s.jobs.getJob(id, role), { keepPreviousData: false });
   const actions = useJobActions();
-  if (!data) return null;
+  if (!data) return <QueryFeedback data={data} error={isError} retry={refetch} layout="profile" label="Loading opportunity" />;
   const { job, company, saved, application } = data;
   if (role === "recruiter") {
     return (
@@ -249,7 +250,7 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
       </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check" disabled={pending}>
+        <Button type="submit" variant="primary" icon="check" loading={pending} disabled={pending}>
           {devCopy("Save demo application", "Submit application")}
         </Button>
       </div>

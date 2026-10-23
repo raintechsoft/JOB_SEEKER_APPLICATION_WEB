@@ -184,7 +184,7 @@ export function RecordForm({ collection, record, details, projects }: { collecti
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.requestClose()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check" disabled={pending}>
+        <Button type="submit" variant="primary" icon="check" loading={pending} disabled={pending}>
           Save {record ? "changes" : "entry"}
         </Button>
       </div>
@@ -239,7 +239,7 @@ export function SectionForm({ section, person: p, details: d }: { section: Profi
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.requestClose()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check" disabled={pending}>
+        <Button type="submit" variant="primary" icon="check" loading={pending} disabled={pending}>
           Save changes
         </Button>
       </div>
@@ -286,7 +286,7 @@ export function PhotoForm({ person, revision }: { person: Professional; revision
           Use default portrait
         </Button>
         <Button onClick={() => modal.requestClose()}>Cancel</Button>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
           Save photo
         </Button>
       </div>
