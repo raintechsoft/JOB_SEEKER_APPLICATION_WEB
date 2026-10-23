@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { LinkButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { HeroAvatar, HomeProjects } from "@/features/site/home-islands";
 
 const FEATURES: [IconName, string, string][] = [
@@ -147,7 +148,9 @@ export default function HomePage() {
           </LinkButton>
         </div>
         <HomeProjects />
-        <p className="ph-demo-caption">Illustrative projects from fictional professionals in this prototype.</p>
+        <DevOnly>
+          <p className="ph-demo-caption">Illustrative projects from fictional professionals in this prototype.</p>
+        </DevOnly>
       </section>
       <section className="ph-pathways ph-container" aria-label="Choose your Skillora workspace">
         <article className="ph-pathway">

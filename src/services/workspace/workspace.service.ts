@@ -24,6 +24,7 @@ export interface ProfessionalSummary {
 export type SettingKey = "profile-public" | "portfolio-public" | "updates-public" | "notifications";
 
 export interface WorkspaceSettings extends DemoSettings {
+  moderationHidden?:boolean;
   profilePublic: boolean;
   portfolioPublic: boolean;
   name: string;

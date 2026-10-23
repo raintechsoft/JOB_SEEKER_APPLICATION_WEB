@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { Icon } from "@/components/ui/icon";
 import { Brand, IconButton, LinkButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { workspaceDialogs } from "@/features/workspace/dialogs";
 
 export function EmployerMenu({ variant = "public" }: { variant?: "public" | "auth" }) {
@@ -24,7 +25,7 @@ export function EmployerMenu({ variant = "public" }: { variant?: "public" | "aut
   return (
     <details className="auth-employer-menu" ref={ref}>
       <summary>
-        For Employer <Icon name="down" />
+        For employers <Icon name="down" />
       </summary>
       <nav aria-label="Employer access">
         <Link href="/employer/login">
@@ -56,9 +57,10 @@ export function PublicNav() {
           <Link className="public-login" href="/login?role=professional">
             Login
           </Link>
-          <LinkButton href="/signup?role=professional" variant="primary" icon="arrow">
-            Create a profile
+          <LinkButton href="/signup?role=professional" variant="primary public-register">
+            Register
           </LinkButton>
+          <span className="nav-actions-divider" aria-hidden="true" />
           <EmployerMenu />
           <IconButton icon="menu" label="Open navigation" extra="mobile-nav-toggle" aria-expanded={open} onClick={() => setOpenOn(open ? null : pathname)} />
         </div>
@@ -66,8 +68,8 @@ export function PublicNav() {
       <nav id="public-mobile" className="mobile-menu" aria-label="Mobile navigation" hidden={!open} style={{ display: open ? "flex" : "none" }}>
         <Link href="/how-it-works">How it works</Link>
         <Link href="/talent">Explore talent</Link>
-        <Link href="/login?role=professional">Job seeker login</Link>
-        <Link href="/signup?role=professional">Create a profile</Link>
+        <Link href="/login?role=professional">Login</Link>
+        <Link href="/signup?role=professional">Register</Link>
         <Link href="/employer/login">Employer Login</Link>
         <Link href="/employer/register">Create employer account</Link>
       </nav>
@@ -86,10 +88,12 @@ export function PublicFooter() {
         <nav>
           <Link href="/how-it-works">How it works</Link>
           <Link href="/talent">Explore talent</Link>
-          <button type="button" onClick={workspaceDialogs.privacy}>
-            Privacy & demo data
-          </button>
-          <Link href="/login">Try the demo</Link>
+          <DevOnly>
+            <button type="button" onClick={workspaceDialogs.privacy}>
+              Privacy & demo data
+            </button>
+            <Link href="/login">Try the demo</Link>
+          </DevOnly>
         </nav>
       </div>
     </footer>

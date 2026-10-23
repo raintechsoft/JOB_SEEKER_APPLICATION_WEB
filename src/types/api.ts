@@ -33,6 +33,7 @@ export function paginate<T>(list: T[], page = 1, pageSize = list.length || 1): P
 
 /** Minimal identity used for avatars and bylines. */
 export interface PersonSummary {
+  recruiter?: boolean;
   id: Id;
   name: string;
   headline?: string;

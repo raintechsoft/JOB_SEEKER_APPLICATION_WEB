@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Button, LinkButton } from "@/components/ui/primitives";
+import { devCopy } from "@/lib/env/app-env";
 
 /** Route error boundary: a calm message without technical details. */
 export default function RouteError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -12,7 +13,7 @@ export default function RouteError({ error, reset }: { error: Error & { digest?:
     <main id="main" className="container section">
       <div className="empty" role="alert">
         <h3>Something didn’t load as expected.</h3>
-        <p>Please try again. Your saved changes are still in this browser.</p>
+        <p>{devCopy("Please try again. Your saved changes are still in this browser.", "Please try again. Your saved changes are safe.")}</p>
         <div className="row wrap" style={{ justifyContent: "center" }}>
           <Button variant="primary" icon="refresh" onClick={reset}>
             Try again

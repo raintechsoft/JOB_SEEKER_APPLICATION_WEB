@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ProfileCollection, ProfileRecord, Professional, ProfessionalDetails, Project } from "@/types/domain";
 import type { ProfileSection } from "@/services/profile/profile.service";
 import { ACCOMPLISHMENT_TYPES } from "@/lib/domain/profile";
 import { today } from "@/lib/utils/date";
-import { useServiceAction } from "@/hooks/use-services";
+import { devCopy } from "@/lib/env/app-env";
+import { useServices } from "@/hooks/use-services";
+import { profileRecordSchema, profileSectionSchema, profileDuplicate, validationFields, validateMedia } from "@/lib/validation/profile";
+import { errorMessage, fieldErrors } from "@/services/api/client";
+import type { SaveResult } from "@/services/profile/profile.service";
 import { modal, useModalStore } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Avatar, Button } from "@/components/ui/primitives";
@@ -45,17 +50,17 @@ const SECTION_FORMS: Record<ProfileSection, FieldConfig[]> = {
 const COLLECTION_TITLES: Partial<Record<ProfileCollection, string>> = { skills: "key skill", technicalSkills: "technical skill", careerBreaks: "career break" };
 export const collectionTitle = (c: ProfileCollection) => (ACCOMPLISHMENT_TYPES as Record<string, string>)[c] ?? COLLECTION_TITLES[c] ?? c;
 
-function Fields({ config, values, disabled = {}, requiredOverride = {}, section }: { config: FieldConfig[]; values: Record<string, unknown>; disabled?: Record<string, boolean>; requiredOverride?: Record<string, boolean>; section?: ProfileSection }) {
+function Fields({ config, values, disabled = {}, requiredOverride = {}, section, errors = {} }: { config: FieldConfig[]; values: Record<string, unknown>; disabled?: Record<string, boolean>; requiredOverride?: Record<string, boolean>; section?: ProfileSection; errors?: Record<string, string> }) {
   return (
     <div className="grid cols2 profile-form-grid">
       {config.map(([name, label, type = "text", options, required]) => {
         const value = values[name];
         const req = requiredOverride[name] ?? required;
-        if (type === "select") return <SelectField key={name} label={label} name={name} defaultValue={String(value || options![0])} options={options!} />;
+        if (type === "select") return <SelectField key={name} label={label} name={name} error={errors[name]} defaultValue={String(value || options![0])} options={options!} />;
         if (type === "textarea")
           return (
             <div style={{ gridColumn: "1/-1" }} key={name}>
-              <TextAreaField label={label} name={name} defaultValue={String(value ?? "")} maxLength={section === "summary" && name === "summary" ? 1200 : 2500} required={req} />
+              <TextAreaField label={label} name={name} error={errors[name]} defaultValue={String(value ?? "")} maxLength={section === "summary" && name === "summary" ? 1200 : 2500} required={req} />
             </div>
           );
         return (
@@ -63,6 +68,7 @@ function Fields({ config, values, disabled = {}, requiredOverride = {}, section 
             key={name}
             label={label}
             name={name}
+            error={errors[name]}
             type={type}
             defaultValue={value === undefined || value === null ? "" : String(value)}
             required={req}
@@ -85,10 +91,32 @@ const formValues = (form: HTMLFormElement) => {
   return values;
 };
 
-export function RecordForm({ collection, record, details, projects }: { collection: ProfileCollection; record: ProfileRecord | null; details: ProfessionalDetails; projects: Project[] }) {
-  const run = useServiceAction();
-  const setDirty = useModalStore((s) => s.setDirty);
+function useProfileMutation() {
+  const services = useServices();
+  const cache = useQueryClient();
+  const busy = useRef(false);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const execute = async (operation: () => Promise<SaveResult | void>) => {
+    if (busy.current) return false;
+    busy.current = true; setPending(true); setError(""); setErrors({});
+    try {
+      const result = await operation();
+      if (result && !result.ok) { setError(result.error); return false; }
+      await Promise.all([cache.invalidateQueries({ queryKey: ["profile"] }), cache.invalidateQueries({ queryKey: ["shell"] }), cache.invalidateQueries({ queryKey: ["auth", "session"] })]);
+      return true;
+    } catch (error) {
+      const fields = Object.fromEntries(Object.entries(fieldErrors(error)).map(([key, messages]) => [key, messages[0]]));
+      setErrors(fields); setError(Object.values(fields)[0] ?? errorMessage(error)); return false;
+    } finally { busy.current = false; setPending(false); }
+  };
+  return { services, execute, error, errors, setError, setErrors, pending };
+}
+
+export function RecordForm({ collection, record, details, projects }: { collection: ProfileCollection; record: ProfileRecord | null; details: ProfessionalDetails; projects: Project[] }) {
+  const { services, execute, error, errors, setError, setErrors, pending } = useProfileMutation();
+  const setDirty = useModalStore((s) => s.setDirty);
   const r = (record ?? {}) as Record<string, unknown>;
   const [current, setCurrent] = useState(!!record?.current);
   const [neverExpires, setNeverExpires] = useState(!!record?.neverExpires);
@@ -100,16 +128,19 @@ export function RecordForm({ collection, record, details, projects }: { collecti
     const item: ProfileRecord = { ...formValues(form), id: record?.id ?? "", current: f.has("current"), neverExpires: f.has("neverExpires"), public: f.has("public"), featured: f.has("featured") };
     if (collection === "employment") item.projects = f.getAll("projects").map(String);
     if (item.skillId === undefined && record?.skillId) item.skillId = record.skillId;
-    const result = await run((s) => s.profile.saveRecord(collection, item));
-    if (!result) return;
-    if (!result.ok) return setError(result.error);
+    const checked = profileRecordSchema(collection).safeParse(item);
+    if (!checked.success) { const fields = validationFields(checked.error); setErrors(fields); setError("Please check the highlighted fields."); form.querySelector<HTMLElement>(`[name="${Object.keys(fields)[0]}"]`)?.focus(); return; }
+    const linked = collection === "employment" ? item.projects ?? [] : collection === "workSamples" && item.project ? [String(item.project)] : [];
+    if (linked.length > 50 || new Set(linked).size !== linked.length || linked.some((id) => !projects.some((project) => project.id === id))) { setErrors({ projects: "Choose projects from your own profile." }); setError("Choose projects from your own profile."); return; }
+    if (profileDuplicate(collection, item, details[collection])) { setErrors({ name: "This entry already exists. Edit the existing entry." }); return; }
+    if (!await execute(() => services.profile.saveRecord(collection, item, details.revision))) return;
     setDirty(false);
     modal.close();
     toast("Profile changes saved across your workspace.");
   };
   return (
-    <form id="profile-record-form" data-profile-editor data-collection={collection} className="stack" onSubmit={submit} onInput={() => setDirty(true)}>
-      <Fields config={CONFIGS[collection]} values={r} disabled={{ end: current, expiry: neverExpires }} requiredOverride={{ end: !current && collection === "employment" }} />
+    <form id="profile-record-form" data-profile-editor data-collection={collection} className="stack" noValidate onSubmit={submit} onInput={() => setDirty(true)}>
+      <Fields config={CONFIGS[collection]} values={r} errors={errors} disabled={{ end: current, expiry: neverExpires }} requiredOverride={{ end: !current && collection === "employment" }} />
       <datalist id="profile-known-skills">
         {details.skills.map((s) => (
           <option key={s.id} value={s.name} />
@@ -153,7 +184,7 @@ export function RecordForm({ collection, record, details, projects }: { collecti
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.requestClose()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check">
+        <Button type="submit" variant="primary" icon="check" disabled={pending}>
           Save {record ? "changes" : "entry"}
         </Button>
       </div>
@@ -162,32 +193,37 @@ export function RecordForm({ collection, record, details, projects }: { collecti
 }
 
 export function SectionForm({ section, person: p, details: d }: { section: ProfileSection; person: Professional; details: ProfessionalDetails }) {
-  const run = useServiceAction();
+  const { services, execute, error, errors, setError, setErrors, pending } = useProfileMutation();
   const setDirty = useModalStore((s) => s.setDirty);
-  const [error, setError] = useState("");
   const values: Record<string, unknown> = section === "career" ? { ...d.career } : section === "personal" ? { ...d.personal } : section === "diversity" ? { ...d.diversity } : { ...p, ...d, interests: d.career.interests || p.interests };
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const input: Record<string, string | boolean> = { ...formValues(e.currentTarget) };
     for (const k of ["available", "public", "publicEmail", "publicPhone"]) input[k] = f.has(k);
-    const result = await run((s) => s.profile.saveSection(section, input));
-    if (!result) return;
-    if (!result.ok) return setError(result.error);
+    const checked = profileSectionSchema(section).safeParse(input);
+    if (!checked.success) { const fields = validationFields(checked.error); setErrors(fields); setError("Please check the highlighted fields."); e.currentTarget.querySelector<HTMLElement>(`[name="${Object.keys(fields)[0]}"]`)?.focus(); return; }
+    if (section === "identity" && d.employment.some((entry) => entry.current)) {
+      const fields: Record<string, string> = {};
+      if (!input.currentTitle) fields.currentTitle = "Keep a title for your current employment.";
+      if (!input.currentCompany) fields.currentCompany = "Keep a company for your current employment.";
+      if (Object.keys(fields).length) { setErrors(fields); setError("Please check the highlighted fields."); return; }
+    }
+    if (!await execute(() => services.profile.saveSection(section, input, d.revision))) return;
     setDirty(false);
     modal.close();
     toast("Profile changes saved across your workspace.");
   };
   return (
-    <form id="profile-section-form" data-profile-editor data-section={section} className="stack" onSubmit={submit} onInput={() => setDirty(true)}>
-      <Fields config={SECTION_FORMS[section]} values={values} section={section} />
+    <form id="profile-section-form" data-profile-editor data-section={section} className="stack" noValidate onSubmit={submit} onInput={() => setDirty(true)}>
+      <Fields config={SECTION_FORMS[section]} values={values} errors={errors} section={section} />
       {section === "identity" && (
         <>
           <CheckRow name="available" defaultChecked={p.available}>
             Open to opportunities
           </CheckRow>
           <CheckRow name="public" defaultChecked={p.public}>
-            Make my professional profile public in the demo
+            {devCopy("Make my professional profile public in the demo", "Make my professional profile public")}
           </CheckRow>
           <CheckRow name="publicEmail" defaultChecked={d.privacy.email}>
             Show my email on public profiles and portfolio
@@ -203,7 +239,7 @@ export function SectionForm({ section, person: p, details: d }: { section: Profi
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.requestClose()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check">
+        <Button type="submit" variant="primary" icon="check" disabled={pending}>
           Save changes
         </Button>
       </div>
@@ -211,10 +247,9 @@ export function SectionForm({ section, person: p, details: d }: { section: Profi
   );
 }
 
-export function PhotoForm({ person }: { person: Professional }) {
-  const run = useServiceAction();
+export function PhotoForm({ person, revision }: { person: Professional; revision?: number }) {
+  const { services, execute, error, setError, pending } = useProfileMutation();
   const setDirty = useModalStore((s) => s.setDirty);
-  const [error, setError] = useState("");
   return (
     <form
       id="profile-photo-form"
@@ -224,9 +259,9 @@ export function PhotoForm({ person }: { person: Professional }) {
       onSubmit={async (e) => {
         e.preventDefault();
         const file = new FormData(e.currentTarget).get("photo");
-        const result = await run((s) => s.profile.setPhoto(file as File));
-        if (!result) return;
-        if (!result.ok) return setError(result.error);
+        const invalid = validateMedia(file instanceof File ? file : null, "portrait");
+        if (invalid) return setError(invalid);
+        if (!await execute(() => services.profile.setPhoto(file as File, revision))) return;
         setDirty(false);
         modal.close();
         toast("Profile changes saved across your workspace.");
@@ -235,7 +270,7 @@ export function PhotoForm({ person }: { person: Professional }) {
       <div className="center">
         <Avatar person={person} size="xl" />
       </div>
-      <FileField label="Choose a photo" name="photo" accept="image/png,image/jpeg,image/webp" required hint="PNG, JPEG, or WebP up to 1 MB. Saved locally." />
+      <FileField label="Choose a photo" name="photo" accept="image/png,image/jpeg,image/webp" required hint={devCopy("PNG, JPEG, or WebP up to 1 MB. Saved locally.", "PNG, JPEG, or WebP up to 1 MB.")} />
       <div id="profile-form-error">
         <FormError message={error} />
       </div>
@@ -243,7 +278,7 @@ export function PhotoForm({ person }: { person: Professional }) {
         <Button
           variant="sm"
           onClick={async () => {
-            await run((s) => s.profile.useDefaultPhoto());
+            if (!await execute(() => services.profile.useDefaultPhoto(revision))) return;
             setDirty(false);
             modal.close();
           }}
@@ -251,7 +286,7 @@ export function PhotoForm({ person }: { person: Professional }) {
           Use default portrait
         </Button>
         <Button onClick={() => modal.requestClose()}>Cancel</Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={pending}>
           Save photo
         </Button>
       </div>

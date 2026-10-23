@@ -5,6 +5,8 @@ import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Badge, Button, EmptyState, LinkButton, PageHeading } from "@/components/ui/primitives";
 import { StatCard } from "@/features/talent/recruiter-talent-screens";
+import {apiConfig} from "@/services/api/config";
+import {RealAdminScreen} from "./real-admin-screen";
 
 export type AdminPage = "dashboard" | "users" | "companies" | "moderation";
 
@@ -116,6 +118,7 @@ function Overview() {
 
 /** Optional administration demo. No real users or companies are managed. */
 export function AdminScreen({ page }: { page: AdminPage }) {
+  if(apiConfig.dataSource==="http")return <RealAdminScreen page={page}/>;
   return (
     <>
       <PageHeading title="A little platform perspective." subtitle="A lightweight administrative demo. No real users or companies are managed here." />

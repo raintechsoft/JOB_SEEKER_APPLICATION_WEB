@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Comment, Id, Role } from "@/types/domain";
 import { ACTIVITY_SECTIONS, type ActivityData, type ActivitySection } from "@/services/activity/activity.service";
@@ -15,6 +15,8 @@ import { TextAreaField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
 import { FeedCard } from "@/features/feed/feed-card";
 import { useCompose } from "@/features/feed/feed-parts";
+import { commentSchema } from "@/lib/validation/social";
+import { useFormAction } from "@/hooks/use-form-action";
 
 const ICONS: Record<ActivitySection, IconName> = { posts: "edit", comments: "message", videos: "monitor", images: "image", reactions: "like" };
 
@@ -27,22 +29,27 @@ function useActivityParams() {
 }
 
 function EditComment({ postId, comment }: { postId: Id; comment: Comment }) {
-  const run = useServiceAction();
+  const [errors,setErrors] = useState<Record<string,string>>({});
+  const {execute,pending} = useFormAction(setErrors);
   return (
     <form
       id="activity-comment-form"
       className="stack"
+      noValidate
       onSubmit={async (e) => {
         e.preventDefault();
-        await run((s) => s.feed.editComment(postId, comment.id, String(new FormData(e.currentTarget).get("text") || "").trim()));
+        const parsed = commentSchema.safeParse(String(new FormData(e.currentTarget).get("text") || ""));
+        if (!parsed.success) { setErrors({ text: parsed.error.issues[0].message }); return; }
+        if (!(await execute((s) => s.feed.editComment(postId, comment.id, parsed.data, comment.version)))) return;
         modal.close();
         toast("Changes saved.");
       }}
     >
-      <TextAreaField label="Comment" name="text" defaultValue={comment.text} required maxLength={1000} />
+      {errors._form && <p role="alert" className="error">{errors._form}</p>}
+      <TextAreaField label="Comment" name="text" defaultValue={comment.text} required maxLength={1000} error={errors.text} disabled={pending} />
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={pending}>
           Save comment
         </Button>
       </div>
@@ -92,7 +99,9 @@ export function ProfessionalActivityScreen() {
 
   const removeComment = (postId: Id, id: Id) =>
     confirmAction("Delete this comment?", "Your comment will be removed from the post.", async () => {
-      await run((s) => s.feed.deleteComment("professional", postId, id));
+      const revision = data?.comments.flatMap((g)=>g.comments).find((c)=>c.id===id)?.version;
+      const ok = await run(async (s) => { await s.feed.deleteComment("professional", postId, id, revision); return true; });
+      if (!ok) return;
       modal.close();
       toast("Comment deleted.");
     }, "Delete comment");
@@ -259,7 +268,7 @@ export function RecruiterActivityScreen() {
                     <FeedCard entry={entry} role="recruiter" activity={entry.viewer.own} surface="activity" />
                     {tab === "comments" &&
                       entry.comments
-                        .filter((c) => c.author.id === "r0")
+                        .filter((c) => c.author.id === identity?.id)
                         .map((c) => (
                           <div className="card recruiter-own-comment" key={c.id}>
                             <div className="row">
@@ -272,7 +281,9 @@ export function RecruiterActivityScreen() {
                               variant="text sm"
                               icon="trash"
                               onClick={async () => {
-                                await run((s) => s.feed.deleteComment("recruiter", entry.id, c.id));
+                                const version = data?.comments.flatMap((g)=>g.comments).find((x)=>x.id===c.id)?.version;
+                                const ok = await run(async (s) => { await s.feed.deleteComment("recruiter", entry.id, c.id, version); return true; });
+                                if (!ok) return;
                                 toast("Comment deleted.");
                               }}
                             >

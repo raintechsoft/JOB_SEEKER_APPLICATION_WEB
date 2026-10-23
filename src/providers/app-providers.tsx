@@ -8,6 +8,7 @@ import { ModalHost } from "@/components/ui/modal-host";
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalShortcuts } from "@/components/layout/global-shortcuts";
 import { apiConfig } from "@/services/api/config";
+import { RecoveryNavigation } from "@/features/auth/recovery-navigation";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [services] = useState(createServices);
@@ -28,7 +29,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ServicesContext.Provider value={services}>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <RecoveryNavigation>{children}</RecoveryNavigation>
         <GlobalShortcuts />
         <ModalHost />
         <Toaster />

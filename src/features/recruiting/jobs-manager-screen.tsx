@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef,useState } from "react";
+import {collaborationSchema} from "@/lib/validation/application";
+import {validationFields} from "@/lib/validation/profile";
+import {useFormAction} from "@/hooks/use-form-action";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Id } from "@/types/domain";
 import type { ManagedJob } from "@/services/recruiting/recruiting.service";
 import { formatLongDate } from "@/lib/utils/date";
+import { devCopy } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
@@ -14,6 +18,7 @@ import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Button, EmptyState, IconButton, LinkButton, PageHeading } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingSelect, TextAreaField, TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
 import { JobArtwork, JobMediaExtras } from "@/components/jobs/job-visuals";
@@ -100,12 +105,14 @@ function JobPreview({ job }: { job: ManagedJob }) {
 }
 
 function ShareJob({ job }: { job: ManagedJob }) {
-  const url = window.location.origin + "/app/dashboard?post=" + encodeURIComponent(job.id);
+  const url = window.location.origin + devCopy("/app/dashboard?post=" + encodeURIComponent(job.id),"/jobs/" + encodeURIComponent(job.id));
   return (
     <div className="stack">
       <h3>{job.title}</h3>
       <TextField label="Job link" name="job-share-link" defaultValue={url} readOnly />
-      <p className="notice">This link opens the demo job in the job seeker feed. Local changes and jobs created in this browser are not synchronized to other devices.</p>
+      <DevOnly>
+        <p className="notice">This link opens the demo job in the job seeker feed. Local changes and jobs created in this browser are not synchronized to other devices.</p>
+      </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Close</Button>
         <Button
@@ -131,7 +138,8 @@ function ShareJob({ job }: { job: ManagedJob }) {
 }
 
 function Collaborate({ jobs }: { jobs: ManagedJob[] }) {
-  const run = useServiceAction();
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
   const emails = [...new Set(jobs.flatMap((j) => j.collaborators || []))];
   return (
     <form
@@ -142,18 +150,24 @@ function Collaborate({ jobs }: { jobs: ManagedJob[] }) {
         const f = new FormData(e.currentTarget);
         const list = [...new Set(String(f.get("emails") || "").split(",").map((s) => s.trim()).filter(Boolean))];
         if (list.some((x) => !/^\S+@\S+\.\S+$/.test(x))) return toast("Enter valid email addresses separated by commas.");
-        await run((s) => s.recruiting.saveCollaboration(jobs.map((j) => j.id), list, String(f.get("note") || "").trim()));
+        const checked=collaborationSchema.omit({ids:true}).safeParse({emails:list,note:String(f.get("note")||"").trim()});
+        if(!checked.success)return setErrors(validationFields(checked.error));
+        if(!await execute((s)=>s.recruiting.saveCollaboration(jobs.map((j)=>j.id),checked.data.emails,checked.data.note,jobs.every((j)=>j.version)?Object.fromEntries(jobs.map((j)=>[j.id,j.version!])):undefined)))return;
         modal.close();
-        toast("Local collaboration settings saved. No invitations were sent.");
+        toast(devCopy("Local collaboration settings saved. No invitations were sent.","Job reviewers updated."));
       }}
     >
       <h3>{jobs.length === 1 ? jobs[0].title : jobs.length + " selected job posts"}</h3>
+      {Object.entries(errors).map(([key,error])=><p role="alert" key={key}>{key}: {error}</p>)}
+      <p className="small muted">Choose existing active team members to grant review access. Team invitations are managed separately.</p>
       <TextField label="Collaborator emails (comma separated)" name="emails" defaultValue={emails.join(", ")} placeholder="colleague@example.com" />
       <TextAreaField label="Team handoff note (optional)" name="note" defaultValue={jobs.length === 1 ? jobs[0].collaborationNote || "" : ""} maxLength={1500} />
-      <p className="notice">These are local demo collaboration settings. No invitations or emails are sent.</p>
+      <DevOnly>
+        <p className="notice">These are local demo collaboration settings. No invitations or emails are sent.</p>
+      </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={pending}>
           Save collaboration
         </Button>
       </div>
@@ -181,7 +195,7 @@ function JobMenu({ job }: { job: ManagedJob }) {
             variant="text sm"
             icon="briefcase"
             onClick={async () => {
-              const status = await run((s) => s.recruiting.toggleJob(job.id));
+              const status = await run((s) => s.recruiting.toggleJob(job.id),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
               if (status) toast(status === "Active" ? "Job reopened." : "Job closed. Existing responses are retained.");
             }}
           >
@@ -196,8 +210,8 @@ function JobMenu({ job }: { job: ManagedJob }) {
             variant="text sm"
             icon="trash"
             onClick={() =>
-              confirmAction("Delete draft?", "This unpublished draft will be removed from this browser.", async () => {
-                await run((s) => s.recruiting.deleteDraft(job.id));
+              confirmAction("Delete draft?", devCopy("This unpublished draft will be removed from this browser.", "This unpublished draft will be removed."), async () => {
+                if(!await run(async(s)=>{await s.recruiting.deleteDraft(job.id);return true;},{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]}))return;
                 useUiStore.getState().setJobsManager({ selected: useUiStore.getState().jobsManager.selected.filter((x) => x !== job.id) });
                 modal.close();
                 toast("Draft deleted.");
@@ -281,7 +295,7 @@ function JobCard({ job, selected, onSelect }: { job: ManagedJob; selected: boole
               icon="refresh"
               label={"Refresh posting date for " + job.title}
               onClick={async () => {
-                const ok = await run((s) => s.recruiting.repostJob(job.id));
+                const ok = await run((s) => s.recruiting.repostJob(job.id),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
                 toast(ok ? "Posting date refreshed in the local feed." : "Reopen this job before refreshing its posting date.");
               }}
             />
@@ -312,7 +326,7 @@ export function JobsManagerScreen() {
   const drafts = params.get("tab") === "drafts";
   const size = [10, 20, 40, 60].includes(Number(params.get("size"))) ? Number(params.get("size")) : 10;
   const query = { drafts, q: params.get("q") || "", statuses: params.getAll("status"), categories: params.getAll("category"), location: params.get("location") || "", days: Number(params.get("days")) || 0, sort: (params.get("sort") || "newest") as "newest", page: Number(params.get("page")) || 1, pageSize: size };
-  const { data: m } = useServiceQuery(["jobs-manager", query], (s) => s.recruiting.listManagedJobs(query));
+  const { data: m,isError } = useServiceQuery(["jobs-manager", query], (s) => s.recruiting.listManagedJobs(query),{keepPreviousData:false});
   const visible = m?.items ?? [];
   const allSelected = visible.length > 0 && visible.every((j) => selected.includes(j.id));
   const toggle = (id: Id, checked: boolean) => setJobsManager({ selected: checked ? [...new Set([...selected, id])] : selected.filter((x) => x !== id) });
@@ -320,6 +334,7 @@ export function JobsManagerScreen() {
 
   return (
     <div className="jobs-responses-workspace">
+      {isError&&<p role="alert">Jobs could not be loaded. Check the filters and your workspace access, then retry.</p>}
       <div className="jobs-manager-layout">
         <PageHeading
           title="Manage Jobs and Responses"
@@ -475,7 +490,7 @@ export function JobsManagerScreen() {
               icon="refresh"
               onClick={async () => {
                 await run(async () => undefined);
-                toast("Job list refreshed from this browser’s saved data.");
+                toast(devCopy("Job list refreshed from this browser’s saved data.", "Job list refreshed."));
               }}
             >
               Refresh
@@ -503,7 +518,8 @@ export function JobsManagerScreen() {
                           variant="primary"
                           icon="check"
                           onClick={async () => {
-                            const count = await run((s) => s.recruiting.closeJobs(selected));
+                            const count = await run((s) => s.recruiting.closeJobs(selected),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
+                            if(count===undefined)return;
                             setJobsManager({ selected: [] });
                             modal.close();
                             toast((count ?? 0) + " job posts closed.");
@@ -556,10 +572,12 @@ export function JobsManagerScreen() {
                 </div>
               ))}
           </div>
-          <p className="jobs-manager-note">
-            <Icon name="shield" />
-            Local prototype · Job posts, responses, and collaboration settings stay in this browser.
-          </p>
+          <DevOnly>
+            <p className="jobs-manager-note">
+              <Icon name="shield" />
+              Local prototype · Job posts, responses, and collaboration settings stay in this browser.
+            </p>
+          </DevOnly>
         </section>
       </div>
     </div>

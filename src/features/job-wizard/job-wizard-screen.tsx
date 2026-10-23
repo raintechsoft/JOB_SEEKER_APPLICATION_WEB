@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import {useQueryClient} from "@tanstack/react-query";
 import type { JobDraft, JobWizardValues } from "@/types/domain";
 import type { JobDraftContext } from "@/services/job-posts/job-posts.service";
 import { formatSalary, JOB_THUMBNAIL_TEMPLATES } from "@/lib/domain/jobs";
@@ -9,13 +11,19 @@ import { draftJobFromBrief, type JobBrief } from "@/lib/domain/job-draft-generat
 import { today } from "@/lib/utils/date";
 import { IMAGE_TYPES, MB, readAsDataUrl } from "@/lib/utils/files";
 import { uid } from "@/lib/utils/id";
-import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
+import { useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Button, EmptyState, IconButton, LinkButton } from "@/components/ui/primitives";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { ScreenFallback } from "@/components/ui/feedback";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
+import { isPrototype } from "@/lib/env/app-env";
+import { jobErrors, validateJobFiles } from "@/lib/validation/job";
+import { errorMessage, fieldErrors } from "@/services/api/client";
+import { useFormAction } from "@/hooks/use-form-action";
 import { JobArtwork, JobMediaExtras, type JobVisualData } from "@/components/jobs/job-visuals";
 
 const STEPS = ["Job details", "Preferred candidate details", "Job description", "Screening questions", "Advanced options", "Media & thumbnail", "Review & publish"];
@@ -25,6 +33,7 @@ type Errors = Record<string, string>;
 type ChipKey = "locations" | "skills" | "education" | "industries";
 
 function validate(step: number, v: JobWizardValues): Errors {
+  if (!isPrototype) return jobErrors(v, step);
   const e: Errors = {};
   if (step === 0) {
     for (const [key, label] of [
@@ -66,15 +75,17 @@ function validate(step: number, v: JobWizardValues): Errors {
 
 const visual = (v: JobWizardValues): JobVisualData => ({ title: v.title || "Your next chapter starts here.", companyName: v.hideCompany ? "Confidential company" : v.companyName, location: v.locations.join(" · "), arrangement: v.arrangement, thumbnail: v.thumbnail, jobMedia: v.jobMedia });
 
-function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; replace: boolean; onGenerate: (brief: JobBrief) => void }) {
+function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; replace: boolean; onGenerate: (brief: JobBrief) => Promise<boolean> }) {
   const [error, setError] = useState("");
+  const [busy,setBusy]=useState(false);
   const [currency, setCurrency] = useState(values.currency);
   return (
     <form
       id="wizard-ai-form"
       className="stack"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
+        if(busy)return;
         const f = new FormData(e.currentTarget);
         const t = (n: string) => String(f.get(n) || "").trim();
         const brief = { role: t("role"), location: t("location"), arrangement: t("arrangement"), employment: t("employment"), currency: t("currency") as JobBrief["currency"], skills: t("skills"), hideSalary: values.hideSalary, experienceMin: t("experienceMin"), experienceMax: t("experienceMax"), salaryMin: t("salaryMin"), salaryMax: t("salaryMax") };
@@ -86,11 +97,11 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
         else if (!["INR", "USD", "EUR", "GBP"].includes(brief.currency) || !["On-site", "Hybrid", "Remote"].includes(brief.arrangement) || !["Full-time", "Part-time", "Contract", "Internship"].includes(brief.employment)) message = "Choose valid salary and work options.";
         else if (replace && !f.has("replace")) message = "Confirm replacing the job content in this draft to continue.";
         if (message) return setError(message);
-        onGenerate(brief);
+        setBusy(true);try{if(!await onGenerate(brief))setError("The draft could not be saved. Keep this form open to retry, or close it to correct the highlighted job details.");}finally{setBusy(false);}
       }}
     >
       <p className="job-ai-intro">Give us the essentials. We’ll prepare the job text, suggested skills, and screening questions for your final review.</p>
-      <span className="job-ai-demo-label">Demo generator · Role-based templates</span>
+      <span className="job-ai-demo-label">{devCopy("Demo generator · Role-based templates", "Template helper · Review every suggestion")}</span>
       <TextField label="Role name" name="role" defaultValue={values.role || values.title} required maxLength={100} />
       <div className="grid cols2">
         <TextField label="Minimum experience (years)" name="experienceMin" type="number" defaultValue={String(values.experienceMin)} required min={0} max={50} step={1} />
@@ -129,7 +140,7 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="spark">
+        <Button type="submit" variant="primary" icon="spark" disabled={busy}>
           Generate draft
         </Button>
       </div>
@@ -139,16 +150,21 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
 
 function Wizard({ ctx }: { ctx: JobDraftContext }) {
   const services = useServices();
-  const run = useServiceAction();
+  const cache=useQueryClient();
   const router = useRouter();
   const [d, setD] = useState<JobDraft>(ctx.draft);
   const [errors, setErrors] = useState<Errors>({});
+  const { execute, pending } = useFormAction(setErrors);
   const [uploadBusy, setUploadBusy] = useState(false);
-  const [savedNote, setSavedNote] = useState(ctx.draft.savedAt ? "Progress saved in this browser" : "Your progress is saved as you work.");
+  const [moving,setMoving]=useState(false);
+  const [savedNote, setSavedNote] = useState(ctx.draft.savedAt ? devCopy("Progress saved in this browser", "Progress saved") : "Your progress is saved as you work.");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const navigationLock = useRef(false);
   const v = d.values;
+
+  useEffect(()=>{if(!isPrototype&&!new URLSearchParams(window.location.search).has("id"))router.replace("/recruiter/jobs/new?id="+encodeURIComponent(ctx.draft.id));},[ctx.draft.id,router]);
 
   useEffect(() => {
     const nav = navRef.current;
@@ -156,28 +172,44 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
     if (nav && current && matchMedia("(max-width:680px)").matches) nav.scrollLeft = current.offsetLeft - nav.offsetLeft - (nav.clientWidth - current.clientWidth) / 2;
   }, [d.step]);
 
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const store = async (next: JobDraft) => {
-    const ok = await services.jobPosts.storeJobDraft(ctx.key, next);
-    if (ok) setSavedNote("Progress saved in this browser");
-    return ok;
+    if (!isPrototype) { const invalid=jobErrors(next.values,"draft"); if(Object.keys(invalid).length){setErrors(invalid);setSavedNote("Unsaved changes. Check the entered values.");return false;} }
+    try {
+      const ok = await services.jobPosts.storeJobDraft(ctx.key, next);
+      if (ok) setSavedNote(devCopy("Progress saved in this browser", "Progress saved"));
+      return ok;
+    } catch (error) {
+      setErrors({ ...Object.fromEntries(Object.entries(fieldErrors(error)).map(([key, messages]) => [key.replace(/^values\./, ""), messages[0]])), _form: errorMessage(error) });
+      setSavedNote("Changes have not been saved. Keep this page open and retry.");
+      return false;
+    }
   };
   /** Updates values; any edit invalidates a generated draft's verification, as in the prototype. */
   const set = (patch: Partial<JobWizardValues>, opts: { debounce?: boolean; keepVerification?: boolean } = {}) => {
     const next = { ...d, values: { ...d.values, ...patch, ...(d.generated && !opts.keepVerification && !("aiVerified" in patch) ? { aiVerified: false } : {}) } };
     setD(next);
+    setSavedNote("Saving your changes…");
     if (timer.current) clearTimeout(timer.current);
-    if (opts.debounce) timer.current = setTimeout(() => store(next).then((ok) => !ok && toast("Browser storage is full. Remove some uploaded media to keep saving.")), 250);
+    if (opts.debounce) timer.current = setTimeout(() => void store(next), 700);
     else void store(next);
   };
-  const move = (step: number) => {
+  const move = async (step: number) => {
+    if (navigationLock.current || pending || uploadBusy) return;
     if (step > d.step) {
-      const e = validate(d.step, v);
+      const e = Object.assign({}, ...Array.from({ length: step }, (_, index) => validate(index, v)));
       setErrors(e);
       if (Object.keys(e).length) return requestAnimationFrame(() => document.querySelector(".wizard-errors")?.scrollIntoView({ block: "center" }));
     } else setErrors({});
     const next = { ...d, step, reached: Math.max(d.reached, step), values: d.generated && step < 6 ? { ...v, aiVerified: false } : v };
+    if (timer.current) clearTimeout(timer.current);
+    navigationLock.current = true;
+    setMoving(true);
+    const ok = await store(next);
+    navigationLock.current = false;
+    setMoving(false);
+    if (!ok) return;
     setD(next);
-    void store(next);
     window.scrollTo(0, 0);
     requestAnimationFrame(() => titleRef.current?.focus());
   };
@@ -196,12 +228,18 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
 
   const upload = async (files: File[], thumbnail: boolean) => {
     if (!files.length) return;
+    const invalid = validateJobFiles(files, v.jobMedia.files, thumbnail);
+    if (invalid) return toast(invalid);
     const allowed = thumbnail ? IMAGE_TYPES : [...IMAGE_TYPES, "application/pdf", "video/mp4", "video/webm"];
     if (files.some((f) => !allowed.includes(f.type) || f.size > MB)) return toast("Choose supported files up to 1 MB each.");
     if (!thumbnail && (v.jobMedia.files.length + files.length > 3 || v.jobMedia.files.reduce((n, f) => n + f.size, 0) + files.reduce((n, f) => n + f.size, 0) > 1.5 * MB)) return toast("Use up to three supporting files, totaling 1.5 MB or less.");
     setUploadBusy(true);
     try {
-      const added = await Promise.all(files.map(async (f) => ({ id: uid(), name: f.name, type: f.type, size: f.size, data: await readAsDataUrl(f) })));
+      const added = await Promise.all(files.map(async (f) => {
+        if (isPrototype) return { id: uid(), name: f.name, type: f.type, size: f.size, data: await readAsDataUrl(f) };
+        const asset = await services.media.upload(f, thumbnail ? "job_thumbnail" : "job_attachment", ctx.companyId);
+        return { id: asset.id, name: f.name, type: f.type, size: f.size, data: asset.url };
+      }));
       if (thumbnail) set({ thumbnail: { ...v.thumbnail, image: added[0].data, alt: v.thumbnail.alt || v.title + " hiring announcement" } });
       else set({ jobMedia: { ...v.jobMedia, files: [...v.jobMedia.files, ...added] } });
     } catch {
@@ -211,20 +249,24 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
     }
   };
 
-  const generate = (brief: JobBrief) => {
+  const generate = async (brief: JobBrief) => {
     const changes = draftJobFromBrief(brief);
     const values = { ...changes, questions: changes.questions.map((q) => ({ ...q, id: uid() })), aiVerified: false };
     const previousValues = Object.fromEntries(Object.keys(values).map((k) => [k, structuredClone(v[k as keyof JobWizardValues] ?? (k === "aiVerified" ? false : ""))])) as Partial<JobWizardValues>;
     const next: JobDraft = { ...d, aiPrevious: { values: previousValues, step: d.step, reached: d.reached, generated: d.generated || false }, values: { ...v, ...values }, generated: { mode: "template-demo", role: brief.role, at: new Date().toISOString() }, step: 6, reached: 6 };
+    if (!isPrototype) { const invalid = jobErrors(next.values, "publish"); if (Object.keys(invalid).length) { setErrors(invalid); return false; } }
+    if (timer.current) clearTimeout(timer.current);
+    if (!await store(next)) return false;
     setD(next);
     setErrors({});
-    void store(next).then((ok) => !ok && toast("Browser storage is full. The generated draft is only available on this page."));
     modal.close();
     window.scrollTo(0, 0);
-    toast("Demo draft ready. Review, edit, and verify before publishing.");
+    toast(devCopy("Demo draft ready. Review, edit, and verify before publishing.", "Draft ready. Review, edit, and verify before publishing."));
+    return true;
   };
 
   const submit = async () => {
+    if (pending || navigationLock.current) return;
     if (uploadBusy) return toast("Wait for the media upload to finish.");
     const e = validate(d.step, v);
     setErrors(e);
@@ -241,23 +283,25 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
         return toast("Complete the highlighted details before publishing.");
       }
     }
-    const ok = await run((s) => s.jobPosts.publishJob(ctx.key, d));
-    if (ok === undefined) return;
-    if (!ok) return toast("Browser storage is full. Remove some uploaded media and try again.");
+    if (timer.current) clearTimeout(timer.current);
+    if (!await execute((s) => s.jobPosts.publishJob(ctx.key, d),{invalidate:["jobs-manager","responses","jobs","job","feed","hiring-summary"]})) return;
+    cache.removeQueries({queryKey:["job-draft"]});
     router.push("/recruiter/applications");
-    toast("Your job is published in the local demo feed.");
+    toast(devCopy("Your job is published in the local demo feed.", "Your job is published."));
   };
 
   const saveAndExit = async () => {
+    if (pending || navigationLock.current) return;
     if (uploadBusy) return toast("Wait for the media upload to finish.");
     if (!v.title.trim()) {
       toast("Add a job title before saving a draft.");
       return document.querySelector<HTMLElement>("[name=title]")?.focus();
     }
-    const result = await run((s) => s.jobPosts.saveJobAsDraft(ctx.key, d));
-    if (!result) return;
-    if (!result.ok) return toast(result.editingPublished ? "Browser storage is full. Remove an upload before saving your changes." : "Browser storage is full. Remove some uploaded media before saving.");
-    if (result.editingPublished) {
+    const invalid = isPrototype ? {} : jobErrors(v, "draft");
+    if (Object.keys(invalid).length) return setErrors(invalid);
+    if (timer.current) clearTimeout(timer.current);
+    if (!await execute(async (s) => (await s.jobPosts.saveJobAsDraft(ctx.key, d)).ok,{invalidate:["jobs-manager"]})) return;
+    if (ctx.editingPublished) {
       router.push("/recruiter/applications");
       return toast("Changes saved privately. Publish changes to update the visible job.");
     }
@@ -327,9 +371,9 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
     </>
   );
   const err = (name: string) => (errors[name] ? <p className="wizard-error" role="alert">{errors[name]}</p> : null);
-  const input = (label: string, name: keyof JobWizardValues, props: Record<string, unknown> = {}) => <TextField label={label} name={name} value={String(v[name] ?? "")} onChange={(e) => set({ [name]: e.target.value } as Partial<JobWizardValues>, { debounce: true })} {...props} />;
-  const area = (label: string, name: keyof JobWizardValues, props: Record<string, unknown> = {}) => <TextAreaField label={label} name={name} value={String(v[name] ?? "")} onChange={(e) => set({ [name]: e.target.value } as Partial<JobWizardValues>, { debounce: true })} {...props} />;
-  const dropdown = (label: string, name: keyof JobWizardValues, options: string[], props: Record<string, unknown> = {}) => <SelectField label={label} name={name} value={String(v[name] ?? "")} onChange={(e) => set({ [name]: e.target.value } as Partial<JobWizardValues>)} options={options} {...props} />;
+  const input = (label: string, name: keyof JobWizardValues, props: Record<string, unknown> = {}) => <TextField label={label} name={name} error={errors[name]} value={String(v[name] ?? "")} onChange={(e) => set({ [name]: e.target.value } as Partial<JobWizardValues>, { debounce: true })} {...props} />;
+  const area = (label: string, name: keyof JobWizardValues, props: Record<string, unknown> = {}) => <TextAreaField label={label} name={name} error={errors[name]} value={String(v[name] ?? "")} onChange={(e) => set({ [name]: e.target.value } as Partial<JobWizardValues>, { debounce: true })} {...props} />;
+  const dropdown = (label: string, name: keyof JobWizardValues, options: string[], props: Record<string, unknown> = {}) => <SelectField label={label} name={name} error={errors[name]} value={String(v[name] ?? "")} onChange={(e) => set({ [name]: e.target.value } as Partial<JobWizardValues>)} options={options} {...props} />;
   const check = (label: string, name: keyof JobWizardValues) => (
     <label className="wizard-check">
       <input type="checkbox" name={name} checked={!!v[name]} onChange={(e) => set({ [name]: e.target.checked } as Partial<JobWizardValues>)} />
@@ -348,6 +392,16 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
       {body}
     </section>
   );
+
+  const compareValue=(key:keyof JobWizardValues,values:Partial<JobWizardValues>)=>{
+    const value=values[key];
+    if(key==="questions")return (values.questions??[]).map((q)=><p key={q.id}>{q.text} · {q.type} · {q.required?"Required":"Optional"}{q.ideal?" · Ideal: "+q.ideal:""}</p>);
+    if(key==="thumbnail")return <>{values.thumbnail?.image&&<Image src={values.thumbnail.image} alt={values.thumbnail.alt} width={160} height={100} unoptimized style={{maxWidth:160,height:"auto"}}/>}<p>{values.thumbnail?.headline||values.thumbnail?.alt||JOB_THUMBNAIL_TEMPLATES.find((t)=>t.id===values.thumbnail?.template)?.name||"No thumbnail"}</p></>;
+    if(key==="jobMedia")return <>{values.jobMedia?.video&&<p>{values.jobMedia.video}</p>}{values.jobMedia?.files.map((file)=><p key={file.id}>{file.name}</p>)}</>;
+    if(Array.isArray(value))return value.join(", ")||"Not set";
+    if(typeof value==="boolean")return value?"Yes":"No";
+    return String(value??"")||"Not set";
+  };
 
   const stages: (() => ReactNode)[] = [
     () => (
@@ -507,9 +561,11 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
         </div>
         <p className="wizard-help">Recruiter contact details are kept out of the public feed.</p>
         {check("Require candidates to include their portfolio", "requirePortfolio")}
-        {check("Keep response notifications enabled in this demo", "notifyResponses")}
+        {check(devCopy("Keep response notifications enabled in this demo", "Keep response notifications enabled"), "notifyResponses")}
         {area("Application instructions (optional)", "applicationInstructions", { maxLength: 1500 })}
-        <p className="notice">Applications and notification preferences are simulated in this browser. No emails are sent.</p>
+        <DevOnly>
+          <p className="notice">Applications and notification preferences are simulated in this browser. No emails are sent.</p>
+        </DevOnly>
       </div>
     ),
     () => (
@@ -581,7 +637,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               }}
             />
           </label>
-          <p className="wizard-help">Images, PDFs, MP4, or WebM. Up to three files, 1 MB per file and 1.5 MB in total. Files stay in this browser.</p>
+          <p className="wizard-help">Images, PDFs, MP4, or WebM. Up to three files, 1 MB per file and 1.5 MB in total.{devCopy(" Files stay in this browser.", "")}</p>
           <div className="wizard-supporting-files">
             {v.jobMedia.files.map((f, i) => (
               <div key={f.id}>
@@ -643,7 +699,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               <div>
                 <Icon name="spark" />
                 <div>
-                  <strong>Your demo draft is ready</strong>
+                  <strong>{devCopy("Your demo draft is ready", "Your draft is ready")}</strong>
                   <p>Review the role-based suggestions below. Edit the text or remove individual items, then verify before publishing.</p>
                 </div>
               </div>
@@ -737,7 +793,9 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               <input type="checkbox" name="aiVerified" required checked={!!v.aiVerified} onChange={(e) => set({ aiVerified: e.target.checked })} />
               I’ve checked the job details and removed anything unnecessary.
             </label>
-            <p className="notice">This demo uses role-based templates rather than a connected AI service. Publishing saves the job in this browser’s demo feed.</p>
+            <DevOnly>
+              <p className="notice">This demo uses role-based templates rather than a connected AI service. Publishing saves the job in this browser’s demo feed.</p>
+            </DevOnly>
           </>
         );
       }
@@ -753,7 +811,9 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
         <>
           {artwork}
           {sections.map(([title, copy], i) => reviewSection(title, i, <p>{copy}</p>))}
-          <p className="notice">Publishing saves this demo job in your local feed. It does not publish to an external job board or send notifications.</p>
+          <DevOnly>
+            <p className="notice">Publishing saves this demo job in your local feed. It does not publish to an external job board or send notifications.</p>
+          </DevOnly>
         </>
       );
     },
@@ -761,6 +821,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
 
   return (
     <div className="job-wizard-workspace">
+      {!!ctx.latestJobVersion&&d.jobVersion!==ctx.latestJobVersion&&<section className="card stack" style={{padding:24,marginBottom:24}}><h2>The current job changed</h2><p>Your private draft is retained. Compare it with the latest job before continuing. Keeping your entire draft does not publish it; publishing later replaces the current job details.</p><details><summary>Compare current job and your draft</summary><div style={{overflowX:"auto"}}><table><thead><tr><th>Field</th><th>Current job</th><th>Your draft</th></tr></thead><tbody>{(Object.keys(v) as (keyof JobWizardValues)[]).filter((key)=>key!=="aiVerified"&&JSON.stringify(v[key])!==JSON.stringify(ctx.latestJob?.wizardValues?.[key])).map((key)=><tr key={key}><th>{key.replace(/([A-Z])/g," $1")}</th><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,ctx.latestJob?.wizardValues??{})}</td><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,v)}</td></tr>)}</tbody></table></div></details><form onSubmit={async(e)=>{e.preventDefault();if(!new FormData(e.currentTarget).has("confirmed"))return setErrors({_form:"Confirm that you reviewed the comparison."});const invalid=jobErrors(v,"draft");if(Object.keys(invalid).length)return setErrors(invalid);if(timer.current)clearTimeout(timer.current);if(!await execute(async(s)=>{if(!s.jobPosts.rebaseJobDraft)throw new Error("Draft recovery is unavailable.");const next=await s.jobPosts.rebaseJobDraft(ctx.key,d,ctx.latestJobVersion!);setD(next);return store(next);},{invalidate:[]}))return;toast("Your private draft can be edited again. Review it before publishing.");}}><label className="check-row"><input name="confirmed" type="checkbox" required/>I compared the job and draft and will reconcile changes before publishing.</label><Button type="submit" disabled={pending} variant="primary">Keep my private draft</Button></form></section>}
       <div className="job-wizard-top">
         <div>
           <span className="eyebrow">YOUR NEXT TEAMMATE STARTS HERE</span>
@@ -773,10 +834,10 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
             onClick={() => {
               if (uploadBusy) return toast("Wait for the media upload to finish.");
               void store(d);
-              modal.show("Create with AI", <AiForm values={v} replace={!!(v.description || v.skills.length)} onGenerate={generate} />);
+              modal.show(devCopy("Create with AI", "Create from a template"), <AiForm values={v} replace={!!(v.description || v.skills.length)} onGenerate={generate} />);
             }}
           >
-            Create with AI
+            {devCopy("Create with AI", "Create from a template")}
           </Button>
           <LinkButton href="/recruiter/applications" variant="text sm" icon="arrow">
             Back to jobs
@@ -830,7 +891,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               void submit();
             }}
           >
-            {stages[d.step]()}
+            <fieldset disabled={pending || moving} style={{border:0,padding:0,margin:0,minWidth:0}}>{stages[d.step]()}</fieldset>
           </form>
         </section>
       </div>
@@ -839,7 +900,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
           <span className="wizard-footer-progress">
             {d.step + 1} / {STEPS.length}
           </span>
-          <Button icon="file" onClick={saveAndExit}>
+          <Button icon="file" disabled={pending || uploadBusy} onClick={saveAndExit}>
             Save draft & exit
           </Button>
           <div className="grow" />
@@ -848,7 +909,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               Back
             </Button>
           )}
-          <button type="submit" form="job-wizard-form" className="btn primary" disabled={uploadBusy}>
+          <button type="submit" form="job-wizard-form" className="btn primary" disabled={uploadBusy || pending}>
             {d.step === 6 ? (ctx.editingPublished ? "Publish changes" : "Publish job") : "Next"}
             <Icon name={d.step === 6 ? "check" : "arrow"} />
           </button>
@@ -860,8 +921,11 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
 
 export function JobWizardScreen() {
   const id = useSearchParams().get("id");
-  const { data, isPending } = useServiceQuery(["job-draft", id ?? "new"], (s) => s.jobPosts.openJobDraft(id));
+  const [entryKey]=useState(()=>crypto.randomUUID());
+  const { data, isPending,isError,isPlaceholderData,refetch } = useServiceQuery(["job-draft", id ?? "new",entryKey], (s) => s.jobPosts.openJobDraft(id,entryKey));
+  if(isError)return <EmptyState title="The job draft could not be loaded" description="Check your organization access and retry. Your saved draft is retained." action={<Button onClick={()=>void refetch()}>Retry</Button>}/>;
   if (isPending) return <ScreenFallback />;
+  if(isPlaceholderData&&(!id||data?.draft.id!==id))return <ScreenFallback/>;
   if (data === null)
     return (
       <EmptyState

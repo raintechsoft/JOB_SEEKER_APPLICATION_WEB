@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-const source = process.argv[2] ?? "Skillora-Standalone.html";
+const source = process.argv[2] ?? "../../reference/Skillora-Standalone.html";
 const html = readFileSync(source, "utf8");
 const css = html.slice(html.indexOf("<style>") + "<style>".length, html.indexOf("</style>"));
 

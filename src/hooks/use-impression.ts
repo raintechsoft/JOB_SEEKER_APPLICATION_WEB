@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
  * Fires once when at least half of the element has been visible, so analytics impressions reflect
  * what people actually saw rather than everything an API returned.
  */
-export function useImpression<T extends Element>(onImpression: () => void) {
+export function useImpression<T extends Element>(onImpression: () => void, contextKey?: string) {
   const ref = useRef<T>(null);
   const callback = useRef(onImpression);
   useLayoutEffect(() => {
@@ -26,6 +26,6 @@ export function useImpression<T extends Element>(onImpression: () => void) {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [contextKey]);
   return ref;
 }

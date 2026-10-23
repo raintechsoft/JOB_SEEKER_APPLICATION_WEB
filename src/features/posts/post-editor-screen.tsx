@@ -1,20 +1,25 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PostDraft, Project, Role } from "@/types/domain";
 import type { PersonSummary } from "@/types/api";
 import type { FeedEntry } from "@/services/feed/feed.service";
 import { track } from "@/lib/analytics";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { IMAGE_TYPES, MB, readImage } from "@/lib/utils/files";
 import { safeVideoUrl } from "@/lib/utils/url";
+import { apiConfig } from "@/services/api/config";
+import { directVideoSchema, postDraftValuesSchema, postPublishSchema, postTextSchema, validatePostFiles } from "@/lib/validation/social";
+import { errorMessage } from "@/services/api/client";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
-import { ScreenFallback } from "@/components/ui/feedback";
+import { ScreenError, ScreenFallback } from "@/components/ui/feedback";
 import { FeedCard } from "@/features/feed/feed-card";
 
 const STEPS = ["Post details", "Media & project", "Review & publish"];
@@ -52,27 +57,55 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
   const router = useRouter();
   const setFeed = useUiStore((s) => s.setFeed);
   const [d, setD] = useState(initial);
+  const latestDraft = useRef(initial);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("Your draft stays in this browser.");
+  const publishing = useRef(false);
+  const publicationAttempt = useRef("");
+  const [creationKey] = useState(() => crypto.randomUUID());
+  const [saveStatus, setSaveStatus] = useState(devCopy("Your draft stays in this browser.", "Your draft is saved as you write."));
   const fileInput = useRef<HTMLInputElement>(null);
   const home = role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard";
   const publicProjects = projects.filter((p) => p.visibility === "Public");
 
-  const persist = async (next: PostDraft) => {
-    const ok = await services.jobPosts.storePostDraft(role, next);
-    setSaveStatus(ok ? "Draft saved in this browser" : "Draft is only kept on this page. Browser storage is full.");
-    return ok;
-  };
+  const real = apiConfig.dataSource === "http";
+  const persist = useCallback(async (next: PostDraft) => {
+    if (real) {
+      const parsed = postDraftValuesSchema.safeParse(next);
+      if (!parsed.success) { setSaveStatus("Draft needs attention before it can be saved."); setError(parsed.error.issues[0].message); return false; }
+    }
+    try {
+      if (latestDraft.current === next) setSaveStatus("Saving draft…");
+      const ok = await services.jobPosts.storePostDraft(role, next);
+      if (latestDraft.current === next) setSaveStatus(ok ? devCopy("Draft saved in this browser", "Draft saved") : "Draft is only kept on this page. Browser storage is full.");
+      return ok;
+    } catch (e) { setSaveStatus("Draft could not be saved. Your changes are kept on this page."); setError(errorMessage(e)); return false; }
+  }, [real, role, services]);
+  useEffect(() => {
+    if (!real || publishing.current) return;
+    const timer = window.setTimeout(() => void persist(d), 700);
+    return () => window.clearTimeout(timer);
+  }, [d, persist, real]);
   const update = (patch: Partial<PostDraft>) => {
     const next = { ...d, ...patch };
+    latestDraft.current = next;
+    if (real) setSaveStatus("Unsaved changes");
     setD(next);
-    void persist(next);
+    if (!real) void persist(next);
     return next;
   };
   const go = (n: number) => {
     if (busy) return toast("Wait for the media to finish loading.");
     if (n > d.reached || n < 0 || n > 2) return;
+    if (n > d.step) {
+      const text = postTextSchema.safeParse(d);
+      if (!text.success) { setError(text.error.issues[0].message); return; }
+      if (real && n === 2) {
+        const parsed = postPublishSchema.safeParse({ ...d, attachments: d.media });
+        if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
+        if(d.videoUrl.trim()) { setError("Add the pending video or clear its URL before reviewing."); return; }
+      }
+    }
     setError("");
     update({ step: n });
     window.scrollTo(0, 0);
@@ -80,7 +113,7 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
   const appendVideo = (draft: PostDraft): PostDraft | null => {
     if (!draft.videoUrl.trim()) return draft;
     const src = safeVideoUrl(draft.videoUrl);
-    if (!src) {
+    if (!src || !directVideoSchema.safeParse(draft.videoUrl).success) {
       setError("Use a direct HTTP or HTTPS MP4 or WebM video URL.");
       return null;
     }
@@ -92,6 +125,8 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
   };
   const addFiles = async (files: File[]) => {
     if (!files.length || busy) return;
+    const validation = validatePostFiles(files, d.media);
+    if (validation) { setError(validation); return; }
     const total = d.media.filter((m) => m.type === "image").reduce((n, m) => n + (m.bytes || 0), 0) + files.reduce((n, f) => n + f.size, 0);
     if (files.length + d.media.length > 5 || total > 2 * MB || files.some((f) => f.size > MB || !IMAGE_TYPES.includes(f.type))) {
       setError("Add up to 5 media items. Images must be PNG, JPEG or WebP, up to 1 MB each and 2 MB total.");
@@ -100,10 +135,11 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
     setBusy(true);
     setError("");
     try {
-      const items = await Promise.all(files.map(async (file) => ({ type: "image" as const, src: await readImage(file), alt: "", name: file.name, bytes: file.size })));
+      const items = await Promise.all(files.map(async (file) => ({ type: "image" as const, src: real ? (await services.media.upload(file, "post_image")).url : await readImage(file), alt: "", name: file.name, bytes: file.size })));
       const next = { ...d, media: [...d.media, ...items] };
+      latestDraft.current = next;
       setD(next);
-      if (!(await persist(next))) toast("Browser storage is full. Remove media or publish a smaller post.");
+      if (!(await persist(next))) setError("Your images are kept on this page. Retry saving the draft before leaving.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "The file could not be read.");
     } finally {
@@ -111,7 +147,9 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
     }
   };
   const submit = async () => {
-    if (busy) return toast("Wait for the media to finish loading.");
+    if (busy || publishing.current) return;
+    const details = postTextSchema.safeParse(d);
+    if (!details.success) { setError(details.error.issues[0].message); return; }
     if (!d.title.trim() || !d.body.trim()) {
       setError("Add a post title and your story to continue.");
       return update({ step: 0 });
@@ -127,18 +165,30 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
       draft = withVideo;
     }
     if (draft.step < 2) {
+      if (real && draft.step === 1) {
+        const result = postPublishSchema.safeParse({ ...draft, attachments: draft.media });
+        if (!result.success) { setError(result.error.issues[0].message); return; }
+      }
       setError("");
       update({ ...draft, step: draft.step + 1, reached: Math.max(draft.reached, draft.step + 1) });
       window.scrollTo(0, 0);
       return;
     }
-    const result = await run((s) => s.feed.createPost(role, { title: draft.title, body: draft.body, project: draft.project, attachments: draft.media }));
-    if (result === undefined) return;
-    if (!result) return setError("Browser storage is full. Remove some media and try again.");
+    if (real) {
+      const parsed = postPublishSchema.safeParse({ ...draft, attachments: draft.media });
+      if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
+      if (draft.videoUrl.trim()) { setError("Add the pending video or clear its URL before publishing."); return; }
+    }
+    publishing.current = true; setBusy(true);
+    const signature = JSON.stringify([draft.title,draft.body,draft.project,draft.media]);
+    if (real && publicationAttempt.current !== signature && !(await persist(draft))) { publishing.current = false; setBusy(false); return; }
+    publicationAttempt.current = signature;
+    const result = await run((s) => s.feed.createPost(role, { title: draft.title, body: draft.body, project: draft.project, attachments: draft.media, creationKey, ...(real ? { draftId: draft.id, draftVersion: draft.version, editorToken: draft.editorToken } : {}) }), { refresh: false });
+    if (!result) { publishing.current = false; setBusy(false); setError("Your post could not be published. Your draft is kept here; retry when ready."); return; }
     track("post_published", { mediaCount: draft.media.length, hasProject: !!draft.project });
     setFeed({ filter: "all", sort: "recent", query: "" });
     router.push(home + "?post=" + encodeURIComponent(result.id));
-    toast("Your demo post is now in your feed.");
+    toast(devCopy("Your demo post is now in your feed.", "Your post is now in your feed."));
   };
 
   return (
@@ -185,11 +235,13 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
               void submit();
             }}
           >
+            {real && <p className="notice">Published posts follow your profile visibility. Keep your profile public to share them with the community.</p>}
             {error && (
               <p className="error post-editor-error" role="alert">
                 {error}
               </p>
             )}
+            <fieldset disabled={busy} className="contents">
             {d.step === 0 && (
               <>
                 <div className="row post-author">
@@ -256,11 +308,11 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
                   {d.media.length > 0 && (
                     <details className="post-media-descriptions">
                       <summary>
-                        Media descriptions <span>(optional)</span>
+                        Media descriptions <span>{real ? "(required before publishing)" : "(optional)"}</span>
                       </summary>
                       <div>
                         {d.media.map((m, i) => (
-                          <TextField key={i} label={"Media " + (i + 1) + " description"} name={"mediaAlt" + i} value={m.alt || ""} maxLength={220} onChange={(e) => update({ media: d.media.map((x, n) => (n === i ? { ...x, alt: e.target.value } : x)) })} />
+                          <TextField key={i} label={"Media " + (i + 1) + " description"} name={"mediaAlt" + i} value={m.alt || ""} maxLength={300} required={real} onChange={(e) => update({ media: d.media.map((x, n) => (n === i ? { ...x, alt: e.target.value } : x)) })} />
                         ))}
                       </div>
                     </details>
@@ -312,9 +364,12 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
                     </Button>
                   </div>
                 </div>
-                <p className="notice">Your post will appear in the public demo feed in this browser. It won’t be sent to an external social network.</p>
+                <DevOnly>
+                  <p className="notice">Your post will appear in the public demo feed in this browser. It won’t be sent to an external social network.</p>
+                </DevOnly>
               </>
             )}
+            </fieldset>
           </form>
           <div className="post-editor-footer">
             {d.step ? (
@@ -330,13 +385,14 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
             <Button
               variant="text sm"
               icon="file"
-              onClick={async () => toast((await persist(d)) ? "Draft saved. Resume it from Create a post." : "Browser storage is full. Your draft is only kept on this page.")}
+              disabled={busy}
+              onClick={async () => { if (await persist(d)) toast("Draft saved. Resume it from Create a post."); }}
             >
               Save draft
             </Button>
             <button className="btn primary" form="post-editor-form" type="submit" disabled={busy}>
               <Icon name={d.step === 2 ? "send" : "arrow"} />
-              {d.step === 2 ? "Publish demo post" : "Next"}
+              {d.step === 2 ? devCopy("Publish demo post", "Publish post") : "Next"}
             </button>
           </div>
           <p className="small muted post-editor-footer-note">{busy ? "Adding your media…" : "Progress is saved as you write."}</p>
@@ -368,9 +424,11 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
 
 export function PostEditorScreen({ role }: { role: Role }) {
   const mode = useSearchParams().get("mode") || "post";
-  const { data: draft } = useServiceQuery(["post-draft", role, mode], (s) => s.jobPosts.getPostDraft(role, mode));
-  const { data: identity } = useServiceQuery(["feed", "identity", role], async (s) => (role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person));
-  const { data: projects } = useServiceQuery(["projects", "p0", "all"], (s) => s.work.listProjects({ ownerId: "p0" }));
+  const draftQuery = useServiceQuery(["post-draft", role, mode], (s) => s.jobPosts.getPostDraft(role, mode));
+  const identityQuery = useServiceQuery(["feed", "identity", role], async (s) => (role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person));
+  const projectQuery = useServiceQuery(["projects", "post-editor", role], (s) => role === "recruiter" ? Promise.resolve([]) : s.work.listProjects({ ownerId: apiConfig.dataSource === "http" ? "me" : "p0" }));
+  const draft=draftQuery.data, identity=identityQuery.data, projects=projectQuery.data;
+  if(draftQuery.isError||identityQuery.isError||projectQuery.isError)return <ScreenError onRetry={()=>{void draftQuery.refetch();void identityQuery.refetch();void projectQuery.refetch();}}/>;
   if (!draft || !identity || !projects) return <ScreenFallback />;
   // The editor seeds its local state once; later refetches of the stored draft do not reset it.
   return <Editor key={role} role={role} initial={draft} identity={identity} projects={projects} />;

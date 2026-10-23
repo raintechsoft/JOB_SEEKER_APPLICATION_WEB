@@ -1,17 +1,23 @@
 "use client";
 
 import type { Id, JobAlert } from "@/types/domain";
+import {useState} from "react";
+import {jobAlertSchema} from "@/services/jobs/jobs.http";
+import {validationFields} from "@/lib/validation/profile";
+import {useFormAction} from "@/hooks/use-form-action";
 import { normalizeKeywords } from "@/lib/domain/jobs";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Button, IconButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { SelectField, TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
 
 function AlertEditor({ alert }: { alert: JobAlert | null }) {
-  const run = useServiceAction();
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
   const dialogs = useJobAlertDialogs();
   return (
     <form
@@ -26,12 +32,15 @@ function AlertEditor({ alert }: { alert: JobAlert | null }) {
           return;
         }
         const input = { id: alert?.id, name: get("name"), keywords: get("keywords"), location: get("location"), arrangement: get("arrangement") as JobAlert["arrangement"], days: Number(get("days")), enabled: f.has("enabled") };
-        await run((s) => s.jobs.saveAlert(input));
+        const checked=jobAlertSchema.safeParse(input);
+        if(!checked.success)return setErrors(validationFields(checked.error));
+        if(!await execute((s)=>s.jobs.saveAlert({...checked.data,...(alert?{id:alert.id}:{})})))return;
         track("job_alert_saved", { arrangement: input.arrangement, days: input.days });
         modal.close();
         toast("Job alert saved. Matching opportunities are up to date.");
       }}
     >
+      {Object.entries(errors).map(([key,error])=><p role="alert" key={key}>{key}: {error}</p>)}
       <TextField label="Alert name" name="name" defaultValue={alert?.name ?? ""} required maxLength={70} placeholder="e.g. Product design roles" />
       <TextField label="Job title or skills" name="keywords" defaultValue={alert?.keywords ?? ""} required maxLength={120} placeholder="e.g. Product Designer or React" />
       <p className="small muted">A role must match all entered keywords in its title or skills.</p>
@@ -54,7 +63,9 @@ function AlertEditor({ alert }: { alert: JobAlert | null }) {
         <input name="enabled" type="checkbox" defaultChecked={!alert || alert.enabled} />
         Keep this alert active
       </label>
-      <p className="notice">Alerts filter the fictional jobs in this browser. They don’t send email or monitor external job boards.</p>
+      <DevOnly>
+        <p className="notice">Alerts filter the fictional jobs in this browser. They don’t send email or monitor external job boards.</p>
+      </DevOnly>
       <div className="modal-footer">
         {alert && (
           <Button variant="danger sm" icon="trash" onClick={() => dialogs.remove(alert.id)}>
@@ -62,7 +73,7 @@ function AlertEditor({ alert }: { alert: JobAlert | null }) {
           </Button>
         )}
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="bell">
+        <Button type="submit" variant="primary" icon="bell" disabled={pending}>
           Save alert
         </Button>
       </div>

@@ -1,6 +1,7 @@
 import type { Paginated, PersonSummary } from "@/types/api";
 import type { HiringStage, Id, IsoDateTime, Job, ReceivedApplication } from "@/types/domain";
 import type { JobStatus } from "@/lib/domain/jobs";
+import type {PortfolioView} from "../portfolio/portfolio.service";
 
 export const HIRING_STAGES: HiringStage[] = ["New", "Reviewing", "Shortlisted", "Interview", "Hired", "Rejected"];
 
@@ -61,6 +62,7 @@ export interface ManagedJobsPage extends Paginated<ManagedJob> {
 export type ResponseParams = Record<string, string>;
 
 export interface ApplicantProfile extends PersonSummary {
+  experience?:string;
   headline: string;
   summary: string;
   skills: string[];
@@ -82,6 +84,7 @@ export interface ApplicantProfile extends PersonSummary {
 }
 
 export interface ResponseItem {
+  portfolio?:PortfolioView|null;
   application: ReceivedApplication;
   profile: ApplicantProfile;
   jobTitle: string;
@@ -99,23 +102,28 @@ export interface ResponsesPage extends Paginated<ResponseItem> {
 export interface RecruitingService {
   getHiringSummary(): Promise<HiringSummary>;
   getReview(id: Id): Promise<ReviewView | null>;
-  saveReview(id: Id, input: { status: HiringStage; note: string; followUp: string }): Promise<boolean>;
+  saveReview(id: Id, input: { status: HiringStage; note: string; followUp: string; version?:number }): Promise<boolean>;
 
   listManagedJobs(query: ManagedJobsQuery): Promise<ManagedJobsPage>;
   getManagedJob(id: Id): Promise<ManagedJob | null>;
   toggleJob(id: Id): Promise<JobStatus | null>;
   repostJob(id: Id): Promise<boolean>;
   closeJobs(ids: Id[]): Promise<number>;
-  saveCollaboration(ids: Id[], emails: string[], note: string): Promise<void>;
+  saveCollaboration(ids: Id[], emails: string[], note: string, versions?:Record<string,number>): Promise<void>;
   deleteDraft(id: Id): Promise<void>;
 
   listResponses(params: ResponseParams): Promise<ResponsesPage>;
   /** Ids visible on the current page (for "select all"). */
   setStatus(ids: Id[], status: HiringStage): Promise<number>;
-  saveNote(id: Id, note: string): Promise<void>;
+  saveNote(id: Id, note: string, version?:number): Promise<void>;
   markViewed(id: Id): Promise<Id | null>;
   remove(ids: Id[]): Promise<void>;
-  saveOutreach(ids: Id[], subject: string, message: string): Promise<void>;
+  saveOutreach(ids: Id[], subject: string, message: string): Promise<void|{draftId:string}>;
+  outreachPreview?(id:string):Promise<import("@/types/generated/api").components["schemas"]["OutreachPreview"]>;
+  sendOutreach?(id:string,version:number,confirmed:boolean):Promise<void>;
+  requestExport?(ids:Id[]):Promise<string>;
+  exportStatus?(id:string):Promise<import("@/types/generated/api").components["schemas"]["ExportStatus"]>;
+  downloadExport?(id:string):Promise<Blob>;
   runKeywordMatch(params: ResponseParams, autoShortlist: boolean): Promise<{ matches: number; shortlisted: number }>;
   exportCsv(ids: Id[]): Promise<string>;
   exportProfile(id: Id): Promise<{ fileName: string; text: string } | null>;

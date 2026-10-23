@@ -1,6 +1,6 @@
 /**
- * Minimal JSON HTTP client for the future backend API. Feature services will use it once
- * `NEXT_PUBLIC_DATA_SOURCE=http` implementations are written (see docs/frontend-architecture.md).
+ * Credentialed JSON transport for the Laravel API. Mutations initialize Sanctum CSRF
+ * and preserve structured errors; callers decide success behavior and safe retry.
  */
 export class ApiError extends Error {
   constructor(
@@ -13,37 +13,79 @@ export class ApiError extends Error {
   }
 }
 
+export function errorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.body && typeof error.body === "object" && "message" in error.body && typeof error.body.message === "string") return error.body.message;
+  return "The request could not be completed. Please try again.";
+}
+
+export function fieldErrors(error: unknown): Record<string, string[]> {
+  if (!(error instanceof ApiError) || !error.body || typeof error.body !== "object" || !("errors" in error.body) || !error.body.errors || typeof error.body.errors !== "object") return {};
+  return Object.fromEntries(Object.entries(error.body.errors).filter((entry): entry is [string, string[]] => Array.isArray(entry[1]) && entry[1].every((value) => typeof value === "string")));
+}
+
 type Query = Record<string, string | number | boolean | string[] | undefined>;
 
 export interface HttpClient {
+  setUserContext(userId: string | null): void;
   get<T>(path: string, query?: Query): Promise<T>;
   post<T>(path: string, body?: unknown): Promise<T>;
   patch<T>(path: string, body?: unknown): Promise<T>;
-  delete<T>(path: string): Promise<T>;
+  delete<T>(path: string, body?: unknown): Promise<T>;
+  upload<T>(path: string, file: File): Promise<T>;
+  blob(path: string): Promise<Blob>;
 }
 
-export function createHttpClient(baseUrl: string, getToken?: () => string | undefined): HttpClient {
-  async function request<T>(method: string, path: string, body?: unknown, query?: Query): Promise<T> {
+export function createHttpClient(baseUrl: string): HttpClient {
+  let userContext: string | null = null;
+  let contextEpoch = 0;
+  let contextReady: Promise<void> | null = null;
+  const setContext = (id: string | null) => {
+    if (id !== userContext || id === null) { contextEpoch++; contextReady = null; }
+    userContext = id;
+  };
+  async function request<T>(method: string, path: string, body?: unknown, query?: Query, binary = false): Promise<T> {
+    const mutation = method !== "GET";
+    const scoped = /^(?:me|organizations|admin)(?:\/|$)/.test(path) || binary || mutation && /^(?:(?:media|jobs)(?:\/|$)|auth\/(?:logout|password|email))/.test(path);
+    // Establish the actor before loading an owned form, including a direct workspace navigation.
+    if (scoped && userContext === null) {
+      if (!contextReady) {
+        const epoch = contextEpoch;
+        contextReady = request<{ data: { user: { id: string } } }>("GET", "auth/me").then((session) => { if (contextEpoch === epoch && userContext === null) setContext(session.data.user.id); });
+      }
+      const pending = contextReady;
+      try { await pending; } finally { if (contextReady === pending) contextReady = null; }
+    }
+    const expectedUser = userContext, expectedEpoch = contextEpoch;
     const url = new URL(path.replace(/^\//, ""), baseUrl.endsWith("/") ? baseUrl : baseUrl + "/");
     for (const [key, value] of Object.entries(query ?? {})) {
       if (value === undefined || value === "") continue;
-      for (const v of Array.isArray(value) ? value : [value]) url.searchParams.append(key, String(v));
+      for (const v of Array.isArray(value) ? value : [value]) url.searchParams.append(Array.isArray(value) ? key + "[]" : key, typeof v === "boolean" ? (v ? "1" : "0") : String(v));
     }
-    const token = getToken?.();
+    if (mutation) {
+      // A fresh CSRF cookie is safe to request; never replay a failed mutation automatically.
+      const csrf = await fetch(new URL("/sanctum/csrf-cookie", url), { credentials: "include", headers: { Accept: "application/json" } });
+      if (!csrf.ok) throw new ApiError("Session initialization failed.", csrf.status);
+    }
+    const xsrf = typeof document === "undefined" ? undefined : document.cookie.split("; ").find((c) => c.startsWith("XSRF-TOKEN="))?.slice(11);
+    if (scoped && contextEpoch !== expectedEpoch) throw new ApiError("Account context changed.", 412, { message: "Your signed-in account changed. Reload this page before continuing." });
     const response = await fetch(url, {
       method,
       credentials: "include",
-      headers: { Accept: "application/json", ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: { Accept: binary ? "application/octet-stream" : "application/json", ...(expectedUser ? { "X-Skillora-User": expectedUser } : {}), ...(body !== undefined && !(body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...(mutation && xsrf ? { "X-XSRF-TOKEN": decodeURIComponent(xsrf) } : {}) },
+      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
     });
-    const payload = response.status === 204 ? undefined : await response.json().catch(() => undefined);
+    const payload = response.status === 204 ? undefined : binary && response.ok ? await response.blob() : await response.json().catch(() => undefined);
     if (!response.ok) throw new ApiError(`Request failed with status ${response.status}`, response.status, payload);
     return payload as T;
   }
   return {
+    setUserContext: setContext,
     get: (path, query) => request("GET", path, undefined, query),
     post: (path, body) => request("POST", path, body),
     patch: (path, body) => request("PATCH", path, body),
-    delete: (path) => request("DELETE", path),
+    delete: (path, body) => request("DELETE", path, body),
+    upload: (path, file) => { const data = new FormData(); data.set("file", file); return request("POST", path, data); },
+    blob: (path) => request<Blob>("GET", path, undefined, undefined, true),
   };
 }

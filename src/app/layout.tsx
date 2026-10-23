@@ -1,15 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "@/styles/fonts.css";
+import "@/styles/auth-validation.css";
 import "@/styles/prototype/index.css";
+import "@/styles/toasts.css";
 import "./globals.css";
 import { AppProviders } from "@/providers/app-providers";
 import { BodyClassSync } from "@/components/layout/body-class-sync";
 import { bodyClassScript } from "@/lib/routing/body-classes";
+import { devCopy } from "@/lib/env/app-env";
 
 export const metadata: Metadata = {
   title: { default: "Skillora — Your work, your story", template: "Skillora — %s" },
-  description: "Skillora brings your skills, projects, and everyday work together into a living professional identity. Explore the interactive prototype.",
+  description: devCopy(
+    "Skillora brings your skills, projects, and everyday work together into a living professional identity. Explore the interactive prototype.",
+    "Skillora brings your skills, projects, and everyday work together into a living professional identity.",
+  ),
 };
 
 export const viewport: Viewport = {

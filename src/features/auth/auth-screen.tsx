@@ -4,16 +4,23 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Role } from "@/types/domain";
-import { useZodForm } from "@/lib/validation/form";
+import { useAuthForm } from "./use-auth-form";
+import { AuthError, AuthField } from "./auth-errors";
+import { authDestination } from "./auth-navigation";
+import { apiConfig } from "@/services/api/config";
 import { signUpSchema, signInSchema } from "@/lib/validation/auth";
-import { useServiceAction } from "@/hooks/use-services";
+import { useServiceAction, useServices } from "@/hooks/use-services";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { Button } from "@/components/ui/primitives";
 import { TextField } from "@/components/ui/field";
 import { AuthHeader, AuthStory } from "@/components/layout/auth-chrome";
 import { EmployerRegistrationScreen } from "./employer-registration";
+import { clearIdentityState } from "./clear-identity-state";
 
 function GoogleSignInButton() {
   return (
@@ -21,7 +28,7 @@ function GoogleSignInButton() {
       <div className="auth-method-divider">
         <span>or</span>
       </div>
-      <button type="button" className="auth-google-button" onClick={() => toast("Google sign-in is not connected yet. Please use email or a demo login.")}>
+      <button type="button" className="auth-google-button" onClick={() => toast(devCopy("Google sign-in is not connected yet. Please use email or a demo login.", "Google sign-in is not available yet. Please use your email address."))}>
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
           <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.36Z" />
           <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.41l-3.24-2.51c-.9.6-2.05.96-3.38.96-2.61 0-4.83-1.76-5.62-4.12H3.03v2.59A10 10 0 0 0 12 22Z" />
@@ -34,61 +41,89 @@ function GoogleSignInButton() {
   );
 }
 
-function SignInForm({ role }: { role: Role }) {
-  const run = useServiceAction();
+export function SignInForm({ role }: { role: Role }) {
   const router = useRouter();
-  const { register, handleSubmit } = useZodForm(signInSchema, { email: "", password: "" });
+  const services = useServices();
+  const cache = useQueryClient();
+  const { props, submit, formState: { errors, isSubmitting } } = useAuthForm(signInSchema, { email: "", password: "" });
   return (
     <form
       id="auth-form"
       className="stack"
-      onSubmit={handleSubmit(async () => {
-        await run((s) => s.workspace.signIn(role));
+      noValidate
+      onSubmit={submit(async (values) => {
+        if (apiConfig.dataSource === "http") {
+          const session = await services.auth.login(values, role === "recruiter" ? "employer" : "professional");
+          clearIdentityState(); cache.clear();
+          const next = new URLSearchParams(window.location.search).get("next");
+          router.push(session.user.email_verified && next?.startsWith("/accept-invitation?") ? next : authDestination(session, role));
+          return;
+        }
+        await services.workspace.signIn(role);
         router.push(role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard");
-        toast("Welcome to the demo. Authentication is simulated.");
+        toast(devCopy("Welcome to the demo. Authentication is simulated.", "Welcome back."));
       })}
     >
-      <TextField label="Email address" type="email" required autoComplete="email" placeholder="you@example.com" {...register("email")} />
-      <TextField label="Password" type="password" required minLength={8} autoComplete="current-password" placeholder="At least 8 characters" {...register("password")} />
-      <button className="btn primary" type="submit">
-        Submit
-        <Icon name="arrow" />
+      <AuthField name="email" message={errors.email?.message}>
+        <TextField label="Email address" type="email" required maxLength={254} autoComplete="email" placeholder="you@example.com" {...props("email")} />
+      </AuthField>
+      <AuthField name="password" message={errors.password?.message}>
+        <TextField label="Password" type="password" required maxLength={256} autoComplete="current-password" {...props("password")} />
+      </AuthField>
+      <AuthError name="root" message={errors.root?.message} />
+      <button className="btn primary" type="submit" disabled={isSubmitting}>
+        {isSubmitting ? "Signing in…" : "LOGIN"}
       </button>
+      <Link className="small muted" href="/forgot-password">Forgot password?</Link>
     </form>
   );
 }
 
-function SignUpForm({ role }: { role: Role }) {
-  const run = useServiceAction();
+export function SignUpForm({ role }: { role: Role }) {
   const router = useRouter();
   const setOnboarding = useUiStore((s) => s.setOnboarding);
-  const { register, handleSubmit } = useZodForm(signUpSchema, { name: "", email: "", password: "" });
+  const services = useServices();
+  const cache = useQueryClient();
+  const { props, submit, formState: { errors, isSubmitting } } = useAuthForm(signUpSchema, { name: "", email: "", password: "" });
   return (
     <form
       id="auth-form"
       className="stack"
-      onSubmit={handleSubmit(async (v) => {
-        await run((s) => s.workspace.signUp(role, v.name.trim()));
+      noValidate
+      onSubmit={submit(async (v) => {
+        if (apiConfig.dataSource === "http") {
+          const session = await services.auth.register(v);
+          clearIdentityState(); cache.clear();
+          router.push(authDestination(session));
+          return;
+        }
+        await services.workspace.signUp(role, v.name.trim());
         setOnboarding({ role, step: 0 });
         router.push("/onboarding");
       })}
     >
-      <TextField label="Full name" required minLength={2} autoComplete="name" {...register("name")} />
-      <TextField label="Email address" type="email" required autoComplete="email" placeholder="you@example.com" {...register("email")} />
-      <TextField label="Password" type="password" required minLength={8} autoComplete="new-password" placeholder="At least 8 characters" {...register("password")} />
-      <button className="btn primary" type="submit">
-        Submit
-        <Icon name="arrow" />
+      <AuthField name="name" message={errors.name?.message}>
+        <TextField label="Full name" required minLength={2} maxLength={100} autoComplete="name" {...props("name")} />
+      </AuthField>
+      <AuthField name="email" message={errors.email?.message}>
+        <TextField label="Email address" type="email" required maxLength={254} autoComplete="email" placeholder="you@example.com" {...props("email")} />
+      </AuthField>
+      <AuthField name="password" message={errors.password?.message}>
+        <TextField label="Password" type="password" required minLength={8} maxLength={256} autoComplete="new-password" placeholder="At least 8 characters" {...props("password")} />
+      </AuthField>
+      <AuthError name="root" message={errors.root?.message} />
+      <button className="btn primary" type="submit" disabled={isSubmitting}>
+        {isSubmitting ? "Creating account…" : "SUBMIT"}
       </button>
     </form>
   );
 }
 
-/** Sign in / create profile. AUTHENTICATION IS SIMULATED: no credentials are checked or stored. */
+/** HTTP mode uses Laravel; the explicitly enabled development prototype has separate mock actions. */
 export function AuthScreen({ signup = false, roleParam, employer = false }: { signup?: boolean; roleParam?: string; employer?: boolean }) {
   const stored = useUiStore((s) => s.authRole);
   const setUi = useUiStore((s) => s.setUi);
-  const role: Role = employer ? "recruiter" : roleParam === "professional" || roleParam === "recruiter" ? roleParam : stored;
+  const role: Role = employer || roleParam === "recruiter" ? "recruiter" : "professional";
   useEffect(() => {
     if (role !== stored) setUi({ authRole: role });
   }, [role, stored, setUi]);
@@ -115,6 +150,7 @@ function AuthLayout({ signup, role }: { signup: boolean; role: Role }) {
             <div className="auth-form-heading">
               <span className="eyebrow">{signup ? "GET STARTED" : "WELCOME BACK"}</span>
               <h1>{signup ? "Start your next chapter." : "Good to see you again."}</h1>
+              {!signup && <p>{recruiter ? "Sign in with your employer account." : "Sign in with your professional account."}</p>}
             </div>
             {signup ? (
               <SignUpForm role={role} />
@@ -134,28 +170,34 @@ function AuthLayout({ signup, role }: { signup: boolean; role: Role }) {
                 Don’t have a registered email? Create account <Icon name="arrow" />
               </Link>
             ) : (
-              <div className="demo-login">
-                <p>JUST LOOKING AROUND? JUMP RIGHT IN.</p>
-                <div className="grid cols2">
-                  <Button icon="user" onClick={() => demo("professional")}>
-                    Professional demo
-                  </Button>
-                  <Button icon="users" onClick={() => demo("recruiter")}>
-                    Recruiter demo
-                  </Button>
+              <DevOnly>
+                {apiConfig.dataSource === "mock" && <>
+                <div className="demo-login">
+                  <p>JUST LOOKING AROUND? JUMP RIGHT IN.</p>
+                  <div className="grid cols2">
+                    <Button icon="user" onClick={() => demo("professional")}>
+                      Professional demo
+                    </Button>
+                    <Button icon="users" onClick={() => demo("recruiter")}>
+                      Recruiter demo
+                    </Button>
+                  </div>
+                  <Link className="auth-admin-link" href="/admin/dashboard">
+                    Explore the optional admin demo
+                  </Link>
                 </div>
-                <Link className="auth-admin-link" href="/admin/dashboard">
-                  Explore the optional admin demo
-                </Link>
-              </div>
+                </>}
+              </DevOnly>
             )}
           </div>
         </section>
       </div>
-      {signup && (
-        <footer className="auth-workspace-footer">
-          <Icon name="shield" />A frontend prototype. Your demo data stays in this browser.
-        </footer>
+      {signup && apiConfig.dataSource === "mock" && (
+        <DevOnly>
+          <footer className="auth-workspace-footer">
+            <Icon name="shield" />A frontend prototype. Your demo data stays in this browser.
+          </footer>
+        </DevOnly>
       )}
     </main>
   );

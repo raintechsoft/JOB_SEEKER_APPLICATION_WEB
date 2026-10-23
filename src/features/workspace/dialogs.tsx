@@ -4,8 +4,11 @@ import { usePathname } from "next/navigation";
 import { useServiceQuery } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { LinkButton } from "@/components/ui/primitives";
+import {apiConfig} from "@/services/api/config";
+import {RealNotificationsSheet} from "./notifications-sheet";
 
 function PrivacyInfo() {
+  if(apiConfig.dataSource==="http")return <div className="stack"><p>Your account data is stored securely by Skillora. Profile, portfolio and individual work visibility determine what others can see.</p><p>Private conversations and files are available to their authorized participants. Notification channels can be changed in Notifications. Optional external analytics and recommendations are introduced only in their documented advanced phases.</p><LinkButton href="/app/settings">Privacy settings</LinkButton></div>;
   return (
     <div className="stack">
       <p className="small muted">Skillora is a frontend prototype. Changes are saved in this browser’s local storage. All people, companies, conversations, and project examples are fictional.</p>
@@ -18,7 +21,7 @@ function PrivacyInfo() {
   );
 }
 
-function NotificationsSheet() {
+function DemoNotificationsSheet() {
   const pathname = usePathname();
   const recruiter = pathname.startsWith("/recruiter");
   const { data: settings } = useServiceQuery(["settings"], (s) => s.workspace.getSettings());
@@ -68,6 +71,6 @@ function GlobalSearch() {
 
 export const workspaceDialogs = {
   privacy: () => modal.show("Your work. Your data. Your browser.", <PrivacyInfo />),
-  notifications: () => modal.show("Notifications", <NotificationsSheet />, "sheet"),
+    notifications: () => modal.show("Notifications", apiConfig.dataSource==="http"?<RealNotificationsSheet/>:<DemoNotificationsSheet/>, "sheet"),
   globalSearch: () => modal.show("Find your way around.", <GlobalSearch />),
 };

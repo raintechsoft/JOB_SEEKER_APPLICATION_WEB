@@ -11,6 +11,11 @@ import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
 import { FloatingInput, SelectField, TextField } from "@/components/ui/field";
+import { DevOnly } from "@/components/ui/dev-only";
+import { useFormAction } from "@/hooks/use-form-action";
+import { organizationInviteSchema, organizationAccessSchema } from "@/services/organization/organization.http";
+import { validationFields } from "@/lib/validation/profile";
+import { devCopy } from "@/lib/env/app-env";
 
 interface TeamRow {
   id: string;
@@ -29,26 +34,32 @@ const statusClass = (s: string) => (s === "Active" ? "verified" : s === "Invitat
 export const recruiterAvatar = (r: { id: string; fullName: string; avatarUrl?: string; workEmail?: string }) => ({ id: r.id, name: r.fullName || r.workEmail || "Recruiter", picture: r.avatarUrl || undefined, color: "#E8EDF5" });
 
 function InviteForm({ organizationName }: { organizationName: string }) {
-  const run = useServiceAction();
   const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { execute, pending } = useFormAction((fields) => { setErrors(fields); setError(fields._form ?? Object.values(fields).join(" ")); });
   return (
     <form
       id="org-invite-form"
+      noValidate
       className="stack"
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         const email = String(f.get("email") || "").trim();
-        const result = await run((s) => s.organization.invite({ fullName: String(f.get("fullName") || "").trim(), email, role: String(f.get("role")) as OrganizationRole, department: String(f.get("department") || "").trim() }));
-        if (!result) return;
-        if (!result.ok) return setError(result.error);
+        const parsed = organizationInviteSchema.safeParse({ fullName: String(f.get("fullName") || "").trim(), email, role: String(f.get("role")), department: String(f.get("department") || "").trim() });
+        if (!parsed.success) { setErrors(validationFields(parsed.error)); return; }
+        setError(""); setErrors({});
+        const ok = await execute(async (s) => { const result = await s.organization.invite(parsed.data); if (!result.ok) throw new Error(result.error); });
+        if (!ok) return;
         modal.show(
-          "Invitation created · Simulated",
+          devCopy("Invitation created · Simulated", "Invitation created"),
           <div className="org-invitation-success">
             <Icon name="check" />
-            <h3>Demo invitation ready</h3>
+            <h3>{devCopy("Demo invitation ready", "Invitation ready")}</h3>
             <p>{email.toLowerCase()} is marked Invitation Pending in your team list.</p>
-            <p>No email has been sent. Use the invitation’s menu to simulate acceptance.</p>
+            <DevOnly>
+              <p>No email has been sent. Use the invitation’s menu to simulate acceptance.</p>
+            </DevOnly>
             <div className="modal-footer">
               <Button variant="primary" onClick={() => modal.close()}>
                 Done
@@ -58,17 +69,17 @@ function InviteForm({ organizationName }: { organizationName: string }) {
         );
       }}
     >
-      <p className="org-help">Invite a teammate to {organizationName}. This creates a local invitation record; no email is sent.</p>
-      <TextField label="Full name (optional)" name="fullName" maxLength={100} />
-      <TextField label="Work email" name="email" type="email" required maxLength={150} />
-      <SelectField label="Organization role" name="role" defaultValue="Recruiter" options={[...ORGANIZATION_ROLES]} />
-      <TextField label="Hiring department (optional)" name="department" maxLength={100} />
+      <p className="org-help">Invite a teammate to {organizationName}.{devCopy(" This creates a local invitation record; no email is sent.", "")}</p>
+      <TextField label="Full name (optional)" name="fullName" error={errors.fullName} maxLength={100} />
+      <TextField label="Work email" name="email" error={errors.email} type="email" required maxLength={150} />
+      <SelectField label="Organization role" name="role" error={errors.role} defaultValue="Recruiter" options={[...ORGANIZATION_ROLES]} />
+      <TextField label="Hiring department (optional)" name="department" error={errors.department} maxLength={100} />
       <div id="org-invite-error" className="org-field-error" role="alert">
         {error}
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="send">
+        <Button type="submit" disabled={pending} variant="primary" icon="send">
           Send Invitation
         </Button>
       </div>
@@ -76,19 +87,39 @@ function InviteForm({ organizationName }: { organizationName: string }) {
   );
 }
 
+function DeactivateMember({ member, role }: { member: RecruiterMember; role: OrganizationRole }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { execute, pending } = useFormAction(setErrors);
+  return <>
+    <p className="org-help">{member.fullName} will be inactive{devCopy(" in this prototype", "")} and their public recruiter profile will be hidden. You can reactivate them later.</p>
+    {Object.keys(errors).length > 0 && <p role="alert">{Object.values(errors).join(" ")}</p>}
+    <div className="modal-footer"><Button disabled={pending} onClick={() => modal.close()}>Cancel</Button>
+      <Button variant="danger" disabled={pending} onClick={async () => {
+        const input = organizationAccessSchema.safeParse({ role, accountStatus: "Inactive" });
+        if (!input.success) { setErrors(validationFields(input.error)); return; }
+        const ok = await execute(async (s) => { const result = await s.organization.updateAccess(member.id, input.data.role, input.data.accountStatus); if (!result.ok) throw new Error(result.error); });
+        if (ok) { modal.close(); toast("Team access updated."); }
+      }}>Deactivate recruiter</Button>
+    </div>
+  </>;
+}
+
 function ManageMember({ member, own }: { member: RecruiterMember; own: boolean }) {
-  const run = useServiceAction();
   const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { execute, pending } = useFormAction((fields) => { setErrors(fields); setError(fields._form ?? Object.values(fields).join(" ")); });
   const apply = async (role: OrganizationRole, status: "Active" | "Inactive") => {
-    const result = await run((s) => s.organization.updateAccess(member.id, role, status));
-    if (!result) return;
-    if (!result.ok) return setError(result.error);
+    const parsed = organizationAccessSchema.safeParse({ role, accountStatus: status });
+    if (!parsed.success) { setErrors(validationFields(parsed.error)); return; }
+    const ok = await execute(async (s) => { const result = await s.organization.updateAccess(member.id, parsed.data.role, parsed.data.accountStatus); if (!result.ok) throw new Error(result.error); });
+    if (!ok) return;
     modal.close();
-    toast("Prototype team access updated.");
+    toast(devCopy("Prototype team access updated.", "Team access updated."));
   };
   return (
     <form
       id="org-member-form"
+      noValidate
       className="stack"
       onSubmit={async (e) => {
         e.preventDefault();
@@ -102,15 +133,7 @@ function ManageMember({ member, own }: { member: RecruiterMember; own: boolean }
         if (status === "Inactive" && member.accountStatus !== "Inactive") {
           modal.show(
             "Deactivate this recruiter?",
-            <>
-              <p className="org-help">{member.fullName} will be inactive in this prototype and their public recruiter profile will be hidden. You can reactivate them later.</p>
-              <div className="modal-footer">
-                <Button onClick={() => modal.close()}>Cancel</Button>
-                <Button variant="danger" onClick={() => apply(role, status)}>
-                  Deactivate recruiter
-                </Button>
-              </div>
-            </>,
+            <DeactivateMember member={member} role={role} />,
           );
           return;
         }
@@ -124,15 +147,15 @@ function ManageMember({ member, own }: { member: RecruiterMember; own: boolean }
           <p className="org-help">{member.workEmail}</p>
         </div>
       </div>
-      <SelectField label="Organization role" name="role" defaultValue={member.role} options={[...ORGANIZATION_ROLES]} disabled={own} />
-      <SelectField label="Account status" name="accountStatus" defaultValue={member.accountStatus} options={["Active", "Inactive"]} disabled={own} />
-      {own ? <p className="org-section-note">Your current admin access cannot be removed from this view.</p> : <p className="org-help">Inactive members are hidden from public recruiter pages. This is a prototype permission setting.</p>}
+      <SelectField label="Organization role" name="role" error={errors.role} defaultValue={member.role} options={[...ORGANIZATION_ROLES]} disabled={own} />
+      <SelectField label="Account status" name="accountStatus" error={errors.accountStatus} defaultValue={member.accountStatus} options={["Active", "Inactive"]} disabled={own} />
+      {own ? <p className="org-section-note">Your current admin access cannot be removed from this view.</p> : <p className="org-help">Inactive members are hidden from public recruiter pages.{devCopy(" This is a prototype permission setting.", "")}</p>}
       <div id="org-member-error" className="org-field-error" role="alert">
         {error}
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" disabled={pending} variant="primary">
           Save access
         </Button>
       </div>
@@ -161,35 +184,37 @@ function RowMenu({ row, admin, own, member }: { row: TeamRow; admin: boolean; ow
         {row.invitation ? (
           admin && (
             <>
-              <Button
-                variant="text sm"
-                icon="check"
-                onClick={async () => {
-                  close();
-                  const ok = await run((s) => s.organization.acceptInvitation(row.id));
-                  if (ok !== undefined) toast(ok ? "Invitation accepted in the demo. The new recruiter profile starts hidden." : "The sample member could not be saved.");
-                }}
-              >
-                Simulate acceptance
-              </Button>
-              <Button
-                variant="text sm"
-                icon="send"
-                onClick={async () => {
-                  const ok = await run((s) => s.organization.remindInvitation(row.id));
-                  if (ok !== undefined) toast(ok ? "Demo reminder recorded. No invitation email was sent." : "The reminder could not be saved.");
-                }}
-              >
-                Resend demo invite
-              </Button>
+              <DevOnly>
+                <Button
+                  variant="text sm"
+                  icon="check"
+                  onClick={async () => {
+                    close();
+                    const ok = await run((s) => s.organization.acceptInvitation(row.id));
+                    if (ok !== undefined) toast(ok ? "Invitation accepted in the demo. The new recruiter profile starts hidden." : "The sample member could not be saved.");
+                  }}
+                >
+                  Simulate acceptance
+                </Button>
+                <Button
+                  variant="text sm"
+                  icon="send"
+                  onClick={async () => {
+                    const ok = await run((s) => s.organization.remindInvitation(row.id));
+                    if (ok !== undefined) toast(ok ? "Demo reminder recorded. No invitation email was sent." : "The reminder could not be saved.");
+                  }}
+                >
+                  Resend demo invite
+                </Button>
+              </DevOnly>
               <Button
                 variant="text sm"
                 icon="close"
                 onClick={() =>
                   modal.show(
-                    "Cancel this demo invitation?",
+                    devCopy("Cancel this demo invitation?", "Cancel this invitation?"),
                     <>
-                      <p className="org-help">This removes the pending invitation from the active team list. No email is sent.</p>
+                      <p className="org-help">This removes the pending invitation from the active team list.{devCopy(" No email is sent.", "")}</p>
                       <div className="modal-footer">
                         <Button onClick={() => modal.close()}>Cancel</Button>
                         <Button
@@ -197,7 +222,7 @@ function RowMenu({ row, admin, own, member }: { row: TeamRow; admin: boolean; ow
                           onClick={async () => {
                             const ok = await run((s) => s.organization.cancelInvitation(row.id));
                             modal.close();
-                            if (ok !== undefined) toast(ok ? "Demo invitation cancelled." : "Could not save this change.");
+                            if (ok !== undefined) toast(ok ? devCopy("Demo invitation cancelled.", "Invitation cancelled.") : "Could not save this change.");
                           }}
                         >
                           Confirm
@@ -269,7 +294,9 @@ export function TeamSection({ admin }: { admin: boolean }) {
         <p>
           <strong>Hiring Manager</strong> participates in assigned hiring activities.
         </p>
-        <small>These roles demonstrate frontend permissions. They do not provide real authentication or access control.</small>
+        <DevOnly>
+          <small>These roles demonstrate frontend permissions. They do not provide real authentication or access control.</small>
+        </DevOnly>
       </div>
       <div className="org-team-filter">
         <label className="application-search">
@@ -346,7 +373,7 @@ export function TeamSection({ admin }: { admin: boolean }) {
           </tbody>
         </table>
       </div>
-      <p className="org-help">{pending.length} pending demo invitations. Team emails and internal roles are private to this management view.</p>
+      <p className="org-help">{pending.length} pending {devCopy("demo invitations", "invitations")}. Team emails and internal roles are private to this management view.</p>
     </>
   );
 }

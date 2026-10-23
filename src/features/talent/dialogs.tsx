@@ -2,23 +2,33 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Id } from "@/types/domain";
+import { shortlistNameSchema } from "@/lib/validation/application";
+import { validationFields } from "@/lib/validation/profile";
+import { useFormAction } from "@/hooks/use-form-action";
+import type { Id,Shortlist } from "@/types/domain";
+import type {ShortlistView} from "@/services/talent/talent.service";
 import { firstName } from "@/lib/utils/text";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Avatar, Button } from "@/components/ui/primitives";
-import { TextField } from "@/components/ui/field";
+import { TextField,SelectField } from "@/components/ui/field";
 import { confirmAction, FormError } from "@/components/ui/feedback";
 
-const STORAGE_FALLBACK = "Saved for this page only. Browser storage is full or unavailable.";
+
 
 function ShortlistChooser({ candidateId }: { candidateId: Id }) {
-  const run = useServiceAction();
+  const {data,isError}=useServiceQuery(["shortlists"],(s)=>s.talent.listShortlists(),{keepPreviousData:false});
+  if(isError)return <p role="alert">Shortlists could not be loaded. Please retry.</p>;
+  return data?<ShortlistSelection candidateId={candidateId} initialLists={data}/>:null;
+}
+function ShortlistSelection({candidateId,initialLists}:{candidateId:Id;initialLists:ShortlistView[]}){
+  const [lists]=useState(initialLists);
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
   const dialogs = useShortlistDialogs();
-  const { data: lists } = useServiceQuery(["shortlists"], (s) => s.talent.listShortlists());
-  if (!lists) return null;
   return (
     <>
       <p className="small muted">Add or remove this candidate from your named shortlists.</p>
@@ -29,27 +39,28 @@ function ShortlistChooser({ candidateId }: { candidateId: Id }) {
         onSubmit={async (e) => {
           e.preventDefault();
           const ids = new FormData(e.currentTarget).getAll("shortlist").map(String);
-          const ok = await run((s) => s.talent.setCandidateShortlists(candidateId, ids));
-          if (ok === undefined) return;
-          toast(ok ? "Shortlists updated." : STORAGE_FALLBACK);
+          const versions=Object.fromEntries(lists.filter((l)=>l.canEdit!==false && typeof l.version==="number").map((l)=>[l.id,l.version!]));
+          if(!await execute(async(s)=>{await s.talent.setCandidateShortlists(candidateId, ids,versions);return true;}))return;
+          toast("Shortlists updated.");
           modal.close();
         }}
       >
         {lists.length ? (
           lists.map((s) => (
             <label className="check-row" key={s.id}>
-              <input name="shortlist" type="checkbox" value={s.id} defaultChecked={s.candidates.includes(candidateId)} />
+              <input name="shortlist" type="checkbox" value={s.id} defaultChecked={s.candidates.includes(candidateId)} disabled={s.canEdit===false} />
               {s.name} <span className="tag">{s.candidates.length}</span>
             </label>
           ))
         ) : (
           <p className="small muted">Create a shortlist first to save candidates.</p>
         )}
+        {Object.values(errors).map((error)=><p role="alert" key={error}>{error}</p>)}
         <div className="modal-footer">
           <Button icon="plus" onClick={() => dialogs.edit()}>
             New shortlist
           </Button>
-          <Button type="submit" variant="primary">
+          <Button type="submit" variant="primary" disabled={pending}>
             Save selection
           </Button>
         </div>
@@ -58,8 +69,9 @@ function ShortlistChooser({ candidateId }: { candidateId: Id }) {
   );
 }
 
-function ShortlistNameForm({ id, name }: { id?: Id; name?: string }) {
-  const run = useServiceAction();
+function ShortlistNameForm({ id, name,version }: { id?: Id; name?: string;version?:number }) {
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
   const setUi = useUiStore((s) => s.setUi);
   return (
     <form
@@ -67,19 +79,18 @@ function ShortlistNameForm({ id, name }: { id?: Id; name?: string }) {
       onSubmit={async (e) => {
         e.preventDefault();
         const value = String(new FormData(e.currentTarget).get("name") || "").trim();
-        if (id) await run((s) => s.talent.renameShortlist(id, value));
-        else {
-          const created = await run((s) => s.talent.createShortlist(value));
-          if (created) setUi({ shortlistTab: created });
-        }
+        const checked=shortlistNameSchema.safeParse(value);
+        if(!checked.success)return setErrors(validationFields(checked.error));
+        if(!await execute(async(s)=>{if(id)await s.talent.renameShortlist(id,checked.data,version);else setUi({shortlistTab:await s.talent.createShortlist(checked.data)});}))return;
         toast(id ? "Shortlist renamed." : "Your new shortlist is ready.");
         modal.close();
       }}
     >
-      <TextField label="Shortlist name" name="name" defaultValue={name ?? ""} required minLength={2} maxLength={60} placeholder="e.g. Product design team" />
+      {Object.values(errors).map((error)=><p role="alert" key={error}>{error}</p>)}
+      <TextField label="Shortlist name" name="name" defaultValue={name ?? ""} required minLength={1} maxLength={100} placeholder="e.g. Product design team" />
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={pending}>
           {id ? "Save name" : "Create shortlist"}
         </Button>
       </div>
@@ -110,7 +121,7 @@ function CompareChooser() {
         router.push("/recruiter/compare");
       }}
     >
-      <p className="small muted">Choose 2–4 fictional professionals to compare.</p>
+      <p className="small muted">{devCopy("Choose 2–4 fictional professionals to compare.", "Choose 2–4 professionals to compare.")}</p>
       {people.map((p) => (
         <label className="check-row" key={p.id}>
           <input type="checkbox" name="candidate" value={p.id} defaultChecked={compared.includes(p.id)} />
@@ -132,6 +143,12 @@ function CompareChooser() {
   );
 }
 
+function ShortlistSharing({list}:{list:Shortlist}){
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
+  return <form className="stack" onSubmit={async(e)=>{e.preventDefault();const visibility=String(new FormData(e.currentTarget).get("visibility"));if(visibility!=="private"&&visibility!=="organization")return setErrors({visibility:"Choose a sharing option."});if(!await execute(async(s)=>{if(!s.talent.shareShortlist)throw new Error("Sharing is unavailable.");await s.talent.shareShortlist(list.id,{visibility,version:list.version});}))return;modal.close();toast("Shortlist sharing updated.");}}><p>Organization sharing lets active team members view this list. Its owner and organization administrators retain editing access.</p><SelectField label="Who can view this list?" name="visibility" defaultValue={list.visibility??"private"} options={[{value:"private",label:"Owner and administrators"},{value:"organization",label:"Active organization members"}]}/>{Object.values(errors).map((error)=><p role="alert" key={error}>{error}</p>)}<div className="modal-footer"><Button onClick={()=>modal.close()}>Cancel</Button><Button type="submit" variant="primary" disabled={pending}>Save sharing</Button></div></form>;
+}
+
 export function useShortlistDialogs() {
   const run = useServiceAction();
   const services = useServices();
@@ -141,10 +158,11 @@ export function useShortlistDialogs() {
       const candidate = await services.talent.getCandidate(candidateId);
       modal.show("Keep " + firstName(candidate?.person.name ?? "them") + " in mind.", <ShortlistChooser candidateId={candidateId} />);
     },
-    edit: (id?: Id, name?: string) => modal.show(id ? "Rename your shortlist" : "A place for promising people.", <ShortlistNameForm id={id} name={name} />),
+    edit: (id?: Id, name?: string,version?:number) => modal.show(id ? "Rename your shortlist" : "A place for promising people.", <ShortlistNameForm id={id} name={name} version={version}/>),
+    share:(list:Shortlist)=>modal.show("Share your shortlist",<ShortlistSharing list={list}/>),
     remove: (id: Id) =>
       confirmAction("Delete this shortlist?", "The list will be removed. Candidate profiles will remain in the directory.", async () => {
-        await run((s) => s.talent.deleteShortlist(id));
+        if(!await run(async(s)=>{await s.talent.deleteShortlist(id);return true;}))return;
         const lists = await services.talent.listShortlists();
         setUi({ shortlistTab: lists[0]?.id ?? null });
         modal.close();

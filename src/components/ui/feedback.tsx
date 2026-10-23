@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { devCopy } from "@/lib/env/app-env";
 import { modal } from "@/stores/modal-store";
 import { Button, Notice } from "./primitives";
 import type { IconName } from "./icon";
@@ -46,7 +47,7 @@ export function ScreenError({ onRetry }: { onRetry?: () => void }) {
   return (
     <div className="empty" role="alert">
       <h3>We couldn’t load this view.</h3>
-      <p>Please try again. Your saved changes are still in this browser.</p>
+      <p>{devCopy("Please try again. Your saved changes are still in this browser.", "Please try again. Your saved changes are safe.")}</p>
       {onRetry && (
         <Button variant="primary" icon="refresh" onClick={onRetry}>
           Try again

@@ -12,6 +12,7 @@ import { FloatingInput, SelectField } from "@/components/ui/field";
 import { ProjectCard } from "@/components/work/project-card";
 import { PulseCard, UpdateItem } from "@/components/work/pulse";
 import { useProjectDialogs, useUpdateDialogs } from "./dialogs";
+import { ScreenError } from "@/components/ui/feedback";
 
 const CATEGORIES: Discipline[] = ["Design", "Engineering", "Data", "Business"];
 const CATEGORY_ICONS: Record<string, IconName> = { "": "folder", Design: "edit", Engineering: "monitor", Data: "grid", Business: "briefcase" };
@@ -24,9 +25,10 @@ export function ProjectsScreen() {
   const category = CATEGORIES.includes(params.get("category") as Discipline) ? (params.get("category") as Discipline) : "";
   const q = params.get("q") || "";
   const visibility = ["Public", "Private"].includes(params.get("visibility") || "") ? (params.get("visibility") as Visibility) : "";
-  const { data: all } = useServiceQuery(["projects", "p0", "all"], (s) => s.work.listProjects({ ownerId: "p0" }));
-  const { data: list } = useServiceQuery(["projects", "p0", category, visibility, q], (s) => s.work.listProjects({ ownerId: "p0", category, visibility, q }));
   const filtered = !!(category || q || visibility);
+  const allQuery = useServiceQuery(["projects", "me", "all"], (s) => s.work.listProjects({ ownerId: "me" }));
+  const listQuery = useServiceQuery(["projects", "me", category, visibility, q], (s) => s.work.listProjects({ ownerId: "me", category, visibility, q }), { enabled: filtered });
+  const all = allQuery.data, list = filtered ? listQuery.data : allQuery.data;
   const categoryLink = (c: string) => {
     const next = new URLSearchParams(params);
     if (c) next.set("category", c);
@@ -86,7 +88,7 @@ export function ProjectsScreen() {
             <input type="hidden" name="category" value={category} />
             <label className="projects-search">
               <Icon name="search" />
-              <FloatingInput label="Search your projects" type="search" name="q" defaultValue={q} placeholder="Search projects or skills..." aria-label="Search your projects" />
+              <FloatingInput label="Search your projects" type="search" name="q" maxLength={200} defaultValue={q} placeholder="Search projects or skills..." aria-label="Search your projects" />
             </label>
             <SelectField label="Visibility" name="visibility" defaultValue={visibility} options={[{ value: "", label: "All visibility" }, "Public", "Private"]} />
             <button type="submit" className="btn sm search-button">
@@ -99,6 +101,7 @@ export function ProjectsScreen() {
               </LinkButton>
             )}
           </form>
+          {(allQuery.isError || filtered && listQuery.isError) && <ScreenError onRetry={() => { void allQuery.refetch(); if (filtered) void listQuery.refetch(); }} />}
           {list && (
             <>
               <p className="projects-result-count" role="status">
@@ -138,7 +141,7 @@ export function WorkPulseScreen() {
   const range = useUiStore((s) => s.pulseRange);
   const setUi = useUiStore((s) => s.setUi);
   const updates = useUpdateDialogs();
-  const { data } = useServiceQuery(["updates", "p0", "latest"], (s) => s.work.listUpdates("p0", { limit: 5 }));
+  const { data } = useServiceQuery(["updates", "me", "latest"], (s) => s.work.listUpdates("me", { limit: 5 }));
   return (
     <>
       <PageHeading
@@ -151,7 +154,7 @@ export function WorkPulseScreen() {
         }
       />
       <div className="stack">
-        <PulseCard ownerId="p0" days={range} full onRangeChange={(d) => setUi({ pulseRange: d })} />
+        <PulseCard ownerId="me" days={range} full onRangeChange={(d) => setUi({ pulseRange: d })} />
         <section className="card">
           <div className="card-head">
             <div>
@@ -160,7 +163,7 @@ export function WorkPulseScreen() {
             </div>
           </div>
           {data?.map((u) => (
-            <UpdateItem key={u.id} update={u} />
+            <UpdateItem key={u.id} update={u} manage />
           ))}
         </section>
       </div>

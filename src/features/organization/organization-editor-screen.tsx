@@ -7,15 +7,23 @@ import type { Organization, Verification, VerificationStatus } from "@/types/dom
 import { errorSection, isOrganizationSection, ORGANIZATION_SECTION_DESCRIPTIONS, ORGANIZATION_SECTIONS, organizationCompletion, validateOrganization, VERIFICATION_NEXT_STEP, type OrganizationSection } from "@/lib/domain/organization";
 import { formatLocaleDate } from "@/lib/utils/date";
 import { MB } from "@/lib/utils/files";
+import { useState } from "react";
+import { useFormAction } from "@/hooks/use-form-action";
+import { organizationSchema, verificationSchema } from "@/lib/validation/organization";
+import { validateMedia, validationFields } from "@/lib/validation/profile";
+import { apiConfig } from "@/services/api/config";
+import { errorMessage } from "@/services/api/client";
 import { uid } from "@/lib/utils/id";
 import { isValidEmail, safeUrl } from "@/lib/utils/url";
-import { useServiceAction } from "@/hooks/use-services";
+import { useServiceAction, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Button, IconButton, LinkButton } from "@/components/ui/primitives";
 import { SelectField } from "@/components/ui/field";
 import { ScreenFallback } from "@/components/ui/feedback";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { OrgArea, OrgCheck, OrgChips, OrgChoices, OrgField, OrgImageUpload, OrgPublicHint, OrgSelect, VerificationBadge } from "@/components/organization/controls";
 import { useJobActions } from "@/features/feed/job-dialogs";
 import { addChips, useImageUploads, useOrganizationEditor } from "./use-organization-editor";
@@ -47,7 +55,10 @@ export function OrganizationEditorScreen() {
   const jobs = useJobActions();
   const uploads = useImageUploads();
   const editor = useOrganizationEditor();
-  const { ctx, draft, dirty, errors, setErrors, canManage, guard, setOrg, updateOrganization, discardOrganization } = editor;
+  const { query, ctx, draft, dirty, errors, setErrors, canManage, guard, setOrg, updateOrganization, discardOrganization } = editor;
+  const { execute, pending } = useFormAction(setErrors);
+  const services = useServices();
+  const [documentBusy, setDocumentBusy] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const key: OrganizationSection = isOrganizationSection(params.get("section")) ? (params.get("section") as OrganizationSection) : "overview";
 
@@ -57,6 +68,7 @@ export function OrganizationEditorScreen() {
     if (nav && active && matchMedia("(max-width:680px)").matches) nav.scrollLeft += active.getBoundingClientRect().left - nav.getBoundingClientRect().left - (nav.clientWidth - active.clientWidth) / 2;
   }, [key]);
 
+  if (query.isError && !ctx) return <div className="org-workspace"><p role="alert">{errorMessage(query.error)}</p><Button onClick={() => void query.refetch()}>Try again</Button></div>;
   if (!ctx || !draft) return <ScreenFallback />;
   const o = draft.organization;
   const v = draft.verification;
@@ -83,7 +95,7 @@ export function OrganizationEditorScreen() {
 
   const uploadImage = async (kind: "logoUrl" | "coverImageUrl", file: File) => {
     if (!guard()) return;
-    const images = await uploads.load([file], kind === "logoUrl" ? uploads.limits.logo : uploads.limits.cover);
+    const images = await uploads.load([file], kind === "logoUrl" ? uploads.limits.logo : uploads.limits.cover, kind === "logoUrl" ? "logo" : "cover");
     if (images) setOrg((d) => void (d[kind] = images[0].url));
   };
   const uploadGallery = async (files: File[], replace?: number) => {
@@ -96,8 +108,10 @@ export function OrganizationEditorScreen() {
 
   const save = async () => {
     if (!canManage) return toast("Organization admin access is required.");
-    if (uploads.busy) return toast("Wait for the selected image to finish loading.");
-    const e = validateOrganization(o);
+    if (uploads.busy || documentBusy || pending) return toast("Wait for the selected image to finish loading.");
+    const parsed = apiConfig.dataSource === "http" ? organizationSchema.safeParse(o) : null;
+    const proof = apiConfig.dataSource === "http" ? verificationSchema(false).safeParse(v) : null;
+    const e = { ...validateOrganization(o), ...(parsed && !parsed.success ? validationFields(parsed.error) : {}), ...(proof && !proof.success ? validationFields(proof.error) : {}) };
     setErrors(e);
     if (Object.keys(e).length) {
       router.push(ROOT + "?section=" + errorSection(e));
@@ -105,31 +119,31 @@ export function OrganizationEditorScreen() {
       return;
     }
     const organization = o.verificationStatus === "Not started" && JSON.stringify(v) !== JSON.stringify(ctx.workspace.verification) ? { ...o, verificationStatus: "In progress" as VerificationStatus } : o;
-    const ok = await run((s) => s.organization.saveOrganization(organization, v));
-    if (ok === undefined) return;
-    if (!ok) return toast("Browser storage is full. Your changes remain unsaved.");
+    const ok = await execute((s) => s.organization.saveOrganization(organization, v));
+    if (!ok) return;
     discardOrganization();
-    toast("Organization profile saved in this browser.");
+    toast(devCopy("Organization profile saved in this browser.", "Organization profile saved."));
   };
 
   const submitVerification = async () => {
-    if (!guard() || uploads.busy) return;
+    if (!guard() || uploads.busy || documentBusy || pending) return;
     const e: Record<string, string> = {};
     for (const k of Object.keys(VERIFICATION_LABELS) as (keyof Verification)[]) if (!String(v[k]).trim()) e[k] = "Complete " + VERIFICATION_LABELS[k] + ".";
     if (v.businessEmail && !isValidEmail(v.businessEmail)) e.businessEmail = "Use a valid business email.";
     if (v.website && !safeUrl(v.website)) e.website = "Use a complete HTTP or HTTPS website URL.";
+    if (apiConfig.dataSource === "http") { const parsed = verificationSchema(true).safeParse(v); if (!parsed.success) Object.assign(e, validationFields(parsed.error)); }
     if (Object.keys(e).length) return setErrors(e);
-    const orgErrors = validateOrganization(o);
+    const parsedOrg = apiConfig.dataSource === "http" ? organizationSchema.safeParse(o) : null;
+    const orgErrors = { ...validateOrganization(o), ...(parsedOrg && !parsedOrg.success ? validationFields(parsedOrg.error) : {}) };
     if (Object.keys(orgErrors).length) {
       setErrors(orgErrors);
       return router.push(ROOT + "?section=" + errorSection(orgErrors));
     }
     setErrors({});
-    const ok = await run((s) => s.organization.saveOrganization({ ...o, verificationStatus: "Pending review" }, { ...v, submittedAt: new Date().toISOString(), reviewNote: "Your demo request is queued. No external review has been started." }));
-    if (ok === undefined) return;
-    if (!ok) return toast("Browser storage is full. Your changes remain unsaved.");
+    const ok = await execute((s) => s.organization.saveOrganization({ ...o, verificationStatus: "Pending review" }, { ...v, submittedAt: new Date().toISOString(), reviewNote: devCopy("Your demo request is queued. No external review has been started.", "Your request is queued for review.") }, { submitVerification: true }));
+    if (!ok) return;
     discardOrganization();
-    toast("Demo verification request saved as Pending review. No real verification occurred.");
+    toast(devCopy("Demo verification request saved as Pending review. No real verification occurred.", "Verification request submitted for review."));
   };
 
   const applyOutcome = async (outcome: string) => {
@@ -211,7 +225,7 @@ export function OrganizationEditorScreen() {
               />
             </label>
           </div>
-          <p className="org-help">Up to 4 images, 500 KB each and 1.5 MB total. Public gallery; files stay in this browser.</p>
+          <p className="org-help">Up to 4 images, 500 KB each and 1.5 MB total. {devCopy("Public gallery; files stay in this browser.", "Shown in your public gallery.")}</p>
           {o.workplaceImages.length ? (
             <div className="org-gallery">
               {o.workplaceImages.map((im, i) => (
@@ -320,11 +334,16 @@ export function OrganizationEditorScreen() {
             <VerificationBadge status={o.verificationStatus} />
             <h3>{VERIFICATION_NEXT_STEP[o.verificationStatus]}</h3>
             {v.reviewNote && <p>{v.reviewNote}</p>}
-            {v.submittedAt && <p>Submitted {formatLocaleDate(v.submittedAt)} · Demo only</p>}
+            {v.submittedAt && (
+              <p>
+                Submitted {formatLocaleDate(v.submittedAt)}
+                {devCopy(" · Demo only", "")}
+              </p>
+            )}
           </div>
           <div className="org-verification-benefits">
             <h3>Why verification matters</h3>
-            <p>It gives candidates context about the organization behind a hiring post. This prototype demonstrates the review process without validating real businesses.</p>
+            <p>It gives candidates context about the organization behind a hiring post.{devCopy(" This prototype demonstrates the review process without validating real businesses.", "")}</p>
           </div>
           <div className="org-section-note private">
             <Icon name="shield" />
@@ -355,7 +374,7 @@ export function OrganizationEditorScreen() {
             <h3>
               Supporting document references <span className="org-private-label">Private</span>
             </h3>
-            <p className="org-help">Optional PDF, PNG or JPEG, up to 1 MB. Only file names are recorded for this demo. File contents are not uploaded or stored.</p>
+            <p className="org-help">PDF, PNG or JPEG, up to 2 MB. Attach at least one document to submit.{devCopy(" Only file names are recorded for this demo. File contents are not uploaded or stored.", "")}</p>
             <label className="btn sm org-file-button">
               <Icon name="file" />
               Select a document
@@ -363,14 +382,21 @@ export function OrganizationEditorScreen() {
                 type="file"
                 accept="application/pdf,image/png,image/jpeg"
                 hidden
-                disabled={v.documents.length >= 3}
-                onChange={(e) => {
+                disabled={v.documents.length >= 5 || documentBusy || pending}
+                onChange={async (e) => {
                   const file = e.target.files?.[0];
                   e.target.value = "";
                   if (!file || !guard()) return;
-                  if (file.size > MB || !["application/pdf", "image/png", "image/jpeg"].includes(file.type)) return toast("Select a PDF, PNG, or JPEG up to 1 MB.");
-                  if (v.documents.length >= 3) return toast("Use up to three document references.");
-                  updateOrganization((d) => void d.verification.documents.push({ id: uid(), name: file.name, size: file.size, type: file.type }));
+                  const error = validateMedia(file, "business_document");
+                  if (error) return setErrors({ documents: error });
+                  if (v.documents.length >= 5) return setErrors({ documents: "Use up to five documents." });
+                  setDocumentBusy(true);
+                  try {
+                    const asset = apiConfig.dataSource === "http" ? await services.media.upload(file, "business_document", o.id) : { id: uid() };
+                    updateOrganization((d) => void d.verification.documents.push({ id: asset.id, name: file.name, size: file.size, type: file.type }));
+                    setErrors({});
+                  } catch (error) { setErrors({ documents: errorMessage(error) }); }
+                  finally { setDocumentBusy(false); }
                 }}
               />
             </label>
@@ -387,21 +413,23 @@ export function OrganizationEditorScreen() {
             ))}
           </div>
           <div className="row wrap org-verification-actions">
-            <Button variant="primary sm" icon="shield" onClick={submitVerification}>
-              {o.verificationStatus === "Action required" ? "Resubmit demo request" : "Submit demo request"}
+            <Button variant="primary sm" icon="shield" onClick={submitVerification} disabled={pending || documentBusy || uploads.busy}>
+              {o.verificationStatus === "Action required" ? devCopy("Resubmit demo request", "Resubmit for review") : devCopy("Submit demo request", "Submit for review")}
             </Button>
-            {o.verificationStatus === "Pending review" && <span className="org-help">No external review service is connected.</span>}
+            <DevOnly>{o.verificationStatus === "Pending review" && <span className="org-help">No external review service is connected.</span>}</DevOnly>
           </div>
-          <details className="org-demo-review">
-            <summary>Prototype review controls</summary>
-            <p>Explicit sample outcomes for testing these screens. Selecting Verified creates a “Verified · Demo” badge and does not verify a real company.</p>
-            <div className="row wrap">
-              <SelectField label="Sample review outcome" name="demoOutcome" id="org-demo-outcome" defaultValue={["Pending review", "Verified", "Action required"].includes(o.verificationStatus) ? o.verificationStatus : "Pending review"} options={["Pending review", "Verified", "Action required"]} />
-              <Button variant="sm" icon="check" onClick={() => applyOutcome((document.getElementById("org-demo-outcome") as HTMLSelectElement).value)}>
-                Apply sample outcome
-              </Button>
-            </div>
-          </details>
+          <DevOnly>
+            <details className="org-demo-review">
+              <summary>Prototype review controls</summary>
+              <p>Explicit sample outcomes for testing these screens. Selecting Verified creates a “Verified · Demo” badge and does not verify a real company.</p>
+              <div className="row wrap">
+                <SelectField label="Sample review outcome" name="demoOutcome" id="org-demo-outcome" defaultValue={["Pending review", "Verified", "Action required"].includes(o.verificationStatus) ? o.verificationStatus : "Pending review"} options={["Pending review", "Verified", "Action required"]} />
+                <Button variant="sm" icon="check" onClick={() => applyOutcome((document.getElementById("org-demo-outcome") as HTMLSelectElement).value)}>
+                  Apply sample outcome
+                </Button>
+              </div>
+            </details>
+          </DevOnly>
         </>
       ),
     team: () => <TeamSection admin={canManage} />,
@@ -426,12 +454,14 @@ export function OrganizationEditorScreen() {
         </div>
         <div className="org-setting-group">
           <h3>Private communication preferences</h3>
-          {check("Open to candidate inquiries", "acceptInquiries", "A prototype preference; it does not send or block real messages.")}
+          {check("Open to candidate inquiries", "acceptInquiries", devCopy("A prototype preference; it does not send or block real messages.", undefined))}
           {check("New application notifications", "notifyApplications")}
           {check("Team and invitation updates", "notifyTeam")}
           {check("Weekly hiring digest", "weeklyDigest")}
         </div>
-        <p className="org-help">Notification preferences are saved locally. No emails or notifications are delivered.</p>
+        <DevOnly>
+          <p className="org-help">Notification preferences are saved locally. No emails or notifications are delivered.</p>
+        </DevOnly>
       </>
     ),
   };
@@ -484,7 +514,7 @@ export function OrganizationEditorScreen() {
           <LinkButton href={ROOT + "/preview?section=" + key} variant="sm" icon="eye">
             Preview Profile
           </LinkButton>
-          <button className="btn primary sm" type="submit" form="organization-form" disabled={!canManage}>
+          <button className="btn primary sm" type="submit" form="organization-form" disabled={!canManage || pending || documentBusy || uploads.busy}>
             <Icon name="check" />
             Save Changes
           </button>
@@ -559,7 +589,9 @@ export function OrganizationEditorScreen() {
               <h2>{ORGANIZATION_SECTIONS[key]}</h2>
               <p>{ORGANIZATION_SECTION_DESCRIPTIONS[key]}</p>
             </div>
-            <span className="org-data-tag">Demo data</span>
+            <DevOnly>
+              <span className="org-data-tag">Demo data</span>
+            </DevOnly>
           </header>
           {!canManage && (
             <p className="org-section-note">
@@ -575,6 +607,7 @@ export function OrganizationEditorScreen() {
           )}
           <form
             id="organization-form"
+            noValidate
             className="org-form"
             data-section={key}
             onSubmit={(e) => {
@@ -582,7 +615,7 @@ export function OrganizationEditorScreen() {
               void save();
             }}
           >
-            <fieldset className="org-edit-fieldset" disabled={!canManage && key !== "team"}>
+            <fieldset className="org-edit-fieldset" disabled={pending || documentBusy || uploads.busy || (!canManage && key !== "team")}>
               {sections[key]()}
             </fieldset>
           </form>
@@ -590,7 +623,7 @@ export function OrganizationEditorScreen() {
             {uploads.busy ? "Loading selected image…" : ""}
           </div>
           <footer className="org-panel-footer">
-            <span id="org-save-state">{dirty ? "Unsaved changes" : "All changes saved in this browser"}</span>
+            <span id="org-save-state">{dirty ? "Unsaved changes" : devCopy("All changes saved in this browser", "All changes saved")}</span>
             {canManage && (
               <>
                 <Button
@@ -615,10 +648,12 @@ export function OrganizationEditorScreen() {
           </footer>
         </section>
       </div>
-      <p className="org-demo-caption">
-        <Icon name="shield" />
-        Fictional organization and team data. Saved locally in this browser; no real invitations, document checks, or notifications.
-      </p>
+      <DevOnly>
+        <p className="org-demo-caption">
+          <Icon name="shield" />
+          Fictional organization and team data. Saved locally in this browser; no real invitations, document checks, or notifications.
+        </p>
+      </DevOnly>
     </div>
   );
 }

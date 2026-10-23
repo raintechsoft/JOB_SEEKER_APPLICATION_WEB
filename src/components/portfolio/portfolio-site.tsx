@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { PortfolioView } from "@/services/portfolio/portfolio.service";
 import { initials } from "@/lib/utils/text";
+import { devCopy } from "@/lib/env/app-env";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Badge, Button, EmptyState, Tags } from "@/components/ui/primitives";
 import { ProjectCard } from "@/components/work/project-card";
@@ -141,7 +142,7 @@ export function PortfolioSite({ view, builder = false }: { view: PortfolioView; 
       <div className="portfolio-content">
         {cfg.sections.filter((s) => s.visible).map((s) => section(s.name))}
         <p className="small muted" style={{ fontSize: 9, marginTop: 24 }}>
-          Built with Skillora · Fictional professional · Interactive portfolio prototype
+          {devCopy("Built with Skillora · Fictional professional · Interactive portfolio prototype", "Built with Skillora")}
         </p>
       </div>
     </article>

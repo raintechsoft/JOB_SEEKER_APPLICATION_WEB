@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { trackingSchema } from "@/lib/validation/application";
+import { validationFields } from "@/lib/validation/profile";
+import { useFormAction } from "@/hooks/use-form-action";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ApplicationStatus, Id } from "@/types/domain";
 import { APPLICATION_STATUSES, type AlertRecord, type ApplicationRecord, type SavedJobRecord } from "@/services/applications/applications.service";
@@ -13,6 +17,8 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { Button, EmptyState, IconButton, LinkButton, PageHeading } from "@/components/ui/primitives";
 import { FloatingInput, FloatingSelect, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
 import { useJobActions } from "@/features/feed/job-dialogs";
 import { useJobAlertDialogs } from "@/features/feed/job-alerts";
 
@@ -26,7 +32,8 @@ function Logo({ companyId }: { companyId?: string }) {
 }
 
 function TrackingForm({ a }: { a: ApplicationRecord }) {
-  const run = useServiceAction();
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
   return (
     <form
       id="application-tracking-form"
@@ -34,7 +41,9 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        await run((s) => s.applications.updateTracking(a.id, { status: String(f.get("status")) as ApplicationStatus, followUp: String(f.get("followUp") || ""), trackingNote: String(f.get("trackingNote") || "").trim() }));
+        const checked=trackingSchema.safeParse({ status: String(f.get("status")), followUp: String(f.get("followUp") || ""), trackingNote: String(f.get("trackingNote") || "").trim() });
+        if(!checked.success)return setErrors(validationFields(checked.error));
+        if(!await execute((s)=>s.applications.updateTracking(a.id,{...checked.data,version:a.version})))return;
         modal.close();
         toast("Application tracking saved.");
       }}
@@ -45,13 +54,14 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
           {a.jobRef?.companyName ?? "Company unavailable"} · Applied {demoDate(a.createdAt)}
         </p>
       </div>
-      <SelectField label="Current status" name="status" defaultValue={a.status} options={APPLICATION_STATUSES} />
-      <TextField label="Follow-up date (optional)" name="followUp" type="date" defaultValue={a.followUp} />
-      <TextAreaField label="Private tracking notes" name="trackingNote" defaultValue={a.trackingNote} maxLength={2500} placeholder="People to contact, interview preparation, or your next step..." />
-      <p className="notice">This is your personal tracking record. Changing a status does not contact the employer or withdraw an application.</p>
+      {errors._form&&<p role="alert">{errors._form}</p>}
+      <SelectField label="Current status" name="status" error={errors.status} defaultValue={a.status} options={APPLICATION_STATUSES} />
+      <TextField label="Follow-up date (optional)" name="followUp" error={errors.followUp} type="date" defaultValue={a.followUp} />
+      <TextAreaField label="Private tracking notes" name="trackingNote" error={errors.trackingNote} defaultValue={a.trackingNote} maxLength={2500} placeholder="People to contact, interview preparation, or your next step..." />
+      <p className="notice">{devCopy("This is your personal tracking record. Changing a status does not contact the employer or withdraw an application.","Notes and tracking stages are private. Selecting Withdrawn permanently withdraws this application from the employer’s workflow.")}</p>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check">
+        <Button type="submit" variant="primary" icon="check" disabled={pending}>
           Save tracking
         </Button>
       </div>
@@ -86,7 +96,7 @@ function Details({ id }: { id: Id }) {
         </div>
         <div>
           <span>Portfolio</span>
-          <p>{a.portfolio ? "Included in demo application" : "Not included"}</p>
+          <p>{a.portfolio ? devCopy("Included in demo application", "Included in application") : "Not included"}</p>
         </div>
         <div>
           <span>Follow-up</span>
@@ -105,7 +115,9 @@ function Details({ id }: { id: Id }) {
           {a.trackingNote || "Add notes to keep track of your next step."}
         </p>
       </div>
-      <p className="notice">Local demonstration only. No application was sent to a real employer.</p>
+      <DevOnly>
+        <p className="notice">Local demonstration only. No application was sent to a real employer.</p>
+      </DevOnly>
       <div className="modal-footer wrap">
         <Button variant="danger sm" icon="trash" onClick={() => dialogs.remove(a.id)}>
           Remove tracking
@@ -133,8 +145,8 @@ function useApplicationDialogs() {
     },
     details: (id: Id) => modal.show("Your application, at a glance.", <Details id={id} />),
     remove: (id: Id) =>
-      confirmAction("Remove this tracking record?", "This deletes the application and its notes from this browser. It does not withdraw an application from an employer.", async () => {
-        await run((s) => s.applications.remove(id));
+      confirmAction("Remove this tracking record?", devCopy("This deletes the application and its notes from this browser. It does not withdraw an application from an employer.", "This deletes the application and its notes from your tracker. It does not withdraw an application from an employer."), async () => {
+        if(!await run(async(s)=>{await s.applications.remove(id);return true;}))return;
         modal.close();
         toast("Application tracking record removed.");
       }, "Remove record"),
@@ -190,7 +202,7 @@ function AppliedCard({ a }: { a: ApplicationRecord }) {
         </div>
       )}
       <div className="application-record-bottom">
-        <span>Self-tracked · {a.updatedAt ? "Updated " + demoDate(a.updatedAt) : "Local demo application"}</span>
+        <span>Self-tracked · {a.updatedAt ? "Updated " + demoDate(a.updatedAt) : devCopy("Local demo application", "Application")}</span>
         <div className="row gap8">
           <Button variant="sm" icon="file" onClick={() => dialogs.details(a.id)}>
             Details
@@ -290,7 +302,7 @@ function AlertCard({ a }: { a: AlertRecord }) {
         )}
       </div>
       <div className="application-record-bottom">
-        <span>In-app demo alert</span>
+        <span>{devCopy("In-app demo alert", "In-app alert")}</span>
         <div className="row gap8">
           <Button variant="sm" icon={a.enabled ? "bell" : "check"} onClick={() => alerts.toggle(a.id)}>
             {a.enabled ? "Pause" : "Resume"}
@@ -329,7 +341,7 @@ export function ApplicationsScreen() {
   const n = list?.length ?? 0;
   const filtered = !!(q || status);
   const EMPTY: Record<Tab, [string, string]> = {
-    applied: ["Your next chapter starts with a first step.", "Demo jobs you apply to appear here, ready for your notes and next steps."],
+    applied: ["Your next chapter starts with a first step.", devCopy("Demo jobs you apply to appear here, ready for your notes and next steps.", "Jobs you apply to appear here, ready for your notes and next steps.")],
     saved: ["Keep promising opportunities close.", "Save jobs from the feed or jobs panel to revisit them here. Saved social posts stay in your feed."],
     alerts: ["Put your next role on your radar.", "Create an alert for the job titles, skills, and locations you’re interested in."],
   };
@@ -346,7 +358,7 @@ export function ApplicationsScreen() {
         subtitle="Your opportunities, your progress, and your next steps — in one place."
         actions={
           <>
-            <LinkButton href="/app/dashboard?view=jobs" icon="search">
+            <LinkButton href={devCopy("/app/dashboard?view=jobs","/app/jobs")} icon="search">
               Explore jobs
             </LinkButton>
             <Button variant="primary" icon="bell" onClick={() => alerts.edit()}>
@@ -433,10 +445,12 @@ export function ApplicationsScreen() {
                   />
                 )}
           </section>
-          <div className="application-demo-note">
-            <Icon name="shield" />
-            <p>Demo workspace · Applications, statuses, notes, and job alerts are stored in this browser. Statuses are updated by you; no employer system is connected.</p>
-          </div>
+          <DevOnly>
+            <div className="application-demo-note">
+              <Icon name="shield" />
+              <p>Demo workspace · Applications, statuses, notes, and job alerts are stored in this browser. Statuses are updated by you; no employer system is connected.</p>
+            </div>
+          </DevOnly>
         </div>
       </div>
     </div>

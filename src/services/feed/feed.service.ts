@@ -3,7 +3,7 @@ import type { Id, IsoDateTime, JobMedia, JobThumbnail, MediaItem, Role, Visibili
 import type { ProjectSummary } from "@/mocks/store/presenters";
 
 export type FeedFilter = "all" | "following" | "jobs" | "saved";
-export type FeedSort = "recent" | "popular";
+export type FeedSort = "recent" | "popular" | "recommended";
 
 export interface FeedQuery {
   role: Role;
@@ -21,6 +21,7 @@ export interface FeedComment {
 }
 
 export interface FeedJobInfo {
+  open?: boolean;
   location: string;
   arrangement: string;
   employment: string;
@@ -40,6 +41,10 @@ export interface FeedJobInfo {
  * not exposed; the client only receives display data and the viewer's interaction state.
  */
 export interface FeedEntry {
+  analyticsContext?:{requestId:string;itemId:string;position:number};
+  recommendationReason?:string;
+  commentsNextCursor?: string | null;
+  version?: number;
   id: Id;
   type: "post" | "job" | "update";
   ownerId: Id;
@@ -79,6 +84,10 @@ export interface Network {
 }
 
 export interface NewPostInput {
+  editorToken?: string;
+  creationKey?: string;
+  draftId?: string;
+  draftVersion?: number;
   title: string;
   body: string;
   project: Id | "";
@@ -86,6 +95,7 @@ export interface NewPostInput {
 }
 
 export interface FeedService {
+  getComments?(role: Role, id: Id, limit: number): Promise<{items: FeedComment[]; nextCursor: string | null}>;
   getFeed(query: FeedQuery): Promise<FeedPage>;
   getEntry(role: Role, id: Id): Promise<FeedEntry | null>;
   toggleLike(role: Role, id: Id): Promise<boolean>;
@@ -93,10 +103,10 @@ export interface FeedService {
   toggleFollow(role: Role, personId: Id): Promise<boolean>;
   toggleFollowCompany(role: Role, companyId: Id): Promise<boolean>;
   addComment(role: Role, postId: Id, text: string): Promise<void>;
-  editComment(postId: Id, commentId: Id, text: string): Promise<boolean>;
-  deleteComment(role: Role, postId: Id, commentId: Id): Promise<void>;
+  editComment(postId: Id, commentId: Id, text: string, version?: number): Promise<boolean>;
+  deleteComment(role: Role, postId: Id, commentId: Id, version?: number): Promise<void>;
   getNetwork(role: Role): Promise<Network>;
   createPost(role: Role, input: NewPostInput): Promise<{ id: Id } | null>;
-  updatePost(role: Role, id: Id, input: { title: string; body: string }): Promise<boolean>;
-  deletePost(role: Role, id: Id): Promise<void>;
+  updatePost(role: Role, id: Id, input: { title: string; body: string; version?: number }): Promise<boolean>;
+  deletePost(role: Role, id: Id, version?: number): Promise<void>;
 }

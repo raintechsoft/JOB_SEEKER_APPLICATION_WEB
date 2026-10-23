@@ -8,14 +8,17 @@ import { ProjectArt } from "@/components/work/project-art";
 import { MiniPulse } from "@/components/work/pulse";
 import { useProjectDialogs } from "@/features/work/dialogs";
 import { useShortlistDialogs } from "@/features/talent/dialogs";
+import {useImpression} from "@/hooks/use-impression";
+import {track} from "@/lib/analytics";
 
 export function TalentCard({ person: p, publicMode = false }: { person: TalentCardData; publicMode?: boolean }) {
   const projects = useProjectDialogs();
   const shortlists = useShortlistDialogs();
   const target = publicMode ? "/professionals/" + p.slug : "/recruiter/talent/" + p.id;
   const proj = p.featuredProject;
+  const ref=useImpression<HTMLElement>(()=>{if(p.analyticsContext)track("recommendation_exposed",p.analyticsContext);},p.analyticsContext?.requestId);
   return (
-    <article className="card talent-card">
+    <article ref={ref} className="card talent-card" onClickCapture={(e)=>{if(p.analyticsContext&&(e.target as HTMLElement).closest("a"))track("recommendation_clicked",p.analyticsContext);}}>
       <div className="row between">
         <Avatar person={p} size="lg" />
         <IconButton icon="bookmark" label={p.saved ? "Manage saved candidate" : "Save to shortlist"} extra={p.saved ? "saved" : ""} onClick={() => shortlists.choose(p.id)} />
@@ -24,6 +27,7 @@ export function TalentCard({ person: p, publicMode = false }: { person: TalentCa
         <Link href={target}>{p.name}</Link>
       </h3>
       <p className="headline">{p.headline}</p>
+      {p.recommendationReason&&<p className="small muted">{p.recommendationReason}</p>}
       <div className="meta">
         <span>
           <Icon name="location" /> {p.location}

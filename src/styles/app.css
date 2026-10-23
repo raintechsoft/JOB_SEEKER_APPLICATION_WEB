@@ -37,3 +37,20 @@
     animation: none;
   }
 }
+
+/* Keep empty-state actions compact and separate from the large illustration. */
+body .empty .btn {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 20px;
+  gap: 6px;
+}
+.empty .btn .icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin: 0;
+  color: inherit;
+}

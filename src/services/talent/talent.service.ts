@@ -15,6 +15,8 @@ export interface TalentFilters {
 }
 
 export interface TalentCardData extends PublicProfessional {
+  analyticsContext?:{requestId:string;itemId:string;position:number};
+  recommendationReason?:string;
   featuredProject?: ProjectSummary;
   saved: boolean;
   recentDays: number[];
@@ -44,20 +46,21 @@ export interface RecruiterOverview {
   shortlists: Shortlist[];
   conversationCount: number;
   recentTalent: TalentCardData[];
-  conversations: { id: Id; person: PublicProfessional; lastMessage: string }[];
+  conversations: { id: Id; person: import("@/types/api").PersonSummary; lastMessage: string }[];
 }
 
 export interface TalentService {
+  shareShortlist?(id:Id,input:{visibility:"private"|"organization";version?:number}):Promise<void>;
   search(filters: TalentFilters): Promise<TalentCardData[]>;
   getFilterOptions(): Promise<{ locations: string[]; skills: string[] }>;
   getCandidate(id: Id): Promise<CandidateView | null>;
   getCandidateBySlug(slug: string): Promise<CandidateView | null>;
   listShortlists(): Promise<ShortlistView[]>;
   createShortlist(name: string): Promise<Id>;
-  renameShortlist(id: Id, name: string): Promise<void>;
+  renameShortlist(id: Id, name: string, version?:number): Promise<void>;
   deleteShortlist(id: Id): Promise<void>;
   removeFromShortlist(shortlistId: Id, candidateId: Id): Promise<boolean>;
-  setCandidateShortlists(candidateId: Id, shortlistIds: Id[]): Promise<boolean>;
+  setCandidateShortlists(candidateId: Id, shortlistIds: Id[], versions?:Record<string,number>): Promise<boolean>;
   compare(ids: Id[]): Promise<ComparisonPerson[]>;
   listPublicPeople(): Promise<PublicProfessional[]>;
   getOverview(): Promise<RecruiterOverview>;

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import type { ComparisonPerson } from "@/services/talent/talent.service";
 import { formatShortDate } from "@/lib/utils/date";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
@@ -47,10 +48,10 @@ export function OverviewScreen() {
       {data && (
         <>
           <div className="stats">
-            <StatCard label="Talent to explore" value={data.talentCount} description="Fictional demo professionals" icon="users" />
+            <StatCard label="Talent to explore" value={data.talentCount} description={devCopy("Fictional demo professionals", "Professionals in the directory")} icon="users" />
             <StatCard label="Saved candidates" value={data.savedCandidates} description="Across your shortlists" icon="bookmark" />
             <StatCard label="Your shortlists" value={data.shortlists.length} description="Curated for your team" icon="folder" />
-            <StatCard label="Conversations" value={data.conversationCount} description="Local demo messages" icon="message" />
+            <StatCard label="Conversations" value={data.conversationCount} description={devCopy("Local demo messages", "Active conversations")} icon="message" />
           </div>
           <div className="card" style={{ background: "#eeecfa", marginBottom: 27 }}>
             <div className="row between wrap">
@@ -68,7 +69,7 @@ export function OverviewScreen() {
             <div>
               <h2 style={{ fontSize: 18 }}>People to get to know</h2>
               <p className="small muted" style={{ marginTop: 6 }}>
-                A selection from our demo directory, ordered by recent recorded activity.
+                {devCopy("A selection from our demo directory, ordered by recent recorded activity.", "Suggestions based on skills in your accessible open jobs, with recently updated profiles as a fallback.")}
               </p>
             </div>
             <LinkButton href="/recruiter/discover" variant="text" icon="arrow">
@@ -173,10 +174,11 @@ export function ShortlistsScreen() {
                   {s.candidates.length} saved candidates in {s.name}
                 </p>
                 <div className="row">
-                  <Button variant="text sm" icon="edit" onClick={() => dialogs.edit(s.id, s.name)}>
+                  <Button variant="text sm" icon="edit" disabled={s.canEdit===false} onClick={() => dialogs.edit(s.id, s.name,s.version)}>
                     Rename
                   </Button>
-                  <Button variant="text sm" icon="trash" onClick={() => dialogs.remove(s.id)}>
+                  {s.version&&<Button variant="text sm" icon="users" disabled={s.canEdit===false} onClick={()=>dialogs.share(s)}>Sharing</Button>}
+                  <Button variant="text sm" icon="trash" disabled={s.canEdit===false} onClick={() => dialogs.remove(s.id)}>
                     Delete list
                   </Button>
                 </div>
@@ -194,6 +196,7 @@ export function ShortlistsScreen() {
                         <Button
                           variant="text sm"
                           icon="close"
+                          disabled={s.canEdit===false}
                           onClick={async () => {
                             const ok = await run((sv) => sv.talent.removeFromShortlist(s.id, p.id));
                             if (ok !== undefined) toast(ok ? "Candidate removed from shortlist." : "Saved for this page only. Browser storage is full or unavailable.");
@@ -274,7 +277,7 @@ export function CompareScreen() {
         </LinkButton>
       ),
     ],
-    ["Profile completeness", (p) => p.complete + "% of demo profile fields"],
+    ["Profile completeness", (p) => p.complete + devCopy("% of demo profile fields", "% of profile fields")],
     [
       "Recorded activity",
       (p) => (

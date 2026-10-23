@@ -2,26 +2,34 @@
 
 import type { RecommendedJob } from "@/services/recommendations/recommendations.service";
 import { postedAgo } from "@/lib/utils/date";
+import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import {apiConfig} from "@/services/api/config";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Button, IconButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { useJobActions } from "./job-dialogs";
 import { useJobAlertDialogs } from "./job-alerts";
+import {useImpression} from "@/hooks/use-impression";
+import {track} from "@/lib/analytics";
 
 function RailJob({ item }: { item: RecommendedJob }) {
   const jobs = useJobActions();
+  const ref=useImpression<HTMLElement>(()=>{if(item.analyticsContext)track("recommendation_exposed",item.analyticsContext);},item.analyticsContext?.requestId);
+  const open=()=>{if(item.analyticsContext)track("recommendation_clicked",item.analyticsContext);jobs.view(item.id,"jobs-rail");};
   return (
-    <article className="rail-job" data-relevant-job={item.id}>
+    <article ref={ref} className="rail-job" data-relevant-job={item.id}>
       <div className="rail-job-company">
-        <span className={"rail-company-logo " + item.companyId}>{item.companyId === "c0" ? <Icon name="spark" /> : item.companyId === "c1" ? "m." : "f."}</span>
+        {apiConfig.dataSource==="http"?<CompanyAvatar company={item.company}/>:<span className={"rail-company-logo " + item.companyId}>{item.companyId === "c0" ? <Icon name="spark" /> : item.companyId === "c1" ? "m." : "f."}</span>}
         <div>
           <span>{item.company.name}</span>
           <small>{postedAgo(item.createdAt)}</small>
         </div>
         {item.isNew && <span className="rail-new">NEW</span>}
       </div>
-      <button type="button" className="rail-job-title" onClick={() => jobs.view(item.id, "jobs-rail")}>
+      <button type="button" className="rail-job-title" onClick={open}>
         {item.title} <Icon name="arrowUp" />
       </button>
       <p>
@@ -34,10 +42,10 @@ function RailJob({ item }: { item: RecommendedJob }) {
       </div>
       <div className="rail-job-reason">
         <Icon name={item.matchedAlerts.length ? "bell" : "user"} />
-        <span>{item.matchedAlerts.length ? "Matches " + item.matchedAlerts.join(", ") : "Based on your role & skills"}</span>
+        <span>{item.matchedAlerts.length ? "Matches " + item.matchedAlerts.join(", ") : item.reason ?? "Based on your role & skills"}</span>
       </div>
       <div className="rail-job-actions">
-        <button type="button" onClick={() => jobs.view(item.id, "jobs-rail")}>
+        <button type="button" onClick={open}>
           View opportunity <Icon name="arrow" />
         </button>
         <button type="button" onClick={() => jobs.toggleSave("professional", item.id, "job")} aria-label={(item.saved ? "Unsave" : "Save") + " " + item.title} className={item.saved ? "saved" : ""}>
@@ -99,7 +107,7 @@ export function JobsPanel() {
           </div>
           <div className="rail-sort-note">
             <Icon name="clock" />
-            Newest first · Matches from demo jobs
+            {devCopy("Newest first · Matches from demo jobs", "Skills, preferences & recency")}
           </div>
         </section>
         <section className="card job-alerts-card">
@@ -134,10 +142,12 @@ export function JobsPanel() {
             Manage alerts <Icon name="arrow" />
           </button>
         </section>
-        <p className="rail-demo-note">
-          <Icon name="shield" />
-          In-app demo alerts · No emails or push notifications. New matching demo jobs appear here when you revisit or refresh.
-        </p>
+        <DevOnly>
+          <p className="rail-demo-note">
+            <Icon name="shield" />
+            In-app demo alerts · No emails or push notifications. New matching demo jobs appear here when you revisit or refresh.
+          </p>
+        </DevOnly>
       </div>
     </aside>
   );

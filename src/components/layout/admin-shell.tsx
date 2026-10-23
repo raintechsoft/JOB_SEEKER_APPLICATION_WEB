@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useServiceAction } from "@/hooks/use-services";
+import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
+import {apiConfig} from "@/services/api/config";
+import {ApiError} from "@/services/api/client";
 import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Avatar, Brand, IconButton } from "@/components/ui/primitives";
@@ -19,7 +21,7 @@ const NAV: [string, string, IconName][] = [
 const ADMIN = { name: "Admin Demo" };
 
 /** The prototype's legacy sidebar workspace, used only by the optional admin demo. */
-export function AdminShell({ children }: { children: ReactNode }) {
+function AdminFrame({ children,adminName=ADMIN.name }: { children: ReactNode;adminName?:string }) {
   const pathname = usePathname();
   const router = useRouter();
   const run = useServiceAction();
@@ -33,9 +35,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
   const logout = async () => {
-    await run((s) => s.workspace.signOut());
+    const ok=await run(async(s)=>{await s.workspace.signOut();return true;});if(!ok)return;
     router.push("/");
-    toast("You’ve left the demo workspace. Local changes are kept.");
+    toast(apiConfig.dataSource==="http"?"You’ve signed out.":"You’ve left the demo workspace. Local changes are kept.");
   };
   return (
     <div className="workspace">
@@ -70,9 +72,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </Link>
           </nav>
           <div className="account">
-            <Avatar person={ADMIN} />
+            <Avatar person={{name:adminName}} />
             <div>
-              <strong>{ADMIN.name}</strong>
+              <strong>{adminName}</strong>
               <small>Administration</small>
             </div>
             <IconButton icon="logout" label="Log out" onClick={logout} />
@@ -90,9 +92,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <Icon name="search" />
               Search anything... <span className="key">⌘ K</span>
             </button>
-            <span className="demo">DEMO WORKSPACE</span>
+            {apiConfig.dataSource==="mock"&&<span className="demo">DEMO WORKSPACE</span>}
             <IconButton icon="bell" label="Notifications" onClick={workspaceDialogs.notifications} />
-            <Avatar person={ADMIN} />
+            <Avatar person={{name:adminName}} />
           </div>
         </header>
         <main id="main" className="page">
@@ -102,3 +104,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+function RealAdminGate({children}:{children:ReactNode}){const router=useRouter();const session=useServiceQuery(["admin","session"],(s)=>s.admin.session!());useEffect(()=>{if(session.error instanceof ApiError&&session.error.status===401)router.replace("/login?next=/admin/dashboard");},[session.error,router]);if(session.isPending)return <p role="status">Loading administration…</p>;if(session.isError||!session.data)return <div className="card"><h1>Administrator access required</h1><p>This account does not have access to platform administration.</p><Link href="/">Back to Skillora</Link></div>;return <AdminFrame adminName={session.data.name}>{children}</AdminFrame>;}
+export function AdminShell({children}:{children:ReactNode}){return apiConfig.dataSource==="http"?<RealAdminGate>{children}</RealAdminGate>:<AdminFrame>{children}</AdminFrame>;}

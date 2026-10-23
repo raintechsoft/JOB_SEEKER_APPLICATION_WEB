@@ -710,7 +710,7 @@ body.professional-theme .talent-card .summary{color:var(--text-secondary);}
 body.professional-theme .mini-pulse i{background-color:#E4E9EF;}
 body.professional-theme .mini-pulse small{color:var(--text-secondary);}
 body.professional-theme .empty{border-top-color:#E4E9EF;border-right-color:#E4E9EF;border-bottom-color:#E4E9EF;border-left-color:#E4E9EF;background-color:#ffffff;}
-body.professional-theme .empty .icon{color:var(--text-secondary);}
+body.professional-theme .empty > .icon{color:var(--text-secondary);}
 body.professional-theme .tabs button,body.professional-theme .tabs a{color:var(--text-secondary);}
 body.professional-theme .switch span{background-color:#E4E9EF;}
 body.professional-theme .switch:focus-within{outline-color:#E4E9EF;}

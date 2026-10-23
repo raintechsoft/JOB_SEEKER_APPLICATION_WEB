@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useId, useLayoutEffect, useRef, type ComponentProps, type ReactNode, type Ref } from "react";
+import { useCallback, useId, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils/text";
+import { Icon } from "@/components/ui/icon";
 
 /**
  * Outlined floating-label controls.
@@ -89,13 +90,32 @@ function a11y(label: string, props: { "aria-label"?: string; "aria-labelledby"?:
 
 export type FloatingInputProps = Omit<ComponentProps<"input">, "ref"> & FloatingBase & { ref?: Ref<HTMLInputElement> };
 
-export function FloatingInput({ label, compact, wrapClassName, ref, ...props }: FloatingInputProps) {
+export function FloatingInput({ label, compact, wrapClassName, ref, type, ...props }: FloatingInputProps) {
   const id = useId();
   const { wrap, controlRef } = useFloatingSync(ref as Ref<Control>);
+  const isPassword = type === "password";
+  const [revealed, setRevealed] = useState(false);
+  const inputType = isPassword ? (revealed ? "text" : "password") : type;
   return (
-    <span ref={wrap} className={cn("floating-field", DATE_TYPES.includes(props.type ?? "") && "is-date", compact && "is-compact", wrapClassName)} onClick={(e) => e.target === e.currentTarget && (e.currentTarget.firstElementChild as HTMLElement)?.focus()}>
-      <input ref={controlRef} {...props} {...a11y(label, props, id)} />
+    <span ref={wrap} className={cn("floating-field", DATE_TYPES.includes(type ?? "") && "is-date", isPassword && "has-password-toggle", compact && "is-compact", wrapClassName)} onClick={(e) => e.target === e.currentTarget && (e.currentTarget.firstElementChild as HTMLElement)?.focus()}>
+      <input ref={controlRef} type={inputType} {...props} {...a11y(label, props, id)} />
       <FloatingLabel id={id} label={label} required={props.required} />
+      {isPassword && (
+        <button
+          type="button"
+          className="password-toggle"
+          aria-label={revealed ? "Hide password" : "Show password"}
+          aria-pressed={revealed}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setRevealed((v) => !v);
+          }}
+        >
+          <Icon name={revealed ? "eyeOff" : "eye"} />
+        </button>
+      )}
     </span>
   );
 }
@@ -138,27 +158,33 @@ export function FloatingSelect({ label, compact, wrapClassName, options, ref, ..
 }
 
 /** `label.field` wrappers — the prototype's `field()`, `textarea()` and `select()` helpers. */
-export function TextField({ hint, fieldStyle, ...props }: FloatingInputProps & { hint?: ReactNode; fieldStyle?: React.CSSProperties }) {
+export function TextField({ hint, fieldStyle, error, ...props }: FloatingInputProps & { hint?: ReactNode; fieldStyle?: React.CSSProperties; error?: string }) {
+  const errorId = useId();
   return (
     <label className="field" style={fieldStyle}>
-      <FloatingInput {...props} />
+      <FloatingInput {...props} aria-invalid={error ? true : props["aria-invalid"]} aria-describedby={error ? errorId : props["aria-describedby"]} />
+      {error && <small id={errorId} role="alert" className="auth-field-error">{error}</small>}
       {hint && <small>{hint}</small>}
     </label>
   );
 }
 
-export function TextAreaField({ fieldStyle, ...props }: FloatingTextAreaProps & { fieldStyle?: React.CSSProperties }) {
+export function TextAreaField({ fieldStyle, error, ...props }: FloatingTextAreaProps & { fieldStyle?: React.CSSProperties; error?: string }) {
+  const errorId = useId();
   return (
     <label className="field" style={fieldStyle}>
-      <FloatingTextArea {...props} />
+      <FloatingTextArea {...props} aria-invalid={error ? true : props["aria-invalid"]} aria-describedby={error ? errorId : props["aria-describedby"]} />
+      {error && <small id={errorId} role="alert" className="auth-field-error">{error}</small>}
     </label>
   );
 }
 
-export function SelectField(props: FloatingSelectProps) {
+export function SelectField({ error, ...props }: FloatingSelectProps & { error?: string }) {
+  const errorId = useId();
   return (
     <label className="field">
-      <FloatingSelect {...props} />
+      <FloatingSelect {...props} aria-invalid={error ? true : props["aria-invalid"]} aria-describedby={error ? errorId : props["aria-describedby"]} />
+      {error && <small id={errorId} role="alert" className="auth-field-error">{error}</small>}
     </label>
   );
 }

@@ -3,6 +3,7 @@ import { safeUrl } from "@/lib/utils/url";
 import type { OnboardingService } from "./onboarding.service";
 
 export const mockOnboardingService: OnboardingService = {
+  async saveStage() { throw new Error("Use the prototype onboarding flow in demo mode."); },
   async saveProfessionalStep(input) {
     commit((db) => {
       const p = db.professionals[0];

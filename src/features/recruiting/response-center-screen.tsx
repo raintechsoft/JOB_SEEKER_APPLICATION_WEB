@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import Image from "next/image";
+import {useState,type ReactNode} from "react";
+import {outreachSchema} from "@/lib/validation/application";
+import {responseFiltersSchema,RECRUITING_RULES} from "@/lib/validation/recruiting";
+import {validationFields} from "@/lib/validation/profile";
+import {useFormAction} from "@/hooks/use-form-action";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { HiringStage, Id } from "@/types/domain";
 import { RESPONSE_FILTER_KEYS, RESPONSE_TABS, type ResponseItem, type ResponseParams, type ResponseTab } from "@/services/recruiting/recruiting.service";
 import { formatLocaleDate, formatLongDate } from "@/lib/utils/date";
 import { downloadFile } from "@/lib/utils/files";
+import { devCopy,isPrototype } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
@@ -14,9 +20,11 @@ import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, IconButton, LinkButton, PageHeading } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingInput, FloatingSelect, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { useContactCandidate } from "@/features/talent/dialogs";
 import { openReview } from "./review-dialog";
+import {ExportRequest,OutreachDeliveryReview} from "./delivery-dialogs";
 
 const BASE = "/recruiter/applications";
 
@@ -68,10 +76,12 @@ function Filters({ q }: { q: ResponseParams }) {
           Clear
         </LinkButton>
       </div>
-      <Button variant="primary response-ai-button" icon="spark" onClick={() => modal.show("AI filter · Keyword matching demo", <AiFilterForm q={q} />, "project")}>
-        AI filter
+      <Button variant="primary response-ai-button" icon="spark" onClick={() => modal.show(devCopy("AI filter · Keyword matching demo", "Keyword matching"), <AiFilterForm q={q} />, "project")}>
+        {devCopy("AI filter","Keyword matching")}
       </Button>
-      <span className="response-ai-label">Keyword-matching demo</span>
+      <DevOnly>
+        <span className="response-ai-label">Keyword-matching demo</span>
+      </DevOnly>
       <form
         id="response-advanced-filter"
         key={params.toString()}
@@ -92,6 +102,7 @@ function Filters({ q }: { q: ResponseParams }) {
           }
           next.set("view", "responses");
           next.delete("page");
+          if(!isPrototype){const checked=responseFiltersSchema.safeParse(Object.fromEntries(next));if(!checked.success)return toast(checked.error.issues[0].message);}
           setResponses({ selection: [], showFilters: false });
           track("search_performed", { surface: "responses", hasQuery: !!get("keywords") });
           router.push(BASE + "?" + next);
@@ -214,17 +225,18 @@ function AiFilterForm({ q }: { q: ResponseParams }) {
         }
         if (get("terms")) next.set("fitTerms", get("terms"));
         else next.delete("fitTerms");
-        const result = await run((s) => s.recruiting.runKeywordMatch(Object.fromEntries(next), f.has("shortlist")));
+        if(!isPrototype){const checked=responseFiltersSchema.safeParse(Object.fromEntries(next));if(!checked.success)return toast(checked.error.issues[0].message);}
+        const result = await run((s) => s.recruiting.runKeywordMatch(Object.fromEntries(next), f.has("shortlist")),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
         if (!result) return;
         setResponses({ selection: [] });
         modal.close();
         router.push(BASE + "?" + next);
-        toast(result.matches + " keyword matches · " + result.shortlisted + " responses shortlisted in this demo.");
+        toast(result.matches + " keyword matches · " + result.shortlisted + devCopy(" responses shortlisted in this demo.", " responses shortlisted."));
       }}
     >
       <SelectField label="Job scope" name="job" defaultValue={q.job || ""} options={[{ value: "", label: "All job responses" }, ...page.jobs.map((j) => ({ value: j.id, label: j.title }))]} />
       <TextAreaField label="Match keywords (comma separated)" name="terms" defaultValue={q.keywords || q.fitTerms || job?.skills.join(", ") || ""} maxLength={500} />
-      <p className="small muted">Leave blank to use each job’s listed skills. Matches inspect saved public profile/project text and any resume text supplied with an application. Uploaded CV files are not parsed.</p>
+      <p className="small muted">Leave blank to use each job’s listed skills. Matches inspect the submitted profile and explicitly shared portfolio. Uploaded CV files are not parsed.</p>
       <SelectField
         label="Minimum keyword match"
         name="threshold"
@@ -241,7 +253,7 @@ function AiFilterForm({ q }: { q: ResponseParams }) {
         <input type="checkbox" name="shortlist" defaultChecked />
         Automatically shortlist matching New / In review responses
       </label>
-      <p className="notice">This is a local keyword matcher, not a connected AI service or an assessment of candidate ability. Match reasons are shown on each result. Rejected, hired, and interview decisions are preserved.</p>
+      <p className="notice">This uses transparent keyword matching, not an assessment of candidate ability. Match reasons are shown on each result. Rejected, hired, and interview decisions are preserved.</p>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
         <Button type="submit" variant="primary">
@@ -253,24 +265,28 @@ function AiFilterForm({ q }: { q: ResponseParams }) {
 }
 
 function NoteForm({ item }: { item: ResponseItem }) {
-  const run = useServiceAction();
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
   return (
     <form
       id="response-note-form"
       className="stack"
       onSubmit={async (e) => {
         e.preventDefault();
-        await run((s) => s.recruiting.saveNote(item.application.id, String(new FormData(e.currentTarget).get("note") || "").trim()));
+        const note=String(new FormData(e.currentTarget).get("note")||"").trim();
+        if(note.length>5000)return setErrors({note:"Use at most 5000 characters."});
+        if(!await execute((s)=>s.recruiting.saveNote(item.application.id,note,item.application.version)))return;
         modal.close();
         toast("Hiring note saved.");
       }}
     >
       <h3>{item.profile.name}</h3>
-      <TextAreaField label="Your note" name="note" defaultValue={item.application.recruiterNote} maxLength={2000} />
-      <p className="small muted">Private hiring notes are saved in this browser.</p>
+      {errors._form&&<p role="alert">{errors._form}</p>}
+      <TextAreaField label="Your note" name="note" error={errors.note} defaultValue={item.application.recruiterNote} maxLength={2000} />
+      <p className="small muted">{devCopy("Private hiring notes are saved in this browser.", "Hiring notes are private.")}</p>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={pending}>
           Save note
         </Button>
       </div>
@@ -292,11 +308,13 @@ function ContactDialog({ item }: { item: ResponseItem }) {
       </div>
       <TextField label="Application email" name="email" defaultValue={p.email} readOnly />
       {p.phone ? <TextField label="Shared phone number" name="phone" defaultValue={p.phone} readOnly /> : <p className="small muted">Phone number not shared with this application.</p>}
-      <p className="notice">These are fictional or applicant-supplied demo details. No call or email is sent.</p>
+      <DevOnly>
+        <p className="notice">These are fictional or applicant-supplied demo details. No call or email is sent.</p>
+      </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Close</Button>
         <Button variant="primary" icon="message" onClick={() => contact(p.id)}>
-          Open demo message
+          {devCopy("Open demo message", "Send message")}
         </Button>
       </div>
     </div>
@@ -304,7 +322,8 @@ function ContactDialog({ item }: { item: ResponseItem }) {
 }
 
 function OutreachForm({ ids, names }: { ids: Id[]; names: string[] }) {
-  const run = useServiceAction();
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
   return (
     <form
       id="response-outreach-form"
@@ -312,18 +331,23 @@ function OutreachForm({ ids, names }: { ids: Id[]; names: string[] }) {
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        await run((s) => s.recruiting.saveOutreach(ids, String(f.get("subject") || "").trim(), String(f.get("message") || "").trim()));
+        const checked=outreachSchema.omit({ids:true}).safeParse({subject:String(f.get("subject")||"").trim(),message:String(f.get("message")||"").trim()});
+        if(!checked.success)return setErrors(validationFields(checked.error));
+        let draftId:string|undefined;
+        if(!await execute(async(s)=>{const saved=await s.recruiting.saveOutreach(ids,checked.data.subject,checked.data.message);draftId=saved?.draftId;}))return;
+        if(draftId){modal.show("Review outreach recipients and message",<OutreachDeliveryReview id={draftId}/>);return;}
         modal.close();
-        toast("Outreach draft saved locally. No email was sent.");
+        toast(devCopy("Outreach draft saved locally. No email was sent.", "Outreach draft saved."));
       }}
     >
       <p className="small muted">For {names.join(", ")}</p>
-      <TextField label="Subject" name="subject" required maxLength={150} />
-      <TextAreaField label="Message draft" name="message" required maxLength={3000} />
-      <p className="notice">This saves a local draft only. It does not send email.</p>
+      {Object.entries(errors).map(([key,error])=><p role="alert" key={key}>{key}: {error}</p>)}
+      <TextField label="Subject" name="subject" required maxLength={150} disabled={pending}/>
+      <TextAreaField label="Message draft" name="message" required maxLength={3000} disabled={pending}/>
+      <p className="notice">{devCopy("This saves a local draft only. It does not send email.","Save a draft first, then review recipients and explicitly queue delivery.")}</p>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={pending}>
           Save outreach draft
         </Button>
       </div>
@@ -334,6 +358,7 @@ function OutreachForm({ ids, names }: { ids: Id[]; names: string[] }) {
 function CandidateCard({ item, q, selected, onSelect, actions }: { item: ResponseItem; q: ResponseParams; selected: boolean; onSelect: (c: boolean) => void; actions: ReturnType<typeof useResponseActions> }) {
   const contact = useContactCandidate();
   const { application: a, profile: p, fit, distance } = item;
+  const canMove=(stage:HiringStage)=>isPrototype||!a.withdrawnAt&&(a.status===stage||(RECRUITING_RULES.transitions[a.status] as string[]).includes(stage));
   const fitOn = q.fit === "1";
   return (
     <article className={"card response-candidate" + (q.rows === "compact" ? " is-compact" : "")} data-response-id={a.id}>
@@ -344,7 +369,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
             <h2>{p.name}</h2>
           </button>
           {fitOn ? <span className="response-fit-badge">{fit.score}% keyword match</span> : a.portfolio ? <span className="response-portfolio-badge">Portfolio included</span> : null}
-          <span className="response-status">{a.status}</span>
+          <span className="response-status">{a.withdrawnAt?"Withdrawn · Previously "+a.status:a.status}</span>
         </div>
         <div className="response-facts">
           <span>
@@ -414,13 +439,13 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
             {a.recruiterNote ? "Edit note" : "Add note"}
           </Button>
           <div className="grow" />
-          <Button variant="sm response-shortlist" icon="check" onClick={() => actions.status([a.id], "Shortlisted")}>
+          <Button variant="sm response-shortlist" icon="check" disabled={!canMove("Shortlisted")} onClick={() => actions.status([a.id], "Shortlisted")}>
             Shortlist
           </Button>
-          <Button variant="sm" icon="folder" onClick={() => actions.status([a.id], "Reviewing")}>
+          <Button variant="sm" icon="folder" disabled={!canMove("Reviewing")} onClick={() => actions.status([a.id], "Reviewing")}>
             Maybe
           </Button>
-          <Button variant="sm response-reject" icon="close" onClick={() => actions.status([a.id], "Rejected")}>
+          <Button variant="sm response-reject" icon="close" disabled={!canMove("Rejected")} onClick={() => actions.status([a.id], "Rejected")}>
             Reject
           </Button>
           <IconButton icon="trash" label={"Remove " + p.name + " from recruiter inbox"} onClick={() => actions.remove([a.id])} />
@@ -445,7 +470,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
       </aside>
       <footer className="response-candidate-footer">
         <span>
-          {a.sample ? "Sample application" : "Local demo response"} · Applied {formatLongDate(a.createdAt.slice(0, 10))}
+          {devCopy(a.sample ? "Sample application" : "Local demo response", "Application")} · Applied {formatLongDate(a.createdAt.slice(0, 10))}
         </span>
         <Button variant="text sm" icon="edit" onClick={() => openReview(a.id)}>
           Review tracking
@@ -455,6 +480,13 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
   );
 }
 
+function SubmittedProfile({item}:{item:ResponseItem}){
+  const {profile:p,application:a,portfolio}=item;
+  return <div className="stack"><div className="row"><Avatar person={p} size="lg"/><div><h2>{p.name}</h2><p>{p.headline}</p></div></div><p className="notice">Submitted with this application on {formatLongDate(a.createdAt.slice(0,10))}. This copy retains what the applicant shared at submission.</p><p>{p.location} · {p.years} years of experience</p><p style={{whiteSpace:"pre-line"}}>{p.summary}</p><p>{p.skills.join(" · ")}</p><h3>Experience</h3><p style={{whiteSpace:"pre-line"}}>{p.experience||"Not provided"}</p><h3>Education</h3><p style={{whiteSpace:"pre-line"}}>{p.educationText||"Not provided"}</p><h3>Shared contact and recruitment details</h3><p>{p.email}{p.phone?" · "+p.phone:""}</p><p>Expected salary: {p.expectedSalary===null?"Not shared":p.expectedSalary+" LPA"} · Notice: {p.notice===null?"Not shared":p.notice+" days"}</p>{portfolio&&<><h3>Included portfolio</h3>{portfolio.person.summary&&<p>{portfolio.person.summary}</p>}{portfolio.projects.map((project)=><section className="card stack" style={{padding:16}} key={project.id}>{project.cover&&<Image src={project.cover} width={400} height={240} unoptimized alt={project.title} style={{maxWidth:"100%",height:"auto"}}/>}<h4>{project.title}</h4><p>{project.description}</p><p>{project.contribution}</p><p>{project.skills.join(" · ")}</p></section>)}{portfolio.updates.map((update)=><section key={update.id}><h4>{update.title}</h4><p>{update.description}</p></section>)}</>}<div className="modal-footer"><Button onClick={()=>modal.close()}>Close</Button><Button variant="primary" onClick={()=>openReview(a.id)}>Review application</Button></div></div>;
+}
+
+const validBulkSelection=(ids:Id[])=>{if(!ids.length||ids.length>100||new Set(ids).size!==ids.length){toast("Choose 1–100 distinct records for this action.");return false;}return true;};
+
 function useResponseActions() {
   const run = useServiceAction();
   const services = useServices();
@@ -463,7 +495,8 @@ function useResponseActions() {
   const setResponses = useUiStore((s) => s.setResponses);
   return {
     status: async (ids: Id[], status: HiringStage) => {
-      const n = await run((s) => s.recruiting.setStatus(ids, status));
+      if(!validBulkSelection(ids))return;
+      const n = await run((s) => s.recruiting.setStatus(ids, status),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
       if (n !== undefined) toast(n + " response" + (n === 1 ? "" : "s") + " updated.");
     },
     remove: (ids: Id[]) =>
@@ -479,7 +512,8 @@ function useResponseActions() {
               variant="danger"
               icon="trash"
               onClick={async () => {
-                await run((s) => s.recruiting.remove(ids));
+                if(!validBulkSelection(ids))return;
+                if(!await run(async(s)=>{await s.recruiting.remove(ids);return true;},{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]}))return;
                 setResponses({ selection: selection.filter((id) => !ids.includes(id)) });
                 modal.close();
                 toast("Responses removed from the recruiter inbox.");
@@ -491,11 +525,12 @@ function useResponseActions() {
         </>,
       ),
     view: async (id: Id) => {
+      if(!isPrototype){const item=await run((s)=>s.recruiting.getApplicant(id),{refresh:false});if(!item)return;const marked=await run((s)=>s.recruiting.markViewed(id),{refresh:false});if(!marked)return;modal.show("Submitted profile",<SubmittedProfile item={item}/>,"project");return;}
       const candidate = await run((s) => s.recruiting.markViewed(id), { refresh: false });
       if (candidate) router.push("/recruiter/talent/" + candidate);
     },
     contact: async (item: ResponseItem) => {
-      await run((s) => s.recruiting.markViewed(item.application.id));
+      await run((s) => s.recruiting.markViewed(item.application.id),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
       modal.show("Candidate contact", <ContactDialog item={item} />);
     },
     exportProfile: async (id: Id) => {
@@ -503,10 +538,12 @@ function useResponseActions() {
       if (file) downloadFile(file.fileName, file.text);
     },
     outreach: async (ids: Id[]) => {
+      if(!validBulkSelection(ids))return;
       const names = await services.recruiting.applicantNames(ids);
       if (names.length) modal.show("Prepare an outreach draft", <OutreachForm ids={ids} names={names} />);
     },
     exportCsv: async (ids: Id[]) => {
+      if(!validBulkSelection(ids))return;
       downloadFile("skillora-responses.csv", await services.recruiting.exportCsv(ids), "text/csv;charset=utf-8");
       toast("Selected responses exported as CSV.");
     },
@@ -521,7 +558,7 @@ export function ResponseCenterScreen() {
   const { selection } = useUiStore((s) => s.responses);
   const setResponses = useUiStore((s) => s.setResponses);
   const actions = useResponseActions();
-  const { data: m } = useServiceQuery(["responses", params.toString()], (s) => s.recruiting.listResponses(q));
+  const { data: m,isError } = useServiceQuery(["responses", params.toString()], (s) => s.recruiting.listResponses(q),{keepPreviousData:false});
   const visible = m?.items ?? [];
   const allChecked = visible.length > 0 && visible.every(({ application }) => selection.includes(application.id));
   const select = (id: Id, checked: boolean) => setResponses({ selection: checked ? [...new Set([...selection, id])] : selection.filter((x) => x !== id) });
@@ -532,10 +569,12 @@ export function ResponseCenterScreen() {
     ["Reject", () => actions.status(selection, "Rejected"), "close"],
     ["Email draft", () => actions.outreach(selection), "mail"],
     ["Download", () => actions.exportCsv(selection), "download"],
+    ...(!isPrototype?[["Queue CSV",()=>modal.show("Prepare background export",<ExportRequest ids={selection}/>),"download"] as [string,()=>void,Parameters<typeof Button>[0]["icon"]]]:[]),
     ["Remove", () => actions.remove(selection), "trash"],
   ];
   return (
     <div className="response-center">
+      {isError&&<p role="alert">Responses could not be loaded. Check the filters and your workspace access, then retry.</p>}
       <PageHeading
         title="Job responses"
         subtitle="Review applicants with context, filters, and clear next steps."
@@ -597,7 +636,7 @@ export function ResponseCenterScreen() {
               <Icon name="spark" />
               <div>
                 <strong>Keyword match filter is on · {q.threshold || 60}% minimum</strong>
-                <p>{q.fitTerms ? "Terms: " + q.fitTerms : "Uses the skills listed on each applicant’s job post."} Matches use saved profile/project text and any supplied resume text. This is a local matching demo.</p>
+                <p>{q.fitTerms ? "Terms: " + q.fitTerms : "Uses the skills listed on each applicant’s job post."}{devCopy(" Matches use saved profile/project text and any supplied resume text. This is a local matching demo.", " Matches use the submitted profile and explicitly shared portfolio.")}</p>
               </div>
               <Button variant="text sm" icon="close" onClick={() => router.push(url({ fit: "", fitTerms: "", threshold: "", page: "" }))}>
                 Clear match filter
@@ -689,10 +728,12 @@ export function ResponseCenterScreen() {
                 </div>
               ))}
           </div>
-          <p className="response-local-note">
-            <Icon name="shield" />
-            Fictional and locally saved applications. Statuses, notes, match results, and outreach drafts stay in this browser. No external messages are sent.
-          </p>
+          <DevOnly>
+            <p className="response-local-note">
+              <Icon name="shield" />
+              Fictional and locally saved applications. Statuses, notes, match results, and outreach drafts stay in this browser. No external messages are sent.
+            </p>
+          </DevOnly>
         </section>
       </div>
     </div>

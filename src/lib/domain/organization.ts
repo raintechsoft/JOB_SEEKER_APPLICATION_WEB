@@ -1,5 +1,6 @@
 import type { Organization, RecruiterMember, VerificationStatus } from "@/types/domain";
 import { isValidEmail, safeUrl } from "@/lib/utils/url";
+import { devCopy } from "@/lib/env/app-env";
 
 export const ORGANIZATION_SECTIONS = {
   overview: "Company Overview",
@@ -18,7 +19,7 @@ export const ORGANIZATION_SECTION_DESCRIPTIONS: Record<OrganizationSection, stri
   about: "Tell candidates what your organization does and what drives it.",
   culture: "Show how your team works, learns, and connects.",
   hiring: "Shape your hiring presence and preview your active opportunities.",
-  verification: "Manage private registration details and demo review requests.",
+  verification: devCopy("Manage private registration details and demo review requests.", "Manage private registration details and verification requests."),
   team: "Manage the people who represent your organization on Skillora.",
   contact: "Control public contact details and private communication preferences.",
 };
@@ -98,8 +99,8 @@ export type PublicRecruiter = ReturnType<typeof publicRecruiter>;
 
 export const VERIFICATION_NEXT_STEP: Record<VerificationStatus, string> = {
   "Not started": "Add your registration and representative details to start.",
-  "In progress": "Complete the details, then submit a demo request.",
-  "Pending review": "Your demo request is awaiting a simulated review. You can still correct the details.",
-  Verified: "This sample state represents a completed demo review. No real organization was verified.",
-  "Action required": "Update the requested information and resubmit your demo request.",
+  "In progress": devCopy("Complete the details, then submit a demo request.", "Complete the details, then submit them for review."),
+  "Pending review": devCopy("Your demo request is awaiting a simulated review. You can still correct the details.", "Your request is awaiting review. You can still correct the details."),
+  Verified: devCopy("This sample state represents a completed demo review. No real organization was verified.", "Your organization is verified."),
+  "Action required": devCopy("Update the requested information and resubmit your demo request.", "Update the requested information and resubmit your request."),
 };

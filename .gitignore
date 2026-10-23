@@ -1,5 +1,6 @@
 node_modules/
-.next/
+.next
+.next-staging
 out/
 *.tsbuildinfo
 next-env.d.ts
@@ -8,3 +9,14 @@ test-results/
 playwright-report/
 screenshots/
 npm-debug.log*
+vendor/
+.env
+.env.testing
+.runtime/
+.phpunit.cache/
+apps/api/bootstrap/cache/*.php
+apps/api/storage/*.key
+apps/api/storage/logs/*
+tests/
+.tests-results/
+tmp-reset-shots/

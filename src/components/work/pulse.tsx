@@ -8,8 +8,12 @@ import { Icon } from "@/components/ui/icon";
 import { FloatingSelect } from "@/components/ui/field";
 import { IconButton, LinkButton, Tags } from "@/components/ui/primitives";
 import { useUpdateDialogs } from "@/features/work/dialogs";
+import { ScreenError } from "@/components/ui/feedback";
 
 const RAMP = ["#eff1f1", "#d5eddf", "#a6d7bd", "#66b58b", "#2e8c60"];
+
+/** Static marketing illustration; never queries a fictional account or implies recorded activity. */
+export function IllustrativePulse(){return <section className="card"><div className="card-head"><div><h2>Work Pulse</h2><p>Illustration of a work journal.</p></div></div><div className="heatmap" aria-label="Illustrative activity calendar"><div className="heat-body"><div className="heat-grid" aria-hidden="true">{Array.from({length:182},(_,i)=><span key={i} className={`heat-cell l${i%7===0?3:i%5===0?2:0}`}/>)}</div></div></div><p className="small muted">Example only. Your calendar reflects updates you choose to record.</p></section>;}
 
 /** Calendar heatmap of recorded work updates. Selecting a day opens its updates. */
 export function Heatmap({ pulse, ownerId }: { pulse: Pulse; ownerId: Id }) {
@@ -58,7 +62,8 @@ export function Heatmap({ pulse, ownerId }: { pulse: Pulse; ownerId: Id }) {
 
 /** Work Pulse card (prototype `pulseCard`). */
 export function PulseCard({ ownerId, days = 365, full = false, onRangeChange }: { ownerId: Id; days?: number; full?: boolean; onRangeChange?: (days: 91 | 365) => void }) {
-  const { data: pulse } = useServiceQuery(["pulse", ownerId, days], (s) => s.work.getPulse(ownerId, days));
+  const query = useServiceQuery(["pulse", ownerId, days], (s) => s.work.getPulse(ownerId, days), { keepPreviousData: false });
+  const pulse = query.data;
   return (
     <section className="card">
       <div className="card-head">
@@ -91,6 +96,7 @@ export function PulseCard({ ownerId, days = 365, full = false, onRangeChange }: 
           </LinkButton>
         )}
       </div>
+      {query.isError && <ScreenError onRetry={() => void query.refetch()} />}
       {pulse && (
         <>
           <Heatmap pulse={pulse} ownerId={ownerId} />

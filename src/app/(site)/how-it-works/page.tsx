@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 import { LinkButton } from "@/components/ui/primitives";
-import { PulseCard } from "@/components/work/pulse";
+import { DevOnly } from "@/components/ui/dev-only";
+import { devCopy } from "@/lib/env/app-env";
+import { PulseCard,IllustrativePulse } from "@/components/work/pulse";
+import {apiConfig} from "@/services/api/config";
 
 export const metadata: Metadata = { title: "how it works" };
 
 const STEPS: [string, string, string, string, string][] = [
-  ["01", "Build your foundation.", "Start with your professional story. Add your skills and experience, or select a CV and review sample details in the onboarding demo.", "/signup", "Create your profile"],
+  ["01", "Build your foundation.", devCopy("Start with your professional story. Add your skills and experience, or select a CV and review sample details in the onboarding demo.", "Start with your professional story. Add your skills and experience, or start from your CV and review the details."), "/signup", "Create your profile"],
   ["02", "Keep a living record.", "Share a project, a learning, or a small breakthrough. Your work updates build a chronological story, visualized in Work Pulse.", "/app/updates", "Record your work"],
   ["03", "Give your work a home.", "Choose your featured projects, arrange your sections, and make a portfolio that reflects your professional identity.", "/app/portfolio", "Try the portfolio builder"],
 ];
 
 const RECRUITER_POINTS: [string, string][] = [
-  ["Search with context", "Search by skills, titles, names, and project keywords. Narrow the sample directory by location, experience, and recorded activity."],
+  ["Search with context", devCopy("Search by skills, titles, names, and project keywords. Narrow the sample directory by location, experience, and recorded activity.", "Search by skills, titles, names, and project keywords. Narrow the directory by location, experience, and recorded activity.")],
   ["Explore the evidence", "Read profiles, explore projects and portfolios, and compare candidates side by side using understandable information."],
-  ["Keep the connection", "Save candidates to named shortlists and start a local demo conversation. The same shared data connects both workspaces."],
+  ["Keep the connection", devCopy("Save candidates to named shortlists and start a local demo conversation. The same shared data connects both workspaces.", "Save candidates to named shortlists and start a conversation. The same shared data connects both workspaces.")],
 ];
 
 export default function HowItWorksPage() {
@@ -58,7 +61,7 @@ export default function HowItWorksPage() {
               Recorded activity is never a productivity score. It does not verify work quality, hours, or employment status.
             </p>
           </div>
-          <PulseCard ownerId="p0" days={182} />
+          {apiConfig.dataSource==="mock"?<PulseCard ownerId="p0" days={182} />:<IllustrativePulse/>}
         </div>
       </section>
       <section className="section">
@@ -68,9 +71,11 @@ export default function HowItWorksPage() {
               <span className="eyebrow">FOR THE PEOPLE FINDING PEOPLE</span>
               <h2>Discover. Understand. Connect.</h2>
             </div>
-            <LinkButton href="/recruiter/dashboard" variant="primary" icon="arrow">
-              Enter recruiter demo
-            </LinkButton>
+            <DevOnly>
+              <LinkButton href="/recruiter/dashboard" variant="primary" icon="arrow">
+                Enter recruiter demo
+              </LinkButton>
+            </DevOnly>
           </div>
           <div className="grid cols3">
             {RECRUITER_POINTS.map(([title, description]) => (
@@ -82,9 +87,11 @@ export default function HowItWorksPage() {
               </article>
             ))}
           </div>
-          <p className="notice" style={{ marginTop: 25 }}>
-            This prototype uses fictional professionals and companies. Authentication, CV parsing, messages, analytics, OTP, and link expiry demonstrate intended behavior and are not production services.
-          </p>
+          <DevOnly>
+            <p className="notice" style={{ marginTop: 25 }}>
+              This prototype uses fictional professionals and companies. Authentication, CV parsing, messages, analytics, OTP, and link expiry demonstrate intended behavior and are not production services.
+            </p>
+          </DevOnly>
         </div>
       </section>
     </main>

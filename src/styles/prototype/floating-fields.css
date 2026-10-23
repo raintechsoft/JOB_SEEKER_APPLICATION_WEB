@@ -15,6 +15,11 @@ body .floating-field>:is(input,textarea,select):hover:not(:disabled) {border-col
 body .floating-field>:is(input,textarea,select):focus {border-color:var(--field-accent);box-shadow:0 0 0 3px #315ef412;outline:none;}
 .floating-required {margin-left:1px;}
 .floating-required[hidden] {display:none;}
+.floating-field.has-password-toggle>input {padding-right:48px;}
+.floating-field>.password-toggle {position:absolute;right:8px;top:50%;transform:translateY(-50%);z-index:2;display:grid;place-items:center;width:34px;height:34px;padding:0;border:0;border-radius:7px;background:transparent;color:#626B76;cursor:pointer;}
+.floating-field>.password-toggle:hover {background:#F6F8FA;color:#202A36;}
+.floating-field>.password-toggle:focus-visible {outline:3px solid #988dff;outline-offset:2px;}
+.floating-field>.password-toggle>.icon {width:18px;height:18px;}
 body .floating-field>:is(input,textarea)::placeholder {color:transparent;}
 body .floating-field.is-date:not(.has-value):not(:focus-within)>input {color:transparent;}
 .floating-field.is-date:not(.has-value):not(:focus-within)>input::-webkit-datetime-edit {color:transparent;}

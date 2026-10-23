@@ -5,15 +5,18 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import type { FeedFilter } from "@/services/feed/feed.service";
 import { timeAgo } from "@/lib/utils/date";
+import { devCopy } from "@/lib/env/app-env";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, LinkButton } from "@/components/ui/primitives";
+import { DevOnly } from "@/components/ui/dev-only";
 import { FeedCard } from "@/features/feed/feed-card";
 import { FeedToolbar, useCompose } from "@/features/feed/feed-parts";
 import { useNetworkSheet } from "@/features/feed/network-sheet";
 import { useFeedParams } from "@/features/feed/use-feed-params";
 import { openReview } from "./review-dialog";
+import { PermalinkEntry } from "@/features/feed/permalink-entry";
 
 const TABS: [FeedFilter, string, boolean][] = [
   ["all", "For you", false],
@@ -93,10 +96,12 @@ function ProfileRail() {
           <strong>{shell.savedCount}</strong>
         </Link>
       </section>
-      <div className="feed-local-note">
-        <Icon name="shield" />
-        <p>Recruiter demo · Fictional people and jobs. Posts, applications, and hiring notes stay in this browser.</p>
-      </div>
+      <DevOnly>
+        <div className="feed-local-note">
+          <Icon name="shield" />
+          <p>Recruiter demo · Fictional people and jobs. Posts, applications, and hiring notes stay in this browser.</p>
+        </div>
+      </DevOnly>
     </aside>
   );
 }
@@ -163,7 +168,7 @@ export function RecruiterFeedScreen() {
   const network = useNetworkSheet();
   useFeedParams("recruiter");
   const { data: shell } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
-  const { data } = useServiceQuery(["feed", "recruiter", feed.filter, feed.sort, feed.query, feed.visible], (s) => s.feed.getFeed({ role: "recruiter", filter: feed.filter, sort: feed.sort, q: feed.query, limit: feed.visible }));
+  const { data, isError, refetch } = useServiceQuery(["feed", "recruiter", feed.filter, feed.sort, feed.query, feed.visible], (s) => s.feed.getFeed({ role: "recruiter", filter: feed.filter, sort: feed.sort, q: feed.query, limit: feed.visible }));
   useEffect(() => {
     if (highlight && data) requestAnimationFrame(() => document.getElementById("feed-" + highlight)?.scrollIntoView({ block: "start" }));
   }, [highlight, data]);
@@ -172,6 +177,7 @@ export function RecruiterFeedScreen() {
       <ProfileRail />
       <section className="feed-timeline" aria-label="Recruiter community feed">
         <div className="feed-heading">
+          {isError && <p role="alert">The feed could not be loaded. <Button onClick={()=>void refetch()}>Try again</Button></p>}
           <div>
             <span className="eyebrow">GOOD WORK. GOOD PEOPLE.</span>
             <h2>Your next great hire starts here.</h2>
@@ -219,9 +225,10 @@ export function RecruiterFeedScreen() {
           <>
             <div className="feed-results-label">
               <span>{data.total} posts</span>
-              <span>Your demo community</span>
+              <span>{devCopy("Your demo community", "Your community")}</span>
             </div>
             <div className="feed-post-list">
+              {highlight && !data.items.some((entry)=>entry.id===highlight) && <PermalinkEntry key={highlight} id={highlight} role="recruiter" />}
               {data.items.length ? (
                 data.items.map((entry, i) => <FeedCard key={entry.id} entry={entry} role="recruiter" activity={entry.viewer.own} position={i} highlighted={entry.id === highlight} />)
               ) : (

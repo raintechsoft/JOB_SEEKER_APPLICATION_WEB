@@ -13,6 +13,9 @@ export interface ThreadSummary {
 }
 
 export interface ConversationView {
+  canSend?: boolean;
+  readSequence?: number;
+  nextBefore?: number | null;
   id: Id;
   contact: PersonSummary;
   company: string;
@@ -30,8 +33,11 @@ export interface Inbox {
 }
 
 export interface MessagingService {
+  getUnreadCount?(role:Role):Promise<number>;
+  getEarlier?(role: Role, id: Id, before: number): Promise<ConversationView>;
+  getHistory?(role:Role,id:Id,limit:number):Promise<ConversationView>;
   getInbox(role: Role, query: { q: string; filter: MessageFilter; selectedId: Id | null }): Promise<Inbox>;
-  markRead(role: Role, id: Id): Promise<void>;
+  markRead(role: Role, id: Id, sequence?:number): Promise<void>;
   markUnread(role: Role, id: Id): Promise<void>;
   toggleFlag(role: Role, id: Id, flag: ConversationFlag): Promise<boolean>;
   send(role: Role, id: Id, text: string, attachments: MessageAttachment[]): Promise<boolean>;
