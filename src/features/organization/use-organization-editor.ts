@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Draft } from "immer";
 import type { Organization, RecruiterMember, WorkplaceImage } from "@/types/domain";
-import { useServiceQuery } from "@/hooks/use-services";
+import { useServiceQuery, useServices } from "@/hooks/use-services";
+import { apiConfig } from "@/services/api/config";
+import type { MediaPurpose } from "@/lib/validation/profile";
+import { validateMedia } from "@/lib/validation/profile";
 import { IMAGE_TYPES, KB, MB, readImage } from "@/lib/utils/files";
 import { splitList } from "@/lib/utils/text";
 import { uid } from "@/lib/utils/id";
@@ -25,8 +28,11 @@ export function useOrganizationEditor() {
   const ctx = query.data;
   const { organization: draft, errors, initOrganization, updateOrganization, discardOrganization, setErrors } = useOrganizationDrafts();
   useEffect(() => {
-    if (ctx && !draft) initOrganization({ organization: ctx.workspace.organization, verification: ctx.workspace.verification });
-  }, [ctx, draft, initOrganization]);
+    if (ctx && (!draft || draft.organization.id !== ctx.workspace.organization.id)) {
+      if (draft) discardOrganization();
+      initOrganization({ organization: ctx.workspace.organization, verification: ctx.workspace.verification });
+    }
+  }, [ctx, draft, initOrganization, discardOrganization]);
   const saved = useMemo<OrganizationDraft | null>(() => (ctx ? { organization: ctx.workspace.organization, verification: ctx.workspace.verification } : null), [ctx]);
   const dirty = !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved);
   const canManage = !!ctx?.canManage;
@@ -35,15 +41,16 @@ export function useOrganizationEditor() {
     return canManage;
   };
   const setOrg = (recipe: (o: Draft<Organization>) => void) => updateOrganization((d) => recipe(d.organization));
-  return { query, ctx, draft, saved, dirty, errors, setErrors, canManage, guard, setOrg, updateOrganization, discardOrganization };
+  return { query, ctx, draft: ctx && draft?.organization.id !== ctx.workspace.organization.id ? null : draft, saved, dirty, errors, setErrors, canManage, guard, setOrg, updateOrganization, discardOrganization };
 }
 
 const UPLOAD_ERROR = (max: number) => "Use PNG, JPEG or WebP images up to " + (max === MB ? "1 MB" : "500 KB") + ".";
 
 /** Validates and decodes uploaded images (logo, cover, gallery, recruiter photo). */
 export function useImageUploads() {
+  const services = useServices();
   const [busy, setBusy] = useState(false);
-  const load = async (files: File[], max: number): Promise<WorkplaceImage[] | null> => {
+  const load = async (files: File[], max: number, purpose: MediaPurpose = "gallery"): Promise<WorkplaceImage[] | null> => {
     if (busy) {
       toast("Wait for the current image to finish loading.");
       return null;
@@ -54,6 +61,14 @@ export function useImageUploads() {
     }
     setBusy(true);
     try {
+      if (apiConfig.dataSource === "http") {
+        for (const file of files) { const error = validateMedia(file, purpose); if (error) throw new Error(error); }
+        const context = await services.organization.getContext();
+        const images: WorkplaceImage[] = [];
+        for (const file of files) { const asset = await services.media.upload(file, purpose, context.workspace.organization.id); images.push({ id: asset.id, url: asset.url, alt: file.name.replace(/\.[^.]+$/, ""), bytes: asset.bytes }); }
+        toast("Image uploaded. Save your changes to attach it.");
+        return images;
+      }
       const images = await Promise.all(files.map(async (file) => ({ id: uid(), url: await readImage(file), alt: file.name.replace(/\.[^.]+$/, ""), bytes: file.size })));
       toast("Image added to your unsaved changes.");
       return images;

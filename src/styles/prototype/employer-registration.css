@@ -55,9 +55,6 @@ body.professional-theme .er-demo {font-size:13px;line-height:1.8;padding:12px 14
 body.professional-theme .er-verified {display:flex;align-items:center;gap:9px;font-size:14px;line-height:1.7;color:#14765B;padding:12px 14px;border:1px solid #D0E7DA;border-radius:8px;background:#F4FAF6;}
 .er-verified>.icon {height:17px;width:17px;}
 .er-verified>.er-text {margin-left:auto;}
-.er-password {position:relative;}
-.er-password .floating-field>input {padding-right:52px!important;}
-.er-password>.iconbtn {position:absolute;right:10px;top:16px;width:30px;height:30px;border:0;background:transparent;color:#626B76;}
 .er-grid {display:grid;grid-template-columns:1fr 1fr;gap:18px;}
 body.professional-theme .er-error {font-size:14px;line-height:1.7;padding:12px 14px;border:1px solid #F1CDC7;background:#FFF4F1;border-radius:8px;color:#B42318;}
 body.professional-theme .auth-create-employer {margin-top:20px;width:100%;white-space:normal;font-size:14px;line-height:1.7;text-align:center;}
@@ -112,6 +109,7 @@ body.professional-theme .is-employer-registration .er-field-hint {line-height:1.
 .is-employer-registration .er-field-hint {margin:0;}
 .is-employer-registration .er-grid,
 .is-employer-registration .er-phone-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start;}
+.is-employer-registration .er-grid.is-stacked {grid-template-columns:minmax(0,1fr);}
 .is-employer-registration .er-grid>.field,.is-employer-registration .er-phone-grid>.field {min-width:0;}
 .is-employer-registration .er-choice {gap:10px;}
 .is-employer-registration .er-choice>legend {margin-bottom:8px;}
@@ -122,7 +120,6 @@ body.professional-theme .is-employer-registration .floating-field>select {min-he
 .is-employer-registration .floating-field:focus-within>.floating-label,
 .is-employer-registration .floating-field.has-value>.floating-label {top:0;}
 body.professional-theme .is-employer-registration .floating-field>textarea {min-height:64px;height:64px;padding-top:16px;padding-bottom:10px;}
-.is-employer-registration .er-password>.iconbtn {top:9px;}
 .is-employer-registration .er-actions {padding-top:14px;margin-top:0;}
 body.professional-theme .is-employer-registration .er-verified {padding:9px 12px;}
 @media(max-width:550px){
@@ -130,6 +127,23 @@ body.professional-theme .is-employer-registration .er-verified {padding:9px 12px
  .is-employer-registration .er-choice>label {min-width:100%;}
  body.professional-theme .is-employer-registration .er-panel {padding:20px 18px;}
 }
+body .floating-field>.country-code-trigger {display:flex;align-items:center;gap:8px;box-sizing:border-box;width:100%;min-height:48px;height:48px;margin:0;padding:12px 34px 12px 12px;border:1px solid #C9D1DD;border-radius:8px;background:#fff;color:#202A36;font-size:15px;font-weight:400;line-height:22px;text-align:left;box-shadow:0 1px 2px #202a3605;}
+body .floating-field>.country-code-trigger:hover {border-color:#8D9CAF;}
+body .country-code-field.is-open>.country-code-trigger,body .floating-field>.country-code-trigger:focus-visible {border-color:#315EF4;box-shadow:0 0 0 3px #315ef412;outline:none;}
+.country-code-trigger>.icon {position:absolute;right:10px;width:16px;height:16px;color:#626B76;}
+.country-code-value {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.country-code-flag {width:20px;height:14px;flex:none;display:block;border-radius:2px;box-shadow:0 0 0 1px #202A3618;object-fit:cover;}
+.country-code-flag.is-fallback {display:grid;place-items:center;background:#F4F6F8;color:#626B76;font-size:8px;font-weight:700;letter-spacing:0;}
+.country-code-menu {position:fixed;z-index:80;display:flex;flex-direction:column;gap:6px;box-sizing:border-box;padding:8px;overflow:hidden;border:1px solid #E4E9EF;border-radius:10px;background:#fff;box-shadow:0 12px 32px #202A3624;}
+.country-code-search {box-sizing:border-box;width:100%;min-height:36px;margin:0;padding:8px 10px;border:1px solid #C9D1DD;border-radius:8px;background:#F6F8FA;color:#202A36;font-size:14px;line-height:20px;}
+.country-code-search:focus {border-color:#315EF4;outline:none;box-shadow:0 0 0 3px #315ef412;}
+.country-code-list {flex:1 1 auto;min-height:0;margin:0;padding:0;overflow:auto;list-style:none;}
+.country-code-option {display:flex;align-items:center;gap:10px;width:100%;min-height:36px;padding:6px 8px;border:0;border-radius:6px;background:transparent;color:#202A36;font-size:14px;line-height:20px;text-align:left;}
+.country-code-option>span:nth-child(2) {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.country-code-option.is-active,.country-code-option[aria-selected="true"] {background:#EAF0FF;}
+.country-code-dial {margin-left:auto;color:#626B76;font-variant-numeric:tabular-nums;flex:none;}
+.country-code-empty {padding:10px 8px;color:#626B76;font-size:14px;}
+
 @media(min-width:851px) and (max-height:780px){
  body.professional-theme .is-employer-registration .auth-workspace-layout {padding-top:14px;padding-bottom:14px;}
  body.professional-theme .is-employer-registration .er-panel {padding-top:18px;padding-bottom:18px;}

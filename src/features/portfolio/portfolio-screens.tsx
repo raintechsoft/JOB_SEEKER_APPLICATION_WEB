@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
@@ -12,17 +12,19 @@ import { QueryView } from "@/components/ui/query-view";
 import { PortfolioSite } from "@/components/portfolio/portfolio-site";
 import { NotFoundState } from "@/features/talent/candidate-screen";
 import { useSharePortfolio } from "./share-dialog";
-
-const STORAGE_FALLBACK = "Saved for this page only. Browser storage is full or unavailable.";
+import { usePortfolioAutosave } from "./use-portfolio-autosave";
+import { portfolioShareContext } from "@/services/work/work.http";
 
 export function PortfolioBuilderScreen() {
   const run = useServiceAction();
   const share = useSharePortfolio();
   const previewMobile = useUiStore((s) => s.previewMobile);
   const setUi = useUiStore((s) => s.setUi);
-  const query = useServiceQuery(["portfolio", "p0"], (s) => s.portfolio.getPortfolio("p0"));
-  const { data: projects } = useServiceQuery(["projects", "p0", "all"], (s) => s.work.listProjects({ ownerId: "p0" }));
+  const query = useServiceQuery(["portfolio", "me"], (s) => s.portfolio.getPortfolio("me"));
+  const { data: projects } = useServiceQuery(["projects", "me", "all"], (s) => s.work.listProjects({ ownerId: "me" }));
   const formRef = useRef<HTMLFormElement>(null);
+  const autosave = usePortfolioAutosave(query.data);
+  useEffect(() => { if (!autosave.dirty && !autosave.pending) formRef.current?.reset(); }, [query.data, autosave.dirty, autosave.pending]);
 
   const values = () => {
     const f = new FormData(formRef.current!);
@@ -36,7 +38,7 @@ export function PortfolioBuilderScreen() {
         subtitle="A living portfolio, built from the story you’re already telling."
         actions={
           <>
-            <Button icon="link" onClick={() => share("p0")}>
+            <Button icon="link" onClick={() => share("me")}>
               Share portfolio
             </Button>
             <LinkButton href="/app/portfolio/preview" variant="primary" icon="external">
@@ -59,19 +61,16 @@ export function PortfolioBuilderScreen() {
                   ref={formRef}
                   className="stack"
                   style={{ gap: 15 }}
-                  onInput={() => {
-                    if (formRef.current?.checkValidity()) void run((s) => s.portfolio.saveSettings(values()));
-                  }}
+                  noValidate
+                  onInput={() => autosave.schedule(values())}
                   onSubmit={async (e) => {
                     e.preventDefault();
-                    const result = await run((s) => s.portfolio.saveSettings(values()));
-                    if (!result) return;
-                    toast(!result.ok ? devCopy("That slug belongs to another demo profile. Choose another.", "That slug belongs to another profile. Choose another.") : result.persisted ? "Portfolio settings saved." : STORAGE_FALLBACK);
+                    if (await autosave.save(values())) toast("Portfolio settings saved.");
                   }}
                 >
-                  <TextField label="Portfolio title" name="title" defaultValue={view.config.title} required />
-                  <TextField label="Headline" name="headline" defaultValue={view.config.headline} required />
-                  <TextField label="URL slug" name="slug" defaultValue={view.config.slug} required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" />
+                  <TextField label="Portfolio title" name="title" defaultValue={view.config.title} required error={autosave.errors.title} maxLength={120} />
+                  <TextField label="Headline" name="headline" defaultValue={view.config.headline} required error={autosave.errors.headline} maxLength={200} />
+                  <TextField label="URL slug" name="slug" defaultValue={view.config.slug} required error={autosave.errors.slug} maxLength={180} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" />
                   <label className="field">
                     Accent color
                     <input name="theme" type="color" defaultValue={view.config.theme} />
@@ -80,7 +79,9 @@ export function PortfolioBuilderScreen() {
                     <input name="public" type="checkbox" defaultChecked={view.config.public} />
                     {devCopy("Public portfolio in demo", "Public portfolio")}
                   </label>
-                  <button className="btn primary sm" type="submit">
+                  {autosave.errors._form && <p role="alert">{autosave.errors._form}</p>}
+                  <p role="status">{autosave.pending ? "Saving…" : autosave.dirty ? "Unsaved changes" : "All changes saved"}</p>
+                  <button className="btn primary sm" type="submit" disabled={autosave.pending}>
                     Save portfolio
                   </button>
                 </form>
@@ -91,10 +92,10 @@ export function PortfolioBuilderScreen() {
                 </p>
                 {view.config.sections.map((s, i) => (
                   <div className="section-control" key={s.name}>
-                    <input type="checkbox" checked={s.visible} aria-label={"Show " + s.name} onChange={(e) => run((sv) => sv.portfolio.setSectionVisible(i, e.target.checked))} />
+                    <input type="checkbox" disabled={autosave.pending || autosave.dirty} checked={s.visible} aria-label={"Show " + s.name} onChange={(e) => run((sv) => sv.portfolio.setSectionVisible(i, e.target.checked))} />
                     <span className="grow">{s.name}</span>
-                    <IconButton icon="up" label={"Move " + s.name + " up"} onClick={() => run((sv) => sv.portfolio.moveSection(i, -1))} />
-                    <IconButton icon="down" label={"Move " + s.name + " down"} onClick={() => run((sv) => sv.portfolio.moveSection(i, 1))} />
+                    <IconButton icon="up" label={"Move " + s.name + " up"} disabled={autosave.pending || autosave.dirty || i === 0} onClick={() => run((sv) => sv.portfolio.moveSection(i, -1))} />
+                    <IconButton icon="down" label={"Move " + s.name + " down"} disabled={autosave.pending || autosave.dirty || i === view.config.sections.length - 1} onClick={() => run((sv) => sv.portfolio.moveSection(i, 1))} />
                   </div>
                 ))}
                 <h3 style={{ fontSize: 12, margin: "20px 0 12px" }}>Featured projects</h3>
@@ -116,7 +117,7 @@ export function PortfolioBuilderScreen() {
                   </div>
                 </div>
                 <div className={"builder-preview " + (previewMobile ? "mobile" : "")} id="portfolio-live">
-                  <PortfolioSite view={view} builder />
+                  <PortfolioSite view={autosave.preview ? { ...view, config: { ...view.config, ...autosave.preview } } : view} builder />
                 </div>
               </div>
             </div>
@@ -129,7 +130,7 @@ export function PortfolioBuilderScreen() {
 
 export function PortfolioPreviewScreen() {
   const share = useSharePortfolio();
-  const query = useServiceQuery(["portfolio", "p0"], (s) => s.portfolio.getPortfolio("p0"));
+  const query = useServiceQuery(["portfolio", "me"], (s) => s.portfolio.getPortfolio("me"));
   return (
     <>
       <PageHeading
@@ -143,7 +144,7 @@ export function PortfolioPreviewScreen() {
             <LinkButton href="/app/portfolio" icon="edit">
               Back to builder
             </LinkButton>
-            <Button variant="primary" icon="link" onClick={() => share("p0")}>
+            <Button variant="primary" icon="link" onClick={() => share("me")}>
               Share
             </Button>
           </>
@@ -155,7 +156,7 @@ export function PortfolioPreviewScreen() {
 }
 
 export function PublicPortfolioScreen({ slug }: { slug: string }) {
-  const query = useServiceQuery(["portfolio", "slug", slug], (s) => s.portfolio.getPortfolioBySlug(slug));
+  const query = useServiceQuery(["portfolio", "slug", slug, portfolioShareContext()], (s) => s.portfolio.getPortfolioBySlug(slug), { keepPreviousData: false });
   return (
     <QueryView query={query}>
       {(view) =>
@@ -163,7 +164,7 @@ export function PublicPortfolioScreen({ slug }: { slug: string }) {
           <main id="main" className="container section">
             <NotFoundState />
           </main>
-        ) : !view.config.public ? (
+        ) : !view.config.public && !view.accessGranted ? (
           <main id="main" className="container section">
             <EmptyState title="This portfolio is private." description={devCopy("Its owner has turned off visibility in this browser prototype.", "Its owner has turned off visibility.")} action={<LinkButton href="/talent">Explore talent</LinkButton>} />
           </main>

@@ -37,7 +37,7 @@ export interface ApplicationsService {
   listSavedJobs(query: { q: string }): Promise<SavedJobRecord[]>;
   listAlerts(query: { q: string }): Promise<AlertRecord[]>;
   getApplication(id: Id): Promise<ApplicationRecord | null>;
-  updateTracking(id: Id, input: { status: ApplicationStatus; followUp: IsoDate | ""; trackingNote: string }): Promise<void>;
+  updateTracking(id: Id, input: { status: ApplicationStatus; followUp: IsoDate | ""; trackingNote: string; version?:number }): Promise<void>;
   remove(id: Id): Promise<void>;
 }
 

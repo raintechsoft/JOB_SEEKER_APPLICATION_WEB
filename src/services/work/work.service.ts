@@ -29,6 +29,7 @@ export type ProjectInput = Omit<Project, "id" | "owner" | "art" | "cover"> & { i
 export type UpdateInput = Omit<WorkUpdate, "id" | "owner"> & { id?: Id };
 
 export interface WorkService {
+  featuredProjects?():Promise<Project[]>;
   listProjects(query: ProjectQuery): Promise<Project[]>;
   getProject(id: Id): Promise<Project | null>;
   /** Projects by id, in the order given (missing ids are skipped). */

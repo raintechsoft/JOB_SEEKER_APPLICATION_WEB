@@ -33,9 +33,17 @@ import type { WorkService } from "./work/work.service";
 import { mockWorkService } from "./work/work.mock";
 import type { WorkspaceService } from "./workspace/workspace.service";
 import { mockWorkspaceService } from "./workspace/workspace.mock";
+import type { AuthService } from "./auth/auth.service";
+import { createHttpServices } from "./http-services";
+import type { MediaService } from "./media/media.http";
+import type {NotificationsService} from "./notifications/notifications.service";
 
 /** Every data-access boundary the UI uses. */
 export interface Services {
+  analytics:Pick<ReturnType<typeof import("./analytics/analytics.http").createHttpAnalyticsService>,"getSettings"|"setConsent">;
+  notifications:NotificationsService;
+  media: MediaService;
+  auth: AuthService;
   activity: ActivityService;
   admin: AdminService;
   applications: ApplicationsService;
@@ -57,7 +65,11 @@ export interface Services {
 
 /** MOCK: browser-local implementations backed by `src/mocks`. */
 const mockServices: Services = {
+  analytics:{async getSettings(){return {available:false,granted:false,hasStoredConsent:false,policyVersion:"",retentionDays:0,version:0};},async setConsent(){throw new Error("Analytics consent requires HTTP mode.");}},
+  media: { async upload() { throw new Error("Managed uploads require HTTP mode."); }, async remove() { throw new Error("Managed uploads require HTTP mode."); } },
+  auth: new Proxy({} as AuthService, { get: () => async () => { throw new Error("Real account operations require HTTP mode."); } }),
   activity: mockActivityService,
+  notifications:{async list(){return {items:[],unreadCount:0};},async markRead(){},async preferences(){return [];},async savePreference(){}},
   admin: mockAdminService,
   applications: mockApplicationsService,
   feed: mockFeedService,
@@ -78,9 +90,7 @@ const mockServices: Services = {
 
 export function createServices(): Services {
   if (apiConfig.dataSource === "http") {
-    // HTTP implementations are added per domain as the NestJS endpoints become available.
-    // Until then, fail loudly instead of silently falling back to fake data.
-    throw new Error("NEXT_PUBLIC_DATA_SOURCE=http is not implemented yet. See docs/frontend-architecture.md#backend-integration.");
+    return createHttpServices(apiConfig.baseUrl);
   }
   return mockServices;
 }

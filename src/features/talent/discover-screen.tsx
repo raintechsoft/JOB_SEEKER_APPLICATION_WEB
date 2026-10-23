@@ -15,7 +15,7 @@ import { TalentCard } from "@/components/talent/talent-card";
 function TalentResults({ publicMode }: { publicMode: boolean }) {
   const filters = useUiStore((s) => s.talent);
   const setTalent = useUiStore((s) => s.setTalent);
-  const { data: list } = useServiceQuery(["talent", "search", filters], (s) => s.talent.search(filters));
+  const { data: list,isError } = useServiceQuery(["talent", "search", filters], (s) => s.talent.search(filters),{keepPreviousData:false});
   const tracked = useRef("");
   useEffect(() => {
     const key = JSON.stringify(filters);
@@ -51,6 +51,7 @@ function TalentResults({ publicMode }: { publicMode: boolean }) {
           />
         </div>
       </div>
+      {isError&&<p role="alert">Talent could not be loaded. Check the filters and retry.</p>}
       <div className="grid cols3 talent-grid">
         {list && list.length ? (
           list.map((p) => <TalentCard key={p.id} person={p} publicMode={publicMode} />)

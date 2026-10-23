@@ -24,6 +24,9 @@ import { FeedArtwork } from "@/components/feed/feed-artwork";
 import { useProjectDialogs, useUpdateDialogs } from "@/features/work/dialogs";
 import { useJobActions } from "./job-dialogs";
 import { usePostDialogs } from "./post-dialogs";
+import { commentSchema } from "@/lib/validation/social";
+import { useFormAction } from "@/hooks/use-form-action";
+import { apiConfig } from "@/services/api/config";
 
 const JOB_HEADLINES: Record<string, [string, string]> = {
   northstar: ["Design", "what’s next."],
@@ -33,17 +36,22 @@ const JOB_HEADLINES: Record<string, [string, string]> = {
 function authorHref(role: Role, entry: FeedEntry) {
   const a = entry.author;
   if (!a) return undefined;
+  if (a.recruiter) return "/recruiters/" + a.id;
   if (a.id === "r0") return role === "recruiter" ? "/recruiter/company" : "/app/dashboard?post=" + entry.id;
   return role === "recruiter" ? "/recruiter/talent/" + a.id : "/professionals/" + a.slug;
 }
 
-function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
-  const run = useServiceAction();
+export function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { execute, pending } = useFormAction(setErrors);
+  const [commentLimit,setCommentLimit]=useState(50);
+  const page=useServiceQuery(["feed-comments",role,entry.id,commentLimit],(s)=>s.feed.getComments!(role,entry.id,commentLimit),{enabled:apiConfig.dataSource==="http",keepPreviousData:false});
+  const comments=page.isError ? [] : page.data?.items??entry.comments;
   const { data: identity } = useServiceQuery(["feed", "identity", role], async (s) => (role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person));
   return (
     <section className="feed-comments" aria-label="Comments">
       <div className="feed-comment-list">
-        {entry.comments.map((c) => (
+        {comments.map((c) => (
           <div className="row" style={{ alignItems: "flex-start" }} key={c.id}>
             <Avatar person={c.author} />
             <div className="feed-comment-bubble">
@@ -54,15 +62,19 @@ function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
           </div>
         ))}
       </div>
+      {page.isError && <p role="alert">Comments could not be loaded. <Button onClick={()=>void page.refetch()}>Try again</Button></p>}
+      {page.data?.nextCursor && commentLimit<1000 && <Button disabled={page.isFetching} onClick={()=>setCommentLimit((n)=>n+50)}>Load more comments</Button>}
       <form
         className="feed-comment-form"
         data-post={entry.id}
+        noValidate
         onSubmit={async (e) => {
           e.preventDefault();
           const form = e.currentTarget;
           const text = String(new FormData(form).get("comment") || "").trim();
-          if (!text) return;
-          await run((s) => s.feed.addComment(role, entry.id, text));
+          const parsed = commentSchema.safeParse(text);
+          if (!parsed.success) { setErrors({ comment: parsed.error.issues[0].message }); return; }
+          if (!(await execute((s) => s.feed.addComment(role, entry.id, parsed.data),{invalidate:["feed","feed-entry","feed-comments","activity"]}))) return;
           form.reset();
           track("post_commented", { postId: entry.id });
           toast(devCopy("Comment saved locally.", "Comment posted."));
@@ -72,11 +84,13 @@ function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
         <label className="sr-only" htmlFor={"comment-" + entry.id}>
           Write a comment
         </label>
-        <FloatingInput label="Write a comment" compact id={"comment-" + entry.id} name="comment" required maxLength={1000} placeholder="Add a thoughtful comment..." />
-        <button type="submit" className="iconbtn" aria-label="Post comment">
+        <FloatingInput label="Write a comment" compact id={"comment-" + entry.id} name="comment" required maxLength={1000} placeholder="Add a thoughtful comment..." aria-invalid={!!errors.comment} aria-describedby={errors.comment ? "comment-error-" + entry.id : undefined} disabled={pending} />
+        <button type="submit" className="iconbtn" aria-label="Post comment" disabled={pending}>
           <Icon name="send" />
         </button>
       </form>
+      {errors.comment && <p className="error" role="alert" id={"comment-error-" + entry.id}>{errors.comment}</p>}
+      {errors._form && <p className="error" role="alert">{errors._form}</p>}
       <DevOnly>
         <small>Comments are saved locally in this demo.</small>
       </DevOnly>
@@ -96,8 +110,8 @@ function ActivityMenu({ entry, role, children }: { entry: FeedEntry; role: Role;
     return entry.type === "update" ? updates.edit(entry.id) : posts.edit(role, entry);
   };
   const remove = () => {
-    if (role === "recruiter") return job ? router.push("/recruiter/applications") : posts.remove(role, entry.id);
-    return entry.type === "update" ? updates.remove(entry.id) : posts.remove(role, entry.id);
+    if (role === "recruiter") return job ? router.push("/recruiter/applications") : posts.remove(role, entry.id, entry.version);
+    return entry.type === "update" ? updates.remove(entry.id) : posts.remove(role, entry.id, entry.version);
   };
   return (
     <details className="activity-post-menu" ref={ref}>
@@ -139,7 +153,7 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
   const { openComments, expanded } = useUiStore((s) => s.feed);
   const toggleFeedList = useUiStore((s) => s.toggleFeedList);
   const [sharing, setSharing] = useState(false);
-  const ref = useImpression<HTMLElement>(() => !noTracking && track("feed_item_impression", { itemId: entry.id, itemType: entry.type, surface, position }));
+  const ref = useImpression<HTMLElement>(() => {if(noTracking)return;if(entry.analyticsContext)track("recommendation_exposed",entry.analyticsContext);else track("feed_item_impression", { itemId: entry.id, itemType: entry.type, surface, position });},entry.analyticsContext?.requestId);
   const job = entry.type === "job";
   const p = job ? entry.company! : entry.author!;
   const href = authorHref(role, entry);
@@ -157,7 +171,7 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
   }, [sharing]);
 
   const like = async () => {
-    const liked = await run((s) => s.feed.toggleLike(role, entry.id));
+    const liked = await run((s) => s.feed.toggleLike(role, entry.id),{invalidate:["feed","feed-entry","activity"]});
     if (liked !== undefined) track("post_liked", { postId: entry.id, liked });
   };
   const save = () => jobs.toggleSave(role, entry.id, job ? "job" : "post");
@@ -187,6 +201,7 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
 
   return (
     <article ref={ref} className={"card feed-post" + (job ? " feed-job-post" : "") + (highlighted ? " is-highlighted" : "")} id={"feed-" + entry.id} data-post-id={entry.id}>
+      {entry.recommendationReason&&<p className="small muted" style={{padding:"12px 20px 0"}}>{entry.recommendationReason}</p>}
       <div className="feed-post-context">
         <Icon name={job ? "briefcase" : entry.type === "update" ? "pulse" : "users"} />
         <span>{contextLine}</span>
@@ -216,7 +231,7 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
         </div>
         {entry.viewer.own ? (
           activity ? <ActivityMenu entry={entry} role={role} /> : null
-        ) : (
+        ) : job && entry.company?.confidential ? null : (
           <button type="button" className={"feed-follow" + (entry.viewer.following ? " following" : "")} onClick={follow} aria-label={(entry.viewer.following ? "Unfollow " : "Follow ") + p.name}>
             <Icon name={entry.viewer.following ? "check" : "plus"} />
             {entry.viewer.following ? "Following" : "Follow"}
@@ -286,7 +301,7 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
                   View applications
                 </LinkButton>
               ) : (
-                <Button variant={entry.job!.applied ? "" : "primary"} icon="arrowUp" onClick={() => jobs.view(entry.id, surface)}>
+                <Button variant={entry.job!.applied ? "" : "primary"} icon="arrowUp" onClick={() => {if(!noTracking&&entry.analyticsContext)track("recommendation_clicked",entry.analyticsContext);jobs.view(entry.id, surface);}}>
                   {role === "recruiter" ? "View job post" : entry.job!.applied ? "Application saved" : "View opportunity"}
                 </Button>
               )}
@@ -316,7 +331,7 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
           {entry.viewer.liked ? " · You liked this" : ""}
         </button>
         <button type="button" onClick={toggleComments}>
-          {entry.comments.length} {entry.comments.length === 1 ? "comment" : "comments"}
+          {entry.comments.length}{entry.commentsNextCursor ? "+" : ""} {entry.comments.length === 1 ? "comment" : "comments"}
         </button>
       </div>
       <div className="feed-post-actions">

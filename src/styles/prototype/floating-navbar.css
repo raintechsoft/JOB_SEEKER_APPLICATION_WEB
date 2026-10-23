@@ -5,6 +5,7 @@ body.professional-theme .professional-header {
  max-width:1440px;
  margin:14px auto 0;
  top:14px;
+ z-index:40;
  background:#202A36;
  border:1px solid rgba(183,207,235,.19);
  border-top-color:rgba(224,237,255,.28);
@@ -12,16 +13,44 @@ body.professional-theme .professional-header {
  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -1px 0 rgba(12,20,31,.18),0 6px 18px rgba(16,25,38,.16),0 2px 5px rgba(16,25,38,.09);
  overflow:visible;
 }
+/* Outbound blur sits under the floating navbar (gap + soft exit), never over it. */
+body.professional-theme .professional-app::before {
+ content:"";
+ position:sticky;
+ top:0;
+ display:block;
+ width:100%;
+ height:150px;
+ margin-bottom:-150px;
+ z-index:30;
+ pointer-events:none;
+ background:linear-gradient(to bottom,#F6F8FA 0%,rgba(246,248,250,.82) 42%,rgba(246,248,250,.35) 68%,rgba(246,248,250,0) 100%);
+}
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
  body.professional-theme .professional-header {
   background:linear-gradient(135deg,rgba(169,199,238,.025),rgba(32,42,54,0) 48%,rgba(10,18,29,.045)),rgba(32,42,54,.94);
   -webkit-backdrop-filter:blur(10px) saturate(125%);
   backdrop-filter:blur(10px) saturate(125%);
  }
+ body.professional-theme .professional-app::before {
+  -webkit-backdrop-filter:blur(16px) saturate(140%);
+  backdrop-filter:blur(16px) saturate(140%);
+  -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 48%,transparent 100%);
+  mask-image:linear-gradient(to bottom,#000 0%,#000 48%,transparent 100%);
+ }
 }
 @media(prefers-reduced-transparency:reduce){
  body.professional-theme .professional-header {background:#202A36;-webkit-backdrop-filter:none;backdrop-filter:none;}
+ body.professional-theme .professional-app::before {
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+  -webkit-mask-image:none;
+  mask-image:none;
+  background:linear-gradient(to bottom,#F6F8FA 0%,#F6F8FA 50%,transparent 100%);
+ }
 }
 @media(max-width:680px){
  body.professional-theme .professional-header {width:calc(100% - 20px);margin-top:10px;top:10px;border-radius:16px;}
+ body.professional-theme .professional-app::before {height:170px;margin-bottom:-170px;}
 }
+body.messaging-page.professional-theme .professional-app::before {display:none;}

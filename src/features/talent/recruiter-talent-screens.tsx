@@ -69,7 +69,7 @@ export function OverviewScreen() {
             <div>
               <h2 style={{ fontSize: 18 }}>People to get to know</h2>
               <p className="small muted" style={{ marginTop: 6 }}>
-                {devCopy("A selection from our demo directory, ordered by recent recorded activity.", "A selection from our directory, ordered by recent recorded activity.")}
+                {devCopy("A selection from our demo directory, ordered by recent recorded activity.", "Suggestions based on skills in your accessible open jobs, with recently updated profiles as a fallback.")}
               </p>
             </div>
             <LinkButton href="/recruiter/discover" variant="text" icon="arrow">
@@ -174,10 +174,11 @@ export function ShortlistsScreen() {
                   {s.candidates.length} saved candidates in {s.name}
                 </p>
                 <div className="row">
-                  <Button variant="text sm" icon="edit" onClick={() => dialogs.edit(s.id, s.name)}>
+                  <Button variant="text sm" icon="edit" disabled={s.canEdit===false} onClick={() => dialogs.edit(s.id, s.name,s.version)}>
                     Rename
                   </Button>
-                  <Button variant="text sm" icon="trash" onClick={() => dialogs.remove(s.id)}>
+                  {s.version&&<Button variant="text sm" icon="users" disabled={s.canEdit===false} onClick={()=>dialogs.share(s)}>Sharing</Button>}
+                  <Button variant="text sm" icon="trash" disabled={s.canEdit===false} onClick={() => dialogs.remove(s.id)}>
                     Delete list
                   </Button>
                 </div>
@@ -195,6 +196,7 @@ export function ShortlistsScreen() {
                         <Button
                           variant="text sm"
                           icon="close"
+                          disabled={s.canEdit===false}
                           onClick={async () => {
                             const ok = await run((sv) => sv.talent.removeFromShortlist(s.id, p.id));
                             if (ok !== undefined) toast(ok ? "Candidate removed from shortlist." : "Saved for this page only. Browser storage is full or unavailable.");

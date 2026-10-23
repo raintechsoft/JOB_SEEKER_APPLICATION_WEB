@@ -20,7 +20,7 @@ function view(db: DemoDatabase, id: Id): PortfolioView | null {
 
 export const mockPortfolioService: PortfolioService = {
   async getPortfolio(ownerId) {
-    return view(getDb(), ownerId);
+    return view(getDb(), ownerId === "me" ? ME_ID : ownerId);
   },
 
   async getPortfolioBySlug(slug) {
@@ -56,7 +56,7 @@ export const mockPortfolioService: PortfolioService = {
 
   async saveSharing(ownerId, input) {
     return commit((db) => {
-      Object.assign(db.portfolios[ownerId], input);
+      Object.assign(db.portfolios[ownerId === "me" ? ME_ID : ownerId], input);
     });
   },
 };

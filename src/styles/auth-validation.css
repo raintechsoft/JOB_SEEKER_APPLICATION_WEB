@@ -1,0 +1,36 @@
+.auth-field-error { color: #b42318; font-size: 13px; line-height: 1.5; margin: 0; }
+.auth-page #auth-form > .auth-field { position: relative; min-width: 0; }
+.auth-page #auth-form > .auth-field > .auth-field-error {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A short reserved band: a few pixels above the message and a few below it. */
+.is-signup #auth-form { gap: 4px; }
+.is-signup #auth-form > .auth-field { padding-bottom: 22px; }
+.is-signup #auth-form > .auth-field > .auth-field-error {
+  top: calc(100% - 22px);
+  height: 22px;
+  padding: 4px 0 4px;
+  font-size: 12px;
+  line-height: 14px;
+}
+.is-login #auth-form > .auth-field { padding-bottom: 8px; }
+.is-login #auth-form > .auth-field > .auth-field-error {
+  top: calc(100% - 8px);
+  height: 18px;
+  padding: 4px 0 2px;
+  font-size: 11px;
+  line-height: 12px;
+}
+.auth-inner [aria-invalid="true"], .er-form [aria-invalid="true"] { border-color: #b42318; }
+.phase-one-workspace { max-width: 1000px; margin: 36px auto; padding: 0 20px; }
+.phase-one-workspace .card { margin-bottom: 20px; }
+.phase-one-workspace .row { gap: 12px; flex-wrap: wrap; }
+.phase-one-workspace select { max-width: 100%; }

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "@/styles/fonts.css";
+import "@/styles/auth-validation.css";
 import "@/styles/prototype/index.css";
+import "@/styles/toasts.css";
 import "./globals.css";
 import { AppProviders } from "@/providers/app-providers";
 import { BodyClassSync } from "@/components/layout/body-class-sync";

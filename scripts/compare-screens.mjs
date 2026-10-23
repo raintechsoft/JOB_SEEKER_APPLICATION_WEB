@@ -16,7 +16,7 @@ const routes = positional.length > 1 ? positional.slice(1) : ["/"];
 const width = Number(flags.width ?? 1440);
 const height = Number(flags.height ?? 900);
 const fullPage = "full" in flags;
-const prototype = pathToFileURL(resolve("Skillora-Standalone.html")).href;
+const prototype = pathToFileURL(resolve("../../reference/Skillora-Standalone.html")).href;
 
 mkdirSync("screenshots", { recursive: true });
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "msedge" });

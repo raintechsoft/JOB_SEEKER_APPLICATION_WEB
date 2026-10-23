@@ -11,6 +11,6 @@ export default defineConfig({
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/unit/**/*.test.{ts,tsx}"],
     // Unit tests cover the development UI (demo logins, OTP codes); production gating has its own test.
-    env: { NEXT_PUBLIC_APP_ENV: "development" },
+    env: { NEXT_PUBLIC_APP_ENV: "development", NEXT_PUBLIC_DATA_SOURCE: "mock" },
   },
 });

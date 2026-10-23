@@ -1,6 +1,10 @@
 "use client";
 
+import {useRef,useState} from "react";
 import { useRouter } from "next/navigation";
+import {useQueryClient} from "@tanstack/react-query";
+import {clearIdentityState} from "@/features/auth/clear-identity-state";
+import {apiConfig} from "@/services/api/config";
 import type { SettingKey } from "@/services/workspace/workspace.service";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
@@ -11,15 +15,21 @@ import { confirmAction } from "@/components/ui/feedback";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
 import { resetOrganizationDrafts } from "@/features/organization/draft-store";
+import {AnalyticsPreference} from "./analytics-preference";
 
 export function SettingsScreen() {
   const run = useServiceAction();
+  const locked=useRef(false);
+  const [pending,setPending]=useState(false);
   const router = useRouter();
+  const cache=useQueryClient();
   const setUi = useUiStore((s) => s.setUi);
   const setOnboarding = useUiStore((s) => s.setOnboarding);
   const { data } = useServiceQuery(["settings"], (s) => s.workspace.getSettings());
   const update = async (key: SettingKey, value: boolean) => {
+    if(locked.current)return;locked.current=true;setPending(true);
     const ok = await run((s) => s.workspace.updateSetting(key, value));
+    locked.current=false;setPending(false);
     if (ok !== undefined) toast(ok ? devCopy("Preference saved in this browser.", "Preference saved.") : "Saved for this page only. Browser storage is full or unavailable.");
   };
   const rows: [string, string, SettingKey, boolean][] = data
@@ -45,8 +55,8 @@ export function SettingsScreen() {
       "Reset demo",
     );
   const logout = async () => {
-    await run((s) => s.workspace.signOut());
-    router.push("/");
+    const ok=await run(async(s)=>{await s.workspace.signOut();return true;},{refresh:false});if(!ok)return;
+    if(apiConfig.dataSource==="http"){clearIdentityState();cache.clear();router.push("/login");}else router.push("/");
     toast(devCopy("You’ve left the demo workspace. Local changes are kept.", "You’ve signed out."));
   };
   return (
@@ -54,6 +64,7 @@ export function SettingsScreen() {
       <PageHeading title="A little control goes a long way." subtitle={devCopy("Manage your account, visibility, and demo preferences.", "Manage your account, visibility, and preferences.")} />
       <section className="card form-card">
         <h2>Privacy & visibility</h2>
+        {data?.moderationHidden&&<p role="status">Your public profile is currently hidden by platform review. Your own visibility preferences are preserved.</p>}
         {rows.map(([title, description, key, value]) => (
           <div className="settings-row" key={key}>
             <div>
@@ -61,7 +72,7 @@ export function SettingsScreen() {
               <p>{description}</p>
             </div>
             <label className="switch">
-              <input type="checkbox" checked={value} aria-label={title} onChange={(e) => update(key, e.target.checked)} />
+              <input type="checkbox" checked={value} disabled={pending} aria-label={title} onChange={(e) => update(key, e.target.checked)} />
               <span />
             </label>
           </div>
@@ -99,6 +110,7 @@ export function SettingsScreen() {
           </Button>
         </div>
       </section>
+      {apiConfig.dataSource==="http"&&<AnalyticsPreference/>}
     </>
   );
 }

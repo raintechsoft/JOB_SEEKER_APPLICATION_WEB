@@ -1,9 +1,18 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname,useRouter } from "next/navigation";
+import {apiConfig} from "@/services/api/config";
+import {ApiError,errorMessage} from "@/services/api/client";
+import type {JobDetail} from "@/services/jobs/jobs.service";
+import type {ProfileService} from "@/services/profile/profile.service";
+import { useState } from "react";
+import { applicationSchema } from "@/lib/validation/application";
+import { validationFields } from "@/lib/validation/profile";
+import { useFormAction } from "@/hooks/use-form-action";
 import type { Id, Role } from "@/types/domain";
 import { formatLocaleDate } from "@/lib/utils/date";
 import { devCopy } from "@/lib/env/app-env";
+import { isPrototype } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
@@ -148,12 +157,18 @@ function SavedApplication({ jobId }: { jobId: Id }) {
 }
 
 function ApplyForm({ jobId }: { jobId: Id }) {
-  const run = useServiceAction();
-  const { data } = useServiceQuery(["job", jobId, "professional"], (s) => s.jobs.getJob(jobId, "professional"));
-  const { data: profile } = useServiceQuery(["profile"], (s) => s.profile.getProfile());
+  const { data,isError } = useServiceQuery(["job", jobId, "professional"], (s) => s.jobs.getJob(jobId, "professional"),{keepPreviousData:false});
+  const { data: profile,isError:profileError } = useServiceQuery(["profile"], (s) => s.profile.getProfile());
+  if(isError||profileError)return <p role="alert">The application could not be loaded. Check that your professional profile is ready and try again.</p>;
   if (!data || !profile) return null;
-  const { job, company } = data;
-  const me = profile.person;
+  return <ApplicationFields initialJob={data} initialProfile={profile}/>;
+}
+
+export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDetail;initialProfile:Awaited<ReturnType<ProfileService["getProfile"]>>}){
+  const [data]=useState(initialJob),[profile]=useState(initialProfile);
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
+  const {job,company}=data,jobId=job.id,me=profile.person;
   return (
     <form
       id="feed-application-form"
@@ -163,8 +178,7 @@ function ApplyForm({ jobId }: { jobId: Id }) {
         const f = new FormData(e.currentTarget);
         const get = (k: string) => String(f.get(k) || "").trim();
         const answers = Object.fromEntries((job.screeningQuestions || []).map((q) => [q.id, get("screen-" + q.id)]));
-        await run((s) =>
-          s.jobs.apply({
+        const input = {
             jobId,
             name: get("name"),
             email: get("email"),
@@ -172,8 +186,11 @@ function ApplyForm({ jobId }: { jobId: Id }) {
             portfolio: f.has("portfolio"),
             answers,
             recruitmentDetails: { location: get("appLocation"), locality: get("appLocality"), expectedSalaryLpa: get("appSalary"), noticeDays: get("appNotice"), joiningDays: get("appJoining"), industry: get("appIndustry"), designation: get("appDesignation"), department: get("appDepartment"), preferredLocations: get("appPreferred"), phone: get("appPhone") },
-          }),
-        );
+        };
+        const checked=applicationSchema(job.screeningQuestions??[],job.requirePortfolio??false).safeParse(input);
+        if(!checked.success)return setErrors(validationFields(checked.error));
+        setErrors({});
+        if(!await execute((s)=>s.jobs.apply({...checked.data,questionsVersion:job.questionsVersion})))return;
         track("job_application_completed", { jobId, screeningQuestions: job.screeningQuestions?.length ?? 0 });
         modal.close();
         toast(devCopy("Demo application saved locally. Nothing was sent to an employer.", "Application submitted."));
@@ -182,15 +199,17 @@ function ApplyForm({ jobId }: { jobId: Id }) {
       <h3>
         {job.title} · {company.name}
       </h3>
-      <TextField label="Name" name="name" defaultValue={me.name} required />
-      <TextField label="Email" name="email" type="email" defaultValue={me.email} required />
-      <TextAreaField label="A short introduction (optional)" name="note" maxLength={1500} />
+      {errors._form && <p role="alert">{errors._form}</p>}
+      <TextField label="Name" name="name" defaultValue={me.name} required error={errors.name} maxLength={150} />
+      <TextField label="Email" name="email" type="email" defaultValue={me.email} required error={errors.email} maxLength={254} />
+      <TextAreaField label="A short introduction (optional)" name="note" maxLength={1500} error={errors.note} />
       {(job.screeningQuestions || []).map((q) =>
         q.type === "yesno" ? (
           <SelectField
             key={q.id}
             label={q.text}
             name={"screen-" + q.id}
+            error={errors["answers."+q.id]}
             required={q.required}
             defaultValue=""
             options={[
@@ -200,10 +219,11 @@ function ApplyForm({ jobId }: { jobId: Id }) {
             ]}
           />
         ) : (
-          <TextField key={q.id} label={q.text} name={"screen-" + q.id} type={q.type === "number" ? "number" : "text"} required={q.required} maxLength={1000} />
+          <TextField key={q.id} label={q.text} name={"screen-" + q.id} error={errors["answers."+q.id]} type={q.type === "number" ? "number" : "text"} required={q.required} maxLength={1000} step={q.type === "number" ? "any" : undefined} />
         ),
       )}
       {job.applicationInstructions && <p className="notice">{job.applicationInstructions}</p>}
+      {Object.entries(errors).filter(([key])=>key.startsWith("recruitmentDetails.")||key==="portfolio").map(([key,error])=><p key={key} role="alert">{key.replace("recruitmentDetails.","")}: {error}</p>)}
       <details className="application-shared-details">
         <summary>Recruiting details for this application (optional)</summary>
         <p className="small muted">Only details entered here are shared with this application. Private profile salary, notice, phone, and address are not copied.</p>
@@ -221,7 +241,7 @@ function ApplyForm({ jobId }: { jobId: Id }) {
         </div>
       </details>
       <label className="check-row">
-        <input name="portfolio" type="checkbox" defaultChecked required={job.requirePortfolio} />
+        <input name="portfolio" type="checkbox" defaultChecked={isPrototype} required={job.requirePortfolio} />
         {devCopy("Include my current portfolio in this demo application", "Include my current portfolio in this application")}
       </label>
       <DevOnly>
@@ -229,7 +249,7 @@ function ApplyForm({ jobId }: { jobId: Id }) {
       </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check">
+        <Button type="submit" variant="primary" icon="check" disabled={pending}>
           {devCopy("Save demo application", "Submit application")}
         </Button>
       </div>
@@ -241,6 +261,7 @@ function ApplyForm({ jobId }: { jobId: Id }) {
 export function useJobActions() {
   const run = useServiceAction();
   const services = useServices();
+  const router = useRouter();
   const pathname = usePathname();
   const role: Role = pathname.startsWith("/recruiter/") ? "recruiter" : "professional";
   const view = async (id: Id, surface = "feed") => {
@@ -251,6 +272,9 @@ export function useJobActions() {
     modal.show(data.job.title, <JobDetails id={id} role={role} />);
   };
   const apply = async (id: Id) => {
+    if(apiConfig.dataSource==="http"){
+      try{const session=await services.auth.me();if(!session.user.email_verified){router.push("/verify-email");return;}}catch(error){if(error instanceof ApiError&&error.status===401)router.push("/login?next="+encodeURIComponent("/jobs/"+id));else toast(errorMessage(error));return;}
+    }
     const data = await services.jobs.getJob(id, "professional");
     if (!data) return;
     if (data.application) {
@@ -261,11 +285,12 @@ export function useJobActions() {
     modal.show("A first step toward your next chapter.", <ApplyForm jobId={id} />);
   };
   const toggleSave = async (saveRole: Role, id: Id, kind: "job" | "post" = "post") => {
-    const result = await run((s) => s.feed.toggleSave(saveRole, id));
+    if(kind==="job"&&apiConfig.dataSource==="http"){try{await services.auth.me();}catch(error){if(error instanceof ApiError&&error.status===401)router.push("/login?next="+encodeURIComponent("/jobs/"+id));else toast(errorMessage(error));return;}}
+    const result = await run((s) => kind === "job" && saveRole === "professional" && s.jobs.toggleSave ? s.jobs.toggleSave(id) : s.feed.toggleSave(saveRole, id));
     if (!result) return;
     if (kind === "job") track("job_saved", { jobId: id, saved: result.saved });
     else track("post_saved", { postId: id, saved: result.saved });
-    toast(!result.persisted ? "Saved for this page only. Browser storage is full or unavailable." : result.saved ? "Saved. Find it in your Saved feed." : "Removed from saved posts.");
+    toast(!result.persisted ? "Saved for this page only. Browser storage is full or unavailable." : result.saved ? (kind==="job"?"Job saved. Find it in your applications workspace.":"Saved. Find it in your Saved feed.") : kind==="job"?"Removed from saved jobs.":"Removed from saved posts.");
   };
   return { view, apply, toggleSave, role };
 }

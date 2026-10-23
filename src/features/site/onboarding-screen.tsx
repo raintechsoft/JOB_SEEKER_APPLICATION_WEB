@@ -11,11 +11,17 @@ import { Avatar, Button, Tags } from "@/components/ui/primitives";
 import { TextAreaField, TextField } from "@/components/ui/field";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
+import { apiConfig } from "@/services/api/config";
+import { RealOnboardingScreen } from "./real-onboarding-screen";
 
 const HEADINGS = ["Let’s start with your story.", "Bring your experience with you.", "The things you bring to the table.", "Ready for your next chapter?"];
 const SUBTITLES = ["A few introductions", "CV review", "Skills & background", "One last look"];
 
 export function OnboardingScreen() {
+  return apiConfig.dataSource === "http" ? <RealOnboardingScreen /> : <PrototypeOnboardingScreen />;
+}
+
+function PrototypeOnboardingScreen() {
   const run = useServiceAction();
   const router = useRouter();
   const { role, step, cvName, cvParsed } = useUiStore((s) => s.onboarding);

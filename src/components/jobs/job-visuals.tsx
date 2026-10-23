@@ -20,7 +20,7 @@ export function CompanyAvatar({ company }: { company: CompanySummary }) {
     );
   return (
     <span className={"company-avatar company-" + company.id} aria-label={company.name}>
-      {company.id === "c0" ? <Icon name="spark" /> : company.id === "c1" ? "m." : "f."}
+      {company.id === "c0" ? <Icon name="spark" /> : company.id === "c1" ? "m." : company.id === "c2" ? "f." : company.name.trim().slice(0,1).toUpperCase()}
     </span>
   );
 }

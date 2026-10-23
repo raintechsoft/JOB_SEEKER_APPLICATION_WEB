@@ -11,6 +11,8 @@ import type { Id, IsoDateTime, JobAlert } from "@/types/domain";
  * "Matches from demo jobs" in the UI.
  */
 export interface RecommendedJob {
+  analyticsContext?:{requestId:string;itemId:string;position:number};
+  reason?: string;
   id: Id;
   title: string;
   companyId: Id;
@@ -27,6 +29,7 @@ export interface RecommendedJob {
 }
 
 export interface JobRecommendations {
+  strategyVersion?:string;
   forYou: RecommendedJob[];
   alertMatches: RecommendedJob[];
   newCount: number;

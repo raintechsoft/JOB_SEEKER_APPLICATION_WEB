@@ -54,6 +54,7 @@ export interface Professional {
 }
 
 export interface Project {
+  version?: number;
   id: Id;
   owner: Id;
   title: string;
@@ -76,6 +77,7 @@ export interface Project {
 export type UpdateCategory = "Design" | "Development" | "Research" | "Learning" | "Marketing" | "Collaboration";
 
 export interface WorkUpdate {
+  version?: number;
   id: Id;
   owner: Id;
   title: string;
@@ -134,6 +136,7 @@ export interface Post {
 }
 
 export interface Comment {
+  version?: number;
   id: Id;
   owner: Id;
   text: string;
@@ -170,6 +173,8 @@ export interface JobMedia {
 }
 
 export interface Job {
+  version?: number;
+  questionsVersion?: number;
   id: Id;
   company: Id;
   title: string;
@@ -225,6 +230,9 @@ export type ApplicationStatus = "Applied" | "In review" | "Interview" | "Offer" 
 
 /** A job seeker's own (self-tracked) demo application. */
 export interface SeekerApplication {
+  version?: number;
+  employerStage?: HiringStage;
+  withdrawnAt?: string | null;
   id: Id;
   job: Id;
   name: string;
@@ -311,6 +319,9 @@ export interface Conversation {
 // ---------------------------------------------------------------------------------------------
 
 export interface Shortlist {
+  version?: number;
+  visibility?: "private"|"organization";
+  canEdit?: boolean;
   id: Id;
   name: string;
   candidates: Id[];
@@ -322,6 +333,7 @@ export interface PortfolioSection {
 }
 
 export interface PortfolioConfig {
+  version?: number;
   title: string;
   headline: string;
   slug: string;
@@ -374,6 +386,9 @@ export interface RecruiterData {
 
 /** An application as seen from the recruiter's inbox. */
 export interface ReceivedApplication {
+  history?: {id:Id;kind:"stage"|"note";author:string;createdAt:IsoDateTime;from?:HiringStage;to?:HiringStage;body?:string}[];
+  version?: number;
+  withdrawnAt?: string | null;
   id: Id;
   job: Id;
   candidate: Id;
@@ -408,6 +423,7 @@ export interface WorkplaceImage {
 }
 
 export interface Organization {
+  version?: number;
   id: Id;
   name: string;
   slug: string;
@@ -459,6 +475,7 @@ export interface Organization {
 }
 
 export interface RecruiterMember {
+  version?: number;
   id: Id;
   organizationId: Id;
   fullName: string;
@@ -595,6 +612,7 @@ export interface PersonalDetails {
 }
 
 export interface ProfessionalDetails {
+  revision?: number;
   version: 1;
   updatedAt: IsoDateTime | "";
   phone: string;
@@ -642,6 +660,8 @@ export type ProfileCollection =
 // ---------------------------------------------------------------------------------------------
 
 export interface PostDraft {
+  version?: number;
+  editorToken?: string;
   id: Id;
   title: string;
   body: string;
@@ -692,6 +712,10 @@ export interface JobWizardValues {
 }
 
 export interface JobDraft {
+  /** Local editor lineage; never sent to the API. */
+  editorToken?: string;
+  version?: number;
+  jobVersion?: number;
   id: Id;
   existingId: Id | "";
   step: number;

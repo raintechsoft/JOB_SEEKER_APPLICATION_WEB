@@ -1,3 +1,4 @@
+import { phoneE164 } from "@/lib/validation/auth";
 import { commit, getDb } from "@/mocks/store/demo-db";
 import { slugify } from "@/lib/utils/text";
 import { uid } from "@/lib/utils/id";
@@ -35,7 +36,7 @@ export const mockRegistrationService: RegistrationService = {
   },
 
   async registerEmployer(input) {
-    const phone = input.country + input.mobile;
+    const phone = phoneE164(input.country, input.mobile);
     if (!verifiedTarget("sms", phone) || !verifiedTarget("email", input.email)) return { ok: false, error: "Verify your mobile number and email ID before creating an account." };
     const db = getDb();
     const old = db.organizationWorkspace.recruiters.find((r) => r.id === "r0") ?? db.organizationWorkspace.recruiters[0];

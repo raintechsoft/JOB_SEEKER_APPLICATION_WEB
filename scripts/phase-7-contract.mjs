@@ -1,0 +1,17 @@
+import {readFileSync,writeFileSync} from "node:fs";
+const root=new URL("../../../",import.meta.url),api=JSON.parse(readFileSync(new URL("contracts/openapi/phase-6.json",root),"utf8")),rules=JSON.parse(readFileSync(new URL("contracts/validation/search.json",root),"utf8"));
+const str={type:"string"},int={type:"integer"},uuid={...str,format:"uuid"},ref=(n)=>({$ref:`#/components/schemas/${n}`}),obj=(properties)=>({type:"object",properties,required:Object.keys(properties),additionalProperties:false});
+const jobs=api.paths['/jobs'].get;
+for(const [name,schema]of Object.entries({arrangement:{...str,enum:rules.arrangements},employment:{...str,enum:rules.employment},location:{...str,maxLength:200},skill:{...str,maxLength:100},experience:{type:"number",minimum:0,maximum:60},salaryMin:{type:"number",minimum:0,maximum:1e12},salaryMax:{type:"number",minimum:0,maximum:1e12},currency:{...str,enum:rules.currencies}}))jobs.parameters.push({in:"query",name,schema});
+const s=api.components.schemas;
+api.paths['/work/featured-projects']={get:{operationId:'phase7_featured_projects',responses:{200:{description:'Public discoverable work',content:{'application/json':{schema:obj({data:{type:'array',maxItems:3,items:ref('WorkProject')}})}}},default:{$ref:'#/components/responses/Error'}}}};
+s.SocialEntry.properties.recommendationReason=str;
+for(const parameter of api.paths['/me/social/{identity}/feed'].get.parameters)if(parameter.name==='sort')parameter.schema.enum.push('recommended');
+s.RecommendedJob=obj({id:uuid,reason:str,job:ref("HiringJob"),company:ref("HiringCompany"),saved:{type:"boolean"},matchedAlerts:{type:"array",items:str,maxItems:50}});
+s.RecommendedFeed=obj({id:uuid,reason:str,entry:ref("SocialEntry")});
+s.RecommendedTalent=obj({id:uuid,reason:str,person:ref("TalentCard")});
+s.BaselineRecommendations=obj({surface:{...str,enum:["jobs","feed","talent"]},strategyVersion:{const:rules.strategyVersion},candidateLimit:{const:rules.candidateLimit},generatedAt:{...str,format:"date-time"},items:{type:"array",maxItems:rules.recommendationLimit,items:{oneOf:[ref("RecommendedJob"),ref("RecommendedFeed"),ref("RecommendedTalent")]}}});
+api.paths['/me/recommendations/{identity}']={get:{operationId:"phase7_recommendations",parameters:[{in:"path",name:"identity",required:true,schema:uuid},{$ref:"#/components/parameters/ActorContext"},{in:"query",name:"surface",required:true,schema:{...str,enum:["jobs","feed","talent"]}},{in:"query",name:"limit",schema:{...int,minimum:1,maximum:rules.recommendationLimit}}],responses:{200:{description:"Eligible bounded rule-based candidates",content:{"application/json":{schema:obj({data:ref("BaselineRecommendations")})}}},default:{$ref:"#/components/responses/Error"}}}};
+api.info.version="0.7.0";api.info.description="Cumulative core contracts through Phase 7: indexed PostgreSQL text search and explainable, bounded, eligibility-checked baseline recommendations. External analytics and advanced retrieval/ranking remain gated.";
+const output=JSON.stringify(api,null,2)+"\n",target=new URL("contracts/openapi/phase-7.json",root);
+if(process.argv.includes("--check")){if(readFileSync(target,"utf8").replaceAll("\r\n","\n")!==output)throw new Error("Phase 7 contract is stale.");}else writeFileSync(target,output);

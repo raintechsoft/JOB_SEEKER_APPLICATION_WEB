@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import type { RecruiterMember } from "@/types/domain";
-import { safeUrl } from "@/lib/utils/url";
-import { useServiceAction } from "@/hooks/use-services";
+import { recruiterSchema } from "@/lib/validation/organization";
+import { validationFields } from "@/lib/validation/profile";
+import { useFormAction } from "@/hooks/use-form-action";
+import { apiConfig } from "@/services/api/config";
+import { errorMessage } from "@/services/api/client";
+
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
@@ -16,12 +20,13 @@ import { ADMIN_ONLY, addChips, useImageUploads, useOrganizationEditor, useRecrui
 const ROOT = "/recruiter/company";
 
 export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
-  const run = useServiceAction();
   const uploads = useImageUploads();
-  const { ctx, errors, setErrors, canManage } = useOrganizationEditor();
+  const { query, ctx, errors, setErrors, canManage } = useOrganizationEditor();
+  const { execute, pending } = useFormAction(setErrors);
   const id = memberId ?? ctx?.currentRecruiter.id;
   const member = ctx?.workspace.recruiters.find((m) => m.id === id);
   const { draft: r, update, discard } = useRecruiterDraft(member);
+  if (query.isError && !ctx) return <div className="org-workspace"><p role="alert">{errorMessage(query.error)}</p><Button onClick={() => void query.refetch()}>Try again</Button></div>;
   if (!ctx) return <ScreenFallback />;
   if (!member)
     return (
@@ -46,16 +51,15 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
   const text = (label: string, name: keyof RecruiterMember, props: { required?: boolean; maxLength?: number } = {}) => <OrgField label={label} name={name} value={String(r[name] ?? "")} error={errors[name]} onValue={(value) => update((d) => void ((d as unknown as Record<string, unknown>)[name] = value))} {...props} />;
   const save = async () => {
     if (!editable) return toast("You can edit your own recruiter profile only.");
-    if (uploads.busy) return toast("Wait for the profile photo to finish loading.");
+    if (uploads.busy || pending) return toast("Wait for the profile photo to finish loading.");
     const e: Record<string, string> = {};
     if (!r.fullName.trim()) e.fullName = "Add the recruiter’s full name.";
     if (!r.jobTitle.trim()) e.jobTitle = "Add a professional designation.";
-    if (r.professionalLinks.linkedin && !safeUrl(r.professionalLinks.linkedin)) e["professionalLinks.linkedin"] = "Use a complete HTTP or HTTPS LinkedIn URL.";
+    if (apiConfig.dataSource === "http") { const parsed = recruiterSchema.safeParse(r); if (!parsed.success) Object.assign(e, validationFields(parsed.error)); }
     setErrors(e);
     if (Object.keys(e).length) return;
-    const ok = await run((s) => s.organization.saveRecruiter(r));
-    if (ok === undefined) return;
-    if (!ok) return toast("Browser storage is full. Your recruiter changes remain unsaved.");
+    const ok = await execute((s) => s.organization.saveRecruiter(r));
+    if (!ok) return;
     discard();
     toast("Recruiter identity saved. Organization details were not changed.");
   };
@@ -77,7 +81,7 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
           <LinkButton href={"/recruiter/profile/preview?id=" + member.id} variant="sm" icon="eye">
             Preview Profile
           </LinkButton>
-          <button form="org-recruiter-form" type="submit" className="btn primary sm" disabled={!editable}>
+          <button form="org-recruiter-form" type="submit" className="btn primary sm" disabled={!editable || pending || uploads.busy}>
             Save Changes
           </button>
         </div>
@@ -90,6 +94,7 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
         )}
         <form
           id="org-recruiter-form"
+          noValidate
           className="org-form"
           data-id={member.id}
           onSubmit={(e) => {
@@ -130,7 +135,7 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
                         const file = e.target.files?.[0];
                         e.target.value = "";
                         if (!file || !guard()) return;
-                        const images = await uploads.load([file], uploads.limits.photo);
+                        const images = await uploads.load([file], uploads.limits.photo, "recruiter_photo");
                         if (images) update((d) => void (d.avatarUrl = images[0].url));
                       }}
                     />

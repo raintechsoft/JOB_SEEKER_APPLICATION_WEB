@@ -2,6 +2,8 @@ import type { Id, Professional, ProfessionalDetails, ProfileCollection, ProfileR
 import type { CompletionItem } from "@/lib/domain/profile";
 
 export interface ProfileView {
+  version?: number;
+  onboardingStep?: number;
   person: Professional;
   details: ProfessionalDetails;
   completion: { percent: number; items: CompletionItem[] };
@@ -14,14 +16,14 @@ export type SaveResult = { ok: true } | { ok: false; error: string };
 
 export interface ProfileService {
   getProfile(): Promise<ProfileView>;
-  saveRecord(collection: ProfileCollection, record: ProfileRecord): Promise<SaveResult>;
-  deleteRecord(collection: ProfileCollection, id: Id): Promise<void>;
-  moveRecord(collection: ProfileCollection | "projects", id: Id, offset: -1 | 1): Promise<void>;
-  toggleFeaturedSkill(id: Id): Promise<void>;
-  saveSection(section: ProfileSection, values: Record<string, string | boolean>): Promise<SaveResult>;
-  setPhoto(file: File): Promise<SaveResult>;
-  useDefaultPhoto(): Promise<void>;
-  uploadResume(file: File): Promise<SaveResult>;
+  saveRecord(collection: ProfileCollection, record: ProfileRecord, revision?: number): Promise<SaveResult>;
+  deleteRecord(collection: ProfileCollection, id: Id, revision?: number): Promise<void>;
+  moveRecord(collection: ProfileCollection | "projects", id: Id, offset: -1 | 1, revision?: number): Promise<void>;
+  toggleFeaturedSkill(id: Id, revision?: number): Promise<void>;
+  saveSection(section: ProfileSection, values: Record<string, string | boolean>, revision?: number): Promise<SaveResult>;
+  setPhoto(file: File, revision?: number): Promise<SaveResult>;
+  useDefaultPhoto(revision?: number): Promise<void>;
+  uploadResume(file: File, revision?: number): Promise<SaveResult>;
   downloadResume(): Promise<{ name: string; blob: Blob } | null>;
-  removeResume(): Promise<SaveResult>;
+  removeResume(revision?: number): Promise<SaveResult>;
 }

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import {apiConfig} from "@/services/api/config";
 import type { Id } from "@/types/domain";
 import type { FeedFilter, FeedSort } from "@/services/feed/feed.service";
 import type { MessageFilter } from "@/services/messaging/messaging.service";
@@ -40,7 +41,7 @@ interface UiState {
 export const useUiStore = create<UiState>((set) => ({
   feed: { filter: "all", sort: "recent", query: "", visible: 12, openComments: [], expanded: [] },
   jobsPanel: { view: "all", mobileOpen: false },
-  messaging: { query: "", filter: "all", mobileChat: false, conversation: "conv0" },
+  messaging: { query: "", filter: "all", mobileChat: false, conversation: apiConfig.dataSource==="http"?null:"conv0" },
   talent: EMPTY_TALENT_FILTERS,
   shortlistTab: "s0",
   compared: ["p0", "p3"],

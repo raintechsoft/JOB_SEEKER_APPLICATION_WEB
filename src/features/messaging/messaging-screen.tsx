@@ -1,8 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { create } from "zustand";
-import type { MessageAttachment, Role } from "@/types/domain";
+import type { Role } from "@/types/domain";
 import type { ConversationFlag, ConversationView, MessageFilter } from "@/services/messaging/messaging.service";
 import { formatDay, formatTime } from "@/lib/utils/date";
 import { readAsDataUrl } from "@/lib/utils/files";
@@ -18,6 +17,13 @@ import { Avatar, Button, EmptyState, IconButton } from "@/components/ui/primitiv
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingInput, SelectField, TextAreaField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
+import {useDrafts,EMPTY_DRAFT} from "./draft-store";
+import {apiConfig} from "@/services/api/config";
+import {messageSchema,reportSchema,validateMessageFile} from "@/lib/validation/communication";
+import {useFormAction} from "@/hooks/use-form-action";
+import {useServices} from "@/hooks/use-services";
+import {usePathname,useRouter,useSearchParams} from "next/navigation";
+import {z} from "zod";
 
 const EMOJIS = ["😀", "😊", "👋", "👍", "👏", "🎉", "❤️", "💡", "🚀", "🙏", "✅", "✨"];
 const FILTERS: [MessageFilter, string][] = [
@@ -28,55 +34,42 @@ const FILTERS: [MessageFilter, string][] = [
   ["archived", "Archived"],
 ];
 
-interface Draft {
-  text: string;
-  files: MessageAttachment[];
-  busy: boolean;
-}
-const EMPTY_DRAFT: Draft = { text: "", files: [], busy: false };
-
-/** Unsent drafts per role and conversation, kept for the session as in the prototype. */
-const useDrafts = create<{ drafts: Record<string, Draft>; patch: (key: string, patch: Partial<Draft>) => void; clear: (key: string) => void }>((set) => ({
-  drafts: {},
-  patch: (key, patch) => set((st) => ({ drafts: { ...st.drafts, [key]: { ...(st.drafts[key] ?? EMPTY_DRAFT), ...patch } } })),
-  clear: (key) =>
-    set((st) => {
-      const next = { ...st.drafts };
-      delete next[key];
-      return { drafts: next };
-    }),
-}));
-
 function ReportForm({ role, c }: { role: Role; c: ConversationView }) {
-  const run = useServiceAction();
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
   return (
     <form
       id="message-report-form"
       className="stack"
+      noValidate
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        await run((s) => s.messaging.report(role, c.id, String(f.get("reason") || ""), String(f.get("details") || "")));
+        const parsed=reportSchema.safeParse({reason:String(f.get("reason")||""),details:String(f.get("details")||"")});
+        if(!parsed.success){setErrors(Object.fromEntries(parsed.error.issues.map((i)=>[String(i.path[0]),i.message])));return;}
+        if(!await execute((s)=>s.messaging.report(role,c.id,parsed.data.reason,parsed.data.details)))return;
         modal.close();
         toast(devCopy("Report recorded in this browser demo.", "Report submitted."));
       }}
     >
       <h3>{c.contact.name}</h3>
-      <SelectField label="Reason" name="reason" defaultValue="Spam or unwanted messages" options={["Spam or unwanted messages", "Harassment", "Misleading job or identity", "Other"]} />
-      <TextAreaField label="Additional details (optional)" name="details" maxLength={1500} />
+      {errors._form&&<p role="alert" className="error">{errors._form}</p>}
+      <SelectField label="Reason" name="reason" defaultValue="Spam or unwanted messages" options={["Spam or unwanted messages", "Harassment", "Misleading job or identity", "Other"]} error={errors.reason} disabled={pending}/>
+      <TextAreaField label="Additional details (optional)" name="details" maxLength={1500} error={errors.details} disabled={pending}/>
       <p className="notice">{devCopy("Reports are recorded only in this browser demo. Blocking prevents you from sending messages in this conversation until you unblock it.", "Blocking prevents you from sending messages in this conversation until you unblock it.")}</p>
       <div className="modal-footer">
         <Button
           variant="danger"
           onClick={async () => {
-            const blocked = await run((s) => s.messaging.toggleFlag(role, c.id, "blockedBy"));
+            const blocked=!c.flags.blocked;
+            if(!await execute(async(s)=>{await s.messaging.toggleFlag(role,c.id,"blockedBy");return true;}))return;
             modal.close();
             toast(blocked ? devCopy("Conversation blocked locally.", "Conversation blocked.") : "Conversation unblocked.");
           }}
         >
           {c.flags.blocked ? "Unblock" : "Block"}
         </Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" disabled={pending}>
           {devCopy("Save demo report", "Submit report")}
         </Button>
       </div>
@@ -140,11 +133,28 @@ function ConversationMenu({ c, onFlag, onUnread, onReport, onDelete }: { c: Conv
 
 export function MessagingScreen({ role }: { role: Role }) {
   const run = useServiceAction();
+  const services=useServices();
+  const real=apiConfig.dataSource==="http";
+  const params=useSearchParams(),router=useRouter(),pathname=usePathname();
+  const requested=params.get("conversation");
+  const [historyLimit,setHistoryLimit]=useState(50);
+  const readAcknowledged=useRef("");
+  const [error,setError]=useState("");
   const recruiter = role === "recruiter";
   const { query, filter, mobileChat, conversation } = useUiStore((s) => s.messaging);
   const setMessaging = useUiStore((s) => s.setMessaging);
-  const { data } = useServiceQuery(["messaging", role, query, filter, conversation], (s) => s.messaging.getInbox(role, { q: query, filter, selectedId: conversation }));
+  const { data,isError,refetch } = useServiceQuery(["messaging", role, query, filter, conversation], (s) => s.messaging.getInbox(role, { q: query, filter, selectedId: conversation }),{refetchInterval:real?10000:undefined,keepPreviousData:false});
   const c = data?.selected ?? null;
+  const historyPage=useServiceQuery(["message-history",role,c?.id,historyLimit],(s)=>s.messaging.getHistory!(role,c!.id,historyLimit),{enabled:real&&!!c,refetchInterval:real?(historyLimit>50?30000:10000):undefined,keepPreviousData:false});
+  const messages=historyPage.isError?[]:historyPage.data?.messages??c?.messages??[];
+  const readSequence=historyPage.data?.readSequence??c?.readSequence;
+  useEffect(()=>{if(!real||!requested||!z.uuid().safeParse(requested).success)return;setMessaging({conversation:requested,mobileChat:true});router.replace(pathname,{scroll:false});},[real,requested,router,pathname,setMessaging]);
+  useEffect(()=>{
+    if(!real||!c||readSequence===undefined)return;
+    const id=c.id,sequence=readSequence;
+    const acknowledge=()=>{if(document.visibilityState!=="visible"||!mobileChat&&!window.matchMedia("(min-width: 768px)").matches)return;const key=`${role}:${id}:${sequence}`;if(readAcknowledged.current===key)return;readAcknowledged.current=key;void services.messaging.markRead(role,id,sequence).catch(()=>{readAcknowledged.current="";});};
+    acknowledge();document.addEventListener("visibilitychange",acknowledge);return()=>document.removeEventListener("visibilitychange",acknowledge);
+  },[real,c?.id,readSequence,mobileChat,role,services,c]);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const history = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -175,11 +185,14 @@ export function MessagingScreen({ role }: { role: Role }) {
 
   const select = async (id: string) => {
     setMessaging({ conversation: id, mobileChat: true });
+    setHistoryLimit(50);
+    if(real){if(c?.id===id&&readSequence!==undefined)await run((s)=>s.messaging.markRead(role,id,readSequence));return;}
     await run((s) => s.messaging.markRead(role, id));
   };
   const flag = async (key: ConversationFlag) => {
     if (!c) return;
     const on = await run((s) => s.messaging.toggleFlag(role, c.id, key));
+    if(on===undefined)return;
     if (key === "mutedBy") toast(on ? devCopy("Conversation muted in this demo.", "Conversation muted.") : "Conversation unmuted.");
     if (key === "archivedBy") {
       setMessaging({ conversation: null, mobileChat: false });
@@ -195,13 +208,16 @@ export function MessagingScreen({ role }: { role: Role }) {
   };
   const attach = async (file: File | undefined, image: boolean) => {
     if (!file || !c || !draft) return;
+    if(useDrafts.getState().drafts[draftKey]?.busy)return;
+    if(real){const issue=validateMessageFile(file,draft.files.length,image);if(issue){setError(issue);return;}}
     if (draft.files.length >= 3) return toast("Attach up to three files per message.");
     if (image && !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) return toast("Choose a PNG, JPEG, WebP, or GIF image.");
     if (file.size > (image ? 1 : 2) * 1024 * 1024) return toast(image ? "Choose an image up to 1 MB." : "Choose a file up to 2 MB.");
     const key = draftKey;
     patchDraft(key, { busy: true });
     try {
-      const attachment = { id: uid(), name: file.name, type: file.type, size: file.size, data: await readAsDataUrl(file), image };
+      const asset=real?await services.media.upload(file,"message_attachment"):null;
+      const attachment = { id: asset?.id??uid(), name: file.name, type: file.type, size: file.size, data: asset?.url??await readAsDataUrl(file), image };
       patchDraft(key, { files: [...(useDrafts.getState().drafts[key]?.files ?? []), attachment] });
     } catch {
       toast("That file could not be read. Please try again.");
@@ -210,11 +226,14 @@ export function MessagingScreen({ role }: { role: Role }) {
     }
   };
   const send = async () => {
-    if (!c || !draft || draft.busy || c.flags.blocked) return;
+    if (!c || !draft || draft.busy || useDrafts.getState().drafts[draftKey]?.busy || c.flags.blocked || c.canSend===false) return;
     const text = draft.text.trim();
-    if (!text && !draft.files.length) return;
-    const ok = await run((s) => s.messaging.send(role, c.id, text, draft.files));
+    if(real){const parsed=messageSchema.safeParse({text,attachments:draft.files});if(!parsed.success){setError(parsed.error.issues[0].message);return;}}
+    if (!text && !draft.files.length) {setError("Write a message or attach a file.");return;}
+    setError("");patchDraft(draftKey,{busy:true});
+    const ok = await run((s) => s.messaging.send(role, c.id, text, draft.files),{invalidate:["messaging","message-history","messaging-unread","notifications"]});
     if (!ok) {
+      patchDraft(draftKey,{busy:false});setError("Your message could not be sent. Your draft is kept here; retry when ready.");
       if (ok === false) toast("Browser storage is full. Remove an attachment or choose a smaller file. Your draft is kept.");
       return;
     }
@@ -228,6 +247,9 @@ export function MessagingScreen({ role }: { role: Role }) {
   let previousDay = "";
   return (
     <section className={"messaging-workspace" + (mobileChat ? " show-direct-message" : "")} aria-label="Messaging">
+      {real&&requested&&!z.uuid().safeParse(requested).success&&<p role="alert">This conversation link is invalid.</p>}
+      {isError&&<p role="alert">Messages could not be loaded. <Button onClick={()=>void refetch()}>Try again</Button></p>}
+      {error&&<p role="alert" className="error" id="message-error">{error}</p>}
       <header className="messaging-top">
         <h1>Messaging</h1>
         <label className="messaging-search">
@@ -305,7 +327,7 @@ export function MessagingScreen({ role }: { role: Role }) {
                 c={c}
                 onFlag={flag}
                 onUnread={async () => {
-                  await run((s) => s.messaging.markUnread(role, c.id));
+                  const ok=await run(async(s)=>{await s.messaging.markUnread(role,c.id);return true;});if(!ok)return;
                   toast("Conversation marked as unread.");
                 }}
                 onReport={() => modal.show("Report / Block", <ReportForm role={role} c={c} />)}
@@ -314,7 +336,7 @@ export function MessagingScreen({ role }: { role: Role }) {
                     "Delete conversation?",
                     devCopy("This removes the conversation from your inbox in this browser. It will remain available in the other demo workspace.", "This removes the conversation from your inbox."),
                     async () => {
-                      await run((s) => s.messaging.toggleFlag(role, c.id, "deletedBy"));
+                      const ok=await run((s) => s.messaging.toggleFlag(role, c.id, "deletedBy"));if(ok===undefined)return;
                       clearDraft(role + ":" + c.id);
                       setMessaging({ conversation: null, mobileChat: false });
                       modal.close();
@@ -330,8 +352,10 @@ export function MessagingScreen({ role }: { role: Role }) {
               </button>
             </header>
             <div className="direct-message-history" id="chat-history" role="log" aria-label="Message history" aria-live="polite" ref={history}>
-              {c.messages.length ? (
-                c.messages.map((m, i) => {
+              {historyPage.isError&&<p role="alert">Message history could not be loaded. <Button onClick={()=>void historyPage.refetch()}>Try again</Button></p>}
+              {historyPage.data?.nextBefore&&historyLimit<500&&<Button disabled={historyPage.isFetching} onClick={()=>setHistoryLimit((n)=>n+50)}>Load earlier messages</Button>}
+              {messages.length ? (
+                messages.map((m, i) => {
                   const d = formatDay(m.time);
                   const divider = previousDay !== d;
                   previousDay = d;
@@ -380,11 +404,13 @@ export function MessagingScreen({ role }: { role: Role }) {
                 <div className="message-start-hint">A thoughtful conversation starts with a simple hello.</div>
               )}
             </div>
+            {c.canSend===false&&!c.flags.blocked&&<p role="status">Messaging is currently unavailable for this contact. Your previous messages remain available.</p>}
             <form
               id="message-form"
               className="message-composer"
               data-no-floating-label
-              inert={c.flags.blocked}
+              inert={c.flags.blocked||c.canSend===false}
+              noValidate
               onSubmit={(e) => {
                 e.preventDefault();
                 void send();
@@ -398,10 +424,12 @@ export function MessagingScreen({ role }: { role: Role }) {
                 ref={textRef}
                 name="text"
                 rows={3}
-                maxLength={2000}
+                maxLength={real?4000:2000}
                 placeholder={c.flags.blocked ? "Unblock this conversation to reply" : "Write a message..."}
                 aria-label="Write a message"
-                disabled={c.flags.blocked}
+                disabled={c.flags.blocked||c.canSend===false||draft.busy}
+                aria-invalid={!!error}
+                aria-describedby={error?"message-error":undefined}
                 defaultValue={draft.text}
                 key={c.id}
                 onInput={(e) => patchDraft(draftKey, { text: e.currentTarget.value })}
@@ -459,7 +487,7 @@ export function MessagingScreen({ role }: { role: Role }) {
                   </div>
                 </div>
                 <span className="message-composer-hint">{draft.busy ? "Adding attachment…" : "Enter for a new line"}</span>
-                <button id="message-send" className="btn primary" type="submit" disabled={(!draft.text.trim() && !draft.files.length) || draft.busy || c.flags.blocked}>
+                <button id="message-send" className="btn primary" type="submit" disabled={(!draft.text.trim() && !draft.files.length) || draft.busy || c.flags.blocked||c.canSend===false}>
                   Send <Icon name="send" />
                 </button>
               </div>

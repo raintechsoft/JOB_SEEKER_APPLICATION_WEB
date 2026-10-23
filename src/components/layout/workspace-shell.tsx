@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Role } from "@/types/domain";
 import { track } from "@/lib/analytics";
 import { devCopy } from "@/lib/env/app-env";
 import { workspaceTitle } from "@/lib/routing/titles";
-import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
+import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { useNavigationDock } from "@/hooks/use-navigation-dock";
 import { useUiStore } from "@/stores/ui-store";
 import { toast } from "@/stores/toast-store";
@@ -16,6 +17,11 @@ import { FloatingInput } from "@/components/ui/field";
 import { Avatar, Brand, IconButton } from "@/components/ui/primitives";
 import { workspaceDialogs } from "@/features/workspace/dialogs";
 import { useNetworkSheet } from "@/features/feed/network-sheet";
+import { apiConfig } from "@/services/api/config";
+import { RealWorkspace } from "@/features/auth/real-workspace";
+import { clearIdentityState } from "@/features/auth/clear-identity-state";
+import { WorkspaceAccessGate } from "@/features/auth/workspace-access-gate";
+import type { Workspace } from "@/services/auth/auth.service";
 
 interface NavItem {
   href: string;
@@ -88,10 +94,47 @@ function AccountMenu({ person, children }: { person: { id: string; name: string;
   );
 }
 
+function WorkspaceSwitch({ kind }: { kind: Role }) {
+  const router = useRouter();
+  const cache = useQueryClient();
+  const { auth } = useServices();
+  const session = useServiceQuery(["auth", "session"], (s) => s.auth.me(), { enabled: apiConfig.dataSource === "http" });
+  const href = kind === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard";
+  const label = kind === "recruiter" ? "Switch to recruiter" : "Switch to professional";
+  if (apiConfig.dataSource !== "http") {
+    return (
+      <Link href={href}>
+        <Icon name="compare" />
+        {label}
+      </Link>
+    );
+  }
+  const workspace = session.data?.workspaces.find((item: Workspace) => item.kind === kind);
+  if (!workspace) return null;
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        const next = await auth.selectWorkspace(workspace.id);
+        clearIdentityState();
+        cache.clear();
+        cache.setQueryData(["auth", "session"], next);
+        router.push(href);
+      }}
+    >
+      <Icon name="compare" />
+      {label}
+    </button>
+  );
+}
+
 function useLogout() {
   const run = useServiceAction();
   const router = useRouter();
+  const cache = useQueryClient();
+  const services = useServices();
   return async () => {
+    if (apiConfig.dataSource === "http") { await services.auth.logout(); clearIdentityState(); cache.clear(); router.push("/login"); return; }
     await run((s) => s.workspace.signOut());
     router.push("/");
     toast(devCopy("You’ve left the demo workspace. Local changes are kept.", "You’ve signed out."));
@@ -102,7 +145,7 @@ function useLogout() {
 function useWorkspaceRole(role: Role, enabled: boolean) {
   const run = useServiceAction();
   useEffect(() => {
-    if (enabled) void run((s) => s.workspace.setRole(role), { refresh: false });
+    if (enabled && apiConfig.dataSource === "mock") void run((s) => s.workspace.setRole(role), { refresh: false });
   }, [role, enabled, run]);
 }
 
@@ -139,13 +182,14 @@ const PROFESSIONAL_NAV: [string, string, IconName][] = [
   ["messages", "Messages", "message"],
 ];
 
-export function ProfessionalShell({ children }: { children: ReactNode }) {
+function MockProfessionalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { data } = useServiceQuery(["shell", "professional"], (s) => s.workspace.getProfessionalShell());
+  const {data:unreadCount}=useServiceQuery(["messaging-unread","professional"],(s)=>s.messaging.getUnreadCount!("professional"),{enabled:apiConfig.dataSource==="http",refetchInterval:10000});
   const logout = useLogout();
   const network = useNetworkSheet();
   useWorkspaceRole("professional", pathname.startsWith("/app"));
-  const nav = PROFESSIONAL_NAV.map(([slug, label, icon]) => ({ href: "/app/" + slug, label, icon, active: pathname.startsWith("/app/" + slug), unread: slug === "messages" ? data?.unreadConversations : undefined }));
+  const nav = PROFESSIONAL_NAV.map(([slug, label, icon]) => ({ href: "/app/" + slug, label, icon, active: pathname.startsWith("/app/" + slug), unread: slug === "messages" ? unreadCount??data?.unreadConversations : undefined }));
   return (
     <WorkspaceFrame
       recruiter={false}
@@ -167,10 +211,8 @@ export function ProfessionalShell({ children }: { children: ReactNode }) {
             <Icon name="users" />
             Manage following
           </button>
-          <Link href="/recruiter/dashboard">
-            <Icon name="compare" />
-            Switch to recruiter
-          </Link>
+          <WorkspaceSwitch kind="recruiter" />
+          {apiConfig.dataSource === "http" && <Link href="/app/account">Account and workspace access</Link>}
           <Link href="/">
             <Icon name="globe" />
             Back to website
@@ -205,15 +247,16 @@ const RECRUITER_MENU: [string, string, IconName][] = [
   ["compare", "Compare Candidates", "compare"],
 ];
 
-export function RecruiterShell({ children }: { children: ReactNode }) {
+function MockRecruiterShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { data } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
+  const {data:unreadCount}=useServiceQuery(["messaging-unread","recruiter"],(s)=>s.messaging.getUnreadCount!("recruiter"),{enabled:apiConfig.dataSource==="http",refetchInterval:10000});
   const logout = useLogout();
   const network = useNetworkSheet();
   useWorkspaceRole("recruiter", true);
   const nav = RECRUITER_NAV.map(([slug, label, icon]) => {
     const active = pathname === "/recruiter/" + slug || (slug === "applications" && pathname.startsWith("/recruiter/jobs"));
-    return { href: "/recruiter/" + slug, label, icon, active, unread: slug === "messages" ? data?.unreadConversations : undefined };
+    return { href: "/recruiter/" + slug, label, icon, active, unread: slug === "messages" ? unreadCount??data?.unreadConversations : undefined };
   });
   return (
     <WorkspaceFrame
@@ -236,10 +279,8 @@ export function RecruiterShell({ children }: { children: ReactNode }) {
             <Icon name="users" />
             Manage following
           </button>
-          <Link href="/app/dashboard">
-            <Icon name="compare" />
-            Switch to professional
-          </Link>
+          <WorkspaceSwitch kind="professional" />
+          {apiConfig.dataSource === "http" && <Link href="/recruiter/access">Team and workspace access</Link>}
           <Link href="/">
             <Icon name="globe" />
             Back to website
@@ -254,4 +295,19 @@ export function RecruiterShell({ children }: { children: ReactNode }) {
       {children}
     </WorkspaceFrame>
   );
+}
+
+export function ProfessionalShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  if (!pathname.startsWith("/app/")) return <>{children}</>;
+  const connected = ["/app/messages", "/app/settings", "/app/dashboard", "/app/posts/new", "/app/updates", "/app/profile", "/app/projects", "/app/work-pulse", "/app/portfolio", "/app/portfolio/preview", "/app/applications", "/app/jobs"].includes(pathname);
+  if(apiConfig.dataSource === "http") return connected ? <WorkspaceAccessGate role="professional"><MockProfessionalShell>{children}</MockProfessionalShell></WorkspaceAccessGate> : <RealWorkspace role="professional"/>;
+  return <MockProfessionalShell>{children}</MockProfessionalShell>;
+}
+
+export function RecruiterShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const connected = ["/recruiter/messages", "/recruiter/dashboard", "/recruiter/posts/new", "/recruiter/activity", "/recruiter/company", "/recruiter/company/preview", "/recruiter/organization", "/recruiter/profile", "/recruiter/profile/preview", "/recruiter/jobs/new", "/recruiter/jobs", "/recruiter/applications", "/recruiter/discover", "/recruiter/shortlists", "/recruiter/compare", "/recruiter/overview"].includes(pathname) || pathname.startsWith("/recruiter/team/") || pathname.startsWith("/recruiter/talent/");
+  if(apiConfig.dataSource === "http") return connected ? <WorkspaceAccessGate role="recruiter"><MockRecruiterShell>{children}</MockRecruiterShell></WorkspaceAccessGate> : <RealWorkspace role="recruiter"/>;
+  return <MockRecruiterShell>{children}</MockRecruiterShell>;
 }

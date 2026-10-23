@@ -21,6 +21,7 @@ export interface RecruiterOnboardingInput {
 }
 
 export interface OnboardingService {
+  saveStage(step: number, input: Record<string, unknown>, version: number): Promise<import("../profile/profile.service").ProfileView>;
   saveProfessionalStep(input: OnboardingProfileInput): Promise<void>;
   /** SIMULATED CV PARSING: loads fixed sample details; the selected file is never read. */
   loadSampleCv(): Promise<void>;

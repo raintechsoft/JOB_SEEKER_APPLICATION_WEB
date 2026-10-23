@@ -2,7 +2,7 @@
 
 import type { ChangeEvent } from "react";
 import type { VerificationStatus } from "@/types/domain";
-import { isDevelopment } from "@/lib/env/app-env";
+import { isPrototype } from "@/lib/env/app-env";
 import { Icon } from "@/components/ui/icon";
 import { Button, IconButton } from "@/components/ui/primitives";
 import { FloatingInput, FloatingSelect, FloatingTextArea, type Option } from "@/components/ui/field";
@@ -187,7 +187,7 @@ export function VerificationBadge({ status }: { status: VerificationStatus }) {
     <span className={"org-status " + cls}>
       <Icon name={status === "Verified" ? "shield" : status === "Action required" ? "help" : "clock"} />
       {status}
-      {status === "Verified" && isDevelopment ? " · Demo" : ""}
+      {status === "Verified" && isPrototype ? " · Demo" : ""}
     </span>
   );
 }

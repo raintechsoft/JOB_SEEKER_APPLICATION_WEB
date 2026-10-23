@@ -7,6 +7,7 @@ import type { PersonSummary } from "@/types/api";
 import type { Role } from "@/types/domain";
 import type { FeedFilter } from "@/services/feed/feed.service";
 import { track } from "@/lib/analytics";
+import { apiConfig } from "@/services/api/config";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { toast } from "@/stores/toast-store";
@@ -24,7 +25,7 @@ export function ProfileColumn() {
   const [showProfile, setShowProfile] = useState(false);
   const network = useNetworkSheet();
   const { data } = useServiceQuery(["feed", "summary"], (s) => s.workspace.getProfessionalSummary());
-  const { data: pulse } = useServiceQuery(["pulse", "p0", 91], (s) => s.work.getPulse("p0", 91));
+  const { data: pulse } = useServiceQuery(["pulse", "feed", 91], (s) => s.work.getPulse(apiConfig.dataSource === "http" ? "me" : "p0", 91));
   if (!data) return <aside className="feed-profile-column" aria-label="Your profile and activity" tabIndex={0} />;
   const p = data.person;
   return (
@@ -84,7 +85,7 @@ export function ProfileColumn() {
         </div>
         <p>Small steps, a bigger story.</p>
         <span className="feed-pulse-range">Last 3 months</span>
-        {pulse && <Heatmap pulse={pulse} ownerId="p0" />}
+        {pulse && <Heatmap pulse={pulse} ownerId={apiConfig.dataSource==="http"?"me":"p0"} />}
         <div className="feed-pulse-total">
           <strong>{data.pulseDays}</strong>
           <span>days of recorded progress</span>
@@ -234,10 +235,11 @@ export function FeedToolbar({ tabs, onFilter }: { tabs: [FeedFilter, string, boo
           id="feed-sort"
           aria-label="Sort feed"
           value={sort}
-          onChange={(e) => setFeed({ sort: e.target.value as "recent" | "popular" })}
+          onChange={(e) => setFeed({ sort: e.target.value as "recent" | "popular" | "recommended" })}
           options={[
             { value: "recent", label: "Recent" },
             { value: "popular", label: "Most liked" },
+            ...(apiConfig.dataSource==="http"?[{value:"recommended",label:"For you: follows & skills"}]:[]),
           ]}
         />
       </label>

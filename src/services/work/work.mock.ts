@@ -15,6 +15,7 @@ function refreshCompletion(db: Draft<DemoDatabase>) {
 }
 
 export function buildPulse(db: DemoDatabase, ownerId: Id, days: number): Pulse {
+  if (ownerId === "me") ownerId = ME_ID;
   const updates = updatesFor(db, ownerId);
   const end = new Date(today() + "T12:00:00");
   const total = Math.ceil(days / 7) * 7;
@@ -34,6 +35,7 @@ export function buildPulse(db: DemoDatabase, ownerId: Id, days: number): Pulse {
 
 export const mockWorkService: WorkService = {
   async listProjects({ ownerId, category, visibility, q }) {
+    if (ownerId === "me") ownerId = ME_ID;
     const query = (q || "").trim().toLowerCase();
     return projectsFor(getDb(), ownerId)
       .filter((p) => (!category || p.category === category) && (!visibility || p.visibility === visibility) && (!query || [p.title, p.description, ...p.skills].join(" ").toLowerCase().includes(query)))
@@ -106,7 +108,7 @@ export const mockWorkService: WorkService = {
   },
 
   async listUpdates(ownerId, options = {}) {
-    let list = updatesFor(getDb(), ownerId);
+    let list = updatesFor(getDb(), ownerId === "me" ? ME_ID : ownerId);
     if (options.publicOnly) list = list.filter((u) => u.visibility === "Public");
     if (options.date) list = list.filter((u) => u.date === options.date);
     return options.limit ? list.slice(0, options.limit) : list;

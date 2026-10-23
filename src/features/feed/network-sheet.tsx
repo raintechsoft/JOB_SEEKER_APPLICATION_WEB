@@ -18,9 +18,10 @@ type Tab = "following" | "followers";
 function NetworkPanel({ role }: { role: Role }) {
   const [tab, setTab] = useState<Tab>("following");
   const run = useServiceAction();
-  const { data } = useServiceQuery(["network", role], (s) => s.feed.getNetwork(role));
+  const { data, isError, refetch } = useServiceQuery(["network", role], (s) => s.feed.getNetwork(role));
   const tabsRef = useRef<HTMLDivElement>(null);
-  if (!data) return null;
+  if (isError) return <p role="alert">Your network could not be loaded. <button type="button" onClick={()=>void refetch()}>Try again</button></p>;
+  if (!data) return <p role="status">Loading your network…</p>;
   const count = data.following.length + data.companies.length;
   const isFollowing = tab === "following";
 
@@ -37,7 +38,7 @@ function NetworkPanel({ role }: { role: Role }) {
   };
 
   const personRow = (p: NetworkPerson) => {
-    const href = role === "recruiter" ? "/recruiter/talent/" + p.id : "/professionals/" + p.slug;
+    const href = p.recruiter ? "/recruiters/" + p.id : role === "recruiter" ? "/recruiter/talent/" + p.id : "/professionals/" + p.slug;
     return (
       <li className="network-row" key={p.id}>
         <Link className="network-avatar" href={href} aria-label={`View ${p.name} profile`}>

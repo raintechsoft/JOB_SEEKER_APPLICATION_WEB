@@ -12,6 +12,7 @@ import { FeedToolbar, NetworkPrompt, ProfessionalComposer, ProfileColumn } from 
 import { JobsPanel } from "./jobs-panel";
 import { useNetworkSheet } from "./network-sheet";
 import { useFeedParams } from "./use-feed-params";
+import { PermalinkEntry } from "./permalink-entry";
 
 const TABS: [FeedFilter, string, boolean][] = [
   ["all", "For you", true],
@@ -29,7 +30,7 @@ export function ProfessionalFeedScreen() {
   const network = useNetworkSheet();
   useFeedParams("professional");
   const { data: shell } = useServiceQuery(["shell", "professional"], (s) => s.workspace.getProfessionalShell());
-  const { data } = useServiceQuery(["feed", "professional", feed.filter, feed.sort, feed.query, feed.visible], (s) => s.feed.getFeed({ role: "professional", filter: feed.filter, sort: feed.sort, q: feed.query, limit: feed.visible }));
+  const { data, isError, refetch } = useServiceQuery(["feed", "professional", feed.filter, feed.sort, feed.query, feed.visible], (s) => s.feed.getFeed({ role: "professional", filter: feed.filter, sort: feed.sort, q: feed.query, limit: feed.visible }));
 
   useEffect(() => {
     if (!highlight || !data) return;
@@ -70,6 +71,8 @@ export function ProfessionalFeedScreen() {
           )}
         </div>
         <div id="feed-post-list" className="feed-post-list">
+          {isError && <p role="alert">The feed could not be loaded. <Button onClick={()=>void refetch()}>Try again</Button></p>}
+          {highlight && data && !data.items.some((entry)=>entry.id===highlight) && <PermalinkEntry key={highlight} id={highlight} role="professional" />}
           {data && (
             <>
               <div className="feed-results-label">

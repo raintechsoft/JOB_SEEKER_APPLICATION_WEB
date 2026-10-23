@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { trackingSchema } from "@/lib/validation/application";
+import { validationFields } from "@/lib/validation/profile";
+import { useFormAction } from "@/hooks/use-form-action";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ApplicationStatus, Id } from "@/types/domain";
 import { APPLICATION_STATUSES, type AlertRecord, type ApplicationRecord, type SavedJobRecord } from "@/services/applications/applications.service";
@@ -28,7 +32,8 @@ function Logo({ companyId }: { companyId?: string }) {
 }
 
 function TrackingForm({ a }: { a: ApplicationRecord }) {
-  const run = useServiceAction();
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const {execute,pending}=useFormAction(setErrors);
   return (
     <form
       id="application-tracking-form"
@@ -36,7 +41,9 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        await run((s) => s.applications.updateTracking(a.id, { status: String(f.get("status")) as ApplicationStatus, followUp: String(f.get("followUp") || ""), trackingNote: String(f.get("trackingNote") || "").trim() }));
+        const checked=trackingSchema.safeParse({ status: String(f.get("status")), followUp: String(f.get("followUp") || ""), trackingNote: String(f.get("trackingNote") || "").trim() });
+        if(!checked.success)return setErrors(validationFields(checked.error));
+        if(!await execute((s)=>s.applications.updateTracking(a.id,{...checked.data,version:a.version})))return;
         modal.close();
         toast("Application tracking saved.");
       }}
@@ -47,13 +54,14 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
           {a.jobRef?.companyName ?? "Company unavailable"} · Applied {demoDate(a.createdAt)}
         </p>
       </div>
-      <SelectField label="Current status" name="status" defaultValue={a.status} options={APPLICATION_STATUSES} />
-      <TextField label="Follow-up date (optional)" name="followUp" type="date" defaultValue={a.followUp} />
-      <TextAreaField label="Private tracking notes" name="trackingNote" defaultValue={a.trackingNote} maxLength={2500} placeholder="People to contact, interview preparation, or your next step..." />
-      <p className="notice">This is your personal tracking record. Changing a status does not contact the employer or withdraw an application.</p>
+      {errors._form&&<p role="alert">{errors._form}</p>}
+      <SelectField label="Current status" name="status" error={errors.status} defaultValue={a.status} options={APPLICATION_STATUSES} />
+      <TextField label="Follow-up date (optional)" name="followUp" error={errors.followUp} type="date" defaultValue={a.followUp} />
+      <TextAreaField label="Private tracking notes" name="trackingNote" error={errors.trackingNote} defaultValue={a.trackingNote} maxLength={2500} placeholder="People to contact, interview preparation, or your next step..." />
+      <p className="notice">{devCopy("This is your personal tracking record. Changing a status does not contact the employer or withdraw an application.","Notes and tracking stages are private. Selecting Withdrawn permanently withdraws this application from the employer’s workflow.")}</p>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check">
+        <Button type="submit" variant="primary" icon="check" disabled={pending}>
           Save tracking
         </Button>
       </div>
@@ -138,7 +146,7 @@ function useApplicationDialogs() {
     details: (id: Id) => modal.show("Your application, at a glance.", <Details id={id} />),
     remove: (id: Id) =>
       confirmAction("Remove this tracking record?", devCopy("This deletes the application and its notes from this browser. It does not withdraw an application from an employer.", "This deletes the application and its notes from your tracker. It does not withdraw an application from an employer."), async () => {
-        await run((s) => s.applications.remove(id));
+        if(!await run(async(s)=>{await s.applications.remove(id);return true;}))return;
         modal.close();
         toast("Application tracking record removed.");
       }, "Remove record"),
@@ -350,7 +358,7 @@ export function ApplicationsScreen() {
         subtitle="Your opportunities, your progress, and your next steps — in one place."
         actions={
           <>
-            <LinkButton href="/app/dashboard?view=jobs" icon="search">
+            <LinkButton href={devCopy("/app/dashboard?view=jobs","/app/jobs")} icon="search">
               Explore jobs
             </LinkButton>
             <Button variant="primary" icon="bell" onClick={() => alerts.edit()}>

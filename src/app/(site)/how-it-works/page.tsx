@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { LinkButton } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
-import { PulseCard } from "@/components/work/pulse";
+import { PulseCard,IllustrativePulse } from "@/components/work/pulse";
+import {apiConfig} from "@/services/api/config";
 
 export const metadata: Metadata = { title: "how it works" };
 
@@ -60,7 +61,7 @@ export default function HowItWorksPage() {
               Recorded activity is never a productivity score. It does not verify work quality, hours, or employment status.
             </p>
           </div>
-          <PulseCard ownerId="p0" days={182} />
+          {apiConfig.dataSource==="mock"?<PulseCard ownerId="p0" days={182} />:<IllustrativePulse/>}
         </div>
       </section>
       <section className="section">
