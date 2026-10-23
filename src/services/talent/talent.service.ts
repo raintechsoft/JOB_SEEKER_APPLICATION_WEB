@@ -63,6 +63,7 @@ export interface TalentService {
   setCandidateShortlists(candidateId: Id, shortlistIds: Id[], versions?:Record<string,number>): Promise<boolean>;
   compare(ids: Id[]): Promise<ComparisonPerson[]>;
   listPublicPeople(): Promise<PublicProfessional[]>;
+  getRecommendedTalent(): Promise<TalentCardData[]>;
   getOverview(): Promise<RecruiterOverview>;
 }
 

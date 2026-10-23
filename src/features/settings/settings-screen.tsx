@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import {useRef,useState} from "react";
 import { useRouter } from "next/navigation";
 import {useQueryClient} from "@tanstack/react-query";
@@ -25,7 +27,7 @@ export function SettingsScreen() {
   const cache=useQueryClient();
   const setUi = useUiStore((s) => s.setUi);
   const setOnboarding = useUiStore((s) => s.setOnboarding);
-  const { data } = useServiceQuery(["settings"], (s) => s.workspace.getSettings());
+  const { data, isError, refetch } = useServiceQuery(["settings"], (s) => s.workspace.getSettings());
   const update = async (key: SettingKey, value: boolean) => {
     if(locked.current)return;locked.current=true;setPending(true);
     const ok = await run((s) => s.workspace.updateSetting(key, value));
@@ -64,6 +66,7 @@ export function SettingsScreen() {
       <PageHeading title="A little control goes a long way." subtitle={devCopy("Manage your account, visibility, and demo preferences.", "Manage your account, visibility, and preferences.")} />
       <section className="card form-card">
         <h2>Privacy & visibility</h2>
+        <QueryFeedback data={data} error={isError} retry={refetch} layout="form" label="Loading privacy settings" />
         {data?.moderationHidden&&<p role="status">Your public profile is currently hidden by platform review. Your own visibility preferences are preserved.</p>}
         {rows.map(([title, description, key, value]) => (
           <div className="settings-row" key={key}>

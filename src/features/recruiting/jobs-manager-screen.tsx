@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import Link from "next/link";
 import { useRef,useState } from "react";
 import {collaborationSchema} from "@/lib/validation/application";
@@ -167,7 +169,7 @@ function Collaborate({ jobs }: { jobs: ManagedJob[] }) {
       </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
           Save collaboration
         </Button>
       </div>
@@ -326,7 +328,7 @@ export function JobsManagerScreen() {
   const drafts = params.get("tab") === "drafts";
   const size = [10, 20, 40, 60].includes(Number(params.get("size"))) ? Number(params.get("size")) : 10;
   const query = { drafts, q: params.get("q") || "", statuses: params.getAll("status"), categories: params.getAll("category"), location: params.get("location") || "", days: Number(params.get("days")) || 0, sort: (params.get("sort") || "newest") as "newest", page: Number(params.get("page")) || 1, pageSize: size };
-  const { data: m,isError } = useServiceQuery(["jobs-manager", query], (s) => s.recruiting.listManagedJobs(query),{keepPreviousData:false});
+  const { data: m,isError,refetch } = useServiceQuery(["jobs-manager", query], (s) => s.recruiting.listManagedJobs(query),{keepPreviousData:false});
   const visible = m?.items ?? [];
   const allSelected = visible.length > 0 && visible.every((j) => selected.includes(j.id));
   const toggle = (id: Id, checked: boolean) => setJobsManager({ selected: checked ? [...new Set([...selected, id])] : selected.filter((x) => x !== id) });
@@ -334,7 +336,6 @@ export function JobsManagerScreen() {
 
   return (
     <div className="jobs-responses-workspace">
-      {isError&&<p role="alert">Jobs could not be loaded. Check the filters and your workspace access, then retry.</p>}
       <div className="jobs-manager-layout">
         <PageHeading
           title="Manage Jobs and Responses"
@@ -552,6 +553,7 @@ export function JobsManagerScreen() {
             </label>
           </div>
           <div className="managed-jobs-list">
+          <QueryFeedback data={m} error={isError} retry={refetch} label="Loading managed jobs" />
             {m &&
               (visible.length ? (
                 visible.map((j) => <JobCard key={j.id} job={j} selected={selected.includes(j.id)} onSelect={(c) => toggle(j.id, c)} />)

@@ -1,3 +1,4 @@
+import { MediaImage } from "@/components/ui/media-image";
 import type { CompanySummary } from "@/types/api";
 import type { JobMedia, JobThumbnail } from "@/types/domain";
 import { JOB_THUMBNAIL_TEMPLATES } from "@/lib/domain/jobs";
@@ -14,8 +15,7 @@ export function CompanyAvatar({ company }: { company: CompanySummary }) {
   if (company.logoUrl)
     return (
       <span className={"company-avatar company-" + company.id}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- uploaded logo data URL */}
-        <img src={company.logoUrl} alt={company.name + " logo"} />
+        <MediaImage src={company.logoUrl} alt={company.name + " logo"} />
       </span>
     );
   return (
@@ -41,8 +41,7 @@ export function JobArtwork({ job }: { job: JobVisualData }) {
   if (thumb.image && isInlineImage(thumb.image))
     return (
       <figure className="job-thumbnail-upload">
-        {/* eslint-disable-next-line @next/next/no-img-element -- uploaded thumbnail data URL */}
-        <img src={thumb.image} alt={thumb.alt || job.title} loading="lazy" />
+        <MediaImage src={thumb.image} alt={thumb.alt || job.title} loading="lazy" />
       </figure>
     );
   if (thumb.template === "none") return null;

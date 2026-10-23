@@ -47,9 +47,9 @@ export function createHttpServices(baseUrl: string): Services {
       if (method === "signOut") return () => auth.logout();
       if(method==="getSettings")return settings.getSettings;
       if(method==="updateSetting")return settings.updateSetting;
-      if (method === "getProfessionalShell") return async () => { const [{ person },unreadConversations]=await Promise.all([profile.getProfile(),messaging.getUnreadCount!("professional")]);return { person, unreadConversations }; };
-      if (method === "getProfessionalSummary") return async () => { const [{ person }, network, saved, pulse] = await Promise.all([profile.getProfile(), social.feed.getNetwork("professional"), social.feed.getFeed({role:"professional",filter:"saved",sort:"recent",q:"",limit:1}), work.getPulse("me",91)]); return { person, pulseDays: pulse.activeDays, followingCount: network.following.length + network.companies.length, savedCount: saved.total }; };
-      if (method === "getRecruiterShell") return async () => { const [ctx,unreadConversations,saved]=await Promise.all([organization.getContext(),messaging.getUnreadCount!("recruiter"),social.feed.getFeed({role:"recruiter",filter:"saved",sort:"recent",q:"",limit:1})]);const member=ctx.currentRecruiter; return { identity: { id: member.id, name: member.fullName, picture: member.avatarUrl, color: "#246b53" }, companyName: ctx.workspace.organization.name, title: member.jobTitle, unreadConversations, savedCount:saved.total }; };
+      if (method === "getProfessionalShell") return async () => { const { person } = await profile.getProfile(); return { person }; };
+      if (method === "getProfessionalSummary") return async () => { const { person } = await profile.getProfile(); return { person }; };
+      if (method === "getRecruiterShell") return async () => { const ctx = await organization.getContext(); const member = ctx.currentRecruiter; return { identity: { id: member.id, name: member.fullName, picture: member.avatarUrl, color: "#246b53" }, companyName: ctx.workspace.organization.name, title: member.jobTitle }; };
       if (method === "getHomeCompany") return async () => { const ctx = await organization.getContext(); const o = ctx.workspace.organization, r = ctx.currentRecruiter; return { id: o.id, name: o.name, industry: o.industry, website: o.websiteUrl, summary: o.description, recruiter: r.fullName, email: r.workEmail, title: r.jobTitle, interests: r.hiringDepartments.join(", "), status: o.verificationStatus }; };
       return Reflect.get(unavailable, method);
     },
@@ -62,7 +62,7 @@ export function createHttpServices(baseUrl: string): Services {
   const jobs = createHttpJobsService(http);
   const applications = createHttpApplicationsService(http);
   const recruiting = createHttpRecruitingService(http,auth);
-  const recommendations=createHttpRecommendationsService(http,auth,jobs);
+  const recommendations=createHttpRecommendationsService(http,auth);
   const talent = createHttpTalentService(http,auth,()=>recommendations.talent(),()=>messaging.getInbox("recruiter",{q:"",filter:"all",selectedId:null}));
   const enabled = { analytics,auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
   return new Proxy(enabled, {

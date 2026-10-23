@@ -2,42 +2,6 @@
  * Additions for the Next.js application that have no prototype equivalent: loading skeletons and
  * structural helpers. Visual values reuse the prototype tokens.
  */
-.skeleton-screen {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 8px 0 40px;
-}
-.skeleton-block {
-  height: 120px;
-  border-radius: var(--radius, 12px);
-  border: 1px solid var(--line, #e8e9ee);
-  background: linear-gradient(90deg, #f3f5f8 0%, #fafbfc 50%, #f3f5f8 100%);
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.4s ease-in-out infinite;
-}
-.skeleton-heading {
-  height: 56px;
-  max-width: 420px;
-}
-.skeleton-short {
-  height: 64px;
-  max-width: 60%;
-}
-@keyframes skeleton-shimmer {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-block {
-    animation: none;
-  }
-}
-
 /* Keep empty-state actions compact and separate from the large illustration. */
 body .empty .btn {
   min-height: 38px;

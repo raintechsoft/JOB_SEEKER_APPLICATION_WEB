@@ -140,7 +140,7 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="spark" disabled={busy}>
+        <Button type="submit" variant="primary" icon="spark" loading={busy} disabled={busy}>
           Generate draft
         </Button>
       </div>
@@ -821,7 +821,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
 
   return (
     <div className="job-wizard-workspace">
-      {!!ctx.latestJobVersion&&d.jobVersion!==ctx.latestJobVersion&&<section className="card stack" style={{padding:24,marginBottom:24}}><h2>The current job changed</h2><p>Your private draft is retained. Compare it with the latest job before continuing. Keeping your entire draft does not publish it; publishing later replaces the current job details.</p><details><summary>Compare current job and your draft</summary><div style={{overflowX:"auto"}}><table><thead><tr><th>Field</th><th>Current job</th><th>Your draft</th></tr></thead><tbody>{(Object.keys(v) as (keyof JobWizardValues)[]).filter((key)=>key!=="aiVerified"&&JSON.stringify(v[key])!==JSON.stringify(ctx.latestJob?.wizardValues?.[key])).map((key)=><tr key={key}><th>{key.replace(/([A-Z])/g," $1")}</th><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,ctx.latestJob?.wizardValues??{})}</td><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,v)}</td></tr>)}</tbody></table></div></details><form onSubmit={async(e)=>{e.preventDefault();if(!new FormData(e.currentTarget).has("confirmed"))return setErrors({_form:"Confirm that you reviewed the comparison."});const invalid=jobErrors(v,"draft");if(Object.keys(invalid).length)return setErrors(invalid);if(timer.current)clearTimeout(timer.current);if(!await execute(async(s)=>{if(!s.jobPosts.rebaseJobDraft)throw new Error("Draft recovery is unavailable.");const next=await s.jobPosts.rebaseJobDraft(ctx.key,d,ctx.latestJobVersion!);setD(next);return store(next);},{invalidate:[]}))return;toast("Your private draft can be edited again. Review it before publishing.");}}><label className="check-row"><input name="confirmed" type="checkbox" required/>I compared the job and draft and will reconcile changes before publishing.</label><Button type="submit" disabled={pending} variant="primary">Keep my private draft</Button></form></section>}
+      {!!ctx.latestJobVersion&&d.jobVersion!==ctx.latestJobVersion&&<section className="card stack" style={{padding:24,marginBottom:24}}><h2>The current job changed</h2><p>Your private draft is retained. Compare it with the latest job before continuing. Keeping your entire draft does not publish it; publishing later replaces the current job details.</p><details><summary>Compare current job and your draft</summary><div style={{overflowX:"auto"}}><table><thead><tr><th>Field</th><th>Current job</th><th>Your draft</th></tr></thead><tbody>{(Object.keys(v) as (keyof JobWizardValues)[]).filter((key)=>key!=="aiVerified"&&JSON.stringify(v[key])!==JSON.stringify(ctx.latestJob?.wizardValues?.[key])).map((key)=><tr key={key}><th>{key.replace(/([A-Z])/g," $1")}</th><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,ctx.latestJob?.wizardValues??{})}</td><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,v)}</td></tr>)}</tbody></table></div></details><form onSubmit={async(e)=>{e.preventDefault();if(!new FormData(e.currentTarget).has("confirmed"))return setErrors({_form:"Confirm that you reviewed the comparison."});const invalid=jobErrors(v,"draft");if(Object.keys(invalid).length)return setErrors(invalid);if(timer.current)clearTimeout(timer.current);if(!await execute(async(s)=>{if(!s.jobPosts.rebaseJobDraft)throw new Error("Draft recovery is unavailable.");const next=await s.jobPosts.rebaseJobDraft(ctx.key,d,ctx.latestJobVersion!);setD(next);return store(next);},{invalidate:[]}))return;toast("Your private draft can be edited again. Review it before publishing.");}}><label className="check-row"><input name="confirmed" type="checkbox" required/>I compared the job and draft and will reconcile changes before publishing.</label><Button type="submit" loading={pending} disabled={pending} variant="primary">Keep my private draft</Button></form></section>}
       <div className="job-wizard-top">
         <div>
           <span className="eyebrow">YOUR NEXT TEAMMATE STARTS HERE</span>
@@ -924,8 +924,8 @@ export function JobWizardScreen() {
   const [entryKey]=useState(()=>crypto.randomUUID());
   const { data, isPending,isError,isPlaceholderData,refetch } = useServiceQuery(["job-draft", id ?? "new",entryKey], (s) => s.jobPosts.openJobDraft(id,entryKey));
   if(isError)return <EmptyState title="The job draft could not be loaded" description="Check your organization access and retry. Your saved draft is retained." action={<Button onClick={()=>void refetch()}>Retry</Button>}/>;
-  if (isPending) return <ScreenFallback />;
-  if(isPlaceholderData&&(!id||data?.draft.id!==id))return <ScreenFallback/>;
+  if (isPending) return <ScreenFallback layout="form" />;
+  if(isPlaceholderData&&(!id||data?.draft.id!==id))return <ScreenFallback layout="form"/>;
   if (data === null)
     return (
       <EmptyState
@@ -939,5 +939,5 @@ export function JobWizardScreen() {
       />
     );
   // Keyed by draft so the wizard seeds its local state once per job.
-  return data ? <Wizard key={data.key} ctx={data} /> : <ScreenFallback />;
+  return data ? <Wizard key={data.key} ctx={data} /> : <ScreenFallback layout="form" />;
 }

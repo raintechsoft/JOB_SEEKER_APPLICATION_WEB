@@ -51,7 +51,7 @@ function previewEntry(d: PostDraft, identity: PersonSummary, projects: Project[]
   };
 }
 
-function Editor({ role, initial, identity, projects }: { role: Role; initial: PostDraft; identity: PersonSummary; projects: Project[] }) {
+function Editor({ role, initial, identity, projects, projectsLoading = false }: { role: Role; initial: PostDraft; identity: PersonSummary; projects: Project[]; projectsLoading?: boolean }) {
   const run = useServiceAction();
   const services = useServices();
   const router = useRouter();
@@ -332,7 +332,7 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
                     Add video
                   </Button>
                 </div>
-                {role === "professional" && <SelectField label="Link a public project" name="project" value={d.project} onChange={(e) => update({ project: e.target.value })} options={[{ value: "", label: "No linked project" }, ...publicProjects.map((p) => ({ value: p.id, label: p.title }))]} />}
+                {role === "professional" && <SelectField loading={projectsLoading} label="Link a public project" name="project" value={d.project} onChange={(e) => update({ project: e.target.value })} options={[{ value: "", label: "No linked project" }, ...publicProjects.map((p) => ({ value: p.id, label: p.title }))]} />}
               </>
             )}
             {d.step === 2 && (
@@ -390,10 +390,10 @@ function Editor({ role, initial, identity, projects }: { role: Role; initial: Po
             >
               Save draft
             </Button>
-            <button className="btn primary" form="post-editor-form" type="submit" disabled={busy}>
+            <Button variant="primary" form="post-editor-form" type="submit" loading={busy && d.step === 2} loadingLabel="Publishing post" disabled={busy}>
               <Icon name={d.step === 2 ? "send" : "arrow"} />
               {d.step === 2 ? devCopy("Publish demo post", "Publish post") : "Next"}
-            </button>
+            </Button>
           </div>
           <p className="small muted post-editor-footer-note">{busy ? "Adding your media…" : "Progress is saved as you write."}</p>
         </section>
@@ -428,8 +428,8 @@ export function PostEditorScreen({ role }: { role: Role }) {
   const identityQuery = useServiceQuery(["feed", "identity", role], async (s) => (role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person));
   const projectQuery = useServiceQuery(["projects", "post-editor", role], (s) => role === "recruiter" ? Promise.resolve([]) : s.work.listProjects({ ownerId: apiConfig.dataSource === "http" ? "me" : "p0" }));
   const draft=draftQuery.data, identity=identityQuery.data, projects=projectQuery.data;
-  if(draftQuery.isError||identityQuery.isError||projectQuery.isError)return <ScreenError onRetry={()=>{void draftQuery.refetch();void identityQuery.refetch();void projectQuery.refetch();}}/>;
-  if (!draft || !identity || !projects) return <ScreenFallback />;
+  if(draftQuery.isError||identityQuery.isError)return <ScreenError onRetry={()=>{void draftQuery.refetch();void identityQuery.refetch();void projectQuery.refetch();}}/>;
+  if (!draft || !identity) return <ScreenFallback layout="form" />;
   // The editor seeds its local state once; later refetches of the stored draft do not reset it.
-  return <Editor key={role} role={role} initial={draft} identity={identity} projects={projects} />;
+  return <>{projectQuery.isError && <p role="alert">Project options could not be loaded. <Button onClick={() => projectQuery.refetch()}>Retry</Button></p>}<Editor key={role} role={role} initial={draft} identity={identity} projects={projects ?? []} projectsLoading={projectQuery.isPending} /></>;
 }

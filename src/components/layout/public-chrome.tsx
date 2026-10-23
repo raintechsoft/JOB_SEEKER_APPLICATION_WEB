@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { Brand, IconButton, LinkButton } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
 import { workspaceDialogs } from "@/features/workspace/dialogs";
+import { PublicAccountActions } from "./public-account-actions";
 
 export function EmployerMenu({ variant = "public" }: { variant?: "public" | "auth" }) {
   const ref = useRef<HTMLDetailsElement>(null);
@@ -54,24 +55,28 @@ export function PublicNav() {
           <Link href="/signup?role=professional">For job seekers</Link>
         </nav>
         <div className="nav-actions">
-          <Link className="public-login" href="/login?role=professional">
-            Login
-          </Link>
-          <LinkButton href="/signup?role=professional" variant="primary public-register">
-            Register
-          </LinkButton>
-          <span className="nav-actions-divider" aria-hidden="true" />
-          <EmployerMenu />
+          <PublicAccountActions>
+            <Link className="public-login" href="/login?role=professional">
+              Login
+            </Link>
+            <LinkButton href="/signup?role=professional" variant="primary public-register">
+              Register
+            </LinkButton>
+            <span className="nav-actions-divider" aria-hidden="true" />
+            <EmployerMenu />
+          </PublicAccountActions>
           <IconButton icon="menu" label="Open navigation" extra="mobile-nav-toggle" aria-expanded={open} onClick={() => setOpenOn(open ? null : pathname)} />
         </div>
       </header>
       <nav id="public-mobile" className="mobile-menu" aria-label="Mobile navigation" hidden={!open} style={{ display: open ? "flex" : "none" }}>
         <Link href="/how-it-works">How it works</Link>
         <Link href="/talent">Explore talent</Link>
-        <Link href="/login?role=professional">Login</Link>
-        <Link href="/signup?role=professional">Register</Link>
-        <Link href="/employer/login">Employer Login</Link>
-        <Link href="/employer/register">Create employer account</Link>
+        <PublicAccountActions variant="mobile">
+          <Link href="/login?role=professional">Login</Link>
+          <Link href="/signup?role=professional">Register</Link>
+          <Link href="/employer/login">Employer Login</Link>
+          <Link href="/employer/register">Create employer account</Link>
+        </PublicAccountActions>
       </nav>
     </>
   );

@@ -11,6 +11,7 @@ import type { OrganizationAccess, Workspace } from "@/services/auth/auth.service
 import { inviteMemberSchema, memberAccessSchema } from "@/lib/validation/auth";
 import { Brand, Button } from "@/components/ui/primitives";
 import { TextField, SelectField } from "@/components/ui/field";
+import { ContentSkeleton } from "@/components/ui/skeleton";
 import { useAuthForm } from "./use-auth-form";
 import { AuthError } from "./auth-errors";
 import { clearIdentityState } from "./clear-identity-state";
@@ -34,7 +35,7 @@ function InviteMemberForm({ organization }: { organization: string }) {
     <AuthError name="email" message={errors.email?.message} />
     <SelectField label="Invitation role" options={roleOptions} {...register("role")} error={errors.role?.message} />
     <AuthError name="invite-root" message={errors.root?.message} />
-    <button className="btn primary" disabled={isSubmitting}>{isSubmitting ? "Please wait…" : "Invite member"}</button>
+    <Button type="submit" variant="primary" loading={isSubmitting} loadingLabel="Sending invitation">Invite member</Button>
     {sent && <p role="status">Invitation queued for delivery.</p>}
   </form>;
 }
@@ -52,7 +53,7 @@ function MemberAccessForm({ organization, member }: { organization: string; memb
     <SelectField label={`Role for ${member.name}`} options={roleOptions} {...register("role")} error={errors.role?.message} />
     <SelectField label={`Status for ${member.name}`} options={[{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }]} {...register("status")} error={errors.status?.message} />
     <AuthError name={`member-root-${member.id}`} message={errors.root?.message} />
-    <button className="btn" disabled={isSubmitting}>{isSubmitting ? "Saving…" : "Save access"}</button>
+    <Button type="submit" loading={isSubmitting} loadingLabel="Saving access">Save access</Button>
     {saved && <p role="status">Access updated.</p>}
   </form>;
 }
@@ -60,8 +61,8 @@ function MemberAccessForm({ organization, member }: { organization: string; memb
 function OrganizationAccessPanel({ workspace }: { workspace: Workspace }) {
   const organization = workspace.organization!;
   const query = useServiceQuery(["auth", "organization", organization.id], (s) => s.auth.organization(organization.id));
-  if (query.isError) return <p role="alert">{errorMessage(query.error)}</p>;
-  if (!query.data) return <p>Loading organization access…</p>;
+  if (query.isError) return <div><p role="alert">{errorMessage(query.error)}</p><Button onClick={() => query.refetch()}>Try again</Button></div>;
+  if (!query.data) return <ContentSkeleton layout="form" label="Loading organization access" />;
   return <>
     <section className="card"><h2>{query.data.name}</h2><p>Your role: {roleOptions.find((option) => option.value === workspace.role)?.label}</p></section>
     {workspace.role === "organization_admin" && <>
@@ -88,21 +89,21 @@ export function RealWorkspace({ role }: { role: "professional" | "recruiter" }) 
     if (session && !session.user.email_verified) router.replace("/verify-email");
     if (home && pathname !== home) router.replace(home);
   }, [query.error, session, home, pathname, router]);
-  if ((session && !session.user.email_verified) || (home && pathname !== home)) return <p role="status">Loading your workspace…</p>;
+  if ((session && !session.user.email_verified) || (home && pathname !== home)) return null;
   const action = async (fn: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
     try { await fn(); } catch (cause) { toast(errorMessage(cause), "error"); } finally { setBusy(false); }
   };
   return <div className={role === "recruiter" ? "professional-app recruiter-app" : "professional-app"}>
-    <header className="professional-header"><div className="professional-header-inner"><Brand />
+    <header className="professional-header"><div className="professional-header-inner"><Brand href={role === "professional" ? "/app/dashboard" : "/recruiter/dashboard"} />
       <nav className="professional-nav" aria-label="Account workspace"><Link href={role === "professional" ? "/app/dashboard" : "/recruiter/dashboard"}>Your workspace</Link><Link href={role === "professional" ? "/app/profile" : "/recruiter/company"}>{role === "professional" ? "Your profile" : "Organization profile"}</Link><Link href="/change-password">Change password</Link></nav>
-      {session && <Button disabled={busy} onClick={() => action(async () => { await auth.logout(); clearIdentityState(); cache.clear(); router.push("/login"); })}>Log out</Button>}
+      {session && <Button loading={busy} disabled={busy} onClick={() => action(async () => { await auth.logout(); clearIdentityState(); cache.clear(); router.push("/login"); })}>Log out</Button>}
     </div></header>
     <main id="main" className="phase-one-workspace">
-      {query.isPending ? <p>Loading your account…</p> : query.isError ? <section className="card"><p role="alert">{errorMessage(query.error)}</p><Button onClick={() => query.refetch()}>Try again</Button></section> : session && session.user.email_verified && <>
+      {query.isPending ? <ContentSkeleton layout="profile" label="Loading your account" /> : query.isError ? <section className="card"><p role="alert">{errorMessage(query.error)}</p><Button onClick={() => query.refetch()}>Try again</Button></section> : session && session.user.email_verified && <>
         <section className="card"><h1>Welcome, {session.user.name}</h1><p>{session.user.email}</p><p>Manage your account and organization access.</p>
-          <div className="row">{session.workspaces.map((workspace) => <Button key={workspace.id} disabled={busy} onClick={() => action(async () => {
+          <div className="row">{session.workspaces.map((workspace) => <Button key={workspace.id} loading={busy} disabled={busy} onClick={() => action(async () => {
             const next = await auth.selectWorkspace(workspace.id); clearIdentityState(); cache.clear(); cache.setQueryData(["auth", "session"], next);
             router.push(workspace.kind === "professional" ? "/app/dashboard" : "/recruiter/dashboard");
           })}>{workspace.organization?.name ?? "Professional workspace"}</Button>)}</div>

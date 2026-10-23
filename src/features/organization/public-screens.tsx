@@ -1,5 +1,7 @@
 "use client";
 
+import { MediaImage } from "@/components/ui/media-image";
+
 import type { ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Job } from "@/types/domain";
@@ -8,7 +10,7 @@ import { safeUrl } from "@/lib/utils/url";
 import { useServiceQuery } from "@/hooks/use-services";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, LinkButton } from "@/components/ui/primitives";
-import { ScreenFallback } from "@/components/ui/feedback";
+import { ScreenError, ScreenFallback } from "@/components/ui/feedback";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
 import { VerificationBadge } from "@/components/organization/controls";
@@ -85,8 +87,7 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
       <header className="card org-public-hero">
         <div className="org-public-cover">
           {o.coverImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- uploaded cover data URL
-            <img src={o.coverImageUrl} alt={o.name + " cover"} />
+            <MediaImage src={o.coverImageUrl} alt={o.name + " cover"} />
           ) : (
             <span>GOOD WORK STARTS WITH GOOD PEOPLE.</span>
           )}
@@ -94,8 +95,7 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
         <div className="org-public-identity">
           <span className="org-public-logo">
             {o.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- uploaded logo data URL
-              <img src={o.logoUrl} alt={o.name + " logo"} />
+              <MediaImage src={o.logoUrl} alt={o.name + " logo"} />
             ) : (
               <Icon name="building" />
             )}
@@ -152,8 +152,7 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
             {o.workplaceImages.length > 0 && (
               <div className="org-public-gallery">
                 {o.workplaceImages.map((i) => (
-                  // eslint-disable-next-line @next/next/no-img-element -- uploaded gallery data URL
-                  <img key={i.id} src={i.url} alt={i.alt} />
+                  <MediaImage key={i.id} src={i.url} alt={i.alt} />
                 ))}
               </div>
             )}
@@ -268,8 +267,7 @@ function RecruiterPage({ r, o, preview, editHref }: { r: PublicRecruiter; o: Pub
         <p>{r.jobTitle}</p>
         <div className="org-public-association">
           {o.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- uploaded logo data URL
-            <img src={o.logoUrl} alt="Organization logo" />
+            <MediaImage src={o.logoUrl} alt="Organization logo" />
           ) : (
             <Icon name="building" />
           )}
@@ -302,33 +300,37 @@ function RecruiterPage({ r, o, preview, editHref }: { r: PublicRecruiter; o: Pub
 }
 
 export function PublicOrganizationScreen({ slug }: { slug: string }) {
-  const { data, isPending } = useServiceQuery(["organization", "public", slug], (s) => s.organization.getPublicOrganization(slug));
-  if (isPending) return <ScreenFallback />;
+  const { data, isPending, isError, refetch } = useServiceQuery(["organization", "public", slug], (s) => s.organization.getPublicOrganization(slug),{ keepPreviousData: false });
+  if (isError) return <ScreenError onRetry={() => void refetch()} />;
+  if (isPending) return <ScreenFallback layout="profile" />;
   if (!data) return <Unavailable title="Organization profile unavailable." description="This profile is hidden or the address has changed." />;
   return <OrganizationPage o={data.organization} jobs={data.openJobs} preview={false} />;
 }
 
 export function OrganizationPreviewScreen() {
-  const { ctx, draft } = useOrganizationEditor();
-  if (!ctx || !draft) return <ScreenFallback />;
+  const { query, ctx, draft } = useOrganizationEditor();
+  if (query.isError) return <ScreenError onRetry={() => query.refetch()} />;
+  if (!ctx || !draft) return <ScreenFallback layout="profile" />;
   return <OrganizationPage o={publicOrganization(draft.organization)} jobs={ctx.openJobs} preview />;
 }
 
 export function PublicRecruiterScreen({ id }: { id: string }) {
-  const { data, isPending } = useServiceQuery(["recruiter", "public", id], (s) => s.organization.getPublicRecruiter(id));
-  if (isPending) return <ScreenFallback />;
+  const { data, isPending, isError, refetch } = useServiceQuery(["recruiter", "public", id], (s) => s.organization.getPublicRecruiter(id),{ keepPreviousData: false });
+  if (isError) return <ScreenError onRetry={() => void refetch()} />;
+  if (isPending) return <ScreenFallback layout="profile" />;
   if (!data) return <Unavailable title="Recruiter profile unavailable." description="This profile is not currently public." />;
   return <RecruiterPage r={data.recruiter} o={data.organization} preview={false} editHref="" />;
 }
 
 export function RecruiterPreviewScreen() {
   const idParam = useSearchParams().get("id");
-  const { ctx } = useOrganizationEditor();
+  const { query, ctx } = useOrganizationEditor();
   const id = idParam || ctx?.currentRecruiter.id;
   const member = ctx?.workspace.recruiters.find((r) => r.id === id);
   const { draft } = useRecruiterDraft(member);
-  if (!ctx) return <ScreenFallback />;
+  if (query.isError) return <ScreenError onRetry={() => query.refetch()} />;
+  if (!ctx) return <ScreenFallback layout="profile" />;
   if (!member) return <Unavailable title="Recruiter profile unavailable." description="This profile is not currently public." />;
-  if (!draft) return <ScreenFallback />;
+  if (!draft) return <ScreenFallback layout="profile" />;
   return <RecruiterPage r={publicRecruiter(draft)} o={publicOrganization(ctx.workspace.organization)} preview editHref={id === ctx.currentRecruiter.id ? "/recruiter/profile" : "/recruiter/team/" + id} />;
 }

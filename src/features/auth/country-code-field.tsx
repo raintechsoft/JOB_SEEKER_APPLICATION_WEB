@@ -31,6 +31,7 @@ export function CountryCodeField({ name = "country", defaultValue = "IN", error,
   const [menuBox, setMenuBox] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
 
   const selected = PHONE_COUNTRIES.find((country) => country.iso === iso) ?? PHONE_COUNTRIES[0];
+  const openMenu = () => { setActive(Math.max(0, PHONE_COUNTRIES.findIndex(country => country.iso === iso))); setOpen(true); };
   const options = useMemo(() => {
     const needle = query.trim().toLowerCase().replace(/^\+/, "");
     if (!needle) return PHONE_COUNTRIES;
@@ -55,8 +56,6 @@ export function CountryCodeField({ name = "country", defaultValue = "IN", error,
       const top = openUp ? Math.max(margin, rect.top - gap - maxHeight) : rect.bottom + gap;
       setMenuBox((current) => current && current.top === top && current.left === left && current.width === width && current.maxHeight === maxHeight ? current : { top, left, width, maxHeight });
     };
-    const index = PHONE_COUNTRIES.findIndex((country) => country.iso === iso);
-    setActive(Math.max(0, index));
     place();
     const close = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -128,13 +127,12 @@ export function CountryCodeField({ name = "country", defaultValue = "IN", error,
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={listId}
-          aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => open ? setOpen(false) : openMenu()}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
               event.preventDefault();
-              setOpen(true);
+              openMenu();
             }
           }}
         >

@@ -1,5 +1,9 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+import { Skeleton } from "@/components/ui/skeleton";
+import { apiConfig } from "@/services/api/config";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -15,14 +19,14 @@ import { TalentCard } from "@/components/talent/talent-card";
 import { useProjectDialogs } from "@/features/work/dialogs";
 import { useCompareToggle, useContactCandidate, useShortlistDialogs } from "./dialogs";
 
-export function StatCard({ label, value, description, icon }: { label: string; value: ReactNode; description: string; icon: IconName }) {
+export function StatCard({ label, value, description, icon, loading = false }: { label: string; value: ReactNode; description: string; icon: IconName; loading?: boolean }) {
   return (
-    <section className="card stat">
+    <section className="card stat" aria-busy={loading || undefined}>
       <div className="stat-label">
         {label}
         <Icon name={icon} />
       </div>
-      <div className="stat-value">{value}</div>
+      <div className="stat-value">{loading ? <Skeleton style={{ width: 64, height: 36 }} /> : value}</div>
       <div className="stat-foot">
         <span>{description}</span>
       </div>
@@ -33,7 +37,13 @@ export function StatCard({ label, value, description, icon }: { label: string; v
 export function OverviewScreen() {
   const router = useRouter();
   const setMessaging = useUiStore((s) => s.setMessaging);
-  const { data } = useServiceQuery(["talent", "overview"], (s) => s.talent.getOverview());
+  const directory = useServiceQuery(["talent", "public-people"], s => s.talent.listPublicPeople());
+  const shortlists = useServiceQuery(["shortlists"], s => s.talent.listShortlists());
+  const suggestions = useServiceQuery(["recommendations", "talent"], s => s.talent.getRecommendedTalent());
+  const messages = useServiceQuery(["talent", "overview", "inbox"], s => s.messaging.getInbox("recruiter", { q: "", filter: "all", selectedId: null }));
+  const savedCount = shortlists.data ? apiConfig.dataSource === "mock" ? shortlists.data.reduce((sum, list) => sum + list.candidates.length, 0) : new Set(shortlists.data.flatMap(list => list.candidates)).size : undefined;
+  const value = (count: number | undefined, failed: boolean) => count ?? (failed ? "—" : <Skeleton style={{ width: 64, height: 36 }} />);
+  const conversations = messages.data?.threads.slice(0, 6).map(t => ({ id: t.id, person: t.contact, lastMessage: t.lastMessage?.text ?? "" }));
   return (
     <>
       <PageHeading
@@ -45,14 +55,13 @@ export function OverviewScreen() {
           </LinkButton>
         }
       />
-      {data && (
-        <>
           <div className="stats">
-            <StatCard label="Talent to explore" value={data.talentCount} description={devCopy("Fictional demo professionals", "Professionals in the directory")} icon="users" />
-            <StatCard label="Saved candidates" value={data.savedCandidates} description="Across your shortlists" icon="bookmark" />
-            <StatCard label="Your shortlists" value={data.shortlists.length} description="Curated for your team" icon="folder" />
-            <StatCard label="Conversations" value={data.conversationCount} description={devCopy("Local demo messages", "Active conversations")} icon="message" />
+            <StatCard label="Talent to explore" loading={!directory.data && !directory.isError} value={value(directory.data?.length, directory.isError)} description={devCopy("Fictional demo professionals", "Professionals in the directory")} icon="users" />
+            <StatCard label="Saved candidates" loading={!shortlists.data && !shortlists.isError} value={value(savedCount, shortlists.isError)} description="Across your shortlists" icon="bookmark" />
+            <StatCard label="Your shortlists" loading={!shortlists.data && !shortlists.isError} value={value(shortlists.data?.length, shortlists.isError)} description="Curated for your team" icon="folder" />
+            <StatCard label="Conversations" loading={!messages.data && !messages.isError} value={value(messages.data?.threads.length, messages.isError)} description={devCopy("Local demo messages", "Active conversations")} icon="message" />
           </div>
+          {directory.isError && <p role="alert">The directory count could not be loaded. <Button onClick={() => directory.refetch()}>Retry count</Button></p>}
           <div className="card" style={{ background: "#eeecfa", marginBottom: 27 }}>
             <div className="row between wrap">
               <div>
@@ -77,7 +86,9 @@ export function OverviewScreen() {
             </LinkButton>
           </div>
           <div className="grid cols3">
-            {data.recentTalent.map((p) => (
+            <QueryFeedback data={suggestions.data} error={suggestions.isError} retry={suggestions.refetch} layout="cards" label="Loading suggested professionals" />
+            {suggestions.data?.length === 0 && <p>No suggestions yet. Explore the talent directory to find people.</p>}
+            {suggestions.data?.map((p) => (
               <TalentCard key={p.id} person={p} />
             ))}
           </div>
@@ -89,7 +100,9 @@ export function OverviewScreen() {
                   Manage
                 </LinkButton>
               </div>
-              {data.shortlists.map((s) => (
+              <QueryFeedback data={shortlists.data} error={shortlists.isError} retry={shortlists.refetch} label="Loading shortlists" />
+              {shortlists.data?.length === 0 && <p>Create a shortlist to keep candidates together.</p>}
+              {shortlists.data?.map((s) => (
                 <Link key={s.id} href="/recruiter/shortlists" className="settings-row">
                   <span className="row">
                     <Icon name="folder" />
@@ -106,7 +119,9 @@ export function OverviewScreen() {
                   Open messages
                 </LinkButton>
               </div>
-              {data.conversations.map((c) => (
+              <QueryFeedback data={messages.data} error={messages.isError} retry={messages.refetch} label="Loading recent conversations" />
+              {conversations?.length === 0 && <p>Your recent conversations will appear here.</p>}
+              {conversations?.map((c) => (
                 <button
                   type="button"
                   key={c.id}
@@ -127,8 +142,6 @@ export function OverviewScreen() {
               ))}
             </section>
           </div>
-        </>
-      )}
     </>
   );
 }
@@ -140,7 +153,7 @@ export function ShortlistsScreen() {
   const compared = useUiStore((s) => s.compared);
   const setUi = useUiStore((s) => s.setUi);
   const toggleCompare = useCompareToggle();
-  const { data: lists } = useServiceQuery(["shortlists"], (s) => s.talent.listShortlists());
+  const { data: lists, isError: listError, refetch: retryLists } = useServiceQuery(["shortlists"], (s) => s.talent.listShortlists());
   const s = lists?.find((x) => x.id === tab) ?? lists?.[0];
   return (
     <>
@@ -158,6 +171,7 @@ export function ShortlistsScreen() {
           </>
         }
       />
+      <QueryFeedback data={lists} error={listError} retry={retryLists} layout="cards" label="Loading shortlists" />
       {lists && (
         <>
           <div className="tabs">
@@ -243,7 +257,7 @@ export function CompareScreen() {
   const toggleCompare = useCompareToggle();
   const contact = useContactCandidate();
   const projects = useProjectDialogs();
-  const { data: people } = useServiceQuery(["talent", "compare", compared], (s) => s.talent.compare(compared));
+  const { data: people, isError: peopleError, refetch: retryPeople } = useServiceQuery(["talent", "compare", compared], (s) => s.talent.compare(compared));
   const rows: [string, (p: ComparisonPerson) => ReactNode][] = [
     ["Location", (p) => p.location],
     [
@@ -314,6 +328,7 @@ export function CompareScreen() {
           </>
         }
       />
+      <QueryFeedback data={people} error={peopleError} retry={retryPeople} layout="table" label="Loading comparison" />
       {people &&
         (people.length < 2 ? (
           <EmptyState

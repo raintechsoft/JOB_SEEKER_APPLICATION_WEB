@@ -1,5 +1,7 @@
 "use client";
 
+import { MediaImage } from "@/components/ui/media-image";
+
 import Link from "next/link";
 import type { RecruiterMember } from "@/types/domain";
 import { recruiterSchema } from "@/lib/validation/organization";
@@ -13,6 +15,7 @@ import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, LinkButton } from "@/components/ui/primitives";
 import { ScreenFallback } from "@/components/ui/feedback";
+import { Spinner } from "@/components/ui/spinner";
 import { OrgArea, OrgChips, OrgField, OrgSelect } from "@/components/organization/controls";
 import { recruiterAvatar } from "./team-section";
 import { ADMIN_ONLY, addChips, useImageUploads, useOrganizationEditor, useRecruiterDraft } from "./use-organization-editor";
@@ -27,7 +30,7 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
   const member = ctx?.workspace.recruiters.find((m) => m.id === id);
   const { draft: r, update, discard } = useRecruiterDraft(member);
   if (query.isError && !ctx) return <div className="org-workspace"><p role="alert">{errorMessage(query.error)}</p><Button onClick={() => void query.refetch()}>Try again</Button></div>;
-  if (!ctx) return <ScreenFallback />;
+  if (!ctx) return <ScreenFallback layout="profile" />;
   if (!member)
     return (
       <EmptyState
@@ -40,7 +43,7 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
         }
       />
     );
-  if (!r) return <ScreenFallback />;
+  if (!r) return <ScreenFallback layout="profile" />;
   const own = member.id === ctx.currentRecruiter.id;
   const editable = own || canManage;
   const o = ctx.workspace.organization;
@@ -104,8 +107,7 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
         >
           <div className="org-linked-company">
             {o.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- uploaded logo data URL
-              <img src={o.logoUrl} alt={o.name + " logo"} />
+              <MediaImage src={o.logoUrl} alt={o.name + " logo"} />
             ) : (
               <Icon name="building" />
             )}
@@ -198,8 +200,8 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
             <small>Account email, internal role, and account status are excluded from public profiles. Admins manage team access in Team & Recruiters.</small>
           </div>
         </form>
-        <div id="org-upload-status" className="org-upload-status" role="status">
-          {uploads.busy ? "Loading selected image…" : ""}
+        <div id="org-upload-status" className="org-upload-status" role="status" aria-label={uploads.busy ? "Uploading image" : undefined} aria-busy={uploads.busy || undefined}>
+          {uploads.busy && <Spinner />}
         </div>
         <footer className="org-panel-footer">
           <span>Changes apply to this recruiter’s identity only.</span>

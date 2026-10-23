@@ -135,6 +135,11 @@ export const mockTalentService: TalentService = {
       .map(toPublicProfessional);
   },
 
+  async getRecommendedTalent() {
+    const db = getDb();
+    return [...db.professionals].filter(p => p.public).sort((a, b) => b.lastActive.localeCompare(a.lastActive)).slice(0, 3).map(p => talentCard(db, p));
+  },
+
   async getOverview() {
     const db = getDb();
     return {

@@ -4,6 +4,7 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { LinkButton } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
 import { HeroAvatar, HomeProjects } from "@/features/site/home-islands";
+import { PublicAccountActions } from "@/components/layout/public-account-actions";
 
 const FEATURES: [IconName, string, string][] = [
   ["user", "Your story, in one place", "Bring your experience, skills, and career interests together in a profile that reflects you."],
@@ -23,20 +24,22 @@ export default function HomePage() {
             than a resume.
           </h1>
           <p>Your skills, your projects, your next possibility. Bring your professional story together in one place, and help the right people see what you can do.</p>
-          <div className="ph-actions">
-            <LinkButton href="/signup?role=professional" variant="primary" icon="arrow">
-              Build your profile
-            </LinkButton>
-            <LinkButton href="/talent" icon="search">
-              Explore talent
-            </LinkButton>
-          </div>
-          <div className="ph-login-note">
-            Already part of Skillora?{" "}
-            <Link href="/login?role=professional">
-              Login <Icon name="arrow" />
-            </Link>
-          </div>
+          <PublicAccountActions variant="hero">
+            <div className="ph-actions">
+              <LinkButton href="/signup?role=professional" variant="primary" icon="arrow">
+                Build your profile
+              </LinkButton>
+              <LinkButton href="/talent" icon="search">
+                Explore talent
+              </LinkButton>
+            </div>
+            <div className="ph-login-note">
+              Already part of Skillora?{" "}
+              <Link href="/login?role=professional">
+                Login <Icon name="arrow" />
+              </Link>
+            </div>
+          </PublicAccountActions>
           <div className="ph-hero-points">
             <span>
               <Icon name="folder" />

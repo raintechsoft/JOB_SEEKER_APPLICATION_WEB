@@ -1,5 +1,8 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+import { Skeleton } from "@/components/ui/skeleton";
+
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -24,9 +27,13 @@ import { useNetworkSheet } from "./network-sheet";
 export function ProfileColumn() {
   const [showProfile, setShowProfile] = useState(false);
   const network = useNetworkSheet();
-  const { data } = useServiceQuery(["feed", "summary"], (s) => s.workspace.getProfessionalSummary());
-  const { data: pulse } = useServiceQuery(["pulse", "feed", 91], (s) => s.work.getPulse(apiConfig.dataSource === "http" ? "me" : "p0", 91));
-  if (!data) return <aside className="feed-profile-column" aria-label="Your profile and activity" tabIndex={0} />;
+  const { data, isError, refetch } = useServiceQuery(["feed", "summary"], (s) => s.workspace.getProfessionalSummary());
+  const { data: pulse, isError: pulseError, refetch: retryPulse } = useServiceQuery(["pulse", "feed", 91], (s) => s.work.getPulse(apiConfig.dataSource === "http" ? "me" : "p0", 91));
+  const networkQuery = useServiceQuery(["feed-network", "professional"], s => s.feed.getNetwork("professional"), { enabled: apiConfig.dataSource === "http" });
+  const savedQuery = useServiceQuery(["feed-saved-count", "professional"], s => s.feed.getFeed({ role: "professional", filter: "saved", sort: "recent", q: "", limit: 1 }), { enabled: apiConfig.dataSource === "http" });
+  if (!data) return <aside className="feed-profile-column" aria-label="Your profile and activity"><QueryFeedback data={data} error={isError} retry={refetch} label="Loading profile" /></aside>;
+  const followingCount = apiConfig.dataSource === "http" ? networkQuery.data ? networkQuery.data.following.length + networkQuery.data.companies.length : undefined : data.followingCount;
+  const savedCount = apiConfig.dataSource === "http" ? savedQuery.data?.total : data.savedCount;
   const p = data.person;
   return (
     <aside className={"feed-profile-column" + (showProfile ? " show-profile" : "")} aria-label="Your profile and activity" tabIndex={0}>
@@ -85,9 +92,10 @@ export function ProfileColumn() {
         </div>
         <p>Small steps, a bigger story.</p>
         <span className="feed-pulse-range">Last 3 months</span>
+        <QueryFeedback data={pulse} error={pulseError} retry={retryPulse} layout="chart" label="Loading Work Pulse" />
         {pulse && <Heatmap pulse={pulse} ownerId={apiConfig.dataSource==="http"?"me":"p0"} />}
         <div className="feed-pulse-total">
-          <strong>{data.pulseDays}</strong>
+          <strong>{pulse?.activeDays ?? data.pulseDays ?? (pulseError ? "—" : <Skeleton style={{ width: 30, height: 20 }} />)}</strong>
           <span>days of recorded progress</span>
         </div>
         <small>Recorded activity, never a productivity score.</small>
@@ -99,7 +107,7 @@ export function ProfileColumn() {
             Your following
           </span>
           <strong>
-            {data.followingCount} <Icon name="chevron" />
+            {followingCount ?? (networkQuery.isError ? "—" : <Skeleton style={{ width: 28 }} />)} <Icon name="chevron" />
           </strong>
         </button>
         <Link href="/app/portfolio">
@@ -114,7 +122,7 @@ export function ProfileColumn() {
             <Icon name="bookmark" />
             Saved posts & jobs
           </span>
-          <strong>{data.savedCount}</strong>
+          <strong>{savedCount ?? (savedQuery.isError ? "—" : <Skeleton style={{ width: 28 }} />)}</strong>
         </Link>
       </section>
       <DevOnly>

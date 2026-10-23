@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import Link from "next/link";
 import Image from "next/image";
 import {useState,type ReactNode} from "react";
@@ -286,7 +288,7 @@ function NoteForm({ item }: { item: ResponseItem }) {
       <p className="small muted">{devCopy("Private hiring notes are saved in this browser.", "Hiring notes are private.")}</p>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
           Save note
         </Button>
       </div>
@@ -347,7 +349,7 @@ function OutreachForm({ ids, names }: { ids: Id[]; names: string[] }) {
       <p className="notice">{devCopy("This saves a local draft only. It does not send email.","Save a draft first, then review recipients and explicitly queue delivery.")}</p>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
           Save outreach draft
         </Button>
       </div>
@@ -558,7 +560,7 @@ export function ResponseCenterScreen() {
   const { selection } = useUiStore((s) => s.responses);
   const setResponses = useUiStore((s) => s.setResponses);
   const actions = useResponseActions();
-  const { data: m,isError } = useServiceQuery(["responses", params.toString()], (s) => s.recruiting.listResponses(q),{keepPreviousData:false});
+  const { data: m,isError,refetch } = useServiceQuery(["responses", params.toString()], (s) => s.recruiting.listResponses(q),{keepPreviousData:false});
   const visible = m?.items ?? [];
   const allChecked = visible.length > 0 && visible.every(({ application }) => selection.includes(application.id));
   const select = (id: Id, checked: boolean) => setResponses({ selection: checked ? [...new Set([...selection, id])] : selection.filter((x) => x !== id) });
@@ -574,7 +576,6 @@ export function ResponseCenterScreen() {
   ];
   return (
     <div className="response-center">
-      {isError&&<p role="alert">Responses could not be loaded. Check the filters and your workspace access, then retry.</p>}
       <PageHeading
         title="Job responses"
         subtitle="Review applicants with context, filters, and clear next steps."
@@ -711,6 +712,7 @@ export function ResponseCenterScreen() {
             </div>
           </div>
           <div className="response-candidate-list">
+          <QueryFeedback data={m} error={isError} retry={refetch} label="Loading applicants" />
             {m &&
               (visible.length ? (
                 visible.map((item) => <CandidateCard key={item.application.id} item={item} q={q} selected={selection.includes(item.application.id)} onSelect={(c) => select(item.application.id, c)} actions={actions} />)

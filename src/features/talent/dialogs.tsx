@@ -16,13 +16,13 @@ import { useUiStore } from "@/stores/ui-store";
 import { Avatar, Button } from "@/components/ui/primitives";
 import { TextField,SelectField } from "@/components/ui/field";
 import { confirmAction, FormError } from "@/components/ui/feedback";
+import { QueryFeedback } from "@/components/ui/query-view";
 
 
 
 function ShortlistChooser({ candidateId }: { candidateId: Id }) {
-  const {data,isError}=useServiceQuery(["shortlists"],(s)=>s.talent.listShortlists(),{keepPreviousData:false});
-  if(isError)return <p role="alert">Shortlists could not be loaded. Please retry.</p>;
-  return data?<ShortlistSelection candidateId={candidateId} initialLists={data}/>:null;
+  const {data,isError,refetch}=useServiceQuery(["shortlists"],(s)=>s.talent.listShortlists(),{keepPreviousData:false});
+  return data?<ShortlistSelection candidateId={candidateId} initialLists={data}/>:<QueryFeedback data={data} error={isError} retry={refetch} label="Loading shortlists" />;
 }
 function ShortlistSelection({candidateId,initialLists}:{candidateId:Id;initialLists:ShortlistView[]}){
   const [lists]=useState(initialLists);
@@ -60,7 +60,7 @@ function ShortlistSelection({candidateId,initialLists}:{candidateId:Id;initialLi
           <Button icon="plus" onClick={() => dialogs.edit()}>
             New shortlist
           </Button>
-          <Button type="submit" variant="primary" disabled={pending}>
+          <Button type="submit" variant="primary" loading={pending} disabled={pending}>
             Save selection
           </Button>
         </div>
@@ -90,7 +90,7 @@ function ShortlistNameForm({ id, name,version }: { id?: Id; name?: string;versio
       <TextField label="Shortlist name" name="name" defaultValue={name ?? ""} required minLength={1} maxLength={100} placeholder="e.g. Product design team" />
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
           {id ? "Save name" : "Create shortlist"}
         </Button>
       </div>
@@ -146,7 +146,7 @@ function CompareChooser() {
 function ShortlistSharing({list}:{list:Shortlist}){
   const [errors,setErrors]=useState<Record<string,string>>({});
   const {execute,pending}=useFormAction(setErrors);
-  return <form className="stack" onSubmit={async(e)=>{e.preventDefault();const visibility=String(new FormData(e.currentTarget).get("visibility"));if(visibility!=="private"&&visibility!=="organization")return setErrors({visibility:"Choose a sharing option."});if(!await execute(async(s)=>{if(!s.talent.shareShortlist)throw new Error("Sharing is unavailable.");await s.talent.shareShortlist(list.id,{visibility,version:list.version});}))return;modal.close();toast("Shortlist sharing updated.");}}><p>Organization sharing lets active team members view this list. Its owner and organization administrators retain editing access.</p><SelectField label="Who can view this list?" name="visibility" defaultValue={list.visibility??"private"} options={[{value:"private",label:"Owner and administrators"},{value:"organization",label:"Active organization members"}]}/>{Object.values(errors).map((error)=><p role="alert" key={error}>{error}</p>)}<div className="modal-footer"><Button onClick={()=>modal.close()}>Cancel</Button><Button type="submit" variant="primary" disabled={pending}>Save sharing</Button></div></form>;
+  return <form className="stack" onSubmit={async(e)=>{e.preventDefault();const visibility=String(new FormData(e.currentTarget).get("visibility"));if(visibility!=="private"&&visibility!=="organization")return setErrors({visibility:"Choose a sharing option."});if(!await execute(async(s)=>{if(!s.talent.shareShortlist)throw new Error("Sharing is unavailable.");await s.talent.shareShortlist(list.id,{visibility,version:list.version});}))return;modal.close();toast("Shortlist sharing updated.");}}><p>Organization sharing lets active team members view this list. Its owner and organization administrators retain editing access.</p><SelectField label="Who can view this list?" name="visibility" defaultValue={list.visibility??"private"} options={[{value:"private",label:"Owner and administrators"},{value:"organization",label:"Active organization members"}]}/>{Object.values(errors).map((error)=><p role="alert" key={error}>{error}</p>)}<div className="modal-footer"><Button onClick={()=>modal.close()}>Cancel</Button><Button type="submit" variant="primary" loading={pending} disabled={pending}>Save sharing</Button></div></form>;
 }
 
 export function useShortlistDialogs() {

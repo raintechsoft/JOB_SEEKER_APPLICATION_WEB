@@ -16,7 +16,7 @@ export function WorkspaceAccessGate({role,children}:{role:"professional"|"recrui
   useEffect(() => {
     if (home && pathname !== home) router.replace(home);
   }, [home, pathname, router]);
-  if (session.isPending || (home && pathname !== home)) return <p role="status">Loading your workspace…</p>;
+  if (session.isPending || (home && pathname !== home)) return null;
   if(session.isError||selected?.kind!==role||!data?.user.email_verified)return <RealWorkspace role={role}/>;
   return children;
 }

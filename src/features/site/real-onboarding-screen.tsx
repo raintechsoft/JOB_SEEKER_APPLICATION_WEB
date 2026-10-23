@@ -26,11 +26,11 @@ export function RealOnboardingScreen() {
   const cache = useQueryClient();
   const router = useRouter();
   if (session.isError) return <main className="onboarding"><p role="alert">{errorMessage(session.error)}</p><Link href="/login">Sign in</Link></main>;
-  if (!session.data) return <ScreenFallback />;
+  if (!session.data) return <ScreenFallback layout="form" />;
   if (!session.data.user.email_verified) return <main className="onboarding"><Link href="/verify-email">Verify your email to continue</Link></main>;
   if (!professional) return <main className="onboarding"><h1>Let’s meet your team.</h1><p>Your organization account is ready. Complete its company profile to introduce your team.</p><Link href="/recruiter/company">Complete company profile</Link></main>;
   if (profile.isError) return <main className="onboarding"><p role="alert">{errorMessage(profile.error)}</p><Button onClick={() => void profile.refetch()}>Try again</Button></main>;
-  if (!profile.data) return <ScreenFallback />;
+  if (!profile.data) return <ScreenFallback layout="form" />;
   const view = profile.data;
   const p = view.person;
   const step = stage ?? Math.min(view.onboardingStep ?? 0, 3);
@@ -88,7 +88,7 @@ export function RealOnboardingScreen() {
       </fieldset>
       {(errors._form || errors.resume) && <p role="alert" className="error">{errors._form || errors.resume}</p>}
       <div className="form-actions">{step > 0 && <Button disabled={pending || uploading} onClick={() => { setErrors({}); setStage(step - 1); }}>Back</Button>}
-        <button className="btn primary" disabled={pending || uploading}>{pending || uploading ? "Please wait…" : step === 3 ? "Enter my workspace" : "Save & continue"}</button>
+        <Button type="submit" variant="primary" loading={pending} loadingLabel="Saving your progress" disabled={pending || uploading}>{step === 3 ? "Enter my workspace" : "Save & continue"}</Button>
       </div>
     </form>
   </main>;

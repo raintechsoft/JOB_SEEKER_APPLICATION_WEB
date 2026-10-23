@@ -1,3 +1,4 @@
+import { MediaImage } from "@/components/ui/media-image";
 import { Fragment } from "react";
 import { cn } from "@/lib/utils/text";
 
@@ -21,8 +22,7 @@ export function ProjectArt({ project, className }: { project: ProjectArtData; cl
   if (project.cover) {
     return (
       <div className={cn("art", className)}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded data URL kept in browser storage */}
-        <img src={project.cover} alt={project.title} loading="lazy" />
+        <MediaImage src={project.cover} alt={project.title} loading="lazy" />
       </div>
     );
   }

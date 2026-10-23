@@ -33,7 +33,7 @@ export interface JobRecommendations {
   forYou: RecommendedJob[];
   alertMatches: RecommendedJob[];
   newCount: number;
-  alerts: JobAlert[];
+  alerts?: JobAlert[];
 }
 
 export interface RecommendationsService {

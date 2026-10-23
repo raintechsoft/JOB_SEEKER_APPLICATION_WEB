@@ -1,5 +1,7 @@
 "use client";
 
+import { QueryFeedback } from "@/components/ui/query-view";
+
 import { useEffect, useRef } from "react";
 import type { TalentFilters } from "@/services/talent/talent.service";
 import { EMPTY_TALENT_FILTERS } from "@/services/talent/talent.service";
@@ -15,7 +17,7 @@ import { TalentCard } from "@/components/talent/talent-card";
 function TalentResults({ publicMode }: { publicMode: boolean }) {
   const filters = useUiStore((s) => s.talent);
   const setTalent = useUiStore((s) => s.setTalent);
-  const { data: list,isError } = useServiceQuery(["talent", "search", filters], (s) => s.talent.search(filters),{keepPreviousData:false});
+  const { data: list,isError,refetch } = useServiceQuery(["talent", "search", filters], (s) => s.talent.search(filters),{keepPreviousData:false});
   const tracked = useRef("");
   useEffect(() => {
     const key = JSON.stringify(filters);
@@ -27,7 +29,7 @@ function TalentResults({ publicMode }: { publicMode: boolean }) {
     <>
       <div className="row between wrap" style={{ marginBottom: 20 }}>
         <p className="small muted">
-          <strong style={{ color: "var(--ink)" }}>{list?.length ?? 0}</strong> professionals to explore{" "}
+          <strong style={{ color: "var(--ink)" }}>{list?.length ?? "—"}</strong> professionals to explore{" "}
           <DevOnly>
             <span style={{ marginLeft: 7 }}>· Fictional demo directory</span>
           </DevOnly>
@@ -51,8 +53,8 @@ function TalentResults({ publicMode }: { publicMode: boolean }) {
           />
         </div>
       </div>
-      {isError&&<p role="alert">Talent could not be loaded. Check the filters and retry.</p>}
       <div className="grid cols3 talent-grid">
+        <QueryFeedback data={list} error={isError} retry={refetch} layout="cards" label="Loading professionals" />
         {list && list.length ? (
           list.map((p) => <TalentCard key={p.id} person={p} publicMode={publicMode} />)
         ) : list ? (
@@ -77,9 +79,9 @@ const CHIP_KEYS = ["category", "skill", "location", "years", "availability"] as 
 export function DiscoverScreen({ publicMode = false }: { publicMode?: boolean }) {
   const filters = useUiStore((s) => s.talent);
   const setTalent = useUiStore((s) => s.setTalent);
-  const { data: options } = useServiceQuery(["talent", "filter-options"], (s) => s.talent.getFilterOptions());
+  const { data: options, isPending: optionsPending, isError: optionsError, refetch: retryOptions } = useServiceQuery(["talent", "filter-options"], (s) => s.talent.getFilterOptions());
   const select = (key: keyof TalentFilters, label: string, opts: { value: string; label: string }[]) => (
-    <FloatingSelect label={label} className="control" aria-label={label} value={String(filters[key])} onChange={(e) => setTalent({ [key]: e.target.value } as Partial<TalentFilters>)} options={opts} />
+    <FloatingSelect label={label} className="control" aria-label={label} loading={(key === "location" || key === "skill") && optionsPending} disabled={(key === "location" || key === "skill") && optionsError && !options} value={String(filters[key])} onChange={(e) => setTalent({ [key]: e.target.value } as Partial<TalentFilters>)} options={opts} />
   );
   return (
     <>
@@ -126,6 +128,7 @@ export function DiscoverScreen({ publicMode = false }: { publicMode?: boolean })
           Clear all
         </Button>
       </div>
+      {optionsError && <p role="alert" className="small muted">Location and skill options could not be loaded. <Button variant="text sm" onClick={() => retryOptions()}>Try again</Button></p>}
       <div id="active-filters" className="row wrap" style={{ marginBottom: 15 }}>
         {CHIP_KEYS.filter((k) => filters[k]).map((k) => (
           <button type="button" key={k} className="tag purple" onClick={() => setTalent({ [k]: "" } as Partial<TalentFilters>)}>

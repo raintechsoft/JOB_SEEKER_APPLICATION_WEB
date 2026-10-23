@@ -79,7 +79,7 @@ function InviteForm({ organizationName }: { organizationName: string }) {
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" disabled={pending} variant="primary" icon="send">
+        <Button type="submit" loading={pending} disabled={pending} variant="primary" icon="send">
           Send Invitation
         </Button>
       </div>
@@ -93,8 +93,8 @@ function DeactivateMember({ member, role }: { member: RecruiterMember; role: Org
   return <>
     <p className="org-help">{member.fullName} will be inactive{devCopy(" in this prototype", "")} and their public recruiter profile will be hidden. You can reactivate them later.</p>
     {Object.keys(errors).length > 0 && <p role="alert">{Object.values(errors).join(" ")}</p>}
-    <div className="modal-footer"><Button disabled={pending} onClick={() => modal.close()}>Cancel</Button>
-      <Button variant="danger" disabled={pending} onClick={async () => {
+    <div className="modal-footer"><Button loading={pending} disabled={pending} onClick={() => modal.close()}>Cancel</Button>
+      <Button variant="danger" loading={pending} disabled={pending} onClick={async () => {
         const input = organizationAccessSchema.safeParse({ role, accountStatus: "Inactive" });
         if (!input.success) { setErrors(validationFields(input.error)); return; }
         const ok = await execute(async (s) => { const result = await s.organization.updateAccess(member.id, input.data.role, input.data.accountStatus); if (!result.ok) throw new Error(result.error); });
@@ -155,7 +155,7 @@ function ManageMember({ member, own }: { member: RecruiterMember; own: boolean }
       </div>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" disabled={pending} variant="primary">
+        <Button type="submit" loading={pending} disabled={pending} variant="primary">
           Save access
         </Button>
       </div>

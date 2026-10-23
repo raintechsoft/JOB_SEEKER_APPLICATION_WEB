@@ -14,7 +14,7 @@ export function createHttpTalentService(http:HttpClient,auth:AuthService,recomme
   const setCandidateShortlists=async(candidateId:string,ids:string[],observed?:Record<string,number>)=>{z.uuid().parse(candidateId);z.array(z.uuid()).max(50).refine((v)=>new Set(v).size===v.length).parse(ids);const versions=observed??Object.fromEntries([...lists.values()].filter((l)=>l.canEdit).map((l)=>[l.id,l.version]));return (await http.post<{data:{saved:boolean}}>(`${await hiringPath(auth)}/talent/${candidateId}/shortlists`,{ids,versions})).data.saved;};
   const search=async(filters:Parameters<TalentService["search"]>[0])=>{const f=talentFiltersSchema.parse(filters);return (await http.get<{data:components["schemas"]["TalentCard"][]}>(`${await discoveryPath()}talent`,f)).data;};
   return {
-    reset(){lists.clear();},search,listShortlists,setCandidateShortlists,
+    reset(){lists.clear();},search,listShortlists,setCandidateShortlists,getRecommendedTalent:recommended,
     async shareShortlist(id,input){z.uuid().parse(id);z.enum(["private","organization"]).parse(input.visibility);const list=await known(id);await http.patch(`${await hiringPath(auth)}/shortlists/${id}`,{name:list.name,version:input.version??list.version,visibility:input.visibility});lists.delete(id);},
     async getFilterOptions(){return (await http.get<{data:{locations:string[];skills:string[]}}>(`${await discoveryPath()}talent-options`)).data;},
     async getCandidate(id){z.uuid().parse(id);return (await http.get<{data:CandidateView}>(`${await hiringPath(auth)}/talent/${id}`)).data;},

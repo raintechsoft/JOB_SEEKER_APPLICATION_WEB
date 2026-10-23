@@ -3,22 +3,22 @@ import type { Company, DemoSession, DemoSettings, Role } from "@/types/domain";
 
 export interface ProfessionalShellData {
   person: PersonSummary & { email: string; location: string; complete: number };
-  unreadConversations: number;
+  unreadConversations?: number;
 }
 
 export interface RecruiterShellData {
   identity: PersonSummary;
   companyName: string;
   title: string;
-  unreadConversations: number;
-  savedCount: number;
+  unreadConversations?: number;
+  savedCount?: number;
 }
 
 export interface ProfessionalSummary {
   person: PersonSummary & { location: string; complete: number };
-  pulseDays: number;
-  followingCount: number;
-  savedCount: number;
+  pulseDays?: number;
+  followingCount?: number;
+  savedCount?: number;
 }
 
 export type SettingKey = "profile-public" | "portfolio-public" | "updates-public" | "notifications";

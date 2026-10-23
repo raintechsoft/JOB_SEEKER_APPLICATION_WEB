@@ -1,9 +1,5 @@
-import { ScreenFallback } from "@/components/ui/feedback";
-
 export default function Loading() {
-  return (
-    <main id="main" className="container section">
-      <ScreenFallback label="Loading…" />
-    </main>
-  );
+  // Keep the streaming boundary without a second, unrelated page skeleton.
+  // Each data-dependent section owns its visible loading state.
+  return null;
 }

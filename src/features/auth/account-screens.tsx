@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/primitives";
+
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -154,9 +156,9 @@ export function ForgotPasswordForm({ onStep }: { onStep?: (step: "email" | "code
         <p className="notice">Enter the 6-digit code sent to {email}.</p>
         <OtpFields error={codeError} legend="Reset code" />
         <OtpResend sentAt={Date.parse(challenge.sent_at)} onResend={resend} disabled={resending || verifying} label="Resend code" />
-        <button className="btn primary" type="submit" disabled={verifying || resending}>
+        <Button loading={verifying || resending} variant="primary" type="submit" disabled={verifying || resending}>
           {verifying ? "Verifying…" : "VERIFY CODE"}
-        </button>
+        </Button>
       </form>
     );
   }
@@ -174,9 +176,9 @@ export function ForgotPasswordForm({ onStep }: { onStep?: (step: "email" | "code
         <TextField label="Email address" type="email" autoComplete="email" required {...props("email")} />
       </AuthField>
       <AuthError name="root" message={errors.root?.message} />
-      <button className="btn primary" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Sending…" : "SEND RESET CODE"}
-      </button>
+      <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Sending…"}>
+        {"SEND RESET CODE"}
+      </Button>
     </form>
   );
 }
@@ -199,9 +201,9 @@ export function ChangePasswordForm() {
       </AuthField>
       <AuthError name="root" message={errors.root?.message} />
       <p className="notice">Changing your password signs you out on every device.</p>
-      <button className="btn primary" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Saving…" : "CHANGE PASSWORD"}
-      </button>
+      <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Saving…"}>
+        {"CHANGE PASSWORD"}
+      </Button>
     </form>
   );
 }
@@ -290,9 +292,7 @@ export function VerifyEmailScreen() {
               <h1>Verify your email.</h1>
               <p>{session?.user.email ? `Enter the OTP sent to ${session.user.email}.` : "Enter the six-digit OTP we sent to your email."}</p>
             </div>
-            {query.isPending ? (
-              <p className="notice">Loading your account…</p>
-            ) : query.isError ? (
+            {query.isPending ? null : query.isError ? (
               <p className="notice" role="alert">
                 {query.error instanceof ApiError && query.error.status === 401 ? (
                   <>
@@ -315,9 +315,9 @@ export function VerifyEmailScreen() {
               <form id="auth-form" ref={formRef} className="stack" noValidate onSubmit={verify}>
                 <OtpFields error={codeError} />
                 <OtpResend sentAt={sentAt} onResend={resend} disabled={resending || busy} />
-                <button className="btn primary" type="submit" disabled={busy || resending}>
-                  {busy ? "Verifying…" : "VERIFY EMAIL"}
-                </button>
+                <Button loading={busy} loadingLabel="Verifying email" variant="primary" type="submit" disabled={busy || resending}>
+                  VERIFY EMAIL
+                </Button>
               </form>
             )}
             <p className="auth-switch-link">
@@ -344,9 +344,9 @@ export function AcceptInvitationForm({ token }: { token: string }) {
       <p className="notice">Accept this invitation using the verified account with the invited email address.</p>
       <AuthError name="token" message={errors.token?.message} />
       <AuthError name="root" message={errors.root?.message} />
-      <button className="btn primary" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Please wait…" : "ACCEPT INVITATION"}
-      </button>
+      <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Please wait…"}>
+        {"ACCEPT INVITATION"}
+      </Button>
     </form>
   );
 }
@@ -429,6 +429,6 @@ function RecoveryPasswordStep() {
     if (query.data && (query.data.step !== "password" || !query.data.expires_at)) expire();
   }, [query.data, expire]);
   if (query.isError) return <p role="alert">{errorMessage(query.error)}</p>;
-  if (query.data?.step !== "password" || !query.data.expires_at) return <p role="status">Checking your recovery request…</p>;
+  if (query.data?.step !== "password" || !query.data.expires_at) return null;
   return <ResetPasswordForm expiresAt={query.data.expires_at} onExpired={expire} />;
 }

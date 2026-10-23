@@ -1,5 +1,8 @@
 "use client";
 
+import { Button } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,7 +42,7 @@ export function ResetPasswordForm({ expiresAt, onExpired }: { expiresAt: string;
     if (remaining === 0 && !isSubmitting && !completed.current) onExpired();
   }, [remaining, isSubmitting, onExpired]);
 
-  if (remaining === 0) return <p className="notice" role={isSubmitting ? "status" : "alert"}>{isSubmitting ? "Checking your password reset result…" : RECOVERY_EXPIRED_MESSAGE}</p>;
+  if (remaining === 0) return isSubmitting ? <span role="status" aria-label="Submitting password reset" aria-busy="true"><Spinner /></span> : <p className="notice" role="alert">{RECOVERY_EXPIRED_MESSAGE}</p>;
 
   return (
     <form id="auth-form" className="stack" noValidate onSubmit={(event) => { void submit(async (input) => {
@@ -66,7 +69,7 @@ export function ResetPasswordForm({ expiresAt, onExpired }: { expiresAt: string;
         <TextField label="Confirm new password" type="password" autoComplete="new-password" required {...props("password_confirmation")} />
       </AuthField>
       <AuthError name="root" message={errors.root?.message} />
-      <button className="btn primary" type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving…" : "RESET PASSWORD"}</button>
+      <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Saving…"}>{"RESET PASSWORD"}</Button>
     </form>
   );
 }

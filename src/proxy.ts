@@ -23,7 +23,9 @@ export async function proxy(request: NextRequest) {
   try {
     updatedCookies.push(...await recordRecoveryNavigation(request, base));
     const protectedPage = path === "/reset-password" || path === "/verify-email" || path === "/change-password" || path === "/onboarding" || path === "/accept-invitation" || /^\/(?:app|admin|recruiter)(?:\/|$)/.test(path);
-    if (!protectedPage) return secure(NextResponse.next());
+    const accountEntry = ["/login", "/signup", "/employer/login", "/employer/register"].includes(path);
+    const sessionCookie = process.env.API_SESSION_COOKIE ?? process.env.SESSION_COOKIE ?? "skillora_session";
+    if (!protectedPage && (!accountEntry || !request.cookies.has(sessionCookie))) return secure(NextResponse.next());
     const recovering = path === "/reset-password";
     const response = await fetch(`${base.replace(/\/$/, "")}/auth/${recovering ? "recovery" : "me"}`, {
       headers: { Accept: "application/json", Origin: process.env.FRONTEND_URL ?? request.nextUrl.origin, Cookie: request.headers.get("cookie") ?? "" },
@@ -35,6 +37,7 @@ export async function proxy(request: NextRequest) {
       return data?.step === "password" ? secure(NextResponse.next()) : redirect(RECOVERY_EXPIRED_PATH);
     }
     if (response.status === 401) {
+      if (accountEntry) return secure(NextResponse.next());
       const login = new URL(/^\/recruiter(?:\/|$)/.test(path) ? "/employer/login" : "/login", request.url);
       login.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
       return secure(NextResponse.redirect(login));
@@ -42,6 +45,9 @@ export async function proxy(request: NextRequest) {
     if (!response.ok) return unavailable();
     const { data: session } = await response.json() as { data: AuthSession };
     if (!session?.user || !Array.isArray(session.workspaces)) return unavailable();
+    // Account-entry forms are for guests. Visiting one never discards a valid
+    // session or changes the selected professional/employer workspace.
+    if (accountEntry) return redirect(authDestination(session));
     if (!session.user.email_verified && path !== "/verify-email") return redirect("/verify-email");
     if (session.user.email_verified && path === "/verify-email") return redirect(authDestination(session));
     if (path.startsWith("/recruiter/") && !session.workspaces.some((workspace) => workspace.kind === "recruiter")) return forbidden();

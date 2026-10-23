@@ -7,6 +7,8 @@ import { Badge, Button, EmptyState, LinkButton, PageHeading } from "@/components
 import { StatCard } from "@/features/talent/recruiter-talent-screens";
 import {apiConfig} from "@/services/api/config";
 import {RealAdminScreen} from "./real-admin-screen";
+import { TableRowsSkeleton } from "@/components/ui/skeleton";
+import { QueryFeedback } from "@/components/ui/query-view";
 
 export type AdminPage = "dashboard" | "users" | "companies" | "moderation";
 
@@ -14,10 +16,12 @@ const STORAGE_FALLBACK = "Saved for this page only. Browser storage is full or u
 
 function Users() {
   const run = useServiceAction();
-  const { data } = useServiceQuery(["admin", "users"], (s) => s.admin.listProfessionals());
+  const { data, isPending, isError, refetch } = useServiceQuery(["admin", "users"], (s) => s.admin.listProfessionals());
   return (
     <div className="card" style={{ overflow: "auto" }}>
-      <table className="table">
+      {isError && <QueryFeedback data={undefined} error retry={refetch} />}
+      {isPending && <span className="sr-only" role="status">Loading accounts</span>}
+      <table className="table" aria-busy={isPending || undefined}>
         <thead>
           <tr>
             <th>Professional</th>
@@ -27,6 +31,7 @@ function Users() {
           </tr>
         </thead>
         <tbody>
+          {isPending && <TableRowsSkeleton columns={4} />}
           {data?.map((p) => (
             <tr key={p.id}>
               <td>{p.name}</td>
@@ -88,15 +93,16 @@ const CARDS: [string, string, string, IconName][] = [
 ];
 
 function Overview() {
-  const { data } = useServiceQuery(["admin", "overview"], (s) => s.admin.getOverview());
+  const { data, isError, refetch } = useServiceQuery(["admin", "overview"], (s) => s.admin.getOverview());
   return (
     <>
       <div className="stats">
-        <StatCard label="Professionals" value={data?.professionals ?? ""} description="Fictional demo users" icon="users" />
-        <StatCard label="Companies" value={data?.companies ?? ""} description="Sample organizations" icon="building" />
-        <StatCard label="Pending verification" value={data?.pendingVerification ?? ""} description="Demo review requests" icon="shield" />
-        <StatCard label="Reported content" value={data?.reportedContent ?? ""} description="Sample moderation queue" icon="file" />
+        <StatCard label="Professionals" loading={!data && !isError} value={data?.professionals ?? "—"} description="Fictional demo users" icon="users" />
+        <StatCard label="Companies" loading={!data && !isError} value={data?.companies ?? "—"} description="Sample organizations" icon="building" />
+        <StatCard label="Pending verification" loading={!data && !isError} value={data?.pendingVerification ?? "—"} description="Demo review requests" icon="shield" />
+        <StatCard label="Reported content" loading={!data && !isError} value={data?.reportedContent ?? "—"} description="Sample moderation queue" icon="file" />
       </div>
+      {isError && <QueryFeedback data={undefined} error retry={refetch} />}
       <div className="grid cols3">
         {CARDS.map(([title, description, href, icon]) => (
           <div className="card" key={title}>

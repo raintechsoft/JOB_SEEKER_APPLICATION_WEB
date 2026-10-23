@@ -38,7 +38,7 @@ export function EditPost({ entry, role }: { entry: FeedEntry; role: Role }) {
       <TextAreaField label={recruiter ? "Your post" : "Your story"} name="body" defaultValue={entry.body} required maxLength={3000} error={errors.body} />
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="primary" loading={pending}>
           Save changes
         </Button>
       </div>

@@ -13,6 +13,7 @@ import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
 import { apiConfig } from "@/services/api/config";
 import { RealOnboardingScreen } from "./real-onboarding-screen";
+import { QueryFeedback } from "@/components/ui/query-view";
 
 const HEADINGS = ["Let’s start with your story.", "Bring your experience with you.", "The things you bring to the table.", "Ready for your next chapter?"];
 const SUBTITLES = ["A few introductions", "CV review", "Skills & background", "One last look"];
@@ -26,10 +27,11 @@ function PrototypeOnboardingScreen() {
   const router = useRouter();
   const { role, step, cvName, cvParsed } = useUiStore((s) => s.onboarding);
   const setOnboarding = useUiStore((s) => s.setOnboarding);
-  const { data: profile } = useServiceQuery(["profile"], (s) => s.profile.getProfile());
-  const { data: company } = useServiceQuery(["company", "home"], (s) => s.workspace.getHomeCompany());
+  const profileQuery = useServiceQuery(["profile"], (s) => s.profile.getProfile());
+  const companyQuery = useServiceQuery(["company", "home"], (s) => s.workspace.getHomeCompany());
+  const profile = profileQuery.data, company = companyQuery.data;
   const recruiter = role === "recruiter";
-  if (!profile || !company) return <main id="main" className="onboarding" />;
+  if (!profile || !company) return <main id="main" className="onboarding"><QueryFeedback data={undefined} error={profileQuery.isError || companyQuery.isError} retry={() => Promise.all([profileQuery.refetch(), companyQuery.refetch()])} layout="form" label="Loading your profile" /></main>;
   const p = profile.person;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {

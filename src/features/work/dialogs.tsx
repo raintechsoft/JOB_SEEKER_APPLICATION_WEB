@@ -1,4 +1,5 @@
 "use client";
+import { QueryFeedback } from "@/components/ui/query-view";
 
 import { useCallback, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -30,9 +31,9 @@ const STORAGE_FALLBACK = "Saved for this page only. Browser storage is full or u
 function ProjectDetails({ id }: { id: Id }) {
   const pathname = usePathname();
   const { data: own } = useServiceQuery(["profile"], (s) => s.profile.getProfile(), { enabled: pathname.startsWith("/app") });
-  const { data: project } = useServiceQuery(["project", id], (s) => s.work.getProject(id));
+  const { data: project, isError, refetch } = useServiceQuery(["project", id], (s) => s.work.getProject(id), { keepPreviousData: false });
   const dialogs = useProjectDialogs();
-  if (!project) return null;
+  if (!project) return <QueryFeedback data={project} error={isError} retry={refetch} layout="cards" label="Loading project" />;
   return (
     <>
       <ProjectCard project={project} />
@@ -141,7 +142,7 @@ export function ProjectForm({ project: initialProject }: { project: Project | nu
           </Button>
         )}
         <Button onClick={() => modal.requestClose()}>Cancel</Button>
-        <Button type="submit" variant="primary" icon="check" disabled={action.pending || form.formState.isSubmitting}>
+        <Button type="submit" variant="primary" icon="check" loading={action.pending || form.formState.isSubmitting} disabled={action.pending || form.formState.isSubmitting}>
           Save project
         </Button>
       </div>
@@ -238,10 +239,10 @@ export function UpdateFormFields({ update: initialUpdate, defaultVisibility, pro
 }
 
 function UpdateDetails({ id }: { id: Id }) {
-  const { data: update } = useServiceQuery(["update", id], (s) => s.work.getUpdate(id));
+  const { data: update, isError, refetch } = useServiceQuery(["update", id], (s) => s.work.getUpdate(id), { keepPreviousData: false });
   const { data: project } = useServiceQuery(["project", update?.project], (s) => s.work.getProject(update!.project), { enabled: !!update?.project });
   const projects = useProjectDialogs();
-  if (!update) return null;
+  if (!update) return <QueryFeedback data={update} error={isError} retry={refetch} label="Loading update" />;
   return (
     <>
       <UpdateItem update={update} />
@@ -260,9 +261,9 @@ function UpdateDetails({ id }: { id: Id }) {
 function PulseDay({ ownerId, date }: { ownerId: Id; date: IsoDate }) {
   const pathname = usePathname();
   const inWorkspace = pathname.startsWith("/app");
-  const { data } = useServiceQuery(["updates", ownerId, date, inWorkspace], (s) => s.work.listUpdates(ownerId, { date, publicOnly: !inWorkspace }));
+  const { data, isError, refetch } = useServiceQuery(["updates", ownerId, date, inWorkspace], (s) => s.work.listUpdates(ownerId, { date, publicOnly: !inWorkspace }), { keepPreviousData: false });
   const dialogs = useUpdateDialogs();
-  if (!data) return null;
+  if (!data) return <QueryFeedback data={data} error={isError} retry={refetch} label="Loading recorded updates" />;
   return data.length ? (
     <>
       {data.map((u) => (
