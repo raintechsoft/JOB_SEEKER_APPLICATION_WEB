@@ -8,7 +8,7 @@ export const personSummary = (p: Professional): PersonSummary => ({
   id: p.id,
   name: p.name,
   headline: p.headline,
-  picture: p.picture || PORTRAITS[p.id],
+  picture: p.picture ?? PORTRAITS[p.id],
   color: p.color,
   slug: p.slug,
 });
@@ -18,7 +18,16 @@ export const feedPerson = (db: DemoDatabase, id: Id): PersonSummary => (id === R
 
 export function companySummary(db: DemoDatabase, c: Company): CompanySummary {
   const org = db.organizationWorkspace.organization;
-  return { id: c.id, name: c.name, industry: c.industry, logoUrl: c.id === org.id && org.logoUrl ? org.logoUrl : undefined };
+  const own = c.id === org.id;
+  return {
+    id: c.id,
+    name: c.name,
+    industry: c.industry,
+    logoUrl: own && org.logoUrl ? org.logoUrl : undefined,
+    slug: own ? org.slug : undefined,
+    description: own ? org.description : c.summary,
+    companySize: own ? org.companySize : undefined,
+  };
 }
 
 export function jobCompany(db: DemoDatabase, job: Job): CompanySummary {

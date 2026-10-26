@@ -4,6 +4,7 @@ import type { ChangeEvent } from "react";
 import type { VerificationStatus } from "@/types/domain";
 import { isPrototype } from "@/lib/env/app-env";
 import { Icon } from "@/components/ui/icon";
+import { MediaImage } from "@/components/ui/media-image";
 import { Button, IconButton } from "@/components/ui/primitives";
 import { FloatingInput, FloatingSelect, FloatingTextArea, type Option } from "@/components/ui/field";
 
@@ -139,43 +140,22 @@ export function OrgChips({ label, name, scope, values, onAdd, onRemove }: { labe
   );
 }
 
-export function OrgImageUpload({ label, kind, value, onFile, onRemove }: { label: string; kind: "logoUrl" | "coverImageUrl"; value: string; onFile: (file: File) => void; onRemove: () => void }) {
+export function OrgImageUpload({ label, kind, value, disabled, busy, onManage }: { label: string; kind: "logoUrl" | "coverImageUrl"; value: string; disabled?: boolean; busy?: boolean; onManage: () => void }) {
+  const manageLabel = kind === "logoUrl" ? "Manage logo" : "Manage cover";
+  const empty = <Icon name={kind === "logoUrl" ? "building" : "image"} />;
   return (
     <div className={"org-image-upload" + (kind === "coverImageUrl" ? " is-cover" : "")}>
-      <div className="org-image-preview">
-        {value ? (
-          // eslint-disable-next-line @next/next/no-img-element -- uploaded data URL
-          <img src={value} alt={label + " preview"} />
-        ) : (
-          <Icon name={kind === "logoUrl" ? "building" : "image"} />
-        )}
-      </div>
+      <button type="button" className="org-image-preview" aria-label={"View or edit " + label} onClick={onManage} disabled={disabled || busy}>
+        {value ? <MediaImage src={value} alt="" fallback={empty} /> : empty}
+      </button>
       <div>
         <h3>{label}</h3>
         <p>
-          {kind === "logoUrl" ? "Square image recommended." : "Landscape image recommended."} PNG, JPEG or WebP, up to {kind === "logoUrl" ? "500 KB" : "1 MB"}.
+          {kind === "logoUrl" ? "Square image recommended." : "Landscape image recommended."} PNG, JPEG or WebP, up to {kind === "logoUrl" ? "500 KB" : "1 MB"}. Upload from your computer, then adjust before saving.
         </p>
-        <div className="row wrap gap8">
-          <label className="btn sm org-file-button">
-            <Icon name="upload" />
-            {value ? "Replace" : "Upload"}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) onFile(file);
-              }}
-            />
-          </label>
-          {value && (
-            <Button variant="text sm" icon="trash" onClick={onRemove}>
-              Remove
-            </Button>
-          )}
-        </div>
+        <Button variant="sm" icon="upload" onClick={onManage} disabled={disabled || busy}>
+          {manageLabel}
+        </Button>
       </div>
     </div>
   );

@@ -52,9 +52,17 @@ const PATHS = {
   globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M3 12h18 M12 3c-6 6-6 12 0 18 6-6 6-12 0-18",
   more: "M5 12h.01M12 12h.01M19 12h.01",
   refresh: "M20 7V3m0 4h-4 M4 17v4m0-4h4 M20 7a8 8 0 0 0-13-3L4 7 M4 17a8 8 0 0 0 13 3l3-3",
+  repost: "m3 7 4-4 4 4 M7 3v13a3 3 0 0 0 3 3h3 M21 17l-4 4-4-4 M17 21V8a3 3 0 0 0-3-3h-3",
   paperclip: "M21 11 12 20a6 6 0 0 1-8-8L14 2a4 4 0 0 1 6 6L10 18a2 2 0 0 1-3-3L17 5",
   like: "M7 10h-4v11h4z M7 10l5-8c3 0 3 3 2 7h6c2 0 2 2 1 5l-2 7H7z",
   image: "M3 3h18v18H3z M3 17l6-6 4 4 3-3 5 5 M16 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4",
+  camera: "M3 6h4l2-3h6l2 3h4v15H3z M12 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8",
+  rotate: "M3 10a9 9 0 1 1 2 8 M3 3v7h7",
+  flip: "M12 3v3m0 3v3m0 3v3m0 3v1 M3 7l5 5-5 5z M21 7l-5 5 5 5z",
+  pin: "M8 3h8l-1 7 4 4H5l4-4z M12 14v8",
+  userMinus: "M17 8h6 M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M3 21v-2a7 7 0 0 1 14 0v2",
+  ban: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M6 6l12 12",
+  flag: "M4 22V3 M4 4c5-4 10 4 16 0v11c-6 4-11-4-16 0",
 } as const;
 
 export type IconName = keyof typeof PATHS;
@@ -72,9 +80,10 @@ const FEED_OUTLINES = {
   comment: "M8.2 8.5h15.6c1.6 0 2.7 1.2 2.7 2.7v9c0 1.5-1.1 2.7-2.7 2.7H14l-6.8 4v-4.2c-1.1-.4-1.7-1.3-1.7-2.5v-9c0-1.5 1.1-2.7 2.7-2.7z M10.5 14h11 M10.5 18h7.5",
   share: "M5.7 16.2 26.4 5.8l-5.5 21.1-5.1-8.6-10.1-2.1z M15.8 18.3 26.4 5.8",
   save: "M10 6.8h12c.8 0 1.5.7 1.5 1.5v19L16 22.6l-7.5 4.7v-19c0-.8.7-1.5 1.5-1.5z",
+  repost: "m4 10 5-5 5 5 M9 5v16c0 2 1 3 3 3h5 M28 22l-5 5-5-5 M23 27V11c0-2-1-3-3-3h-5",
 } as const;
 
-/** 32×32 feed action icons with a hover surface (like, comment, share, save). */
+/** 32×32 feed action icons with a hover surface. */
 export function FeedActionIcon({ name }: { name: keyof typeof FEED_OUTLINES }) {
   return (
     <svg className="icon feed-action-icon" viewBox="0 0 32 32" aria-hidden="true" focusable="false">

@@ -19,6 +19,7 @@ import { createHttpJobsService } from "./jobs/jobs.http";
 import { createHttpApplicationsService } from "./applications/applications.http";
 import { createHttpRecruitingService } from "./recruiting/recruiting.http";
 import { createHttpTalentService } from "./talent/talent.http";
+import { createHttpSearchService } from "./search/search.http";
 
 
 /** Enable completed real domains; unimplemented domains never fall back to fixtures. */
@@ -49,7 +50,7 @@ export function createHttpServices(baseUrl: string): Services {
       if(method==="updateSetting")return settings.updateSetting;
       if (method === "getProfessionalShell") return async () => { const { person } = await profile.getProfile(); return { person }; };
       if (method === "getProfessionalSummary") return async () => { const { person } = await profile.getProfile(); return { person }; };
-      if (method === "getRecruiterShell") return async () => { const ctx = await organization.getContext(); const member = ctx.currentRecruiter; return { identity: { id: member.id, name: member.fullName, picture: member.avatarUrl, color: "#246b53" }, companyName: ctx.workspace.organization.name, title: member.jobTitle }; };
+      if (method === "getRecruiterShell") return async () => { const ctx = await organization.getContext(); const member = ctx.currentRecruiter; return { identity: { id: member.id, name: member.fullName, picture: member.avatarUrl, color: "#246b53" }, companyName: ctx.workspace.organization.name, title: member.jobTitle, email: member.workEmail }; };
       if (method === "getHomeCompany") return async () => { const ctx = await organization.getContext(); const o = ctx.workspace.organization, r = ctx.currentRecruiter; return { id: o.id, name: o.name, industry: o.industry, website: o.websiteUrl, summary: o.description, recruiter: r.fullName, email: r.workEmail, title: r.jobTitle, interests: r.hiringDepartments.join(", "), status: o.verificationStatus }; };
       return Reflect.get(unavailable, method);
     },
@@ -64,7 +65,8 @@ export function createHttpServices(baseUrl: string): Services {
   const recruiting = createHttpRecruitingService(http,auth);
   const recommendations=createHttpRecommendationsService(http,auth);
   const talent = createHttpTalentService(http,auth,()=>recommendations.talent(),()=>messaging.getInbox("recruiter",{q:"",filter:"all",selectedId:null}));
-  const enabled = { analytics,auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
+  const search = createHttpSearchService(http, auth);
+  const enabled = { search, analytics,auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
   return new Proxy(enabled, {
     get: (target, property) => Object.hasOwn(target, property) ? Reflect.get(target, property) : unavailable,
   }) as unknown as Services;

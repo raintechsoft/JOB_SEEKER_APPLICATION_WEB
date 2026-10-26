@@ -294,7 +294,7 @@ export function MessagingScreen({ role }: { role: Role }) {
                         <time>{last ? new Date(last.time).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "New"}</time>
                       </span>
                       <span className="message-thread-preview">
-                        {last?.sender === role ? "You: " : ""}
+                        {(last?.own ?? last?.sender === role) ? "You: " : ""}
                         {last?.text || last?.attachments?.[0]?.name || "Start a conversation"}
                       </span>
                     </span>
@@ -363,7 +363,7 @@ export function MessagingScreen({ role }: { role: Role }) {
                   const d = formatDay(m.time);
                   const divider = previousDay !== d;
                   previousDay = d;
-                  const own = m.sender === role;
+                  const own = m.own ?? m.sender === role;
                   const who = own ? c.self : c.contact;
                   return (
                     <Fragment key={m.id ?? i}>

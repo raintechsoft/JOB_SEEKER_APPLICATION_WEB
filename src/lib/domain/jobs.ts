@@ -54,3 +54,24 @@ export function formatSalary(v: Pick<JobWizardValues, "hideSalary" | "currency" 
 }
 
 export const currencySymbol = (currency: string) => CURRENCY_SYMBOLS[currency] ?? currency;
+
+const ALERT_ARRANGEMENTS = ["On-site", "Hybrid", "Remote"] as const;
+
+function clip(value: string, max: number) {
+  return value.trim().slice(0, max).trim();
+}
+
+/** Build a job-alert payload for similar titles in a similar location. */
+export function similarJobAlertInput(job: Pick<Job, "title" | "role" | "location" | "arrangement" | "skills">): Omit<JobAlert, "id"> {
+  const title = clip(job.title, 100);
+  const keywords = clip(job.title || job.role || job.skills[0] || "", 200);
+  const location = clip((job.location || "").split("·")[0] || "", 200);
+  const arrangement = ALERT_ARRANGEMENTS.includes(job.arrangement as (typeof ALERT_ARRANGEMENTS)[number]) ? (job.arrangement as JobAlert["arrangement"]) : "Any";
+  const name = clip(title ? "Similar to " + title : "Similar jobs", 100);
+  return { name, keywords, location, arrangement, days: 7, enabled: true };
+}
+
+export function isSimilarJobAlert(alert: Pick<JobAlert, "keywords" | "location" | "arrangement">, job: Pick<Job, "title" | "role" | "location" | "arrangement" | "skills">) {
+  const target = similarJobAlertInput(job);
+  return normalizeKeywords(alert.keywords) === normalizeKeywords(target.keywords) && normalizeKeywords(alert.location) === normalizeKeywords(target.location) && alert.arrangement === target.arrangement;
+}

@@ -10,6 +10,7 @@ export interface RecruiterShellData {
   identity: PersonSummary;
   companyName: string;
   title: string;
+  email: string;
   unreadConversations?: number;
   savedCount?: number;
 }

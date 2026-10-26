@@ -18,3 +18,106 @@ body .empty .btn {
   margin: 0;
   color: inherit;
 }
+
+body .feed-post-actions > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button:hover,
+.btn:hover,
+.btn.text:hover,
+a.btn:hover,
+.er-text:hover,
+.feed-read-more:hover,
+.feed-comment-more:hover {
+  text-decoration: none;
+}
+
+:root {
+  --scrollbar-size: 5px;
+  --scrollbar-thumb: #d9dee6;
+  --scrollbar-thumb-hover: #c5cbd4;
+  --scrollbar-track: transparent;
+}
+
+/* scrollbar-width/color inherit. `unset` therefore copied a hovered ancestor's
+   thumb onto every nested scroller. Pin auto on each node in Chromium so the
+   OS widget stays off and ::-webkit-scrollbar can hide until that node is hovered. */
+html,
+body,
+* {
+  scrollbar-width: auto !important;
+  scrollbar-color: auto !important;
+}
+
+@supports (-moz-appearance: none) {
+  html,
+  body,
+  * {
+    scrollbar-width: thin !important;
+    scrollbar-color: transparent transparent !important;
+  }
+
+  *:hover,
+  *:focus-within {
+    scrollbar-color: var(--scrollbar-thumb) transparent !important;
+  }
+}
+
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+  background: transparent;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track-piece,
+*::-webkit-scrollbar-corner {
+  background: transparent !important;
+  border: 0;
+  box-shadow: none;
+}
+
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:single-button,
+*::-webkit-scrollbar-button:vertical:start:decrement,
+*::-webkit-scrollbar-button:vertical:end:increment,
+*::-webkit-scrollbar-button:horizontal:start:decrement,
+*::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: transparent !important;
+  border: 0;
+  box-shadow: none;
+  border-radius: 999px;
+}
+
+*:hover::-webkit-scrollbar-thumb,
+*:focus-within::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb) !important;
+}
+
+*:hover::-webkit-scrollbar-thumb:hover,
+*:focus-within::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover) !important;
+}
+
+.search-scopes,
+.professional-nav {
+  scrollbar-width: none !important;
+}
+
+.search-scopes::-webkit-scrollbar,
+.professional-nav::-webkit-scrollbar,
+.search-scopes:hover::-webkit-scrollbar,
+.professional-nav:hover::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}

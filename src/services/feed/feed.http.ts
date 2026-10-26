@@ -5,7 +5,9 @@ import type { HttpClient } from "../api/client";
 import type { AuthService } from "../auth/auth.service";
 import type { FeedEntry, FeedService } from "./feed.service";
 import type { ActivityData, ActivityService } from "../activity/activity.service";
-import { commentSchema, postDraftValuesSchema, postPublishSchema, postTextSchema, socialFeedSchema, socialRoleSchema } from "@/lib/validation/social";
+import { commentSchema, peopleSearchSchema, postDraftValuesSchema, postPublishSchema, postTextSchema, socialFeedSchema, socialRoleSchema } from "@/lib/validation/social";
+import { reportSchema } from "@/lib/validation/communication";
+import { communicationPath } from "../messaging/messaging.http";
 
 type Page = components["schemas"]["SocialFeedPage"];
 type Draft = components["schemas"]["PostDraft"];
@@ -24,34 +26,46 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
     return `me/social/${identity.id}`;
   }
   function remember(entry: FeedEntry) {
-    for (const key of ["liked", "saved"] as const) flags.set(`${key}:${entry.id}`, entry.viewer[key]);
+    for (const key of ["liked", "saved", "reposted"] as const) flags.set(`${key}:${entry.id}`, !!entry.viewer[key]);
     if (entry.author) flags.set(`person:${entry.author.id}`, entry.viewer.following);
     if (entry.company && !entry.company.confidential) flags.set(`company:${entry.company.id}`, entry.viewer.following);
     if (entry.version) postVersions.set(entry.id, entry.version);
     for (const c of entry.comments) if ("version" in c && typeof c.version === "number") commentVersions.set(c.id, c.version);
     return entry;
   }
-  async function intent(role: Role, id: string, kind: "liked" | "saved") {
-    socialRoleSchema.parse(role); z.uuid().parse(id);
+  async function intent(role: Role, id: string, kind: "liked" | "saved" | "reposted", desired?: boolean) {
+    socialRoleSchema.parse(role); z.uuid().parse(id); if (desired !== undefined) z.boolean().parse(desired);
     const path = await base(role);
-    if (!flags.has(`${kind}:${id}`)) remember((await http.get<{ data: FeedEntry }>(`${path}/entries/${id}`)).data);
-    const enabled = !flags.get(`${kind}:${id}`);
+    if (desired === undefined && !flags.has(`${kind}:${id}`)) remember((await http.get<{ data: FeedEntry }>(`${path}/entries/${id}`)).data);
+    const enabled = desired ?? !flags.get(`${kind}:${id}`);
     const result = (await http.patch<{ data: { enabled: boolean } }>(`${path}/entries/${id}/${kind}`, { enabled })).data.enabled;
     flags.set(`${kind}:${id}`, result); return result;
   }
-  async function follow(role: Role, id: string, company: boolean) {
+  async function follow(role: Role, id: string, company: boolean, desired?: boolean) {
     socialRoleSchema.parse(role); z.uuid().parse(id);
+    if (desired !== undefined) z.boolean().parse(desired);
     const path = await base(role), key = `${company ? "company" : "person"}:${id}`;
     if (!flags.has(key)) { const network = (await http.get<{ data: components["schemas"]["SocialNetwork"] }>(`${path}/network`)).data; flags.set(key, (company ? network.companies : network.following).some((p) => p.id === id)); }
-    const enabled = !flags.get(key);
+    const enabled = desired ?? !flags.get(key);
     const result = (await http.patch<{ data: { enabled: boolean } }>(`${path}/follows/${company ? "organizations" : "people"}/${id}`, { enabled })).data.enabled;
     flags.set(key, result); return result;
   }
   const feed: FeedService = {
-    async getComments(role,id,limit) {
+    async searchPeople(role, q, limit) {
+      const values = peopleSearchSchema.parse({ role, q, limit }), path = await base(role);
+      const items: components["schemas"]["SocialPerson"][] = [];
+      let after: string | undefined, total = 0;
+      do {
+        const page = (await http.get<{ data: components["schemas"]["SocialPeoplePage"] }>(`${path}/people`, { q: values.q, limit: Math.min(40, values.limit - items.length), after })).data;
+        items.push(...page.items); total = page.total; after = page.nextCursor ?? undefined;
+      } while (after && items.length < values.limit);
+      return { items, total, nextCursor: after ?? null };
+    },
+    async getComments(role,id,limit,focus) {
       socialRoleSchema.parse(role);z.uuid().parse(id);z.number().int().min(1).max(1000).parse(limit);
+      if(focus)z.uuid().parse(focus);
       const path=await base(role);const items:components["schemas"]["SocialComment"][]=[];let after:string|undefined;
-      do { const result=(await http.get<{data:{items:components["schemas"]["SocialComment"][];nextCursor:string|null}}>(`${path}/entries/${id}/comments`,{after})).data;items.push(...result.items);after=result.nextCursor??undefined; } while(after&&items.length<limit);
+      do { const result=(await http.get<{data:{items:components["schemas"]["SocialComment"][];nextCursor:string|null}}>(`${path}/entries/${id}/comments`,{after,focus})).data;items.push(...result.items);after=result.nextCursor??undefined; } while(after&&items.length<limit);
       for(const c of items)commentVersions.set(c.id,c.version);
       return {items,nextCursor:after??null};
     },
@@ -68,9 +82,10 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
       return { items, total, page: 1, pageSize: v.limit, pages: Math.max(1, Math.ceil(total / v.limit)), suggestions };
     },
     async getEntry(role, id) { socialRoleSchema.parse(role); z.uuid().parse(id); return remember((await http.get<{ data: FeedEntry }>(`${await base(role)}/entries/${id}`)).data); },
-    toggleLike: (role, id) => intent(role, id, "liked"),
+    toggleLike: (role, id, enabled) => intent(role, id, "liked", enabled),
+    setReposted: async (role, id, enabled) => { z.boolean().parse(enabled); return intent(role, id, "reposted", enabled); },
     async toggleSave(role, id) { return { saved: await intent(role, id, "saved"), persisted: true }; },
-    toggleFollow: (role, id) => follow(role, id, false),
+    toggleFollow: (role, id, enabled) => follow(role, id, false, enabled),
     toggleFollowCompany: (role, id) => follow(role, id, true),
     async getNetwork(role) {
       const network = (await http.get<{ data: components["schemas"]["SocialNetwork"] }>(`${await base(role)}/network`)).data;
@@ -78,13 +93,22 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
       for (const c of network.companies) flags.set(`company:${c.id}`, true);
       return network;
     },
-    async addComment(role, id, text) {
-      socialRoleSchema.parse(role); z.uuid().parse(id); const value = commentSchema.parse(text);
-      const key = JSON.stringify([role, id, value]); const creationKey = attempts.get(key) ?? crypto.randomUUID(); attempts.set(key, creationKey);
-      await http.post(`${await base(role)}/entries/${id}/comments`, { text: value, creationKey }); attempts.delete(key);
+    async addComment(role, id, text, parentId) {
+      socialRoleSchema.parse(role); z.uuid().parse(id); if (parentId) z.uuid().parse(parentId); const value = commentSchema.parse(text);
+      const key = JSON.stringify([role, id, value, parentId ?? ""]); const creationKey = attempts.get(key) ?? crypto.randomUUID(); attempts.set(key, creationKey);
+      await http.post(`${await base(role)}/entries/${id}/comments`, { text: value, creationKey, ...(parentId ? { parentId } : {}) }); attempts.delete(key);
     },
     async editComment(id, comment, text, version) { z.uuid().parse(id); z.uuid().parse(comment); const value = commentSchema.parse(text), revision = rev(version ?? commentVersions.get(comment)); await http.patch(`${await base()}/entries/${id}/comments/${comment}`, { text: value, version: revision }); return true; },
     async deleteComment(role, id, comment, version) { socialRoleSchema.parse(role); z.uuid().parse(id); z.uuid().parse(comment); const revision = rev(version ?? commentVersions.get(comment)); await http.delete(`${await base(role)}/entries/${id}/comments/${comment}`, { version: revision }); },
+    async pinComment(role, id, comment, enabled) { socialRoleSchema.parse(role); z.uuid().parse(id); z.uuid().parse(comment); z.boolean().parse(enabled); await http.patch(`${await base(role)}/entries/${id}/comments/${comment}/pinned`, { enabled }); },
+    async blockCommentAuthor(role, id, comment) { socialRoleSchema.parse(role); z.uuid().parse(id); z.uuid().parse(comment); await http.patch(`${await base(role)}/entries/${id}/comments/${comment}/blocked`, { enabled: true }); },
+    async reportComment(role, comment, reason, details) {
+      socialRoleSchema.parse(role); z.uuid().parse(comment); const value = reportSchema.parse({reason, details});
+      const signature = JSON.stringify([role, comment, value]); const creationKey = attempts.get(signature) ?? crypto.randomUUID(); attempts.set(signature, creationKey);
+      await http.post(`${await communicationPath(auth, role)}/reports`, {...value, targetKind: "comment", targetId: comment, creationKey}); attempts.delete(signature);
+    },
+    async getBlocked(role) { socialRoleSchema.parse(role); return (await http.get<{data:{identityId:string;person:import("@/types/api").PersonSummary}[]}>(`${await base(role)}/blocks`)).data; },
+    async unblock(role, id) { socialRoleSchema.parse(role); z.uuid().parse(id); await http.delete(`${await base(role)}/blocks/${id}`); },
     async createPost(role, input) {
       socialRoleSchema.parse(role); const values = postPublishSchema.parse(input);
       if(input.creationKey)z.uuid().parse(input.creationKey);

@@ -3,9 +3,11 @@ import { paginate } from "@/types/api";
 import type { DemoDatabase, Id, Job, Post, Role, SocialGraph, WorkUpdate } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
 import { companySummary, feedPerson, jobCompany, personSummary, projectSummary } from "@/mocks/store/presenters";
-import { homeCompany, isJobOpen, ME_ID, person, RECRUITER_ID, socialFor } from "@/mocks/store/selectors";
+import { currentRecruiter, homeCompany, isJobOpen, ME_ID, person, RECRUITER_ID, socialFor } from "@/mocks/store/selectors";
 import { uid } from "@/lib/utils/id";
 import type { FeedEntry, FeedQuery, FeedService, Network } from "./feed.service";
+import { reportSchema } from "@/lib/validation/communication";
+import { peopleSearchSchema } from "@/lib/validation/social";
 
 type RawItem = (Post & { type: "post" }) | (Job & { type: "job"; owner?: undefined }) | (WorkUpdate & { type: "update"; body: string; createdAt: string; likes: number; kind: string; media: ""; image: "" });
 
@@ -14,13 +16,33 @@ const bodyOf = (i: RawItem) => (i.type === "job" ? "" : i.body);
 
 const identityId = (role: Role) => (role === "recruiter" ? RECRUITER_ID : ME_ID);
 
+export function blockedInMock(db: DemoDatabase, role: Role, author: Id) {
+  const me = identityId(role);
+  return !!socialFor(db, role).blocked?.includes(author) || author === ME_ID && !!db.social.blocked?.includes(me) || author === RECRUITER_ID && !!db.recruiterSocial.blocked?.includes(me);
+}
+
+function sourceVisible(db: DemoDatabase, role: Role, item: RawItem) {
+  return item.type === "job" || item.owner === identityId(role) || !blockedInMock(db, role, item.owner) && item.visibility !== "Private" && (item.owner === RECRUITER_ID || person(db, item.owner).public);
+}
+
+function networkRepost(db: DemoDatabase, role: Role, id: Id, preferOwn = true) {
+  const viewer = identityId(role), following = socialFor(db, role).following;
+  const actors: [Id, SocialGraph][] = [[ME_ID, db.social], [RECRUITER_ID, db.recruiterSocial]];
+  const reposts = actors.flatMap(([actor, graph]) => {
+    const createdAt = graph.repostDates?.[id];
+    if (!createdAt || actor !== viewer && (!following.includes(actor) || actor === ME_ID && !person(db, actor).public)) return [];
+    return [{ author: feedPerson(db, actor), createdAt }];
+  }).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.author.id.localeCompare(a.author.id));
+  return (preferOwn ? reposts.find(repost => repost.author.id === viewer) : undefined) ?? reposts[0] ?? null;
+}
+
 const updateAsItem = (u: WorkUpdate): RawItem => ({ ...u, body: u.description, type: "update", createdAt: u.date + "T09:00:00", likes: 0, kind: "Work update", media: "", image: "" });
 
 function professionalItems(db: DemoDatabase): RawItem[] {
   return [
     ...db.social.jobs.filter(isJobOpen).map((j): RawItem => ({ ...j, type: "job" })),
     ...db.social.posts.map((p): RawItem => ({ ...p, type: "post" })),
-    ...db.updates.filter((u) => u.visibility === "Public").map(updateAsItem),
+    ...db.updates.filter((u) => u.owner === ME_ID || u.visibility === "Public").map(updateAsItem),
   ];
 }
 
@@ -49,7 +71,10 @@ function searchText(db: DemoDatabase, role: Role, item: RawItem) {
 export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEntry {
   const s = socialFor(db, role);
   const viewerId = identityId(role);
-  const comments = (db.social.comments[item.id] || []).map((c) => ({ id: c.id, text: c.text, createdAt: c.createdAt, author: feedPerson(db, c.owner) }));
+  const sourceOwn = item.type === "job" ? role === "recruiter" && item.company === homeCompany(db).id : item.owner === viewerId;
+  const allComments = db.social.comments[item.id] || [];
+  const visible = allComments.filter(c => !blockedInMock(db, role, c.owner));
+  const comments = visible.filter(c => !c.parentId || visible.some(parent => parent.id === c.parentId)).map(c => ({ id: c.id, text: c.text, createdAt: c.createdAt, author: feedPerson(db, c.owner), parentId: c.parentId, version: c.version ?? 1, own: c.owner === viewerId, pinned: db.social.pinnedComments?.[item.id] === c.id, canPin: sourceOwn && !c.parentId, canDelete: sourceOwn || c.owner === viewerId, following: s.following.includes(c.owner), canMessage: c.owner !== viewerId, canBlock: c.owner !== viewerId, canReport: c.owner !== viewerId })).sort((a,b) => Number(b.pinned) - Number(a.pinned));
   const projectId = item.type === "job" ? "" : item.project;
   const project = projectId ? db.projects.find((p) => p.id === projectId) : undefined;
   const base = {
@@ -59,6 +84,8 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
     skills: skillsOf(item),
     likes: item.likes ?? 0,
     comments,
+    commentCount: comments.length,
+    repost: networkRepost(db, role, item.id),
     project: project ? projectSummary(project) : undefined,
   };
   if (item.type === "job") {
@@ -85,7 +112,7 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
         ownedByViewer,
         applied: db.social.applications.some((a) => a.job === item.id),
       },
-      viewer: { liked: s.liked.includes(item.id), saved: s.saved.includes(item.id), following: s.followingCompanies.includes(company.id), own: ownedByViewer },
+      viewer: { liked: s.liked.includes(item.id), saved: s.saved.includes(item.id), following: s.followingCompanies.includes(company.id), own: ownedByViewer, reposted: false, canRepost: false },
     };
   }
   return {
@@ -101,7 +128,7 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
     attachments: item.type === "post" ? item.attachments : undefined,
     visibility: item.visibility,
     author: feedPerson(db, item.owner),
-    viewer: { liked: s.liked.includes(item.id), saved: s.saved.includes(item.id), following: s.following.includes(item.owner), own: item.owner === viewerId },
+    viewer: { liked: s.liked.includes(item.id), saved: s.saved.includes(item.id), following: s.following.includes(item.owner), own: item.owner === viewerId, reposted: !!s.repostDates?.[item.id], canRepost: item.owner === viewerId || item.visibility !== "Private" },
   };
 }
 
@@ -110,20 +137,25 @@ function filterItems(db: DemoDatabase, query: FeedQuery) {
   let list: RawItem[];
   if (query.role === "professional") {
     list = professionalItems(db);
-    if (query.filter !== "saved") list = list.filter((p) => p.type === "job" || p.owner === ME_ID || p.owner === RECRUITER_ID || (s.following.includes(p.owner) && person(db, p.owner).public));
-    if (query.filter === "following") list = list.filter((p) => (p.type === "job" ? s.followingCompanies.includes(p.company) : s.following.includes(p.owner)));
+    if (query.filter !== "saved") list = list.filter((p) => p.type === "job" || p.owner === ME_ID || !!networkRepost(db, query.role, p.id) || p.owner === RECRUITER_ID || (s.following.includes(p.owner) && person(db, p.owner).public));
+    if (query.filter === "following") list = list.filter((p) => !!networkRepost(db, query.role, p.id) || (p.type === "job" ? s.followingCompanies.includes(p.company) : s.following.includes(p.owner)));
     if (query.filter === "jobs") list = list.filter((p) => p.type === "job");
   } else {
     list = recruiterItems(db);
-    if (query.filter === "following") list = list.filter((p) => (p.type === "job" ? s.followingCompanies.includes(p.company) : s.following.includes(p.owner)));
+    if (query.filter === "following") list = list.filter((p) => !!networkRepost(db, query.role, p.id) || (p.type === "job" ? s.followingCompanies.includes(p.company) : s.following.includes(p.owner)));
     if (query.filter === "jobs") list = list.filter((p) => p.type === "job" && p.company === homeCompany(db).id);
   }
+  list = list.filter(item => sourceVisible(db, query.role, item));
+  if (query.filter === "reposts") list = list.filter(item => !!s.repostDates?.[item.id]);
   if (query.filter === "saved") list = list.filter((p) => s.saved.includes(p.id));
   const q = query.q.trim().toLowerCase();
   if (q) list = list.filter((p) => searchText(db, query.role, p).includes(q));
   const score = (p: RawItem) => (p.likes || 0) + Number(s.liked.includes(p.id));
   if (query.sort === "popular") list.sort((a, b) => score(b) - score(a));
-  else if (query.role === "professional") list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  else {
+    const time = (item: RawItem) => [item.createdAt, networkRepost(db, query.role, item.id, false)?.createdAt ?? ""].sort().at(-1)!;
+    list.sort((a, b) => time(b).localeCompare(time(a)) || b.id.localeCompare(a.id));
+  }
   return list;
 }
 
@@ -137,30 +169,51 @@ function toggleIn(list: Id[], id: Id) {
 const graph = (db: Draft<DemoDatabase>, role: Role): Draft<SocialGraph> => (role === "recruiter" ? db.recruiterSocial : db.social);
 
 export const mockFeedService: FeedService = {
+  async searchPeople(role, q, limit) {
+    const values = peopleSearchSchema.parse({ role, q, limit }), db = getDb();
+    const terms = values.q.toLocaleLowerCase().split(/\s+/u);
+    const people = [...db.professionals.filter(p => p.public).map(personSummary), ...(currentRecruiter(db).profileVisibility === "Public" && db.organizationWorkspace.organization.profileVisibility === "Public" ? [feedPerson(db, RECRUITER_ID)] : [])]
+      .filter(p => p.id !== identityId(role) && !blockedInMock(db, role, p.id) && terms.every(term => `${p.name} ${p.headline}`.toLocaleLowerCase().includes(term)))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    return { items: people.slice(0, values.limit), total: people.length, nextCursor: people.length > values.limit ? people[values.limit - 1].id : null };
+  },
   async getFeed(query) {
     const db = getDb();
     const list = filterItems(db, query);
     const page = paginate(list.map((item) => toFeedEntry(db, query.role, item)), 1, query.limit);
     const s = socialFor(db, query.role);
-    const suggestions = query.role === "professional" ? db.professionals.filter((p) => p.id !== ME_ID && p.public && !s.following.includes(p.id)).slice(0, 3).map(personSummary) : [];
+    const suggestions = query.role === "professional" ? db.professionals.filter((p) => p.id !== ME_ID && p.public && !blockedInMock(db, query.role, p.id) && !s.following.includes(p.id)).slice(0, 3).map(personSummary) : [];
     return { ...page, suggestions };
   },
 
   async getEntry(role, id) {
     const db = getDb();
-    const item = (role === "professional" ? professionalItems(db) : recruiterItems(db)).find((p) => p.id === id);
+    const item = (role === "professional" ? professionalItems(db) : recruiterItems(db)).find((p) => p.id === id && sourceVisible(db, role, p));
     return item ? toFeedEntry(db, role, item) : null;
   },
 
-  async toggleLike(role, id) {
+  async toggleLike(role, id, enabled) {
     let liked = false;
     commit((db) => {
       const s = graph(db, role);
-      liked = toggleIn(s.liked, id);
+      liked = enabled ?? !s.liked.includes(id);
+      if (s.liked.includes(id) !== liked) toggleIn(s.liked, id);
       if (liked) s.reactionDates[id] = new Date().toISOString();
       else delete s.reactionDates[id];
     });
     return liked;
+  },
+
+  async setReposted(role, id, enabled) {
+    const entry = await mockFeedService.getEntry(role, id);
+    if (!entry || enabled && !entry.viewer.canRepost) throw new Error("This post is not available for reposting.");
+    const persisted = commit((db) => {
+      const dates = graph(db, role).repostDates ??= {};
+      if (enabled) dates[id] ??= new Date().toISOString();
+      else delete dates[id];
+    }, { rollbackOnFailure: true });
+    if (!persisted) throw new Error("Your repost could not be saved. Please try again.");
+    return enabled;
   },
 
   async toggleSave(role, id) {
@@ -171,10 +224,13 @@ export const mockFeedService: FeedService = {
     return { saved, persisted };
   },
 
-  async toggleFollow(role, personId) {
+  async toggleFollow(role, personId, enabled) {
+    if (enabled !== false && blockedInMock(getDb(), role, personId)) throw new Error("This account cannot be followed.");
     let following = false;
     commit((db) => {
-      following = toggleIn(graph(db, role).following, personId);
+      const list = graph(db, role).following;
+      following = enabled ?? !list.includes(personId);
+      if (following !== list.includes(personId)) toggleIn(list, personId);
     });
     return following;
   },
@@ -187,9 +243,9 @@ export const mockFeedService: FeedService = {
     return following;
   },
 
-  async addComment(role, postId, text) {
+  async addComment(role, postId, text, parentId) {
     commit((db) => {
-      (db.social.comments[postId] ??= []).push({ id: uid(), owner: identityId(role), text, createdAt: new Date().toISOString() });
+      (db.social.comments[postId] ??= []).push({ id: uid(), owner: identityId(role), text, createdAt: new Date().toISOString(), parentId });
     });
   },
 
@@ -206,16 +262,47 @@ export const mockFeedService: FeedService = {
   },
 
   async deleteComment(role, postId, commentId) {
+    const entry = await mockFeedService.getEntry(role, postId);
+    const comment = entry?.comments.find(c => c.id === commentId);
+    if (!comment?.canDelete) throw new Error("You cannot delete this comment.");
     commit((db) => {
-      db.social.comments[postId] = (db.social.comments[postId] || []).filter((c) => !(c.id === commentId && c.owner === identityId(role)));
+      db.social.comments[postId] = (db.social.comments[postId] || []).filter(c => c.id !== commentId && c.parentId !== commentId);
+      if (db.social.pinnedComments?.[postId] === commentId) delete db.social.pinnedComments[postId];
     });
   },
+
+  async pinComment(role, postId, commentId, enabled) {
+    const comment = (await mockFeedService.getEntry(role, postId))?.comments.find(c => c.id === commentId);
+    if (!comment?.canPin) throw new Error("Only the post author can pin original comments.");
+    commit(db => { const pins = db.social.pinnedComments ??= {}; if (enabled) pins[postId] = commentId; else if (pins[postId] === commentId) delete pins[postId]; });
+  },
+  async blockCommentAuthor(role, postId, commentId) {
+    const comment = (await mockFeedService.getEntry(role, postId))?.comments.find(c => c.id === commentId);
+    if (!comment?.canBlock) throw new Error("This account cannot be blocked.");
+    commit(db => {
+      const s = graph(db, role), id = comment.author.id, me = identityId(role);
+      s.blocked ??= []; if (!s.blocked.includes(id)) s.blocked.push(id);
+      s.following = s.following.filter(target => target !== id);
+      s.followers = s.followers.filter(target => target !== id);
+      const other = id === ME_ID ? db.social : id === RECRUITER_ID ? db.recruiterSocial : null;
+      if (other) { other.following = other.following.filter(target => target !== me); other.followers = other.followers.filter(target => target !== me); }
+    });
+  },
+  async reportComment(role, commentId, reason, details) {
+    const value = reportSchema.parse({reason, details});
+    const postId = Object.keys(getDb().social.comments).find(id => getDb().social.comments[id].some(c => c.id === commentId));
+    const comment = postId && (await mockFeedService.getEntry(role, postId))?.comments.find(c => c.id === commentId);
+    if (!comment || !comment.canReport) throw new Error("This comment cannot be reported.");
+    commit(db => { (graph(db, role).commentReports ??= []).push({commentId, ...value, createdAt: new Date().toISOString()}); });
+  },
+  async getBlocked(role) { return (socialFor(getDb(), role).blocked ?? []).map(id => ({ identityId: id, person: feedPerson(getDb(), id) })); },
+  async unblock(role, id) { commit(db => { const s = graph(db, role); s.blocked = (s.blocked ?? []).filter(target => target !== id); }); },
 
   async getNetwork(role): Promise<Network> {
     const db = getDb();
     const s = socialFor(db, role);
     const self = identityId(role);
-    const people = db.professionals.filter((p) => p.id !== self && p.public);
+    const people = db.professionals.filter((p) => p.id !== self && p.public && !blockedInMock(db, role, p.id));
     return {
       following: people.filter((p) => s.following.includes(p.id)).map((p) => ({ ...personSummary(p), following: true })),
       companies: db.companies.filter((c) => s.followingCompanies.includes(c.id)).map((c) => companySummary(db, c)),

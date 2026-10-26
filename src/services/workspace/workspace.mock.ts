@@ -2,7 +2,7 @@ import type { Conversation, DemoDatabase, Role } from "@/types/domain";
 import { commit, getDb, resetDb } from "@/mocks/store/demo-db";
 import { clearProfileFiles } from "@/mocks/store/file-store";
 import { personSummary } from "@/mocks/store/presenters";
-import { homeCompany, me, ME_ID, recruiterIdentity, updatesFor } from "@/mocks/store/selectors";
+import { currentRecruiter, homeCompany, me, ME_ID, recruiterIdentity, updatesFor } from "@/mocks/store/selectors";
 import type { WorkspaceService } from "./workspace.service";
 
 const hiddenFor = (c: Conversation, role: Role) => (["deletedBy", "archivedBy", "mutedBy"] as const).some((key) => (c[key] || []).includes(role));
@@ -54,7 +54,7 @@ export const mockWorkspaceService: WorkspaceService = {
   async getRecruiterShell() {
     const db = getDb();
     const c = homeCompany(db);
-    return { identity: recruiterIdentity(db), companyName: c.name, title: c.title ?? "", unreadConversations: unreadConversations(db, "recruiter"), savedCount: db.recruiterSocial.saved.length };
+    return { identity: recruiterIdentity(db), companyName: c.name, title: c.title ?? "", email: currentRecruiter(db)?.workEmail || c.email || "", unreadConversations: unreadConversations(db, "recruiter"), savedCount: db.recruiterSocial.saved.length };
   },
 
   async getProfessionalSummary() {

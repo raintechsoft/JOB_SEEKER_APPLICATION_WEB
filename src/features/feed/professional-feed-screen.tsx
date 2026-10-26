@@ -10,17 +10,19 @@ import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Button, EmptyState } from "@/components/ui/primitives";
 import { FeedCard } from "./feed-card";
-import { FeedToolbar, NetworkPrompt, ProfessionalComposer, ProfileColumn } from "./feed-parts";
+import { FeedToolbar, NetworkPrompt, ProfileColumn } from "./feed-parts";
 import { JobsPanel } from "./jobs-panel";
 import { useNetworkSheet } from "./network-sheet";
 import { useFeedParams } from "./use-feed-params";
 import { PermalinkEntry } from "./permalink-entry";
+import { PeopleSearch } from "./people-search";
 
 const TABS: [FeedFilter, string, boolean][] = [
   ["all", "For you", true],
   ["following", "Following", true],
   ["jobs", "Jobs", true],
   ["saved", "Saved", true],
+  ["reposts", "Reposts", true],
 ];
 
 export function ProfessionalFeedScreen() {
@@ -31,7 +33,6 @@ export function ProfessionalFeedScreen() {
   const highlight = useSearchParams().get("post");
   const network = useNetworkSheet();
   useFeedParams("professional");
-  const { data: shell } = useServiceQuery(["shell", "professional"], (s) => s.workspace.getProfessionalShell());
   const { data, isError, refetch } = useServiceQuery(["feed", "professional", feed.filter, feed.sort, feed.query, feed.visible], (s) => s.feed.getFeed({ role: "professional", filter: feed.filter, sort: feed.sort, q: feed.query, limit: feed.visible }));
 
   useEffect(() => {
@@ -41,27 +42,26 @@ export function ProfessionalFeedScreen() {
 
   const setFilter = (filter: FeedFilter) => {
     setFeed({ filter, visible: 12 });
-    router.replace(pathname, { scroll: false });
+    router.replace(filter === "reposts" ? pathname + "?view=reposts" : pathname, { scroll: false });
   };
 
-  const label = feed.filter === "jobs" ? "opportunities" : feed.filter === "saved" ? "saved posts" : "posts";
+  const label = feed.filter === "jobs" ? "opportunities" : feed.filter === "saved" ? "saved posts" : feed.filter === "reposts" ? "reposts" : "posts";
   return (
     <div className="professional-feed-layout">
       <ProfileColumn />
       <section className="feed-timeline" aria-label="Professional community feed">
-
-        <ProfessionalComposer identity={shell?.person} />
         <FeedToolbar tabs={TABS} onFilter={setFilter} />
         <div id="feed-search-status">
           {feed.query && (
             <div className="feed-search-status">
               Results for “{feed.query}”{" "}
-              <Button variant="text sm" icon="close" onClick={() => setFeed({ query: "" })}>
+              <Button variant="text sm" icon="close" onClick={() => { setFeed({ query: "" }); router.replace(pathname, { scroll: false }); }}>
                 Clear search
               </Button>
             </div>
           )}
         </div>
+        {feed.query && <PeopleSearch key={feed.query} role="professional" query={feed.query} />}
         <div id="feed-post-list" className="feed-post-list">
           {isError && <p role="alert">The feed could not be loaded. <Button onClick={()=>void refetch()}>Try again</Button></p>}
           {highlight && data && !data.items.some((entry)=>entry.id===highlight) && <PermalinkEntry key={highlight} id={highlight} role="professional" />}
@@ -83,10 +83,10 @@ export function ProfessionalFeedScreen() {
                 ))
               ) : (
                 <EmptyState
-                  title={feed.filter === "saved" ? "Keep the good ones close." : feed.filter === "following" ? "Your feed starts with your people." : "A little space for new possibilities."}
-                  description={feed.filter === "saved" ? "Save any post or job to find it here." : "Follow professionals and companies, or try a different search."}
+                  title={feed.filter === "reposts" ? "Your reposts will appear here." : feed.filter === "saved" ? "Keep the good ones close." : feed.filter === "following" ? "Your feed starts with your people." : "A little space for new possibilities."}
+                  description={feed.filter === "reposts" ? "Repost your posts or other people’s public posts to share them in your feed." : feed.filter === "saved" ? "Save any post or job to find it here." : "Follow professionals and companies, or try a different search."}
                   action={
-                    <Button variant="primary" icon="users" onClick={() => network.open("professional")}>
+                    feed.filter === "reposts" ? <Button variant="primary" icon="home" onClick={() => { setFeed({ filter: "all", query: "", visible: 12 }); router.replace(pathname, { scroll: false }); }}>Explore feed</Button> : <Button variant="primary" icon="users" onClick={() => network.open("professional")}>
                       Find people to follow
                     </Button>
                   }

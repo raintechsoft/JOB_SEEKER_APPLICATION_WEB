@@ -1,0 +1,20 @@
+dialog.following-sheet:has(.post-share-panel) { display:flex; flex-direction:column; overflow:hidden; }
+body.professional-theme .following-sheet:has(.post-share-panel) .modal-head { position:relative; flex-shrink:0; }
+body.professional-theme .following-sheet:has(.post-share-panel) .modal-body { display:flex; flex:1; min-height:0; overflow:hidden; padding:0; }
+.post-share-panel { display:flex; flex-direction:column; flex:1; min-height:0; width:100%; }
+.post-share-followers-region { overflow-y:auto; overscroll-behavior:contain; flex:1; min-height:0; }
+.post-share-panel .share-followers { min-height:0; }
+.post-share-destinations { flex-shrink:0; padding:20px 26px 24px; border-top:1px solid #e4e9ef; background:#fff; color:#202a36; }
+.post-share-destinations h3 { font-size:15px; font-weight:600; margin:0 0 15px; }
+.post-share-controls { display:flex; align-items:stretch; gap:10px; }
+.post-share-copy { display:flex; align-items:center; flex:1; min-width:0; gap:10px; padding:7px; border:1px solid #cdd4dd; border-radius:12px; }
+.post-share-copy > input { flex:1; min-width:0; width:100%; padding:6px 4px; margin:0; border:0; background:transparent; border-radius:0; color:#202a36; font:inherit; font-size:13px; box-shadow:none; text-overflow:ellipsis; }
+.post-share-copy > button { border:1px solid #cdd4dd; background:#fff; color:#202a36; border-radius:22px; min-width:68px; min-height:36px; padding:7px 14px; font:inherit; font-size:13px; cursor:pointer; }
+.post-share-more { display:flex; flex-shrink:0; align-items:center; justify-content:center; gap:6px; padding:10px 12px; border:1px solid #cdd4dd; border-radius:12px; background:#fff; color:#202a36; font:inherit; font-size:13px; cursor:pointer; }
+.post-share-more .icon { width:18px; height:18px; }
+.post-share-copy > button:disabled, .post-share-more:disabled { opacity:.6; cursor:wait; }
+.post-share-more:hover, .post-share-copy > button:hover { background:#f5f6f8; }
+.post-share-feedback { font-size:12px; line-height:1.5; color:#626b76; margin-top:8px; }
+.post-share-more:focus-visible, .post-share-copy > button:focus-visible { outline:2px solid #315ef4; outline-offset:3px; }
+@media(max-width:600px) { .post-share-destinations { padding:18px 20px max(20px, env(safe-area-inset-bottom)); } }
+@media(max-height:560px) { .post-share-destinations { padding-top:10px; padding-bottom:10px; } .post-share-destinations h3 { margin-bottom:8px; } }

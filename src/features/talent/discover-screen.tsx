@@ -85,7 +85,7 @@ export function DiscoverScreen({ publicMode = false }: { publicMode?: boolean })
   );
   return (
     <>
-      <PageHeading title="Find the people. See the proof." subtitle="Thoughtful people, meaningful projects, and a little more context." />
+      <PageHeading title="" subtitle="" />
       <div className="filters">
         <div className="search-box">
           <Icon name="search" />

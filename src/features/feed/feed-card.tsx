@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import type { Role } from "@/types/domain";
-import type { FeedEntry } from "@/services/feed/feed.service";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { Id, Role } from "@/types/domain";
+import type { PersonSummary } from "@/types/api";
+import type { FeedComment, FeedEntry } from "@/services/feed/feed.service";
 import { timeAgo } from "@/lib/utils/date";
 import { firstName } from "@/lib/utils/text";
 import { devCopy } from "@/lib/env/app-env";
@@ -12,13 +13,13 @@ import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { useImpression } from "@/hooks/use-impression";
-import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { FeedActionIcon, Icon } from "@/components/ui/icon";
 import { Avatar, Badge, Button, IconButton, LinkButton, Tags } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
-import { FloatingInput, TextField } from "@/components/ui/field";
+import { FloatingInput } from "@/components/ui/field";
+import { useShareSheet } from "./share-sheet";
 import { CompanyAvatar, JobArtwork, JobMediaExtras } from "@/components/jobs/job-visuals";
 import { FeedArtwork } from "@/components/feed/feed-artwork";
 import { useProjectDialogs, useUpdateDialogs } from "@/features/work/dialogs";
@@ -27,6 +28,9 @@ import { usePostDialogs } from "./post-dialogs";
 import { commentSchema } from "@/lib/validation/social";
 import { useFormAction } from "@/hooks/use-form-action";
 import { apiConfig } from "@/services/api/config";
+import { useFeedInteraction } from "./use-feed-interaction";
+import { INITIAL_VISIBLE_REPLIES, nextReplyReveal } from "./reply-reveal";
+import { CommentMenu } from "./comment-menu";
 
 const JOB_HEADLINES: Record<string, [string, string]> = {
   northstar: ["Design", "what’s next."],
@@ -36,37 +40,26 @@ const JOB_HEADLINES: Record<string, [string, string]> = {
 function authorHref(role: Role, entry: FeedEntry) {
   const a = entry.author;
   if (!a) return undefined;
+  if (entry.viewer.own) return role === "recruiter" ? "/recruiter/profile" : "/app/profile";
   if (a.recruiter) return "/recruiters/" + a.id;
   if (a.id === "r0") return role === "recruiter" ? "/recruiter/company" : "/app/dashboard?post=" + entry.id;
-  return role === "recruiter" ? "/recruiter/talent/" + a.id : "/professionals/" + a.slug;
+  return role === "recruiter" ? "/recruiter/talent/" + a.id : a.slug ? "/professionals/" + a.slug : undefined;
 }
 
-export function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
+function personHref(role: Role, person: PersonSummary) {
+  if (person.recruiter) return "/recruiters/" + person.id;
+  if (person.id === "r0") return role === "recruiter" ? "/recruiter/profile" : "/recruiters/" + person.id;
+  return role === "recruiter" ? "/recruiter/talent/" + person.id : person.slug ? "/professionals/" + person.slug : undefined;
+}
+
+function CommentComposer({ entryId, role, identity, parentId, fieldId, placeholder, onPosted }: { entryId: Id; role: Role; identity?: PersonSummary; parentId?: Id; fieldId: string; placeholder: string; onPosted?: () => void }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { execute, pending } = useFormAction(setErrors);
-  const [commentLimit,setCommentLimit]=useState(50);
-  const page=useServiceQuery(["feed-comments",role,entry.id,commentLimit],(s)=>s.feed.getComments!(role,entry.id,commentLimit),{enabled:apiConfig.dataSource==="http",keepPreviousData:false});
-  const comments=page.isError ? [] : page.data?.items??entry.comments;
-  const { data: identity } = useServiceQuery(["feed", "identity", role], async (s) => (role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person));
   return (
-    <section className="feed-comments" aria-label="Comments">
-      <div className="feed-comment-list">
-        {comments.map((c) => (
-          <div className="row" style={{ alignItems: "flex-start" }} key={c.id}>
-            <Avatar person={c.author} />
-            <div className="feed-comment-bubble">
-              <strong>{c.author.name}</strong>
-              <span>{timeAgo(c.createdAt) + devCopy(" · Demo comment", "")}</span>
-              <p>{c.text}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-      {page.isError && <p role="alert">Comments could not be loaded. <Button onClick={()=>void page.refetch()}>Try again</Button></p>}
-      {page.data?.nextCursor && commentLimit<1000 && <Button disabled={page.isFetching} onClick={()=>setCommentLimit((n)=>n+50)}>Load more comments</Button>}
+    <>
       <form
         className="feed-comment-form"
-        data-post={entry.id}
+        data-post={entryId}
         noValidate
         onSubmit={async (e) => {
           e.preventDefault();
@@ -74,21 +67,129 @@ export function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
           const text = String(new FormData(form).get("comment") || "").trim();
           const parsed = commentSchema.safeParse(text);
           if (!parsed.success) { setErrors({ comment: parsed.error.issues[0].message }); return; }
-          if (!(await execute((s) => s.feed.addComment(role, entry.id, parsed.data),{invalidate:["feed","feed-entry","feed-comments","activity"]}))) return;
+          if (!(await execute((s) => s.feed.addComment(role, entryId, parsed.data, parentId), { invalidate: ["feed", "feed-entry", "feed-comments", "activity"] }))) return;
           form.reset();
-          track("post_commented", { postId: entry.id });
-          toast(devCopy("Comment saved locally.", "Comment posted."));
+          setErrors({});
+          track("post_commented", { postId: entryId });
+          toast(parentId ? "Reply posted." : devCopy("Comment saved locally.", "Comment posted."));
+          onPosted?.();
         }}
       >
         {identity ? <Avatar person={identity} /> : <span className="avatar" />}
-        <label className="sr-only" htmlFor={"comment-" + entry.id}>
-          Write a comment
+        <label className="sr-only" htmlFor={fieldId}>
+          {placeholder}
         </label>
-        <FloatingInput label="Write a comment" compact id={"comment-" + entry.id} name="comment" required maxLength={1000} placeholder="Add a thoughtful comment..." aria-invalid={!!errors.comment} aria-describedby={errors.comment ? "comment-error-" + entry.id : undefined} disabled={pending} />
-        <IconButton type="submit" icon="send" label="Post comment" loading={pending} />
+        <FloatingInput label={placeholder} compact id={fieldId} name="comment" required maxLength={1000} placeholder={placeholder} aria-invalid={!!errors.comment} aria-describedby={errors.comment ? fieldId + "-error" : undefined} disabled={pending} />
+        <IconButton type="submit" icon="send" label={parentId ? "Post reply" : "Post comment"} loading={pending} />
       </form>
-      {errors.comment && <p className="error" role="alert" id={"comment-error-" + entry.id}>{errors.comment}</p>}
+      {errors.comment && <p className="error" role="alert" id={fieldId + "-error"}>{errors.comment}</p>}
       {errors._form && <p className="error" role="alert">{errors._form}</p>}
+    </>
+  );
+}
+
+function CommentThread({ comment, replies, entry, role, identity }: { comment: FeedComment; replies: FeedComment[]; entry: FeedEntry; role: Role; identity?: PersonSummary }) {
+  const [replying, setReplying] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_REPLIES);
+  const href = personHref(role, comment.author);
+  const headline = comment.author.headline?.trim();
+  const isAuthor = comment.author.id === entry.ownerId || comment.author.id === entry.author?.id;
+  const threadId = comment.parentId ?? comment.id;
+  const avatar = href ? <Link href={href}><Avatar person={comment.author} /></Link> : <Avatar person={comment.author} />;
+  const focused = useSearchParams()?.get("comment");
+  const shown = Math.min(Math.max(visibleCount, replies.findIndex(reply => reply.id === focused) + 1), replies.length);
+  const hidden = replies.length - shown;
+  const repliesId = "comment-replies-" + comment.id;
+  return (
+    <article id={"comment-" + comment.id} className={"feed-comment" + (comment.parentId ? " is-reply" : "")}>
+      {avatar}
+      <div className="feed-comment-main">
+        <div className="feed-comment-head">
+          <strong>
+            {href ? <Link href={href}>{comment.author.name}</Link> : comment.author.name}
+            {isAuthor && <span className="feed-comment-author-badge">Author</span>}
+          </strong>
+          <div className="feed-comment-meta"><time dateTime={comment.createdAt}>{timeAgo(comment.createdAt) + devCopy(" · Demo comment", "")}</time><CommentMenu role={role} entry={entry} comment={comment} /></div>
+        </div>
+        {headline ? <p className="feed-comment-byline" title={headline}>{headline}</p> : null}
+        {comment.pinned && <span className="feed-comment-pinned"><Icon name="pin" /> Pinned by author</span>}
+        <p className="feed-comment-text">{comment.text}</p>
+        <div className="feed-comment-actions">
+          <button type="button" onClick={() => setReplying((open) => !open)} aria-expanded={replying}>
+            <Icon name="message" />
+            Reply
+          </button>
+        </div>
+        {replying && (
+          <CommentComposer
+            entryId={entry.id}
+            role={role}
+            identity={identity}
+            parentId={threadId}
+            fieldId={"reply-" + comment.id}
+            placeholder={"Reply to " + comment.author.name}
+            onPosted={() => {
+              setReplying(false);
+              setVisibleCount((count) => Math.max(count, replies.length + 1));
+            }}
+          />
+        )}
+        {replies.length > 0 && (
+          <>
+            <div className="feed-comment-replies" id={repliesId}>
+              {replies.slice(0, shown).map((reply) => (
+                <CommentThread key={reply.id} comment={reply} replies={[]} entry={entry} role={role} identity={identity} />
+              ))}
+            </div>
+            {hidden > 0 && (
+              <button
+                type="button"
+                className="feed-comment-more"
+                aria-expanded="false"
+                aria-controls={repliesId}
+                onClick={() => setVisibleCount((count) => count + nextReplyReveal(hidden))}
+              >
+                <Icon name="down" />
+                {hidden === 1 ? "View 1 more reply" : "View " + hidden + " more replies"}
+              </button>
+            )}
+            {hidden === 0 && replies.length > 6 && (
+              <button type="button" className="feed-comment-more" aria-expanded="true" aria-controls={repliesId} onClick={() => setVisibleCount(INITIAL_VISIBLE_REPLIES)}>
+                <Icon name="up" />
+                Show less
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </article>
+  );
+}
+
+export function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
+  const focus = useSearchParams()?.get("comment") ?? undefined;
+  const [commentLimit, setCommentLimit] = useState(50);
+  const page = useServiceQuery(["feed-comments", role, entry.id, commentLimit, focus], (s) => s.feed.getComments!(role, entry.id, commentLimit, focus), { enabled: apiConfig.dataSource === "http", keepPreviousData: false });
+  const comments = useMemo(() => page.isError ? [] : page.data?.items ?? entry.comments, [page.isError, page.data, entry.comments]);
+  const scrolledFocus = useRef<string | null>(null);
+  const { data: identity } = useServiceQuery(["feed", "identity", role], async (s) => (role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person));
+  const roots = comments.filter((comment) => !comment.parentId || !comments.some((item) => item.id === comment.parentId));
+  const repliesFor = (id: string) => comments.filter((comment) => comment.parentId === id);
+  useEffect(() => {
+    if (!focus || scrolledFocus.current === focus) return;
+    const frame = requestAnimationFrame(() => { const target = document.getElementById("comment-" + focus); if (target) { target.scrollIntoView({ block: "center" }); scrolledFocus.current = focus; } });
+    return () => cancelAnimationFrame(frame);
+  }, [focus, comments]);
+  return (
+    <section className="feed-comments" aria-label="Comments">
+      <div className="feed-comment-list">
+        {roots.map((comment) => (
+          <CommentThread key={comment.id} comment={comment} replies={repliesFor(comment.id)} entry={entry} role={role} identity={identity} />
+        ))}
+      </div>
+      {page.isError && <p role="alert">Comments could not be loaded. <Button onClick={() => void page.refetch()}>Try again</Button></p>}
+      {page.data?.nextCursor && commentLimit < 1000 && <Button disabled={page.isFetching} onClick={() => setCommentLimit((n) => n + 50)}>Load more comments</Button>}
+      <CommentComposer entryId={entry.id} role={role} identity={identity} fieldId={"comment-" + entry.id} placeholder="Write a comment" />
       <DevOnly>
         <small>Comments are saved locally in this demo.</small>
       </DevOnly>
@@ -96,13 +197,16 @@ export function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
   );
 }
 
-function ActivityMenu({ entry, role, children }: { entry: FeedEntry; role: Role; children?: ReactNode }) {
+function ActivityMenu({ entry, role }: { entry: FeedEntry; role: Role }) {
   const ref = useRef<HTMLDetailsElement>(null);
   useDismissableDetails(ref, { closeOnAction: true });
   const router = useRouter();
   const posts = usePostDialogs();
   const updates = useUpdateDialogs();
+  const jobs = useJobActions();
   const job = entry.type === "job";
+  const own = entry.viewer.own;
+  const save = () => jobs.toggleSave(role, entry.id, job ? "job" : "post");
   const edit = () => {
     if (role === "recruiter") return job ? router.push("/recruiter/jobs/new?id=" + encodeURIComponent(entry.id)) : posts.edit(role, entry);
     return entry.type === "update" ? updates.edit(entry.id) : posts.edit(role, entry);
@@ -118,13 +222,19 @@ function ActivityMenu({ entry, role, children }: { entry: FeedEntry; role: Role;
       </summary>
       <div className="activity-post-menu-items">
         {entry.visibility === "Private" && <p>Private · Only you</p>}
-        <Button variant="text sm" icon="edit" onClick={edit}>
-          Edit post
+        <Button variant="text sm" icon="bookmark" onClick={save} aria-pressed={entry.viewer.saved}>
+          {entry.viewer.saved ? "Unsave" : "Save"}
         </Button>
-        <Button variant="text sm" icon="trash" onClick={remove}>
-          {job ? "Manage job" : "Delete post"}
-        </Button>
-        {children}
+        {own && (
+          <>
+            <Button variant="text sm" icon="edit" onClick={edit}>
+              Edit post
+            </Button>
+            <Button variant="text sm" icon="trash" onClick={remove}>
+              {job ? "Manage job" : "Delete post"}
+            </Button>
+          </>
+        )}
       </div>
     </details>
   );
@@ -133,7 +243,7 @@ function ActivityMenu({ entry, role, children }: { entry: FeedEntry; role: Role;
 export interface FeedCardProps {
   entry: FeedEntry;
   role: Role;
-  /** Show the owner's post menu (My Activity, recruiter feed). */
+  /** Owner edit/delete still appear in the card menu when `entry.viewer.own`. */
   activity?: boolean;
   /** Analytics surface for impressions. */
   surface?: string;
@@ -144,13 +254,19 @@ export interface FeedCardProps {
 }
 
 /** One feed item: post, work update or job (prototype `feedCard`). */
-export function FeedCard({ entry, role, activity = false, surface = "feed", position = 0, highlighted = false, noTracking = false }: FeedCardProps) {
+export function FeedCard({ entry, role, surface = "feed", position = 0, highlighted = false, noTracking = false }: FeedCardProps) {
+  const focusedComment = useSearchParams()?.get("comment");
+  useEffect(() => {
+    if (highlighted && focusedComment && !useUiStore.getState().feed.openComments.includes(entry.id)) useUiStore.getState().toggleFeedList("openComments", entry.id);
+  }, [highlighted, focusedComment, entry.id]);
   const run = useServiceAction();
   const projects = useProjectDialogs();
   const jobs = useJobActions();
   const { openComments, expanded } = useUiStore((s) => s.feed);
   const toggleFeedList = useUiStore((s) => s.toggleFeedList);
-  const [sharing, setSharing] = useState(false);
+  const shareSheet = useShareSheet();
+  const like = useFeedInteraction(entry, role, "liked");
+  const repost = useFeedInteraction(entry, role, "reposted");
   const ref = useImpression<HTMLElement>(() => {if(noTracking)return;if(entry.analyticsContext)track("recommendation_exposed",entry.analyticsContext);else track("feed_item_impression", { itemId: entry.id, itemType: entry.type, surface, position });},entry.analyticsContext?.requestId);
   const job = entry.type === "job";
   const p = job ? entry.company! : entry.author!;
@@ -159,20 +275,14 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
   const isExpanded = expanded.includes(entry.id);
   const long = entry.body?.length > 420 && !isExpanded;
   const text = long ? entry.body.slice(0, 420) : entry.body;
-  const likes = entry.likes + Number(entry.viewer.liked);
+  const likes = entry.likes + Number(like.enabled);
+  const commentCount = entry.commentCount;
+  const canRepost = entry.viewer.canRepost ?? (!job && (entry.viewer.own || entry.visibility !== "Private"));
+  const repostUnavailable = !canRepost && !repost.enabled;
+  const repostUnavailableReason = job ? "Job listings cannot be reposted." : "This post is not available for reposting.";
+  const repostReasonId = `repost-reason-${role}-${entry.id}`;
   const linked = entry.project?.visibility === "Public" ? entry.project : undefined;
 
-  useEffect(() => {
-    if (!sharing) return;
-    const t = setTimeout(() => setSharing(false), 2000);
-    return () => clearTimeout(t);
-  }, [sharing]);
-
-  const like = async () => {
-    const liked = await run((s) => s.feed.toggleLike(role, entry.id),{invalidate:["feed","feed-entry","activity"]});
-    if (liked !== undefined) track("post_liked", { postId: entry.id, liked });
-  };
-  const save = () => jobs.toggleSave(role, entry.id, job ? "job" : "post");
   const follow = async () => {
     const following = await run((s) => (job ? s.feed.toggleFollowCompany(role, p.id) : s.feed.toggleFollow(role, p.id)));
     if (following === undefined) return;
@@ -183,58 +293,51 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
     toggleFeedList("openComments", entry.id);
     if (!open) requestAnimationFrame(() => document.getElementById("comment-" + entry.id)?.focus({ preventScroll: true }));
   };
-  const share = async () => {
-    setSharing(true);
-    const url = window.location.origin + (role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard") + "?post=" + encodeURIComponent(entry.id);
-    try {
-      await navigator.clipboard.writeText(url);
-      toast(devCopy("Post link copied. Local-only content stays in this browser.", "Post link copied."));
-    } catch {
-      modal.show(devCopy("Share this demo post", "Share this post"), <TextField label="Post link" name="link" defaultValue={url} readOnly onClick={(e) => e.currentTarget.select()} />);
-    }
-  };
+  const share = () => shareSheet.open(role, entry.id);
 
-  const contextLine = job ? "An opportunity to do meaningful work" : entry.viewer.own ? "Your professional story" : firstName(p.name) + " is part of your network";
+  const contextLine = repost.enabled ? "You reposted" : entry.repost ? entry.repost.author.name + " reposted" : job ? "An opportunity to do meaningful work" : entry.viewer.own ? "Your professional story" : firstName(p.name) + " is part of your network";
   const headline = JOB_HEADLINES[entry.job?.art ?? ""] ?? ["Make room", "for bold ideas."];
 
   return (
     <article ref={ref} className={"card feed-post" + (job ? " feed-job-post" : "") + (highlighted ? " is-highlighted" : "")} id={"feed-" + entry.id} data-post-id={entry.id}>
       {entry.recommendationReason&&<p className="small muted" style={{padding:"12px 20px 0"}}>{entry.recommendationReason}</p>}
       <div className="feed-post-context">
-        <Icon name={job ? "briefcase" : entry.type === "update" ? "pulse" : "users"} />
+        <Icon name={repost.enabled || entry.repost ? "repost" : job ? "briefcase" : entry.type === "update" ? "pulse" : "users"} />
         <span>{contextLine}</span>
-        <Button unstyled type="button" onClick={save} aria-label={(entry.viewer.saved ? "Unsave" : "Save") + " post"} aria-pressed={entry.viewer.saved} className={"feed-bookmark" + (entry.viewer.saved ? " is-saved" : "")}>
-          <FeedActionIcon name="save" />
-        </Button>
       </div>
       <header className="feed-post-header">
         <div className="row">
           {job ? (
             <CompanyAvatar company={entry.company!} />
-          ) : (
-            <Link href={href!}>
+          ) : href ? (
+            <Link href={href} aria-label={"View " + p.name + " profile"}>
               <Avatar person={p} />
             </Link>
+          ) : (
+            <Avatar person={p} />
           )}
           <div className="grow">
             <h2>
-              {job ? p.name : <Link href={href!}>{p.name}</Link>}
+              {job ? p.name : href ? <Link href={href}>{p.name}</Link> : p.name}
               {job && <span className="feed-company-label">Company</span>}
             </h2>
-            <p>{job ? entry.company?.industry || "Creative & technology" : entry.author?.headline}</p>
+            <p className="feed-post-byline" title={job ? entry.company?.industry || "Creative & technology" : entry.author?.headline}>
+              {job ? entry.company?.industry || "Creative & technology" : entry.author?.headline}
+            </p>
             <time dateTime={entry.createdAt} title={entry.createdAt}>
               {timeAgo(entry.createdAt)}
             </time>
           </div>
         </div>
-        {entry.viewer.own ? (
-          activity ? <ActivityMenu entry={entry} role={role} /> : null
-        ) : job && entry.company?.confidential ? null : (
-          <Button unstyled type="button" className={"feed-follow" + (entry.viewer.following ? " following" : "")} onClick={follow} aria-label={(entry.viewer.following ? "Unfollow " : "Follow ") + p.name}>
-            <Icon name={entry.viewer.following ? "check" : "plus"} />
-            {entry.viewer.following ? "Following" : "Follow"}
-          </Button>
-        )}
+        <div className="feed-post-header-tools">
+          {!entry.viewer.own && !(job && entry.company?.confidential) && (
+            <Button unstyled type="button" className={"feed-follow" + (entry.viewer.following ? " following" : "")} onClick={follow} aria-label={(entry.viewer.following ? "Unfollow " : "Follow ") + p.name}>
+              <Icon name={entry.viewer.following ? "check" : "plus"} />
+              {entry.viewer.following ? "Following" : "Follow"}
+            </Button>
+          )}
+          {!noTracking && <ActivityMenu entry={entry} role={role} />}
+        </div>
       </header>
       <div className="feed-post-body">
         {!job && <h3>{entry.title}</h3>}
@@ -292,7 +395,7 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
             <div className="row between wrap feed-job-bottom">
               <div>
                 <strong>{entry.job!.salary}</strong>
-                <span>{entry.job!.hideSalary ? "Compensation details" : devCopy("Illustrative salary range", "Salary range")}</span>
+                <span className="feed-job-pay-note">{entry.job!.hideSalary ? "Compensation details" : devCopy("Illustrative salary range", "Salary range")}</span>
               </div>
               {role === "recruiter" && entry.job!.ownedByViewer ? (
                 <LinkButton href={"/recruiter/applications?job=" + entry.id} variant="primary" icon="users">
@@ -321,34 +424,35 @@ export function FeedCard({ entry, role, activity = false, surface = "feed", posi
         </button>
       )}
       <div className="feed-social-counts">
-        <Button unstyled type="button" onClick={like} aria-label={(entry.viewer.liked ? "Unlike" : "Like") + " post"}>
+        <button type="button" onClick={like.toggle} aria-disabled={like.pending} aria-label={(like.enabled ? "Unlike" : "Like") + " post"}>
           <span className="reaction-dot">
             <FeedActionIcon name="like" />
           </span>
           {likes}
-          {entry.viewer.liked ? " · You liked this" : ""}
-        </Button>
+          {like.enabled ? " · You liked this" : ""}
+        </button>
         <button type="button" onClick={toggleComments}>
-          {entry.comments.length}{entry.commentsNextCursor ? "+" : ""} {entry.comments.length === 1 ? "comment" : "comments"}
+          {commentCount} {commentCount === 1 ? "comment" : "comments"}
         </button>
       </div>
       <div className="feed-post-actions">
-        <Button unstyled type="button" className={entry.viewer.liked ? "is-liked" : ""} onClick={like} aria-pressed={entry.viewer.liked}>
+        <button type="button" className={like.enabled ? "is-liked" : ""} onClick={like.toggle} aria-disabled={like.pending} aria-pressed={like.enabled}>
           <FeedActionIcon name="like" />
           Like
-        </Button>
+        </button>
         <button type="button" onClick={toggleComments} aria-expanded={open}>
           <FeedActionIcon name="comment" />
-          Comment
+          Comment{commentCount > 0 ? ` ${commentCount}` : ""}
         </button>
-        <Button unstyled type="button" className={sharing ? "is-sharing" : ""} onClick={share}>
+        <button type="button" onClick={share}>
           <FeedActionIcon name="share" />
           Share
-        </Button>
-        <Button unstyled type="button" className={entry.viewer.saved ? "is-saved" : ""} onClick={save} aria-pressed={entry.viewer.saved}>
-          <FeedActionIcon name="save" />
-          {entry.viewer.saved ? "Saved" : "Save"}
-        </Button>
+        </button>
+        <button type="button" className={repost.enabled ? "is-reposted" : ""} onClick={repost.toggle} disabled={repostUnavailable} aria-pressed={repost.enabled} aria-disabled={repostUnavailable || repost.pending} aria-describedby={repostUnavailable ? repostReasonId : undefined} title={repostUnavailable ? repostUnavailableReason : repost.enabled ? "Undo repost" : "Repost to your feed"}>
+          <FeedActionIcon name="repost" />
+          {repost.enabled ? "Reposted" : "Repost"}
+        </button>
+        {repostUnavailable && <span id={repostReasonId} className="sr-only">{repostUnavailableReason}</span>}
       </div>
       {open && <Comments entry={entry} role={role} />}
     </article>

@@ -142,6 +142,7 @@ export interface Comment {
   text: string;
   createdAt: IsoDateTime;
   editedAt?: IsoDateTime;
+  parentId?: Id;
 }
 
 export interface ScreeningQuestion {
@@ -259,6 +260,9 @@ export interface JobAlert {
 }
 
 export interface SocialGraph {
+  blocked?: Id[];
+  commentReports?: {commentId:Id;reason:string;details:string;createdAt:string}[];
+  repostDates?: Record<Id, IsoDateTime>;
   following: Id[];
   followingCompanies: Id[];
   liked: Id[];
@@ -269,6 +273,7 @@ export interface SocialGraph {
 
 /** Shared social content plus the professional's own graph. */
 export interface SocialData extends SocialGraph {
+  pinnedComments?: Record<Id, Id>;
   comments: Record<Id, Comment[]>;
   applications: SeekerApplication[];
   jobs: Job[];
@@ -291,6 +296,8 @@ export interface MessageAttachment {
 }
 
 export interface Message {
+  own?: boolean;
+  senderId?: Id;
   id?: Id;
   text: string;
   sender: Role;
@@ -299,6 +306,7 @@ export interface Message {
 }
 
 export interface Conversation {
+  peerIds?: [Id, Id];
   id: Id;
   name: string;
   candidate: Id;

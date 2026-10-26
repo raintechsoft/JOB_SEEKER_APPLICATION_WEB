@@ -16,7 +16,7 @@ export const mockActivityService: ActivityService = {
       ...db.updates.map((u): RawItem => ({ ...u, body: u.description, type: "update", createdAt: u.date + "T09:00:00", likes: 0, kind: "Work update", media: "", image: "" })),
     ].filter((p) => p.type === "job" || p.owner === ME_ID || (p.visibility !== "Private" && person(db, p.owner).public));
     const entry = (p: RawItem) => toFeedEntry(db, "professional", p);
-    const own = all.filter((p) => p.type !== "job" && p.owner === ME_ID).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const own = all.filter((p) => p.type !== "job" && (p.owner === ME_ID || !!db.social.repostDates?.[p.id])).sort((a, b) => (db.social.repostDates?.[b.id] || b.createdAt).localeCompare(db.social.repostDates?.[a.id] || a.createdAt));
     const byId = new Map(all.map((p) => [p.id, p]));
     const flat = Object.entries(db.social.comments)
       .flatMap(([id, list]) => list.filter((c) => c.owner === ME_ID).map((comment) => ({ comment, post: byId.get(id) })))
@@ -40,7 +40,7 @@ export const mockActivityService: ActivityService = {
     const s = db.recruiterSocial;
     const all = recruiterItems(db);
     const entry = (p: RawItem) => toFeedEntry(db, "recruiter", p);
-    const own = all.filter((p) => (p.type === "job" ? p.company === homeCompany(db).id : p.owner === RECRUITER_ID));
+    const own = all.filter((p) => (p.type === "job" ? p.company === homeCompany(db).id : p.owner === RECRUITER_ID) || !!s.repostDates?.[p.id]);
     const commented = all.filter((p) => (db.social.comments[p.id] || []).some((c) => c.owner === RECRUITER_ID));
     return {
       posts: own.map(entry),

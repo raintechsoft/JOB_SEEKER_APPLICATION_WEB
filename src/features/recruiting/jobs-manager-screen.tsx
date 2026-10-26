@@ -339,7 +339,7 @@ export function JobsManagerScreen() {
       <div className="jobs-manager-layout">
         <PageHeading
           title="Manage Jobs and Responses"
-          subtitle="Manage your job posts and the people responding to them."
+          subtitle=""
           actions={
             <Button variant="primary" icon="plus" onClick={() => router.push("/recruiter/jobs/new")}>
               Post job

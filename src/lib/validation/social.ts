@@ -21,7 +21,25 @@ export const postPublishSchema = z.object({ ...postTextSchema.shape, project: z.
   for (const [i, m] of v.attachments.entries()) if (!m.alt) ctx.addIssue({ code: "custom", path: ["attachments", i, "alt"], message: "Describe this media for accessibility." });
   if (new Set(v.attachments.map((m) => m.src)).size !== v.attachments.length || v.attachments.reduce((n, m) => n + (m.type === "image" ? m.bytes ?? 0 : 0), 0) > contract.totalImageBytesMax) ctx.addIssue({ code: "custom", path: ["attachments"], message: "Choose distinct media within the 2 MB image limit." });
 });
-export const socialFeedSchema = z.object({ role: socialRoleSchema, filter: z.enum(["all", "following", "jobs", "saved"]), sort: z.enum(["recent", "popular", "recommended"]), q: text(200), limit: z.number().int().min(1).max(1000) });
+export const socialFeedSchema = z.object({ role: socialRoleSchema, filter: z.enum(["all", "following", "jobs", "saved", "reposts"]), sort: z.enum(["recent", "popular", "recommended"]), q: text(200), limit: z.number().int().min(1).max(1000) });
+export const shareSearchSchema = text(contract.searchMax);
+export const feedSearchSchema = text(200);
+export const peopleSearchSchema = z.object({ role: socialRoleSchema, q: feedSearchSchema.min(1, "Enter a name or headline."), limit: z.number().int().min(1).max(1000) });
+export const shareFollowersSchema = z.object({
+  selectedIds: z
+    .array(z.string().trim().min(1, "Choose a follower.").max(64))
+    .min(1, "Choose at least one follower.")
+    .max(contract.shareFollowersMax, `Choose up to ${contract.shareFollowersMax} followers.`),
+}).superRefine((value, ctx) => {
+  if (new Set(value.selectedIds).size !== value.selectedIds.length) ctx.addIssue({ code: "custom", path: ["selectedIds"], message: "Choose each follower once." });
+});
+export function parseShareFollowers(selectedIds: string[], allowedIds: Iterable<string>): { success: true; data: string[] } | { success: false; error: string } {
+  const parsed = shareFollowersSchema.safeParse({ selectedIds });
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
+  const allowed = new Set(allowedIds);
+  if (parsed.data.selectedIds.some((id) => !allowed.has(id))) return { success: false, error: "Choose followers from your current list." };
+  return { success: true, data: parsed.data.selectedIds };
+}
 export function validatePostFiles(files: File[], existing: { type: string; bytes?: number }[]): string | null {
   if (files.length + existing.length > contract.mediaMax) return "Choose up to five media items.";
   if (files.reduce((n, f) => n + f.size, 0) + existing.reduce((n, m) => n + (m.type === "image" ? m.bytes ?? 0 : 0), 0) > contract.totalImageBytesMax) return "Keep post images within 2 MB in total.";

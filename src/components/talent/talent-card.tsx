@@ -20,7 +20,9 @@ export function TalentCard({ person: p, publicMode = false }: { person: TalentCa
   return (
     <article ref={ref} className="card talent-card" onClickCapture={(e)=>{if(p.analyticsContext&&(e.target as HTMLElement).closest("a"))track("recommendation_clicked",p.analyticsContext);}}>
       <div className="row between">
-        <Avatar person={p} size="lg" />
+        <Link href={target} className="talent-avatar-link" aria-label={"View " + p.name + " profile"}>
+          <Avatar person={p} size="lg" />
+        </Link>
         <IconButton icon="bookmark" label={p.saved ? "Manage saved candidate" : "Save to shortlist"} extra={p.saved ? "saved" : ""} onClick={() => shortlists.choose(p.id)} />
       </div>
       <h3 className="talent-name">

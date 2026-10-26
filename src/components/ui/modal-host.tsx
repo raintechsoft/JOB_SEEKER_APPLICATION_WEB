@@ -11,7 +11,7 @@ import { Button, IconButton } from "./primitives";
  * prototype's `notification-sheet`, `project-sheet` and `following-sheet` classes.
  */
 export function ModalHost() {
-  const { open, title, content, variant, version, confirmingDiscard, close, requestClose, keepEditing, discard } = useModalStore();
+  const { open, title, content, variant, version, blocking, confirmingDiscard, close, requestClose, keepEditing, discard } = useModalStore();
   const ref = useRef<HTMLDialogElement>(null);
   const lastFocus = useRef<HTMLElement | null>(null);
 
@@ -32,7 +32,7 @@ export function ModalHost() {
       if (lastFocus.current?.isConnected) lastFocus.current.focus();
     };
     const onCancel = (e: Event) => {
-      if (useModalStore.getState().dirty) {
+      if (useModalStore.getState().dirty || useModalStore.getState().blocking) {
         e.preventDefault();
         requestClose();
       }
@@ -52,7 +52,7 @@ export function ModalHost() {
       id="modal"
       ref={ref}
       aria-labelledby="dialog-title"
-      className={cn(sheet && "notification-sheet", variant === "project" && "project-sheet", variant === "following" && "following-sheet")}
+      className={cn(sheet && "notification-sheet", variant === "project" && "project-sheet", variant === "following" && "following-sheet", variant === "photo" && "profile-photo-dialog")}
       onClick={(e) => {
         // Following an in-app link from a dialog navigates away, so the dialog closes (prototype `navigate`).
         const link = (e.target as Element).closest("a[href]");
@@ -69,17 +69,17 @@ export function ModalHost() {
         <>
           <header className="modal-head">
             <h2 id="dialog-title">{title}</h2>
-            <IconButton icon="close" label="Close dialog" onClick={() => requestClose()} />
+            <IconButton icon="close" label="Close dialog" disabled={blocking} onClick={() => requestClose()} />
           </header>
           <div className="modal-body" key={version}>
-            {confirmingDiscard && (
+            {confirmingDiscard && variant !== "photo" && (
               <div id="profile-discard-prompt" className="profile-discard-prompt" role="alert">
                 <p>You have unsaved changes. Keep editing or discard them?</p>
                 <div className="row">
                   <Button variant="sm" onClick={keepEditing} autoFocus>
                     Keep editing
                   </Button>
-                  <Button variant="danger sm" onClick={discard}>
+                  <Button variant="danger sm" disabled={blocking} onClick={discard}>
                     Discard changes
                   </Button>
                 </div>

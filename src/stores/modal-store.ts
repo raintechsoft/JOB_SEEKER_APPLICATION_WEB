@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { create } from "zustand";
 
 /** `sheet`: right-hand notification sheet · `project`: full-height sheet · `following`: network sheet. */
-export type ModalVariant = "dialog" | "sheet" | "project" | "following";
+export type ModalVariant = "dialog" | "sheet" | "project" | "following" | "photo";
 
 interface ModalState {
   open: boolean;
@@ -13,12 +13,14 @@ interface ModalState {
   version: number;
   /** A form inside the dialog has unsaved changes (profile editors). */
   dirty: boolean;
+  /** A committed save is in flight; prevent dismissing it as if it were discarded. */
+  blocking: boolean;
   /** Showing the "keep editing or discard" prompt; `pending` runs after discarding. */
   confirmingDiscard: boolean;
   pending: (() => void) | null;
   show: (title: ReactNode, content: ReactNode, variant?: ModalVariant) => void;
   close: () => void;
-  /** Closes unless the content is dirty, in which case the discard prompt is shown first. */
+  /** Photo previews dismiss directly; other dirty editors ask before discarding. */
   requestClose: (next?: () => void) => void;
   setDirty: (dirty: boolean) => void;
   keepEditing: () => void;
@@ -32,12 +34,14 @@ export const useModalStore = create<ModalState>((set, get) => ({
   variant: "dialog",
   version: 0,
   dirty: false,
+  blocking: false,
   confirmingDiscard: false,
   pending: null,
-  show: (title, content, variant = "dialog") => set((s) => ({ open: true, title, content, variant, version: s.version + 1, dirty: false, confirmingDiscard: false, pending: null })),
-  close: () => set({ open: false, dirty: false, confirmingDiscard: false, pending: null }),
+  show: (title, content, variant = "dialog") => set((s) => ({ open: true, title, content, variant, version: s.version + 1, dirty: false, blocking: false, confirmingDiscard: false, pending: null })),
+  close: () => set({ open: false, dirty: false, blocking: false, confirmingDiscard: false, pending: null }),
   requestClose: (next) => {
-    if (!get().dirty) {
+    if (get().blocking) return;
+    if (!get().dirty || get().variant === "photo") {
       get().close();
       next?.();
       return;
@@ -49,6 +53,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
   },
   keepEditing: () => set({ confirmingDiscard: false, pending: null }),
   discard: () => {
+    if (get().blocking) return;
     const next = get().pending;
     get().close();
     next?.();

@@ -14,55 +14,77 @@ import { devCopy } from "@/lib/env/app-env";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
+import { MediaImage } from "@/components/ui/media-image";
 import { Avatar, Button, EmptyState, LinkButton } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
 import { FeedCard } from "@/features/feed/feed-card";
-import { FeedToolbar, useCompose } from "@/features/feed/feed-parts";
+import { FeedToolbar } from "@/features/feed/feed-parts";
 import { useNetworkSheet } from "@/features/feed/network-sheet";
 import { useFeedParams } from "@/features/feed/use-feed-params";
 import { openReview } from "./review-dialog";
 import { PermalinkEntry } from "@/features/feed/permalink-entry";
+import { PeopleSearch } from "@/features/feed/people-search";
 
 const TABS: [FeedFilter, string, boolean][] = [
   ["all", "For you", false],
   ["following", "Following", false],
   ["jobs", "Your jobs", false],
   ["saved", "Saved", false],
+  ["reposts", "Reposts", false],
 ];
 
 function ProfileRail() {
   const { data: shell, isError: shellError, refetch: retryShell } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
+  const { data: orgCtx, isError: orgError, refetch: retryOrg } = useServiceQuery(["organization"], (s) => s.organization.getContext());
   const { data: hiring, isError: hiringError } = useServiceQuery(["hiring-summary"], (s) => s.recruiting.getHiringSummary());
   const saved = useServiceQuery(["feed-saved-count", "recruiter"], s => s.feed.getFeed({ role: "recruiter", filter: "saved", sort: "recent", q: "", limit: 1 }), { enabled: apiConfig.dataSource === "http" });
-  if (!shell) return <aside className="feed-profile-column" aria-label="Recruiter profile and hiring"><QueryFeedback data={shell} error={shellError} retry={retryShell} label="Loading recruiter profile" /></aside>;
+  if (!shell) return <aside className="feed-profile-column" aria-label="Organization profile and hiring"><QueryFeedback data={shell} error={shellError} retry={retryShell} label="Loading organization profile" /></aside>;
+  const o = orgCtx?.workspace.organization;
+  const orgName = o?.name || shell.companyName || "Your organization";
+  const industry = o?.industry?.trim();
+  const location = [o?.headquartersCity, o?.headquartersCountry].filter(Boolean).join(", ");
   return (
-    <aside className="feed-profile-column" tabIndex={0} aria-label="Recruiter profile and hiring">
+    <aside className="feed-profile-column" tabIndex={0} aria-label="Organization profile and hiring">
       <section className="card feed-profile">
         <div className="feed-welcome">
           <h1>Welcome back, {shell.identity.name.split(" ")[0]}.</h1>
         </div>
-        <div className="feed-profile-cover">
-          <span>YOUR HIRING STORY.</span>
-          <i />
-          <i />
-          <i />
-        </div>
-        <div className="feed-profile-details">
-          <Link href="/recruiter/company" className="feed-avatar-link">
-            <Avatar person={shell.identity} size="xl" />
-            <span className="avatar-edit">
-              <Icon name="edit" />
-            </span>
-          </Link>
-          <h2>
-            <Link href="/recruiter/company">{shell.identity.name}</Link>
-          </h2>
-          <p className="feed-profile-headline">{shell.title}</p>
-          <p className="feed-location">
-            <Icon name="building" />
-            {shell.companyName}
+        {orgError && !o ? (
+          <p className="feed-org-load-error" role="alert">
+            Organization details could not be loaded. <button type="button" onClick={() => void retryOrg()}>Try again</button>
           </p>
-        </div>
+        ) : (
+          <>
+            <Link href="/recruiter/company" className={"feed-profile-cover" + (o?.coverImageUrl ? " has-image" : "")} aria-label={"View " + orgName + " organization profile"}>
+              {o?.coverImageUrl ? <MediaImage src={o.coverImageUrl} alt="" /> : (
+                <>
+                  <span>YOUR HIRING STORY.</span>
+                  <i />
+                  <i />
+                  <i />
+                </>
+              )}
+            </Link>
+            <div className="feed-profile-details">
+              <Link href="/recruiter/company" className="feed-avatar-link" aria-label={"View " + orgName + " organization profile"}>
+                <span className="feed-org-logo">
+                  {o?.logoUrl ? <MediaImage src={o.logoUrl} alt="" /> : <Icon name="building" />}
+                </span>
+                <span className="avatar-edit">
+                  <Icon name="edit" />
+                </span>
+              </Link>
+              <h2>
+                <Link href="/recruiter/company">{orgName}</Link>
+              </h2>
+              <p className="feed-profile-headline" title={industry || undefined}>{industry || "Add industry"}</p>
+              <p className="feed-location" title={location || undefined}>
+                <Icon name="location" />
+                <span>{location || "Add headquarters"}</span>
+              </p>
+            </div>
+          </>
+        )}
       </section>
       <section className="card recruiter-summary">
         <h2>Your hiring, in focus</h2>
@@ -172,10 +194,8 @@ export function RecruiterFeedScreen() {
   const router = useRouter();
   const pathname = usePathname();
   const highlight = useSearchParams().get("post");
-  const compose = useCompose("recruiter");
   const network = useNetworkSheet();
   useFeedParams("recruiter");
-  const { data: shell } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
   const { data, isError, refetch } = useServiceQuery(["feed", "recruiter", feed.filter, feed.sort, feed.query, feed.visible], (s) => s.feed.getFeed({ role: "recruiter", filter: feed.filter, sort: feed.sort, q: feed.query, limit: feed.visible }));
   useEffect(() => {
     if (highlight && data) requestAnimationFrame(() => document.getElementById("feed-" + highlight)?.scrollIntoView({ block: "start" }));
@@ -184,49 +204,27 @@ export function RecruiterFeedScreen() {
     <div className="professional-feed-layout recruiter-feed-layout">
       <ProfileRail />
       <section className="feed-timeline" aria-label="Recruiter community feed">
-
-        <section className="card feed-composer">
-          <div className="row">
-            {shell ? <Avatar person={shell.identity} /> : <span className="avatar" />}
-            <button type="button" className="feed-start-post" onClick={() => compose()}>
-              Share a team update or a new opportunity...
-            </button>
-          </div>
-          <div className="feed-compose-actions">
-            <button type="button" onClick={() => compose("media")}>
-              <Icon name="image" />
-              Photo / media
-            </button>
-            <button type="button" onClick={() => compose("video")}>
-              <Icon name="monitor" />
-              Video
-            </button>
-            <button type="button" onClick={() => router.push("/recruiter/jobs/new")}>
-              <Icon name="briefcase" />
-              Post a job
-            </button>
-          </div>
-        </section>
         <FeedToolbar
           tabs={TABS}
           onFilter={(filter) => {
             setFeed({ filter, visible: 12 });
-            router.replace(pathname, { scroll: false });
+            router.replace(filter === "reposts" ? pathname + "?view=reposts" : pathname, { scroll: false });
           }}
         />
         {feed.query && (
           <div className="feed-search-status">
             Results for “{feed.query}”{" "}
-            <Button variant="text sm" icon="close" onClick={() => setFeed({ query: "" })}>
+            <Button variant="text sm" icon="close" onClick={() => { setFeed({ query: "" }); router.replace(pathname, { scroll: false }); }}>
               Clear
             </Button>
           </div>
         )}
+        {feed.query && <PeopleSearch key={feed.query} role="recruiter" query={feed.query} />}
         <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
         {data && (
           <>
             <div className="feed-results-label">
-              <span>{data.total} posts</span>
+              <span>{data.total} {feed.filter === "reposts" ? "reposts" : "posts"}</span>
               <span>{devCopy("Your demo community", "Your community")}</span>
             </div>
             <div className="feed-post-list">
@@ -236,10 +234,10 @@ export function RecruiterFeedScreen() {
               ) : (
                 <div className="card">
                   <EmptyState
-                    title="Nothing here yet."
-                    description="Try another filter or follow people to build your feed."
+                    title={feed.filter === "reposts" ? "Your reposts will appear here." : "Nothing here yet."}
+                    description={feed.filter === "reposts" ? "Repost your posts or other people’s public posts to share them in your feed." : "Try another filter or follow people to build your feed."}
                     action={
-                      <Button variant="primary" icon="users" onClick={() => network.open("recruiter")}>
+                      feed.filter === "reposts" ? <Button variant="primary" icon="home" onClick={() => { setFeed({ filter: "all", query: "", visible: 12 }); router.replace(pathname, { scroll: false }); }}>Explore feed</Button> : <Button variant="primary" icon="users" onClick={() => network.open("recruiter")}>
                         Manage following
                       </Button>
                     }

@@ -1,0 +1,47 @@
+/* Photo tools use the existing workspace colors and native modal behavior. */
+dialog.profile-photo-dialog { width: min(620px, calc(100vw - 28px)); max-width: calc(100vw - 28px); }
+.profile-photo-dialog .modal-body { padding: 24px; }
+.profile-photo-ring, .profile-avatar-trigger { cursor: pointer; border: 0; font: inherit; }
+.profile-avatar-trigger { display: inline-flex; padding: 0; background: transparent; border-radius: 50%; }
+.photo-editor { color: var(--ink); }
+.photo-editor-portrait { display: flex; justify-content: center; padding: 20px 0 32px; }
+.photo-editor-portrait .avatar.xl { width: 232px; height: 232px; font-size: 68px; }
+.photo-editor-hint { color: var(--muted); font-size: 13px; line-height: 1.6; text-align: center; margin: 12px 0 18px; }
+.photo-editor-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; padding: 16px 0 4px; border-top: 1px solid var(--line); }
+.photo-editor .btn .icon { color: inherit; flex-shrink: 0; }
+.photo-source-options { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+.photo-source-options.is-single { grid-template-columns: 1fr; max-width: 280px; margin-left: auto; margin-right: auto; }
+.photo-source-options .photo-source-option { display: flex; flex-direction: column; justify-content: center; gap: 14px; min-height: 132px; padding: 20px 12px; white-space: normal; font-size: 14px; border: 1px solid var(--line); background: var(--paper); }
+.photo-source-options .photo-source-option:hover { border-color: var(--accent); background: var(--accent-soft); }
+.photo-source-options .photo-source-option > .icon { width: 28px; height: 28px; color: var(--accent); }
+.photo-crop-stage { display: flex; justify-content: center; background: var(--bg); padding: 20px; border: 1px solid var(--line); border-radius: 12px; }
+.photo-crop-circle { width: min(100%, 320px); aspect-ratio: 1; overflow: hidden; border-radius: 50%; background: #fff; cursor: grab; touch-action: none; user-select: none; box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--line); }
+.photo-crop-circle.is-square { border-radius: 12px; }
+.photo-crop-circle.is-landscape { width: min(100%, 560px); aspect-ratio: 4 / 1; border-radius: 10px; }
+.photo-editor-portrait.is-square, .photo-editor-portrait.is-landscape { align-items: center; }
+.photo-editor-portrait.is-square { padding: 12px 0 24px; }
+.photo-editor-portrait.is-landscape { padding: 8px 0 24px; }
+.photo-editor-portrait.is-square .photo-editor-preview-image, .photo-editor-portrait.is-square .photo-editor-empty { width: 232px; height: 232px; border-radius: 12px; }
+.photo-editor-portrait.is-landscape .photo-editor-preview-image, .photo-editor-portrait.is-landscape .photo-editor-empty { width: min(100%, 520px); aspect-ratio: 4 / 1; border-radius: 10px; }
+.photo-editor-preview-image { display: block; object-fit: contain; background: #fff; border: 1px solid var(--line); }
+.photo-editor-portrait.is-landscape .photo-editor-preview-image { object-fit: cover; }
+.photo-editor-empty { display: grid; place-items: center; background: #EAF0FF; color: #315EF4; border: 1px solid var(--line); }
+.photo-editor-empty > .icon { width: 48px; height: 48px; }
+.photo-editor-portrait.is-landscape .photo-editor-empty > .icon { width: 32px; height: 32px; }
+.photo-crop-circle:active { cursor: grabbing; }
+.photo-crop-circle:focus-visible, .profile-photo-ring:focus-visible, .profile-avatar-trigger:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+.photo-crop-circle svg { display: block; width: 100%; height: 100%; pointer-events: none; }
+.photo-zoom-control { display: flex; align-items: center; gap: 14px; font-size: 13px; margin: 20px 0; }
+.photo-zoom-control input { min-width: 0; flex: 1; accent-color: var(--accent); padding: 0; }
+.photo-zoom-control output { min-width: 44px; font-variant-numeric: tabular-nums; text-align: right; }
+.photo-editor-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.photo-editor .modal-footer { flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.photo-camera video { width: 100%; max-height: 350px; aspect-ratio: 4/3; object-fit: contain; display: block; border-radius: 12px; background: #202a36; }
+@media (max-width: 480px) {
+  .profile-photo-dialog .modal-body { padding: 18px; }
+  .photo-source-options { gap: 10px; }
+  .photo-source-options .photo-source-option { font-size: 12px; padding: 16px 10px; }
+  .photo-crop-stage { padding: 15px; }
+  .photo-editor-portrait .avatar.xl { width: 200px; height: 200px; font-size: 58px; }
+  .photo-editor-portrait.is-square .photo-editor-preview-image, .photo-editor-portrait.is-square .photo-editor-empty { width: 200px; height: 200px; }
+}

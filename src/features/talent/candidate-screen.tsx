@@ -3,6 +3,10 @@
 import { ScreenFallback } from "@/components/ui/feedback";
 
 import Link from "next/link";
+import { Suspense, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { useProjectDialogs } from "@/features/work/dialogs";
+import { toast } from "@/stores/toast-store";
 import type { CandidateView } from "@/services/talent/talent.service";
 import { firstName } from "@/lib/utils/text";
 import { devCopy } from "@/lib/env/app-env";
@@ -25,6 +29,7 @@ function Candidate({ view, publicView }: { view: CandidateView; publicView: bool
   const toggleCompare = useCompareToggle();
   return (
     <>
+      {!publicView && <Suspense fallback={null}><ProjectSearchTarget view={view} /></Suspense>}
       <div className="row between print-hide" style={{ marginBottom: 18 }}>
         <Link href={publicView ? "/talent" : "/recruiter/discover"} className="small muted">
           ← Back to talent
@@ -124,6 +129,17 @@ function Candidate({ view, publicView }: { view: CandidateView; publicView: bool
       </div>
     </>
   );
+}
+
+function ProjectSearchTarget({ view }: { view: CandidateView }) {
+  const params = useSearchParams(), requested = params.get("project");
+  const opened = useRef<string | null>(null); const { view: open } = useProjectDialogs();
+  useEffect(() => {
+    if (!requested || opened.current === requested || !view.projects.some(project => project.id === requested)) return;
+    opened.current = requested;
+    void open(requested).catch(() => toast("This project is no longer available.", "error"));
+  }, [requested, view.projects, open]);
+  return null;
 }
 
 export function NotFoundState() {

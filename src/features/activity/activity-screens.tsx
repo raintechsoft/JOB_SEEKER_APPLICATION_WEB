@@ -131,7 +131,7 @@ export function ProfessionalActivityScreen() {
     <div className="activity-workspace">
       <PageHeading
         title="My Activity"
-        subtitle="Your posts, conversations, and interactions — in one place."
+        subtitle=""
         actions={
           <Button variant="primary" icon="plus" onClick={() => compose()}>
             Create a post
@@ -239,7 +239,7 @@ export function RecruiterActivityScreen() {
     <div className="activity-workspace">
       <PageHeading
         title="My Activity"
-        subtitle="Your posts, conversations, and interactions — in one place."
+        subtitle=""
         actions={
           <Button variant="primary" icon="plus" onClick={() => compose()}>
             Create a post
