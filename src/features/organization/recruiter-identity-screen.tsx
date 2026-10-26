@@ -1,6 +1,7 @@
 "use client";
 
 import { MediaImage } from "@/components/ui/media-image";
+import { PhotoEditor } from "@/components/profile/photo-editor";
 
 import Link from "next/link";
 import type { RecruiterMember } from "@/types/domain";
@@ -51,6 +52,15 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
     if (!editable) toast(ADMIN_ONLY);
     return editable;
   };
+  const photo = () => {
+    if (!guard()) return;
+    modal.show("Profile photo", <PhotoEditor person={recruiterAvatar(r)} purpose="recruiter_photo" savedMessage="Photo added to your draft. Save Changes to apply it." removedMessage="Photo removed from your draft. Save Changes to apply it." onSave={async file => {
+      if (!guard()) throw new Error("You cannot edit this profile.");
+      const images = await uploads.load([file], uploads.limits.photo, "recruiter_photo");
+      if (!images) throw new Error("The photo could not be uploaded. Please try again.");
+      update(d => { d.avatarUrl = images[0].url; });
+    }} onRemove={async () => { if (!guard()) throw new Error("You cannot edit this profile."); update(d => { d.avatarUrl = ""; }); }} />, "photo");
+  };
   const text = (label: string, name: keyof RecruiterMember, props: { required?: boolean; maxLength?: number } = {}) => <OrgField label={label} name={name} value={String(r[name] ?? "")} error={errors[name]} onValue={(value) => update((d) => void ((d as unknown as Record<string, unknown>)[name] = value))} {...props} />;
   const save = async () => {
     if (!editable) return toast("You can edit your own recruiter profile only.");
@@ -78,7 +88,6 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
       <header className="org-page-header">
         <div>
           <h1>{own ? "My Recruiter Profile" : "Recruiter Profile"}</h1>
-          <p>Your personal hiring identity, associated with {o.name}.</p>
         </div>
         <div className="org-page-actions">
           <LinkButton href={"/recruiter/profile/preview?id=" + member.id} variant="sm" icon="eye">
@@ -105,75 +114,31 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
             void save();
           }}
         >
-          <div className="org-linked-company">
-            {o.logoUrl ? (
-              <MediaImage src={o.logoUrl} alt={o.name + " logo"} />
-            ) : (
-              <Icon name="building" />
-            )}
-            <div>
-              <span>Organization association</span>
-              <LinkButton href={ROOT} variant="text sm" icon="arrow">
-                {o.name}
-              </LinkButton>
+          <div className="org-recruiter-identity">
+            <div className="org-recruiter-photo">
+              <button type="button" className="profile-avatar-trigger" aria-label="View or edit recruiter profile photo" onClick={photo} disabled={!editable || uploads.busy}>
+                <Avatar person={recruiterAvatar(r)} size="xl" />
+              </button>
+              <Button variant="sm" icon="camera" onClick={photo} disabled={!editable || uploads.busy}>
+                Manage photo
+              </Button>
             </div>
-            <small>Managed centrally by organization admins</small>
+            <div className="org-linked-company">
+              {o.logoUrl ? (
+                <MediaImage src={o.logoUrl} alt={o.name + " logo"} />
+              ) : (
+                <Icon name="building" />
+              )}
+              <div>
+                <span>Organization association</span>
+                <LinkButton href={ROOT} variant="text sm" icon="arrow">
+                  {o.name}
+                </LinkButton>
+              </div>
+              <small>Managed centrally by organization admins</small>
+            </div>
           </div>
           <fieldset className="org-edit-fieldset" disabled={!editable}>
-            <div className="org-recruiter-photo">
-              <Avatar person={recruiterAvatar(r)} size="xl" />
-              <div>
-                <h3>Profile photo</h3>
-                <p className="org-help">PNG, JPEG or WebP, up to 500 KB. Public when your recruiter profile is visible.</p>
-                <div className="row wrap gap8">
-                  <label className="btn sm org-file-button">
-                    <Icon name="upload" />
-                    {r.avatarUrl ? "Replace photo" : "Upload photo"}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      hidden
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = "";
-                        if (!file || !guard()) return;
-                        const images = await uploads.load([file], uploads.limits.photo, "recruiter_photo");
-                        if (images) update((d) => void (d.avatarUrl = images[0].url));
-                      }}
-                    />
-                  </label>
-                  {r.avatarUrl && (
-                    <Button
-                      variant="text sm"
-                      icon="trash"
-                      onClick={() =>
-                        guard() &&
-                        modal.show(
-                          "Remove this profile photo?",
-                          <>
-                            <p className="org-help">Save the recruiter profile to apply this change.</p>
-                            <div className="modal-footer">
-                              <Button onClick={() => modal.close()}>Cancel</Button>
-                              <Button
-                                variant="danger"
-                                onClick={() => {
-                                  update((d) => void (d.avatarUrl = ""));
-                                  modal.close();
-                                }}
-                              >
-                                Confirm
-                              </Button>
-                            </div>
-                          </>,
-                        )
-                      }
-                    >
-                      Remove photo
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
             <div className="org-form-grid">
               {text("Full name", "fullName", { required: true, maxLength: 100 })}
               {text("Professional designation", "jobTitle", { required: true, maxLength: 100 })}

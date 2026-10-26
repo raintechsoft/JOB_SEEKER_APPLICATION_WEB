@@ -35,7 +35,6 @@ body.professional-theme .er-hint,body.professional-theme .er-field-hint {font-si
 body.professional-theme .er-actions .btn {font-size:15px;min-height:43px;padding:10px 17px;border-radius:8px;}
 .er-actions>.btn:first-child:not(.primary)>.icon {transform:rotate(180deg);}
 .er-text {display:inline-flex;gap:6px;align-items:center;color:#315EF4;font-size:14px;text-align:left;align-self:flex-start;padding:0;line-height:1.6;}
-.er-text:hover:not(:disabled) {text-decoration:underline;}
 .er-text>.icon {height:15px;width:15px;}
 .er-otp {border:0;padding:0;margin:8px 0 0;}
 .er-otp>legend {font-size:14px;color:#626B76;margin-bottom:13px;}

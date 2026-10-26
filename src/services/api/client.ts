@@ -7,6 +7,7 @@ export class ApiError extends Error {
     message: string,
     readonly status: number,
     readonly body?: unknown,
+    readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = "ApiError";
@@ -27,7 +28,7 @@ type Query = Record<string, string | number | boolean | string[] | undefined>;
 
 export interface HttpClient {
   setUserContext(userId: string | null): void;
-  get<T>(path: string, query?: Query): Promise<T>;
+  get<T>(path: string, query?: Query, options?: { signal?: AbortSignal }): Promise<T>;
   post<T>(path: string, body?: unknown): Promise<T>;
   patch<T>(path: string, body?: unknown): Promise<T>;
   delete<T>(path: string, body?: unknown): Promise<T>;
@@ -43,7 +44,7 @@ export function createHttpClient(baseUrl: string): HttpClient {
     if (id !== userContext || id === null) { contextEpoch++; contextReady = null; }
     userContext = id;
   };
-  async function request<T>(method: string, path: string, body?: unknown, query?: Query, binary = false): Promise<T> {
+  async function request<T>(method: string, path: string, body?: unknown, query?: Query, binary = false, signal?: AbortSignal): Promise<T> {
     const mutation = method !== "GET";
     const scoped = /^(?:me|organizations|admin)(?:\/|$)/.test(path) || binary || mutation && /^(?:(?:media|jobs)(?:\/|$)|auth\/(?:logout|password|email))/.test(path);
     // Establish the actor before loading an owned form, including a direct workspace navigation.
@@ -73,15 +74,15 @@ export function createHttpClient(baseUrl: string): HttpClient {
       credentials: "include",
       headers: { Accept: binary ? "application/octet-stream" : "application/json", ...(expectedUser ? { "X-Skillora-User": expectedUser } : {}), ...(body !== undefined && !(body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...(mutation && xsrf ? { "X-XSRF-TOKEN": decodeURIComponent(xsrf) } : {}) },
       body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
-      signal: AbortSignal.timeout(30_000),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
     });
     const payload = response.status === 204 ? undefined : binary && response.ok ? await response.blob() : await response.json().catch(() => undefined);
-    if (!response.ok) throw new ApiError(`Request failed with status ${response.status}`, response.status, payload);
+    if (!response.ok) { const retry = Number(response.headers.get("Retry-After")); throw new ApiError(`Request failed with status ${response.status}`, response.status, payload, response.status === 429 && retry > 0 ? Math.min(3600, Math.ceil(retry)) : undefined); }
     return payload as T;
   }
   return {
     setUserContext: setContext,
-    get: (path, query) => request("GET", path, undefined, query),
+    get: (path, query, options) => request("GET", path, undefined, query, false, options?.signal),
     post: (path, body) => request("POST", path, body),
     patch: (path, body) => request("PATCH", path, body),
     delete: (path, body) => request("DELETE", path, body),

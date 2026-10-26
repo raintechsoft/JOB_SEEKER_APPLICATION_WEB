@@ -80,7 +80,7 @@ export function applicantProfile(db: DemoDatabase, a: ReceivedApplication): Appl
   return {
     id: p.id,
     name: a.name || p.name,
-    picture: p.picture || undefined,
+    picture: p.picture,
     color: p.color,
     slug: p.slug,
     headline: p.headline,

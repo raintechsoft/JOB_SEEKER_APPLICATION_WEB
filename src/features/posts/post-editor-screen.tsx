@@ -46,8 +46,9 @@ function previewEntry(d: PostDraft, identity: PersonSummary, projects: Project[]
     project: project ? { id: project.id, title: project.title, art: project.art, cover: project.cover, visibility: project.visibility } : undefined,
     author: identity,
     likes: 0,
+    commentCount: 0,
     comments: [],
-    viewer: { liked: false, saved: false, following: false, own: true },
+    viewer: { liked: false, saved: false, following: false, own: true, canRepost: false, reposted: false },
   };
 }
 

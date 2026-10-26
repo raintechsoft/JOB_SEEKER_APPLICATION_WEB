@@ -19,13 +19,15 @@ import { useServiceAction, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
+import { MediaImage } from "@/components/ui/media-image";
 import { Button, IconButton, LinkButton } from "@/components/ui/primitives";
 import { SelectField } from "@/components/ui/field";
 import { ScreenFallback } from "@/components/ui/feedback";
 import { Spinner } from "@/components/ui/spinner";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
-import { OrgArea, OrgCheck, OrgChips, OrgChoices, OrgField, OrgImageUpload, OrgPublicHint, OrgSelect, VerificationBadge } from "@/components/organization/controls";
+import { PhotoEditor } from "@/components/profile/photo-editor";
+import { OrgArea, OrgCheck, OrgChips, OrgChoices, OrgField, OrgPublicHint, OrgSelect, VerificationBadge } from "@/components/organization/controls";
 import { useJobActions } from "@/features/feed/job-dialogs";
 import { addChips, useImageUploads, useOrganizationEditor } from "./use-organization-editor";
 import { TeamSection } from "./team-section";
@@ -94,10 +96,15 @@ export function OrganizationEditorScreen() {
   const check = (label: string, name: "showPublicContact" | "showCareers" | "acceptInquiries" | "notifyApplications" | "notifyTeam" | "weeklyDigest", hint?: string) => <OrgCheck label={label} checked={o[name]} hint={hint} onChange={(value) => setOrg((d) => void (d[name] = value))} />;
   const vField = (label: string, name: keyof Verification, type = "text", maxLength = 150) => <OrgField label={label} name={name} type={type} maxLength={maxLength} value={String(v[name] ?? "")} error={errors[name]} onValue={(value) => updateOrganization((d) => void ((d.verification as unknown as Record<string, unknown>)[name] = value))} />;
 
-  const uploadImage = async (kind: "logoUrl" | "coverImageUrl", file: File) => {
+  const openImageEditor = (kind: "logoUrl" | "coverImageUrl") => {
     if (!guard()) return;
-    const images = await uploads.load([file], kind === "logoUrl" ? uploads.limits.logo : uploads.limits.cover, kind === "logoUrl" ? "logo" : "cover");
-    if (images) setOrg((d) => void (d[kind] = images[0].url));
+    const purpose = kind === "logoUrl" ? "logo" : "cover";
+    modal.show(kind === "logoUrl" ? "Organization logo" : "Cover image", <PhotoEditor purpose={purpose} sources="computer" imageUrl={kind === "logoUrl" ? o.logoUrl : o.coverImageUrl} savedMessage="Image added to your draft. Save Changes to apply it." removedMessage="Image removed from your draft. Save Changes to apply it." onSave={async file => {
+      if (!guard()) throw new Error("Organization admin access is required.");
+      const images = await uploads.load([file], purpose === "logo" ? uploads.limits.logo : uploads.limits.cover, purpose);
+      if (!images) throw new Error("The image could not be uploaded. Please try again.");
+      setOrg((d) => void (d[kind] = images[0].url));
+    }} onRemove={async () => { if (!guard()) throw new Error("Organization admin access is required."); setOrg((d) => void (d[kind] = "")); }} />, "photo");
   };
   const uploadGallery = async (files: File[], replace?: number) => {
     if (!guard() || !files.length) return;
@@ -163,23 +170,19 @@ export function OrganizationEditorScreen() {
     overview: () => (
       <>
         <OrgPublicHint />
-        <div className="org-upload-pair">
-          <OrgImageUpload label="Organization logo" kind="logoUrl" value={o.logoUrl} onFile={(f) => uploadImage("logoUrl", f)} onRemove={() => guard() && confirmDanger("Remove this image?", "The image will be removed from your draft. Save Changes to update the public profile.", () => (setOrg((d) => void (d.logoUrl = "")), modal.close()))} />
-          <OrgImageUpload label="Cover image" kind="coverImageUrl" value={o.coverImageUrl} onFile={(f) => uploadImage("coverImageUrl", f)} onRemove={() => guard() && confirmDanger("Remove this image?", "The image will be removed from your draft. Save Changes to update the public profile.", () => (setOrg((d) => void (d.coverImageUrl = "")), modal.close()))} />
-        </div>
         <div className="org-form-grid">
           {field("Organization name", "name", { required: true, maxLength: 100 })}
           {field("Public profile slug", "slug", { required: true, maxLength: 80, pattern: "[a-z0-9]+(-[a-z0-9]+)*" })}
           {field("Industry", "industry", { required: true, maxLength: 100 })}
           {select("Organization type", "organizationType", ["Privately held", "Public company", "Nonprofit", "Government", "Partnership", "Self-employed", "Other"])}
-          {select("Company size", "companySize", ["", "1–10 employees", "11–50 employees", "51–200 employees", "201–500 employees", "501–1,000 employees", "1,001–5,000 employees", "5,001+ employees"], true)}
+          {select("Company size", "companySize", ["", "1–10 employees", "11–50 employees", "51–200 employees", "201–500 employees", "501–1,000 employees", "1,001–5,000 employees", "5,001+ employees"])}
           {field("Founding year", "foundingYear", { type: "number", min: 1800, max: new Date().getFullYear() })}
-          {field("Headquarters country", "headquartersCountry", { required: true, maxLength: 80 })}
-          {field("Headquarters city", "headquartersCity", { required: true, maxLength: 80 })}
+          {field("Headquarters country", "headquartersCountry", { maxLength: 100 })}
+          {field("Headquarters city", "headquartersCity", { maxLength: 100 })}
           {field("Website URL", "websiteUrl", { type: "url", maxLength: 250 })}
         </div>
         {field("Short company tagline", "tagline", { maxLength: 140 })}
-        {area("Company description", "description", { required: true, maxLength: 1200 })}
+        {area("Company description", "description", { maxLength: 2500 })}
       </>
     ),
     about: () => (
@@ -509,7 +512,6 @@ export function OrganizationEditorScreen() {
       <header className="org-page-header">
         <div>
           <h1>Organization Profile</h1>
-          <p>Manage your company’s identity and hiring presence on Skillora.</p>
         </div>
         <div className="org-page-actions">
           <LinkButton href={ROOT + "/preview?section=" + key} variant="sm" icon="eye">
@@ -522,33 +524,48 @@ export function OrganizationEditorScreen() {
         </div>
       </header>
       <section className="card org-summary" id="org-summary">
-        <div className="org-summary-main">
-          <span className="org-summary-logo">
-            {o.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- uploaded logo data URL
-              <img src={o.logoUrl} alt={o.name + " logo"} />
-            ) : (
-              <Icon name="building" />
-            )}
-          </span>
-          <div>
-            <div className="row wrap">
-              <h2>{o.name || "Your organization"}</h2>
-              <VerificationBadge status={o.verificationStatus} />
+        <button type="button" className={"org-summary-cover" + (o.coverImageUrl ? " has-image" : "")} aria-label="Edit cover image" disabled={!canManage || uploads.busy} onClick={() => openImageEditor("coverImageUrl")}>
+          {o.coverImageUrl ? <MediaImage src={o.coverImageUrl} alt="" fallback={null} /> : null}
+          {canManage ? (
+            <span className="org-summary-edit org-summary-cover-edit">
+              <Icon name="edit" />
+            </span>
+          ) : null}
+        </button>
+        <div className="org-summary-body">
+          <div className="org-summary-main">
+            <div className="org-summary-logo-wrap">
+              <button type="button" className="org-summary-logo" aria-label="Edit organization logo" disabled={!canManage || uploads.busy} onClick={() => openImageEditor("logoUrl")}>
+                {o.logoUrl ? (
+                  <MediaImage src={o.logoUrl} alt="" fallback={<Icon name="building" />} />
+                ) : (
+                  <Icon name="building" />
+                )}
+              </button>
+              {canManage ? (
+                <button type="button" className="org-summary-edit org-summary-logo-edit" aria-label="Edit organization logo" disabled={uploads.busy} onClick={() => openImageEditor("logoUrl")}>
+                  <Icon name="edit" />
+                </button>
+              ) : null}
             </div>
-            <p>
-              {o.industry || "Add industry"} <span>·</span> {[o.headquartersCity, o.headquartersCountry].filter(Boolean).join(", ") || "Add headquarters"}
-            </p>
-            {safeUrl(o.websiteUrl) ? (
-              <a href={safeUrl(o.websiteUrl)} target="_blank" rel="noopener">
-                <Icon name="globe" />
-                {o.websiteUrl.replace(/^https?:\/\//, "")}
-              </a>
-            ) : (
-              <span className="org-help">Website not added</span>
-            )}
+            <div className="org-summary-copy">
+              <div className="row wrap">
+                <h2>{o.name || "Your organization"}</h2>
+                <VerificationBadge status={o.verificationStatus} />
+              </div>
+              <p>
+                {o.industry || "Add industry"} <span>·</span> {[o.headquartersCity, o.headquartersCountry].filter(Boolean).join(", ") || "Add headquarters"}
+              </p>
+              {safeUrl(o.websiteUrl) ? (
+                <a href={safeUrl(o.websiteUrl)} target="_blank" rel="noopener">
+                  <Icon name="globe" />
+                  {o.websiteUrl.replace(/^https?:\/\//, "")}
+                </a>
+              ) : (
+                <span className="org-help">Website not added</span>
+              )}
+            </div>
           </div>
-        </div>
         <div className="org-summary-progress">
           <button type="button" onClick={openCompletion}>
             <strong>{completion.percent}%</strong>
@@ -562,6 +579,7 @@ export function OrganizationEditorScreen() {
           <small>
             {completion.items.filter((i) => i[2]).length} of {completion.items.length} recommended items added
           </small>
+        </div>
         </div>
       </section>
       <div className="org-editor-layout">

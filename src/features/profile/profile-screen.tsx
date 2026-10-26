@@ -345,11 +345,11 @@ function Profile({ view }: { view: ProfileView }) {
     <div className="profile-management">
       <header className="card professional-profile-summary" id="profile-identity">
         <div className="profile-photo-area">
-          <div className="profile-photo-ring" style={{ "--completion": c.percent * 3.6 + "deg" } as React.CSSProperties}>
+          <button type="button" className="profile-photo-ring" aria-label="View or edit profile photo" style={{ "--completion": c.percent * 3.6 + "deg" } as React.CSSProperties} onClick={() => modal.show("Profile photo", <PhotoForm person={p} revision={view.version} />, "photo")}>
             <Avatar person={p} size="xl" />
-          </div>
-          <button type="button" className="profile-photo-edit" aria-label="Change profile photo" onClick={() => modal.show("Your professional profile photo", <PhotoForm person={p} revision={view.version} />)}>
-            <Icon name="edit" />
+          </button>
+          <button type="button" className="profile-photo-edit" aria-label="Change profile photo" onClick={() => modal.show("Profile photo", <PhotoForm person={p} revision={view.version} />, "photo")}>
+            <Icon name="camera" />
           </button>
           <button type="button" className="profile-completion-link" onClick={completion}>
             {c.percent}% complete

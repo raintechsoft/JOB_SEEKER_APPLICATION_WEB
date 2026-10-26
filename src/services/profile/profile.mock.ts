@@ -185,6 +185,7 @@ export const mockProfileService: ProfileService = {
     const ok = commit(
       (db) => {
         db.professionals[0].picture = picture;
+        db.professionals[0].professionalDetails!.photoRemoved = false;
         syncProfile(db);
       },
       { rollbackOnFailure: true },
@@ -193,10 +194,12 @@ export const mockProfileService: ProfileService = {
   },
 
   async useDefaultPhoto() {
-    save((db) => {
+    const persisted = commit((db) => {
       db.professionals[0].picture = "";
-      db.professionals[0].professionalDetails!.photoRemoved = false;
-    });
+      db.professionals[0].professionalDetails!.photoRemoved = true;
+      syncProfile(db);
+    }, { rollbackOnFailure: true });
+    if (!persisted) throw new Error("Your photo could not be removed. Please try again.");
   },
 
   async uploadResume(file) {

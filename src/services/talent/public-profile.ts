@@ -86,7 +86,7 @@ export function toPublicProfessional(p: Professional): PublicProfessional {
     complete: p.complete,
     public: p.public,
     website: p.website,
-    picture: p.picture || PORTRAITS[p.id],
+    picture: p.picture ?? PORTRAITS[p.id],
     color: p.color,
     lastActive: p.lastActive,
     credentials: publicCredentials(p),

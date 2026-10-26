@@ -46,10 +46,6 @@ const REQUIRED_LABELS: Record<string, string> = {
   name: "an organization name",
   slug: "a profile slug",
   industry: "an industry",
-  headquartersCountry: "a headquarters country",
-  headquartersCity: "a headquarters city",
-  description: "a company description",
-  companySize: "the company size",
 };
 
 export type FieldErrors = Record<string, string>;

@@ -10,10 +10,13 @@ export function splitList(value: string | null | undefined) {
 
 export const initials = (name: string) =>
   name
-    .split(" ")
-    .map((s) => s[0])
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean)
     .slice(0, 2)
-    .join("");
+    .map((s) => Array.from(s)[0])
+    .join("")
+    .toUpperCase();
 
 export const firstName = (name: string) => name.split(" ")[0];
 

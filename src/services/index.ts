@@ -35,11 +35,14 @@ import type { WorkspaceService } from "./workspace/workspace.service";
 import { mockWorkspaceService } from "./workspace/workspace.mock";
 import type { AuthService } from "./auth/auth.service";
 import { createHttpServices } from "./http-services";
+import type { SearchService } from "./search/search.service";
+import { mockSearchService } from "./search/search.mock";
 import type { MediaService } from "./media/media.http";
 import type {NotificationsService} from "./notifications/notifications.service";
 
 /** Every data-access boundary the UI uses. */
 export interface Services {
+  search: SearchService;
   analytics:Pick<ReturnType<typeof import("./analytics/analytics.http").createHttpAnalyticsService>,"getSettings"|"setConsent">;
   notifications:NotificationsService;
   media: MediaService;
@@ -65,6 +68,7 @@ export interface Services {
 
 /** MOCK: browser-local implementations backed by `src/mocks`. */
 const mockServices: Services = {
+  search: mockSearchService,
   analytics:{async getSettings(){return {available:false,granted:false,hasStoredConsent:false,policyVersion:"",retentionDays:0,version:0};},async setConsent(){throw new Error("Analytics consent requires HTTP mode.");}},
   media: { async upload() { throw new Error("Managed uploads require HTTP mode."); }, async remove() { throw new Error("Managed uploads require HTTP mode."); } },
   auth: new Proxy({} as AuthService, { get: () => async () => { throw new Error("Real account operations require HTTP mode."); } }),

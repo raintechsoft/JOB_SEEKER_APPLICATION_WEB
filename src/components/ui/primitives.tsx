@@ -26,14 +26,27 @@ export interface AvatarPerson {
   color?: string;
 }
 
+const avatarColors = ["#246b53", "#345d9d", "#6b4aa0", "#9b3e65", "#9a4d29", "#3f6875", "#6e5c2d", "#744f7d"];
+
+function avatarBackground(person: AvatarPerson) {
+  // Account identity keeps the color stable across renders, sizes, and name changes.
+  const identity = person.id || person.name.trim().replace(/\s+/gu, " ").toLowerCase();
+  let hash = 0;
+  for (const character of identity) hash = (Math.imul(hash, 31) + character.codePointAt(0)!) >>> 0;
+  return avatarColors[hash % avatarColors.length];
+}
+
+export const avatarSource = (person: AvatarPerson) => person.picture ?? (person.id ? PORTRAITS[person.id] : undefined);
+
 export function Avatar({ person, size = "" }: { person: AvatarPerson; size?: "" | "lg" | "xl" }) {
-  const portrait = person.picture || (person.id ? PORTRAITS[person.id] : undefined);
+  const portrait = avatarSource(person);
+  const letters = initials(person.name) || "?";
   return (
-    <span className={cn("avatar", size)} style={{ background: person.color || "#e6e0f4" }} aria-label={person.name}>
+    <span className={cn("avatar", size)} style={{ background: avatarBackground(person), color: "#fff" }} aria-label={person.name}>
       {portrait ? (
-        <MediaImage src={portrait} alt={`${person.name}’s profile picture`} loading={size === "xl" ? "eager" : "lazy"} fallback={initials(person.name)} />
+        <MediaImage src={portrait} alt={`${person.name}’s profile picture`} loading={size === "xl" ? "eager" : "lazy"} fallback={letters} />
       ) : (
-        initials(person.name)
+        letters
       )}
     </span>
   );

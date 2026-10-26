@@ -14,26 +14,29 @@ export async function recordRecoveryNavigation(request: NextRequest, base: strin
   const cookies = new Map(request.cookies.getAll().map(({ name, value }) => [name, value]));
   const cookieHeader = () => [...cookies].map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join("; ");
   const updatedCookies: string[] = [];
-  if (!cookies.has("XSRF-TOKEN")) {
-    const csrf = await fetch(new URL("/sanctum/csrf-cookie", base), {
-      headers: { Accept: "application/json", Origin: origin, Cookie: cookieHeader() }, cache: "no-store", signal: AbortSignal.timeout(5000),
-    });
-    if (!csrf.ok) throw new Error("Recovery navigation could not initialize its session.");
-    updatedCookies.push(...csrf.headers.getSetCookie());
-    for (const cookie of updatedCookies) {
-      const pair = cookie.split(";", 1)[0];
-      const separator = pair.indexOf("=");
-      if (separator > 0) cookies.set(pair.slice(0, separator), decodeURIComponent(pair.slice(separator + 1)));
+  try {
+    if (!cookies.has("XSRF-TOKEN")) {
+      const csrf = await fetch(new URL("/sanctum/csrf-cookie", base), {
+        headers: { Accept: "application/json", Origin: origin, Cookie: cookieHeader() }, cache: "no-store", signal: AbortSignal.timeout(2500),
+      });
+      if (!csrf.ok) return updatedCookies;
+      updatedCookies.push(...csrf.headers.getSetCookie());
+      for (const cookie of updatedCookies) {
+        const pair = cookie.split(";", 1)[0];
+        const separator = pair.indexOf("=");
+        if (separator > 0) cookies.set(pair.slice(0, separator), decodeURIComponent(pair.slice(separator + 1)));
+      }
     }
+    const xsrf = cookies.get("XSRF-TOKEN");
+    if (!xsrf) return updatedCookies;
+    const path = request.nextUrl.pathname;
+    await fetch(`${base.replace(/\/$/, "")}/auth/recovery/navigation`, {
+      method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", Origin: origin, Cookie: cookieHeader(), "X-XSRF-TOKEN": decodeURIComponent(xsrf) },
+      body: JSON.stringify({ screen: path === "/reset-password" ? "password" : path === "/forgot-password" ? "code" : "other" }),
+      cache: "no-store", signal: AbortSignal.timeout(2500),
+    });
+    return updatedCookies;
+  } catch {
+    return updatedCookies;
   }
-  const xsrf = cookies.get("XSRF-TOKEN");
-  if (!xsrf) throw new Error("Recovery navigation requires CSRF protection.");
-  const path = request.nextUrl.pathname;
-  const response = await fetch(`${base.replace(/\/$/, "")}/auth/recovery/navigation`, {
-    method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", Origin: origin, Cookie: cookieHeader(), "X-XSRF-TOKEN": decodeURIComponent(xsrf) },
-    body: JSON.stringify({ screen: path === "/reset-password" ? "password" : path === "/forgot-password" ? "code" : "other" }),
-    cache: "no-store", signal: AbortSignal.timeout(5000),
-  });
-  if (!response.ok) throw new Error(`Recovery navigation could not be confirmed (${response.status}).`);
-  return updatedCookies;
 }

@@ -8,13 +8,14 @@ import { ACCOMPLISHMENT_TYPES } from "@/lib/domain/profile";
 import { today } from "@/lib/utils/date";
 import { devCopy } from "@/lib/env/app-env";
 import { useServices } from "@/hooks/use-services";
-import { profileRecordSchema, profileSectionSchema, profileDuplicate, validationFields, validateMedia } from "@/lib/validation/profile";
+import { profileRecordSchema, profileSectionSchema, profileDuplicate, validationFields } from "@/lib/validation/profile";
 import { errorMessage, fieldErrors } from "@/services/api/client";
 import type { SaveResult } from "@/services/profile/profile.service";
 import { modal, useModalStore } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
-import { Avatar, Button } from "@/components/ui/primitives";
-import { CheckRow, FileField, SelectField, TextAreaField, TextField } from "@/components/ui/field";
+import { Button } from "@/components/ui/primitives";
+import { PhotoEditor } from "@/components/profile/photo-editor";
+import { CheckRow, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { FormError } from "@/components/ui/feedback";
 import { Icon } from "@/components/ui/icon";
 
@@ -248,50 +249,13 @@ export function SectionForm({ section, person: p, details: d }: { section: Profi
 }
 
 export function PhotoForm({ person, revision }: { person: Professional; revision?: number }) {
-  const { services, execute, error, setError, pending } = useProfileMutation();
-  const setDirty = useModalStore((s) => s.setDirty);
-  return (
-    <form
-      id="profile-photo-form"
-      data-profile-editor
-      className="stack"
-      onInput={() => setDirty(true)}
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const file = new FormData(e.currentTarget).get("photo");
-        const invalid = validateMedia(file instanceof File ? file : null, "portrait");
-        if (invalid) return setError(invalid);
-        if (!await execute(() => services.profile.setPhoto(file as File, revision))) return;
-        setDirty(false);
-        modal.close();
-        toast("Profile changes saved across your workspace.");
-      }}
-    >
-      <div className="center">
-        <Avatar person={person} size="xl" />
-      </div>
-      <FileField label="Choose a photo" name="photo" accept="image/png,image/jpeg,image/webp" required hint={devCopy("PNG, JPEG, or WebP up to 1 MB. Saved locally.", "PNG, JPEG, or WebP up to 1 MB.")} />
-      <div id="profile-form-error">
-        <FormError message={error} />
-      </div>
-      <div className="modal-footer">
-        <Button
-          variant="sm"
-          onClick={async () => {
-            if (!await execute(() => services.profile.useDefaultPhoto(revision))) return;
-            setDirty(false);
-            modal.close();
-          }}
-        >
-          Use default portrait
-        </Button>
-        <Button onClick={() => modal.requestClose()}>Cancel</Button>
-        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
-          Save photo
-        </Button>
-      </div>
-    </form>
-  );
+  const services = useServices(), cache = useQueryClient();
+  const refresh = () => Promise.all([cache.invalidateQueries({ queryKey: ["profile"] }), cache.invalidateQueries({ queryKey: ["shell"] }), cache.invalidateQueries({ queryKey: ["auth", "session"] }), cache.invalidateQueries({ queryKey: ["feed"] }), cache.invalidateQueries({ queryKey: ["activity"] })]);
+  return <PhotoEditor person={person} onSave={async file => {
+    const result = await services.profile.setPhoto(file, revision);
+    if (!result.ok) throw new Error(result.error);
+    await refresh();
+  }} onRemove={async () => { await services.profile.useDefaultPhoto(revision); await refresh(); }} />;
 }
 
 export function CompletionChecklist({ percent, items }: { percent: number; items: { label: string; weight: number; done: boolean; section: string }[] }) {

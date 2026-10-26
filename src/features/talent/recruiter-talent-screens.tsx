@@ -48,7 +48,7 @@ export function OverviewScreen() {
     <>
       <PageHeading
         title="Good people. Great possibilities."
-        subtitle="Look beyond the resume. Find the thinking and craft behind the skills."
+        subtitle=""
         actions={
           <LinkButton href="/recruiter/discover" variant="primary" icon="search">
             Discover talent
@@ -316,7 +316,7 @@ export function CompareScreen() {
     <>
       <PageHeading
         title="A little more perspective."
-        subtitle="Explore the details side by side. No scores, just context."
+        subtitle=""
         actions={
           <>
             <Button icon="users" onClick={dialogs.chooseCompare}>
@@ -349,7 +349,9 @@ export function CompareScreen() {
                     <th>Candidate</th>
                     {people.map((p) => (
                       <th key={p.id}>
-                        <Avatar person={p} size="lg" />
+                        <Link href={"/recruiter/talent/" + p.id} aria-label={"View " + p.name + " profile"}>
+                          <Avatar person={p} size="lg" />
+                        </Link>
                         <h3>
                           <Link href={"/recruiter/talent/" + p.id}>{p.name}</Link>
                         </h3>

@@ -2,7 +2,7 @@ import type { CompanySummary, Paginated, PersonSummary } from "@/types/api";
 import type { Id, IsoDateTime, JobMedia, JobThumbnail, MediaItem, Role, Visibility } from "@/types/domain";
 import type { ProjectSummary } from "@/mocks/store/presenters";
 
-export type FeedFilter = "all" | "following" | "jobs" | "saved";
+export type FeedFilter = "all" | "following" | "jobs" | "saved" | "reposts";
 export type FeedSort = "recent" | "popular" | "recommended";
 
 export interface FeedQuery {
@@ -18,6 +18,16 @@ export interface FeedComment {
   text: string;
   createdAt: IsoDateTime;
   author: PersonSummary;
+  parentId?: Id | null;
+  version?: number;
+  own?: boolean;
+  pinned?: boolean;
+  canPin?: boolean;
+  canDelete?: boolean;
+  following?: boolean;
+  canMessage?: boolean;
+  canBlock?: boolean;
+  canReport?: boolean;
 }
 
 export interface FeedJobInfo {
@@ -64,8 +74,10 @@ export interface FeedEntry {
   company?: CompanySummary;
   job?: FeedJobInfo;
   likes: number;
+  commentCount: number;
   comments: FeedComment[];
-  viewer: { liked: boolean; saved: boolean; following: boolean; own: boolean };
+  repost?: { author: PersonSummary; createdAt: IsoDateTime } | null;
+  viewer: { liked: boolean; saved: boolean; following: boolean; own: boolean; reposted?: boolean; canRepost?: boolean };
 }
 
 export interface FeedPage extends Paginated<FeedEntry> {
@@ -95,16 +107,23 @@ export interface NewPostInput {
 }
 
 export interface FeedService {
-  getComments?(role: Role, id: Id, limit: number): Promise<{items: FeedComment[]; nextCursor: string | null}>;
+  searchPeople(role: Role, q: string, limit: number): Promise<{ items: PersonSummary[]; total: number; nextCursor: string | null }>;
+  getComments?(role: Role, id: Id, limit: number, focus?: Id): Promise<{items: FeedComment[]; nextCursor: string | null}>;
   getFeed(query: FeedQuery): Promise<FeedPage>;
   getEntry(role: Role, id: Id): Promise<FeedEntry | null>;
-  toggleLike(role: Role, id: Id): Promise<boolean>;
+  toggleLike(role: Role, id: Id, enabled?: boolean): Promise<boolean>;
+  setReposted(role: Role, id: Id, enabled: boolean): Promise<boolean>;
   toggleSave(role: Role, id: Id): Promise<{ saved: boolean; persisted: boolean }>;
-  toggleFollow(role: Role, personId: Id): Promise<boolean>;
+  toggleFollow(role: Role, personId: Id, enabled?: boolean): Promise<boolean>;
   toggleFollowCompany(role: Role, companyId: Id): Promise<boolean>;
-  addComment(role: Role, postId: Id, text: string): Promise<void>;
+  addComment(role: Role, postId: Id, text: string, parentId?: Id): Promise<void>;
   editComment(postId: Id, commentId: Id, text: string, version?: number): Promise<boolean>;
   deleteComment(role: Role, postId: Id, commentId: Id, version?: number): Promise<void>;
+  pinComment(role: Role, postId: Id, commentId: Id, enabled: boolean): Promise<void>;
+  blockCommentAuthor(role: Role, postId: Id, commentId: Id): Promise<void>;
+  reportComment(role: Role, commentId: Id, reason: string, details: string): Promise<void>;
+  getBlocked(role: Role): Promise<{identityId: Id; person: PersonSummary}[]>;
+  unblock(role: Role, identityId: Id): Promise<void>;
   getNetwork(role: Role): Promise<Network>;
   createPost(role: Role, input: NewPostInput): Promise<{ id: Id } | null>;
   updatePost(role: Role, id: Id, input: { title: string; body: string; version?: number }): Promise<boolean>;

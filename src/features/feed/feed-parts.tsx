@@ -19,7 +19,6 @@ import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingSelect } from "@/components/ui/field";
 import { Heatmap } from "@/components/work/pulse";
-import { useUpdateDialogs } from "@/features/work/dialogs";
 import { workspaceDialogs } from "@/features/workspace/dialogs";
 import { useNetworkSheet } from "./network-sheet";
 
@@ -57,10 +56,10 @@ export function ProfileColumn() {
           <h2>
             <Link href="/app/profile">{p.name}</Link>
           </h2>
-          <p className="feed-profile-headline">{p.headline}</p>
-          <p className="feed-location">
+          <p className="feed-profile-headline" title={p.headline}>{p.headline}</p>
+          <p className="feed-location" title={p.location}>
             <Icon name="location" />
-            {p.location}
+            <span>{p.location}</span>
           </p>
         </div>
       </section>
@@ -153,35 +152,6 @@ export function useCompose(role: Role) {
   return (mode = "post") => router.push((role === "recruiter" ? "/recruiter" : "/app") + "/posts/new?mode=" + encodeURIComponent(mode));
 }
 
-export function ProfessionalComposer({ identity }: { identity?: PersonSummary }) {
-  const compose = useCompose("professional");
-  const updates = useUpdateDialogs();
-  return (
-    <section className="card feed-composer" aria-label="Create a post">
-      <div className="row">
-        {identity ? <Avatar person={identity} /> : <span className="avatar" />}
-        <button type="button" className="feed-start-post" onClick={() => compose()}>
-          Share a little of what you’re working on...
-        </button>
-      </div>
-      <div className="feed-compose-actions">
-        <button type="button" onClick={() => compose("media")}>
-          <Icon name="image" />
-          <span>Photo / media</span>
-        </button>
-        <button type="button" onClick={updates.create}>
-          <Icon name="edit" />
-          <span>Work update</span>
-        </button>
-        <button type="button" onClick={() => compose("project")}>
-          <Icon name="folder" />
-          <span>Share a project</span>
-        </button>
-      </div>
-    </section>
-  );
-}
-
 export function NetworkPrompt({ people }: { people: PersonSummary[] }) {
   const run = useServiceAction();
   const network = useNetworkSheet();
@@ -198,7 +168,9 @@ export function NetworkPrompt({ people }: { people: PersonSummary[] }) {
       <div className="feed-network-people">
         {people.map((p) => (
           <div key={p.id}>
-            <Avatar person={p} size="lg" />
+            <Link href={"/professionals/" + p.slug} aria-label={"View " + p.name + " profile"}>
+              <Avatar person={p} size="lg" />
+            </Link>
             <Link href={"/professionals/" + p.slug}>{p.name}</Link>
             <p>{p.headline}</p>
             <Button

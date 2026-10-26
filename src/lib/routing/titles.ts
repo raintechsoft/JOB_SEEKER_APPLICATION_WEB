@@ -1,5 +1,6 @@
 /** Accessible names for the workspace `<main>` (the prototype's `shell(content, title)`). */
 const TITLES: [RegExp, string][] = [
+  [/^\/(app|recruiter)\/search$/, "Search results"],
   [/^\/app\/dashboard$/, "Your feed"],
   [/^\/app\/applications$/, "My Application"],
   [/^\/app\/profile$/, "Profile"],

@@ -1500,6 +1500,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/social/{identity}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["phase5_get__me_social_identity_search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/social/{identity}/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["phase5_get__me_social_identity_people"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/social/{identity}/feed": {
         parameters: {
             query?: never;
@@ -1625,6 +1657,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /** @description Set an explicit, idempotent interaction intent for the selected identity. Reposts reference the identity’s own post or work update, or another identity’s currently public accessible source, never a job or a content copy. Reposting never broadens source visibility. enabled=false undoes only the repost. */
         patch: operations["phase5_patch__me_social_identity_entries_item_kind_"];
         trace?: never;
     };
@@ -1658,6 +1691,54 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["phase5_patch__me_social_identity_entries_item_comments_comment_"];
+        trace?: never;
+    };
+    "/me/social/{identity}/entries/{item}/comments/{comment}/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["phase5_patch__me_social_identity_entries_item_comments_comment_action_"];
+        trace?: never;
+    };
+    "/me/social/{identity}/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["phase5_get__me_social_identity_blocks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/social/{identity}/blocks/{target}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["phase5_delete__me_social_identity_blocks_target_"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/me/social/{identity}/follows/{kind}/{target}": {
@@ -3212,13 +3293,12 @@ export interface components {
             tagline?: string | null;
             industry: string;
             organizationType?: ("Privately held" | "Public company" | "Nonprofit" | "Government" | "Partnership" | "Self-employed" | "Other") | null;
-            /** @enum {string} */
-            companySize: "1–10 employees" | "11–50 employees" | "51–200 employees" | "201–500 employees" | "501–1,000 employees" | "1,001–5,000 employees" | "5,001+ employees";
+            companySize?: ("1–10 employees" | "11–50 employees" | "51–200 employees" | "201–500 employees" | "501–1,000 employees" | "1,001–5,000 employees" | "5,001+ employees") | null;
             foundingYear?: string | null;
-            headquartersCountry: string;
-            headquartersCity: string;
+            headquartersCountry?: string | null;
+            headquartersCity?: string | null;
             websiteUrl?: string | null;
-            description: string;
+            description?: string | null;
             overview?: string | null;
             mission?: string | null;
             vision?: string | null;
@@ -4330,6 +4410,14 @@ export interface components {
             author: components["schemas"]["SocialPerson"];
             version: number;
             own: boolean;
+            parentId: string | null;
+            pinned: boolean;
+            canPin: boolean;
+            canDelete: boolean;
+            following: boolean;
+            canMessage: boolean;
+            canBlock: boolean;
+            canReport: boolean;
         };
         SocialEntry: {
             /** Format: uuid */
@@ -4382,8 +4470,16 @@ export interface components {
                 saved: boolean;
                 following: boolean;
                 own: boolean;
+                reposted: boolean;
+                canRepost: boolean;
             };
             version?: number;
+            /** @description Total comments visible to the current viewer, independent of pagination. */
+            commentCount: number;
+            repost?: {
+                author: components["schemas"]["SocialPerson"];
+                createdAt: string;
+            } | null;
             recommendationReason?: string;
             analyticsContext?: components["schemas"]["AnalyticsContext"];
         };
@@ -4437,6 +4533,29 @@ export interface components {
             commentCount: number;
             reactions: components["schemas"]["SocialEntry"][];
         };
+        WorkspaceSearchResult: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "person" | "company" | "post" | "job" | "update" | "talent" | "project";
+            title: string;
+            subtitle: string;
+            slug: string | null;
+            picture: string;
+            recruiter: boolean;
+            ownerId: string | null;
+            companyAccess: ("public" | "workspace") | null;
+        };
+        WorkspaceSearchPage: {
+            items: components["schemas"]["WorkspaceSearchResult"][];
+            total: number | null;
+            nextCursor: string | null;
+        };
+        SocialPeoplePage: {
+            items: components["schemas"]["SocialPerson"][];
+            total: number;
+            nextCursor: string | null;
+        };
         MessageAttachment: {
             /** Format: uuid */
             id: string;
@@ -4452,6 +4571,7 @@ export interface components {
             text: string;
             /** @enum {string} */
             sender: "professional" | "recruiter";
+            own: boolean;
             time: string;
             sequence: number;
             attachments: components["schemas"]["MessageAttachment"][];
@@ -4497,7 +4617,7 @@ export interface components {
         };
         ReportInput: {
             /** @enum {string} */
-            targetKind: "conversation" | "message" | "post";
+            targetKind: "conversation" | "message" | "post" | "comment";
             /** Format: uuid */
             targetId: string;
             /** @enum {string} */
@@ -4594,7 +4714,7 @@ export interface components {
             details: string;
             version: number;
             /** @enum {string} */
-            targetKind: "conversation" | "message" | "post";
+            targetKind: "conversation" | "message" | "post" | "comment";
             /** Format: uuid */
             targetId: string;
             createdAt: string;
@@ -7959,10 +8079,87 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    phase5_get__me_social_identity_search: {
+        parameters: {
+            query: {
+                q: string;
+                scope?: "all" | "posts" | "companies" | "people" | "jobs" | "updates" | "talent" | "skills" | "projects";
+                sort?: "relevance" | "recent";
+                mode?: "results" | "suggestions";
+                limit?: number;
+                cursor?: string;
+                location?: string;
+                industry?: string;
+                skill?: string;
+                author?: string;
+                days?: number;
+                experienceMin?: number;
+                experienceMax?: number;
+                arrangement?: "On-site" | "Hybrid" | "Remote";
+                employment?: "Full-time" | "Part-time" | "Contract" | "Internship";
+                discipline?: "Design" | "Engineering" | "Data" | "Business";
+            };
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceSearchPage"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_get__me_social_identity_people: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+                after?: string;
+            };
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SocialPeoplePage"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     phase5_get__me_social_identity_feed: {
         parameters: {
             query?: {
-                filter?: "all" | "following" | "jobs" | "saved";
+                filter?: "all" | "following" | "jobs" | "saved" | "reposts";
                 sort?: "recent" | "popular" | "recommended";
                 q?: string;
                 cursor?: string;
@@ -8248,7 +8445,7 @@ export interface operations {
             path: {
                 identity: string;
                 item: string;
-                kind: string;
+                kind: "liked" | "saved" | "reposted";
             };
             cookie?: never;
         };
@@ -8280,6 +8477,7 @@ export interface operations {
         parameters: {
             query?: {
                 after?: string;
+                focus?: string;
             };
             header?: {
                 /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
@@ -8303,6 +8501,7 @@ export interface operations {
                         data: {
                             items: components["schemas"]["SocialComment"][];
                             nextCursor: string | null;
+                            total: number;
                         };
                     };
                 };
@@ -8329,6 +8528,7 @@ export interface operations {
                     text: string;
                     /** Format: uuid */
                     creationKey: string;
+                    parentId?: string | null;
                 };
             };
         };
@@ -8405,6 +8605,96 @@ export interface operations {
                 };
             };
         };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_patch__me_social_identity_entries_item_comments_comment_action_: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                item: string;
+                comment: string;
+                action: "pinned" | "blocked";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_get__me_social_identity_blocks: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** Format: uuid */
+                            identityId: string;
+                            person: components["schemas"]["SocialPerson"];
+                        }[];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_delete__me_social_identity_blocks_target_: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                target: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description No content */
             204: {

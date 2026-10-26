@@ -21,12 +21,22 @@ export async function proxy(request: NextRequest) {
   if (!base) return unavailable();
   const path = request.nextUrl.pathname;
   try {
-    updatedCookies.push(...await recordRecoveryNavigation(request, base));
-    const protectedPage = path === "/reset-password" || path === "/verify-email" || path === "/change-password" || path === "/onboarding" || path === "/accept-invitation" || /^\/(?:app|admin|recruiter)(?:\/|$)/.test(path);
+    const recovering = path === "/reset-password";
+    const protectedPage = recovering || path === "/verify-email" || path === "/change-password" || path === "/onboarding" || path === "/accept-invitation" || /^\/(?:app|admin|recruiter)(?:\/|$)/.test(path);
+    // Workspace loads must reach /auth/me without waiting on recovery cancellation.
+    // php artisan serve is single-threaded and file sessions lock, so that extra POST
+    // can exceed the 5s proxy budget and 503 the product with a recovery-flavored error.
+    if (!protectedPage || recovering) {
+      try {
+        updatedCookies.push(...await recordRecoveryNavigation(request, base));
+      } catch {
+        // Best-effort: leaving reset still expires on its own deadline. Routing uses
+        // /auth/me or /auth/recovery below.
+      }
+    }
     const accountEntry = ["/login", "/signup", "/employer/login", "/employer/register"].includes(path);
     const sessionCookie = process.env.API_SESSION_COOKIE ?? process.env.SESSION_COOKIE ?? "skillora_session";
     if (!protectedPage && (!accountEntry || !request.cookies.has(sessionCookie))) return secure(NextResponse.next());
-    const recovering = path === "/reset-password";
     const response = await fetch(`${base.replace(/\/$/, "")}/auth/${recovering ? "recovery" : "me"}`, {
       headers: { Accept: "application/json", Origin: process.env.FRONTEND_URL ?? request.nextUrl.origin, Cookie: request.headers.get("cookie") ?? "" },
       cache: "no-store", signal: AbortSignal.timeout(5000),

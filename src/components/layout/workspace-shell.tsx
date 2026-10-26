@@ -1,19 +1,18 @@
 "use client";
+import { BlockedAccounts } from "@/features/settings/blocked-accounts";
+import { modal } from "@/stores/modal-store";
 
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Role } from "@/types/domain";
-import { track } from "@/lib/analytics";
 import { devCopy } from "@/lib/env/app-env";
 import { workspaceTitle } from "@/lib/routing/titles";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { useNavigationDock } from "@/hooks/use-navigation-dock";
-import { useUiStore } from "@/stores/ui-store";
 import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
-import { FloatingInput } from "@/components/ui/field";
 import { Avatar, Brand, IconButton } from "@/components/ui/primitives";
 import { workspaceDialogs } from "@/features/workspace/dialogs";
 import { useNetworkSheet } from "@/features/feed/network-sheet";
@@ -22,6 +21,8 @@ import { RealWorkspace } from "@/features/auth/real-workspace";
 import { clearIdentityState } from "@/features/auth/clear-identity-state";
 import { WorkspaceAccessGate } from "@/features/auth/workspace-access-gate";
 import type { Workspace } from "@/services/auth/auth.service";
+import { HeaderSearch } from "@/features/search/header-search";
+export { HeaderSearch } from "@/features/search/header-search";
 
 interface NavItem {
   href: string;
@@ -29,30 +30,6 @@ interface NavItem {
   icon: IconName;
   active: boolean;
   unread?: number;
-}
-
-function HeaderSearch({ role }: { role: Role }) {
-  const router = useRouter();
-  const query = useUiStore((s) => s.feed.query);
-  const setFeed = useUiStore((s) => s.setFeed);
-  return (
-    <form
-      className="professional-search"
-      id="feed-search-form"
-      role="search"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const value = String(new FormData(e.currentTarget).get("query") || "").trim();
-        setFeed({ query: value, visible: 12 });
-        track("search_performed", { surface: "feed", hasQuery: !!value });
-        router.push(role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard");
-      }}
-    >
-      <Icon name="search" />
-      <FloatingInput key={query} compact label="Search your feed" name="query" type="search" aria-label="Search your feed" placeholder="Search your feed" defaultValue={query} />
-      <kbd>⌘ K</kbd>
-    </form>
-  );
 }
 
 function WorkspaceNav({ items, label }: { items: NavItem[]; label: string }) {
@@ -89,9 +66,14 @@ function AccountMenu({ person, children }: { person: { id: string; name: string;
         {person ? <Avatar person={person} /> : <span className="avatar" />}
         <Icon name="down" />
       </summary>
-      <div className="professional-account-menu">{children}</div>
+      <div className="professional-account-menu">{children}<button type="button" onClick={() => { if (ref.current) ref.current.open = false; modal.show("Blocked accounts", <BlockedAccounts role={pathname.startsWith("/recruiter") ? "recruiter" : "professional"} />); }}><Icon name="ban" />Blocked accounts</button></div>
     </details>
   );
+}
+
+function useAccountEmail(fallback?: string) {
+  const session = useServiceQuery(["auth", "session"], (s) => s.auth.me(), { enabled: apiConfig.dataSource === "http" });
+  return session.data?.user.email || fallback || "";
 }
 
 function WorkspaceSwitch({ kind }: { kind: Role }) {
@@ -161,6 +143,7 @@ function WorkspaceFrame({ recruiter, nav, navLabel, account, children }: { recru
           <HeaderSearch role={recruiter ? "recruiter" : "professional"} />
           <WorkspaceNav items={nav} label={navLabel} />
           <div className="professional-header-tools">
+            <Link href={base + "/search"} className="mobile-workspace-search iconbtn" aria-label="Search Skillora"><Icon name="search" /></Link>
             <IconButton icon="bell" label="Notifications" onClick={workspaceDialogs.notifications} />
             {account}
           </div>
@@ -186,6 +169,7 @@ function MockProfessionalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { data } = useServiceQuery(["shell", "professional"], (s) => s.workspace.getProfessionalShell());
   const {data:unreadCount}=useServiceQuery(["messaging-unread","professional"],(s)=>s.messaging.getUnreadCount!("professional"),{enabled:apiConfig.dataSource==="http",refetchInterval:10000});
+  const email = useAccountEmail(data?.person.email);
   const logout = useLogout();
   const network = useNetworkSheet();
   useWorkspaceRole("professional", pathname.startsWith("/app"));
@@ -198,7 +182,7 @@ function MockProfessionalShell({ children }: { children: ReactNode }) {
       account={
         <AccountMenu person={data?.person}>
           <strong>{data?.person.name}</strong>
-          <span>{devCopy("Professional demo account", "Professional account")}</span>
+          {email ? <span className="professional-account-email">{email}</span> : null}
           <Link href="/app/profile">
             <Icon name="user" />
             Profile
@@ -251,6 +235,7 @@ function MockRecruiterShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { data } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
   const {data:unreadCount}=useServiceQuery(["messaging-unread","recruiter"],(s)=>s.messaging.getUnreadCount!("recruiter"),{enabled:apiConfig.dataSource==="http",refetchInterval:10000});
+  const email = useAccountEmail(data?.email);
   const logout = useLogout();
   const network = useNetworkSheet();
   useWorkspaceRole("recruiter", true);
@@ -266,9 +251,7 @@ function MockRecruiterShell({ children }: { children: ReactNode }) {
       account={
         <AccountMenu person={data?.identity}>
           <strong>{data?.identity.name}</strong>
-          <span>
-            {data?.title} · {data?.companyName}
-          </span>
+          {email ? <span className="professional-account-email">{email}</span> : null}
           {RECRUITER_MENU.map(([slug, label, icon]) => (
             <Link key={slug} href={"/recruiter/" + slug}>
               <Icon name={icon} />
@@ -300,14 +283,14 @@ function MockRecruiterShell({ children }: { children: ReactNode }) {
 export function ProfessionalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   if (!pathname.startsWith("/app/")) return <>{children}</>;
-  const connected = ["/app/messages", "/app/settings", "/app/dashboard", "/app/posts/new", "/app/updates", "/app/profile", "/app/projects", "/app/work-pulse", "/app/portfolio", "/app/portfolio/preview", "/app/applications", "/app/jobs"].includes(pathname);
+  const connected = ["/app/search", "/app/messages", "/app/settings", "/app/dashboard", "/app/posts/new", "/app/updates", "/app/profile", "/app/projects", "/app/work-pulse", "/app/portfolio", "/app/portfolio/preview", "/app/applications", "/app/jobs"].includes(pathname);
   if(apiConfig.dataSource === "http") return connected ? <WorkspaceAccessGate role="professional"><MockProfessionalShell>{children}</MockProfessionalShell></WorkspaceAccessGate> : <RealWorkspace role="professional"/>;
   return <MockProfessionalShell>{children}</MockProfessionalShell>;
 }
 
 export function RecruiterShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const connected = ["/recruiter/messages", "/recruiter/dashboard", "/recruiter/posts/new", "/recruiter/activity", "/recruiter/company", "/recruiter/company/preview", "/recruiter/organization", "/recruiter/profile", "/recruiter/profile/preview", "/recruiter/jobs/new", "/recruiter/jobs", "/recruiter/applications", "/recruiter/discover", "/recruiter/shortlists", "/recruiter/compare", "/recruiter/overview"].includes(pathname) || pathname.startsWith("/recruiter/team/") || pathname.startsWith("/recruiter/talent/");
+  const connected = ["/recruiter/search", "/recruiter/messages", "/recruiter/dashboard", "/recruiter/posts/new", "/recruiter/activity", "/recruiter/company", "/recruiter/company/preview", "/recruiter/organization", "/recruiter/profile", "/recruiter/profile/preview", "/recruiter/jobs/new", "/recruiter/jobs", "/recruiter/applications", "/recruiter/discover", "/recruiter/shortlists", "/recruiter/compare", "/recruiter/overview"].includes(pathname) || pathname.startsWith("/recruiter/team/") || pathname.startsWith("/recruiter/talent/");
   if(apiConfig.dataSource === "http") return connected ? <WorkspaceAccessGate role="recruiter"><MockRecruiterShell>{children}</MockRecruiterShell></WorkspaceAccessGate> : <RealWorkspace role="recruiter"/>;
   return <MockRecruiterShell>{children}</MockRecruiterShell>;
 }
