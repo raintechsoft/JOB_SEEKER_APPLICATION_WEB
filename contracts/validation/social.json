@@ -1,0 +1,11 @@
+{
+  "titleMax": 150,
+  "bodyMax": 3000,
+  "commentMax": 1000,
+  "altMax": 200,
+  "imageBytesMax": 1048576,
+  "totalImageBytesMax": 2097152,
+  "mediaMax": 5,
+  "searchMax": 200,
+  "shareFollowersMax": 50
+}

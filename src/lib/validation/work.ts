@@ -1,5 +1,5 @@
 import { z } from "zod";
-import contract from "../../../../../contracts/validation/work.json";
+import contract from "../../../contracts/validation/work.json";
 import { today } from "@/lib/utils/date";
 import { validateMedia } from "./profile";
 

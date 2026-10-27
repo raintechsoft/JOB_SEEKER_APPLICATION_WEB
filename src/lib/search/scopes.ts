@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Role } from "@/types/domain";
-import contract from "../../../../../contracts/validation/global-search.json";
+import contract from "../../../contracts/validation/global-search.json";
 
 export const SEARCH_SCOPES = ["all", "posts", "companies", "people", "jobs", "updates", "talent", "skills", "projects"] as const;
 export type SearchScope = typeof SEARCH_SCOPES[number];

@@ -20,3 +20,38 @@ apps/api/storage/logs/*
 tests/
 .tests-results/
 tmp-reset-shots/
+
+# Environment files (keep shareable templates)
+.env.*
+!.env.example
+!.env.sample
+
+# Build output and local caches
+/build/
+/dist/
+/.npm-cache/
+/.npm/
+/.cache/
+/.turbo/
+/.vercel/
+
+# Test coverage and browser reports
+/coverage/
+/blob-report/
+/playwright/.cache/
+
+# Package manager and runtime logs
+*.log
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Local editor and operating system files
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo

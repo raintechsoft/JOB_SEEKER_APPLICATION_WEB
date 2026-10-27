@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { today } from "@/lib/utils/date";
-import contract from "../../../../../contracts/validation/portfolio.json";
+import contract from "../../../contracts/validation/portfolio.json";
 export const portfolioSettingsSchema = z.object({
   title: z.string().trim().min(1).refine((v) => [...v].length <= 120, "Use at most 120 characters."),
   headline: z.string().trim().min(1).refine((v) => [...v].length <= 200, "Use at most 200 characters."),

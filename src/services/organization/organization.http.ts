@@ -4,7 +4,7 @@ import type { OrganizationContext, OrganizationService, PublicOrganizationView, 
 import { organizationSchema, recruiterSchema, verificationSchema } from "@/lib/validation/organization";
 import type { OrganizationRole } from "@/types/domain";
 import { z } from "zod";
-import contract from "../../../../../contracts/validation/organization.json";
+import contract from "../../../contracts/validation/organization.json";
 
 const roles = { "Organization Admin": "organization_admin", Recruiter: "recruiter", "Hiring Manager": "hiring_manager" } as const;
 export const organizationInviteSchema = z.object({ fullName: z.string().trim().max(100), email: z.string().trim().toLowerCase().max(254).pipe(z.email()), role: z.enum(["Organization Admin", "Recruiter", "Hiring Manager"]), department: z.string().trim().max(100) });

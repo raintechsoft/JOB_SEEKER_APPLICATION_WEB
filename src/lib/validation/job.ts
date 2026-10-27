@@ -1,5 +1,5 @@
 import { z } from "zod";
-import rules from "../../../../../contracts/validation/job.json";
+import rules from "../../../contracts/validation/job.json";
 import type { JobWizardValues } from "@/types/domain";
 import { today } from "@/lib/utils/date";
 import {validateMedia} from "./profile";

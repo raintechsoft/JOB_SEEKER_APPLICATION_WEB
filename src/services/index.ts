@@ -39,9 +39,12 @@ import type { SearchService } from "./search/search.service";
 import { mockSearchService } from "./search/search.mock";
 import type { MediaService } from "./media/media.http";
 import type {NotificationsService} from "./notifications/notifications.service";
+import type { JourneyService } from "./journey/journey.service";
+import { mockJourneyService } from "./journey/journey.mock";
 
 /** Every data-access boundary the UI uses. */
 export interface Services {
+  journey: JourneyService;
   search: SearchService;
   analytics:Pick<ReturnType<typeof import("./analytics/analytics.http").createHttpAnalyticsService>,"getSettings"|"setConsent">;
   notifications:NotificationsService;
@@ -68,6 +71,7 @@ export interface Services {
 
 /** MOCK: browser-local implementations backed by `src/mocks`. */
 const mockServices: Services = {
+  journey: mockJourneyService,
   search: mockSearchService,
   analytics:{async getSettings(){return {available:false,granted:false,hasStoredConsent:false,policyVersion:"",retentionDays:0,version:0};},async setConsent(){throw new Error("Analytics consent requires HTTP mode.");}},
   media: { async upload() { throw new Error("Managed uploads require HTTP mode."); }, async remove() { throw new Error("Managed uploads require HTTP mode."); } },

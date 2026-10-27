@@ -1,0 +1,13 @@
+{
+  "shareExpiryMaxDays": 365,
+  "sections": [
+    "Introduction",
+    "About",
+    "Skills & expertise",
+    "Featured projects",
+    "Experience",
+    "Work updates",
+    "Education",
+    "Contact"
+  ]
+}

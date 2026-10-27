@@ -8,6 +8,8 @@ import { today } from "@/lib/utils/date";
 import { IMAGE_TYPES, MB, readAsDataUrl } from "@/lib/utils/files";
 import { uid } from "@/lib/utils/id";
 import { safeUrl } from "@/lib/utils/url";
+import { hasEmploymentDates, memoryInEmployment } from "@/lib/validation/journey";
+import type { JourneyChapter } from "../journey/journey.service";
 import type { ProfileService, SaveResult } from "./profile.service";
 
 const STORAGE_ERROR: SaveResult = { ok: false, error: "Browser storage is full or unavailable. Your changes are kept for this page only." };
@@ -34,15 +36,16 @@ function syncProfile(db: Draft<DemoDatabase>) {
   p.interests = d.career.interests;
   p.complete = profileCompletion(p, d, db.projects.filter((x) => x.owner === ME_ID).length).percent;
   d.updatedAt = new Date().toISOString();
+  d.revision = (d.revision ?? 1) + 1;
   db.portfolios[p.id].title = p.name;
   db.portfolios[p.id].headline = p.headline;
 }
 
-const save = (recipe: (db: Draft<DemoDatabase>) => void): SaveResult =>
+const save = (recipe: (db: Draft<DemoDatabase>) => void, rollbackOnFailure=false): SaveResult =>
   commit((db) => {
     recipe(db);
     syncProfile(db);
-  })
+  },{rollbackOnFailure})
     ? { ok: true }
     : STORAGE_ERROR;
 
@@ -56,7 +59,7 @@ export const mockProfileService: ProfileService = {
   async getProfile() {
     const db = getDb();
     const p = me(db);
-    return { person: p, details: p.professionalDetails!, completion: profileCompletion(p, p.professionalDetails, projectsFor(db, ME_ID).length), projects: projectsFor(db, ME_ID) };
+    return { version:p.professionalDetails?.revision??1, person: p, details: p.professionalDetails!, completion: profileCompletion(p, p.professionalDetails, projectsFor(db, ME_ID).length), projects: projectsFor(db, ME_ID) };
   },
 
   async saveRecord(collection, input) {
@@ -70,6 +73,11 @@ export const mockProfileService: ProfileService = {
       if (r[start] && r[end] && String(r[end]) < String(r[start])) return { ok: false, error: "The end or completion date must be on or after the start date." };
     }
     const d = me(getDb()).professionalDetails!;
+    if (collection === "employment") {
+      const chapter = {start:String(r.start??""),end:String(r.end??""),current:!!r.current} as JourneyChapter;
+      const memories = getDb().careerJourneys?.[ME_ID]?.memories.filter(m=>m.employmentId===r.id)??[];
+      if (memories.some(m=>!hasEmploymentDates(chapter)||!memoryInEmployment(m.date,chapter))) return {ok:false,error:"These dates would exclude existing career memories. Update or move those memories first."};
+    }
     if (collection === "skills" || collection === "technicalSkills" || collection === "languages") {
       const list = d[collection] as { id: string; name?: unknown }[];
       if (list.some((x) => x.id !== r.id && skillKey(String(x.name ?? "")) === skillKey(String(r.name ?? "")))) {
@@ -106,8 +114,17 @@ export const mockProfileService: ProfileService = {
     });
   },
 
-  async deleteRecord(collection, id) {
-    save((db) => {
+  async deleteRecord(collection, id, revision, confirmJourneyDelete = false) {
+    if (revision !== undefined && revision !== (me(getDb()).professionalDetails?.revision ?? 1)) throw new Error("Your profile changed. Reload before saving.");
+    const result = save((db) => {
+      if (collection === "employment") {
+        const journey = db.careerJourneys?.[ME_ID];
+        if (journey) {
+          if (!confirmJourneyDelete && (journey.memories.some(m=>m.employmentId===id)||journey.colleagues.some(c=>c.employmentId===id))) throw new Error("Confirm deletion of this workplace and its career memories and colleagues.");
+          journey.memories=journey.memories.filter(m=>m.employmentId!==id);
+          journey.colleagues=journey.colleagues.filter(c=>c.employmentId!==id);
+        }
+      }
       const d = db.professionals[0].professionalDetails!;
       if (collection === "skills") {
         const skill = d.skills.find((s) => s.id === id);
@@ -118,7 +135,8 @@ export const mockProfileService: ProfileService = {
       const list = d[collection] as ProfileRecord[];
       const index = list.findIndex((r) => r.id === id);
       if (index >= 0) list.splice(index, 1);
-    });
+    },true);
+    if (!result.ok) throw new Error("Browser storage is full or unavailable. Your changes were not saved.");
   },
 
   async moveRecord(collection, id, offset) {

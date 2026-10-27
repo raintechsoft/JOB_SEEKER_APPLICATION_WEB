@@ -2,7 +2,15 @@
 
 import { ScreenFallback } from "@/components/ui/feedback";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, Fragment, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { CareerJourney } from "@/features/journey/career-journey";
+import { journeyEnabled } from "@/services/journey/journey.service";
+import { ProfileActionsMenu } from "./profile-actions-menu";
+import "./profile-search.css";
+import "./profile-resume.css";
+import "./profile-navigation.css";
+import { ProfileSectionNavigation } from "./profile-section-navigation";
+import { PROFILE_SECTIONS, useProfileSection, navigateToProfileSection, focusProfileSection } from "./profile-navigation";
 import type { ProfileCollection, ProfileRecord } from "@/types/domain";
 import type { ProfileSection, ProfileView } from "@/services/profile/profile.service";
 import { ACCOMPLISHMENT_TYPES, type AccomplishmentType } from "@/lib/domain/profile";
@@ -14,8 +22,8 @@ import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-serv
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
-import { Avatar, Button, IconButton, LinkButton, Tags } from "@/components/ui/primitives";
-import { FloatingInput, FloatingSelect, TextField } from "@/components/ui/field";
+import { Avatar, Button, IconButton, Tags } from "@/components/ui/primitives";
+import { TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
 import { QueryView } from "@/components/ui/query-view";
 import { ProjectArt } from "@/components/work/project-art";
@@ -24,21 +32,7 @@ import { collectionTitle, CompletionChecklist, PhotoForm, RecordForm, SectionFor
 import { validateMedia } from "@/lib/validation/profile";
 import { useFormAction } from "@/hooks/use-form-action";
 
-const SECTIONS: [string, string][] = [
-  ["resume", "Resume"],
-  ["headline", "Resume headline"],
-  ["skills", "Key skills"],
-  ["employment", "Employment"],
-  ["education", "Education"],
-  ["technical", "Technical skills"],
-  ["projects", "Projects"],
-  ["summary", "Profile summary"],
-  ["accomplishments", "Accomplishments"],
-  ["career", "Career profile"],
-  ["personal", "Personal details"],
-  ["languages", "Languages"],
-  ["diversity", "Diversity & inclusion"],
-];
+const ProfileSectionContext = createContext<string | null>(null);
 
 const text = (v: unknown) => (v ? String(v) : "Not added");
 const ADD_LABELS: Partial<Record<ProfileCollection, string>> = { employment: "employment", education: "education", technicalSkills: "technical skill", languages: "language", careerBreaks: "career break" };
@@ -46,17 +40,26 @@ const recordName = (r: ProfileRecord) => String(r.title || r.name || r.degree ||
 
 function useProfileActions(view: ProfileView) {
   const run = useServiceAction();
+  const services = useServices();
   return {
     record: (collection: ProfileCollection, record?: ProfileRecord) => modal.show((record ? "Edit " : "Add ") + collectionTitle(collection), <RecordForm collection={collection} record={record ?? null} details={view.details} projects={view.projects} />),
     section: (name: ProfileSection) =>
       modal.show("Edit " + { identity: "professional profile", headline: "resume headline", summary: "profile summary", career: "career preferences", personal: "personal details", diversity: "optional context" }[name], <SectionForm section={name} person={view.person} details={view.details} />),
-    remove: (collection: ProfileCollection, id: string) =>
-      confirmAction("Remove this profile entry?", `This removes the saved entry${collection === "skills" ? " and its linked technical-skill details" : ""} from your profile${devCopy(" in this browser", "")}.`, async () => {
-        const ok = await run(async (s) => { await s.profile.deleteRecord(collection, id, view.version); return true; });
+    remove: async (collection: ProfileCollection, id: string) => {
+      let journeyMessage = "";
+      if (collection === "employment" && journeyEnabled) {
+        try {
+          const chapter = (await services.journey.get()).chapters.find(c=>c.id===id);
+          journeyMessage = ` This also deletes ${chapter?.memoryCount??0} memories, their photos, and ${chapter?.colleagues?.length??0} private colleagues from this career chapter.`;
+        } catch { toast("Could not check this workplace’s career memories. Try again.","error"); return; }
+      }
+      confirmAction("Remove this profile entry?", `This removes the saved entry${collection === "skills" ? " and its linked technical-skill details" : ""} from your profile${devCopy(" in this browser", "")}.${journeyMessage}`, async () => {
+        const ok = await run(async (s) => { await s.profile.deleteRecord(collection, id, view.version, collection === "employment" && journeyEnabled); return true; });
         if (!ok) return;
         modal.close();
         toast("Profile entry removed.");
-      }, "Remove entry"),
+      }, "Remove entry");
+    },
     move: (collection: ProfileCollection | "projects", id: string, offset: -1 | 1) => run((s) => s.profile.moveRecord(collection, id, offset, view.version)),
   };
 }
@@ -74,6 +77,8 @@ function Controls({ collection, r, i, count, actions }: { collection: ProfileCol
 }
 
 function Section({ id, title, children, action, hint }: { id: string; title: string; children: ReactNode; action?: ReactNode; hint?: string }) {
+  const active=useContext(ProfileSectionContext);
+  if(active!==null&&active!==id)return null;
   return (
     <section className="card profile-section-card" id={"profile-" + id}>
       <div className="profile-card-heading">
@@ -198,9 +203,9 @@ function SkillsSection({ view, actions }: { view: ProfileView; actions: ReturnTy
       }
     >
       <div className="profile-skill-tools">
-        <label>
+        <label className="profile-skill-search" htmlFor="profile-skill-search">
           <Icon name="search" />
-          <FloatingInput label="Search key skills" id="profile-skill-search" type="search" placeholder="Find a skill..." aria-label="Search key skills" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input id="profile-skill-search" type="search" placeholder="Search key skills" aria-label="Search key skills" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
       </div>
       <div className="profile-skill-list">
@@ -247,22 +252,18 @@ function TechnicalSection({ view, actions }: { view: ProfileView; actions: Retur
         </Button>
       }
     >
-      <div className="profile-skill-tools">
-        <label>
+      <div className="profile-skill-tools profile-technical-tools">
+        <label className="profile-skill-search" htmlFor="profile-technical-search">
           <Icon name="search" />
-          <FloatingInput label="Filter technical skills" id="profile-technical-search" type="search" aria-label="Filter technical skills" placeholder="Filter skills or technologies..." value={q} onChange={(e) => setQ(e.target.value)} />
+          <input id="profile-technical-search" type="search" aria-label="Filter technical skills" placeholder="Search skills or technologies" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
-        <FloatingSelect
-          label="Sort technical skills"
-          id="profile-technical-sort"
-          aria-label="Sort technical skills"
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-          options={[
-            { value: "name", label: "Skill name" },
-            { value: "experience", label: "Experience" },
-          ]}
-        />
+        <label className="profile-skill-sort" htmlFor="profile-technical-sort">
+          <span>Sort by</span>
+          <select id="profile-technical-sort" aria-label="Sort technical skills" value={sort} onChange={(e) => setSort(e.target.value)}>
+            <option value="name">Skill name</option>
+            <option value="experience">Experience</option>
+          </select>
+        </label>
       </div>
       <div className="profile-table-wrap">
         <table className="profile-table">
@@ -310,22 +311,16 @@ function Profile({ view }: { view: ProfileView }) {
   const run = useServiceAction();
   const actions = useProfileActions(view);
   const projects = useProjectDialogs();
-  const [active, setActive] = useState("");
+  const active = useProfileSection();
+  const activeIndex=PROFILE_SECTIONS.findIndex(section=>section.id===active);
+  const selected=PROFILE_SECTIONS[activeIndex];
   const { person: p, details: d, completion: c } = view;
 
   useEffect(() => {
-    const cards = [...document.querySelectorAll<HTMLElement>(".profile-section-card")];
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible.length) setActive(visible[0].target.id);
-      },
-      { rootMargin: "-130px 0px -50% 0px", threshold: 0 },
-    );
-    cards.forEach((card) => observer.observe(card));
-    if (location.hash.startsWith("#profile-")) requestAnimationFrame(() => document.getElementById(location.hash.slice(1))?.scrollIntoView());
-    return () => observer.disconnect();
-  }, []);
+    if(!window.location.hash.startsWith("#profile-"))return;
+    const frame=requestAnimationFrame(focusProfileSection);
+    return ()=>cancelAnimationFrame(frame);
+  }, [active]);
 
   const copyLink = async () => {
     const url = window.location.origin + "/professionals/" + p.slug;
@@ -340,10 +335,22 @@ function Profile({ view }: { view: ProfileView }) {
   const resume = d.resume;
   const [resumeStatus, setResumeStatus] = useState("");
   const resumeAction = useFormAction((fields) => setResumeStatus(Object.values(fields).join(" ")));
+  const [resumeDragging, setResumeDragging] = useState(false);
+  const uploadResume = async (file?: File) => {
+    if (!file || resumeAction.pending) return;
+    const invalid = validateMedia(file, "resume");
+    if (invalid) { setResumeStatus(invalid); return; }
+    setResumeStatus(devCopy("Saving to this browser…", "Saving…"));
+    const ok = await resumeAction.execute(async (s) => { const result = await s.profile.uploadResume(file, view.version); if (!result.ok) throw new Error(result.error); });
+    if (!ok) return;
+    setResumeStatus("");
+    toast(devCopy("Resume saved in this browser. No server upload occurred.", "Resume saved."));
+  };
 
   return (
     <div className="profile-management">
       <header className="card professional-profile-summary" id="profile-identity">
+        <ProfileActionsMenu slug={p.slug} onCopy={copyLink} onImprove={completion}/>
         <div className="profile-photo-area">
           <button type="button" className="profile-photo-ring" aria-label="View or edit profile photo" style={{ "--completion": c.percent * 3.6 + "deg" } as React.CSSProperties} onClick={() => modal.show("Profile photo", <PhotoForm person={p} revision={view.version} />, "photo")}>
             <Avatar person={p} size="xl" />
@@ -356,7 +363,7 @@ function Profile({ view }: { view: ProfileView }) {
           </button>
         </div>
         <div className="profile-header-body">
-          <div className="row between wrap">
+          <div className="row between wrap profile-header-top">
             <div>
               <h1>
                 {p.name} <IconButton icon="edit" label="Edit basic profile" onClick={() => actions.section("identity")} />
@@ -399,44 +406,15 @@ function Profile({ view }: { view: ProfileView }) {
               </span>
             </div>
           </div>
-          <div className="profile-header-actions">
-            <LinkButton href={"/professionals/" + p.slug} variant="sm" icon="external">
-              Preview public profile
-            </LinkButton>
-            <Button variant="sm" icon="copy" onClick={copyLink}>
-              Copy profile link
-            </Button>
-            <Button variant="text sm" icon="spark" onClick={completion}>
-              Improve profile
-            </Button>
-          </div>
         </div>
       </header>
-      <div className="profile-management-grid">
-        <aside className="profile-quick-links">
-          <h2>Quick links</h2>
-          <nav aria-label="Profile sections">
-            {SECTIONS.map(([id, label]) => (
-              <a
-                key={id}
-                href={"#profile-" + id}
-                className={active === "profile-" + id ? "active" : undefined}
-                aria-current={active === "profile-" + id ? "location" : undefined}
-                onClick={(e) => {
-                  e.preventDefault();
-                  document.getElementById("profile-" + id)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-                  history.replaceState(null, "", "#profile-" + id);
-                  setActive("profile-" + id);
-                }}
-              >
-                {label}
-                {["employment", "education", "projects"].includes(id) && <span>Add</span>}
-              </a>
-            ))}
-          </nav>
-        </aside>
-        <div className="profile-main-sections">
-          <Section id="resume" title="Resume">
+      <div className="profile-management-grid profile-editor-grid">
+        <ProfileSectionNavigation active={active}/>
+        <ProfileSectionContext.Provider value={active}>
+        <div className="profile-main-sections profile-editor-panel" id="profile-section-panel" role="region" aria-label={`${selected.label} profile section`} tabIndex={-1}>
+          <div className="profile-editor-panel-meta"><span>Profile / {selected.label}</span><span>Section {activeIndex+1} of {PROFILE_SECTIONS.length}</span></div>
+          <Section id="resume" title="Resume" action={<span className="resume-privacy"><Icon name="shield"/>Private document</span>}>
+            <p className="resume-intro">A snapshot of your experience, ready when you need it.</p>
             {resume ? (
               <div className="profile-resume-record">
                 <span className="profile-document-icon">
@@ -478,38 +456,37 @@ function Profile({ view }: { view: ProfileView }) {
                   }
                 />
               </div>
-            ) : (
-              <p className="profile-hint">A concise starting point for your professional story.</p>
-            )}
-            <div className="profile-resume-upload">
-              <label className="btn sm">
+            ) : null}
+            <div className={`resume-upload-zone${resumeDragging ? " is-dragging" : ""}`} aria-busy={resumeAction.pending}
+              onDragOver={e=>{e.preventDefault();if(!resumeAction.pending&&e.dataTransfer.types.includes("Files"))setResumeDragging(true);}}
+              onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setResumeDragging(false);}}
+              onDrop={e=>{e.preventDefault();setResumeDragging(false);if(resumeAction.pending)return;if(e.dataTransfer.files.length!==1){setResumeStatus("Choose one resume file at a time.");return;}void uploadResume(e.dataTransfer.files[0]);}}
+            >
+              <div className="resume-upload-main">
+                <div className="resume-art" aria-hidden="true"><div className="resume-art-sheet"><Icon name="file"/><span>RESUME</span></div><span className="resume-art-upload"><Icon name="upload"/></span></div>
+                <div className="resume-upload-copy"><h3>{resume ? "Keep your story up to date" : "Your experience, all in one place"}</h3><p>{resume ? "Drop a new file here to replace your saved resume." : "Drop your resume here, or choose a file to get started."}</p></div>
+              <label className="btn primary resume-choose" aria-disabled={resumeAction.pending}>
                 <input
                   type="file"
                   id="profile-resume-file"
                   disabled={resumeAction.pending}
                   accept=".pdf,.doc,.docx,.rtf"
                   className="sr-only"
-                  onChange={async (e) => {
+                  aria-label={resume ? "Replace resume" : "Upload resume"}
+                  aria-describedby="resume-file-guidance profile-resume-status"
+                  onChange={(e) => {
                     const file = e.target.files?.[0];
                     e.target.value = "";
-                    if (!file) return;
-                    const invalid = validateMedia(file, "resume");
-                    if (invalid) { setResumeStatus(invalid); return; }
-                    setResumeStatus(devCopy("Saving to this browser…", "Saving…"));
-                    const ok = await resumeAction.execute(async (s) => { const result = await s.profile.uploadResume(file, view.version); if (!result.ok) throw new Error(result.error); });
-                    if (!ok) return;
-                    setResumeStatus("");
-                    toast(devCopy("Resume saved in this browser. No server upload occurred.", "Resume saved."));
+                    void uploadResume(file);
                   }}
                 />
                 <Icon name="upload" />
-                {resume ? "Replace resume" : "Upload resume"}
+                {resumeAction.pending ? "Saving…" : resume ? "Replace resume" : "Upload resume"}
               </label>
-              <p>PDF, DOC, DOCX or RTF · Up to 2 MB · {devCopy("Browser storage only", "Private storage")}</p>
-              <span id="profile-resume-status" aria-live="polite">
-                {resumeStatus}
-              </span>
+              </div>
+              <div className="resume-upload-footer" id="resume-file-guidance"><div className="resume-formats" aria-label="Accepted file formats"><span>PDF</span><span>DOC</span><span>DOCX</span><span>RTF</span><small>Up to 2 MB</small></div><DevOnly><span className="resume-storage"><Icon name="shield"/>Saved in this browser</span></DevOnly></div>
             </div>
+            <p className="resume-status" id="profile-resume-status" aria-live="polite">{resumeStatus}</p>
           </Section>
           <Section
             id="headline"
@@ -527,6 +504,7 @@ function Profile({ view }: { view: ProfileView }) {
           </Section>
           <SkillsSection view={view} actions={actions} />
           {(["employment", "education"] as const).map((k) => (
+            <Fragment key={k}>
             <Section
               key={k}
               id={k}
@@ -539,6 +517,8 @@ function Profile({ view }: { view: ProfileView }) {
             >
               <Entries collection={k} view={view} actions={actions} />
             </Section>
+            {k === "employment" && active === "journey" && <CareerJourney onAddEmployment={()=>actions.record("employment")} onEditEmployment={id=>actions.record("employment",d.employment.find(e=>e.id===id))}/>}
+            </Fragment>
           ))}
           <TechnicalSection view={view} actions={actions} />
           <Section
@@ -744,7 +724,12 @@ function Profile({ view }: { view: ProfileView }) {
               </div>
             ))}
           </Section>
+          <nav className="profile-editor-pagination" aria-label="Profile section pagination">
+            {activeIndex>0&&<Button variant="text" className="profile-editor-previous" icon="arrow" onClick={()=>navigateToProfileSection(PROFILE_SECTIONS[activeIndex-1].id)}>{PROFILE_SECTIONS[activeIndex-1].label}</Button>}
+            {activeIndex<PROFILE_SECTIONS.length-1&&<Button variant="text" onClick={()=>navigateToProfileSection(PROFILE_SECTIONS[activeIndex+1].id)}>{PROFILE_SECTIONS[activeIndex+1].label}<Icon name="arrow"/></Button>}
+          </nav>
         </div>
+        </ProfileSectionContext.Provider>
       </div>
       <DevOnly>
         <p className="profile-module-note">Skillora prototype · Your changes stay in this browser. Resume files use browser storage; no server upload or document extraction service is connected.</p>

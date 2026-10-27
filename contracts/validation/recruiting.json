@@ -1,0 +1,59 @@
+{
+  "text": {
+    "keywords": 200,
+    "location": 200,
+    "locality": 200,
+    "education": 200,
+    "industry": 100,
+    "designation": 200,
+    "department": 100
+  },
+  "numbers": {
+    "distance": 10000,
+    "expMin": 60,
+    "expMax": 60,
+    "salaryMin": 10000000,
+    "salaryMax": 10000000,
+    "notice": 365,
+    "joining": 365
+  },
+  "tabs": [
+    "all",
+    "New",
+    "unviewed",
+    "pending",
+    "Shortlisted",
+    "Reviewing",
+    "Interview",
+    "Hired",
+    "Rejected"
+  ],
+  "sorts": [
+    "recent",
+    "oldest",
+    "experience",
+    "relevance"
+  ],
+  "transitions": {
+    "New": [
+      "Reviewing",
+      "Shortlisted",
+      "Rejected"
+    ],
+    "Reviewing": [
+      "Shortlisted",
+      "Interview",
+      "Rejected"
+    ],
+    "Shortlisted": [
+      "Interview",
+      "Rejected"
+    ],
+    "Interview": [
+      "Hired",
+      "Rejected"
+    ],
+    "Hired": [],
+    "Rejected": []
+  }
+}

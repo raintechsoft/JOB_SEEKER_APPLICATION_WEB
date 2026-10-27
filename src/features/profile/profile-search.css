@@ -1,0 +1,101 @@
+.profile-section-card .profile-skill-tools > .profile-skill-search,
+.profile-section-card .profile-skill-tools > .profile-skill-sort {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid #dfe6ef;
+  border-radius: 10px;
+  background: #f8fafc;
+  box-sizing: border-box;
+  transition: border-color 150ms, background-color 150ms, box-shadow 150ms;
+}
+.profile-section-card .profile-skill-tools > .profile-skill-search:hover,
+.profile-section-card .profile-skill-tools > .profile-skill-sort:hover {
+  background: #f4f7fb;
+  border-color: #c6d2e2;
+}
+.profile-section-card .profile-skill-tools > .profile-skill-search:focus-within,
+.profile-section-card .profile-skill-tools > .profile-skill-sort:focus-within {
+  background: #fff;
+  border-color: #6c87e9;
+  box-shadow: 0 0 0 3px #315ef414;
+}
+.profile-skill-tools > .profile-skill-search > .icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #7b8ba3;
+  stroke-width: 1.8;
+}
+.profile-skill-tools .profile-skill-search input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  color: #3c4b63;
+  font-size: 14px;
+  line-height: 22px;
+}
+.profile-skill-tools .profile-skill-search input::placeholder {
+  color: #8a97aa;
+  opacity: 1;
+}
+.profile-section-card .profile-technical-tools > .profile-skill-search {
+  max-width: none;
+}
+.profile-section-card .profile-technical-tools > .profile-skill-sort {
+  flex: 0 0 230px;
+  max-width: none;
+}
+.profile-skill-sort > span {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #8a97aa;
+  white-space: nowrap;
+}
+.profile-skill-tools .profile-skill-sort select {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: 22px;
+  padding: 0 4px 0 0;
+  margin: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #3c4b63;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .profile-section-card .profile-skill-tools > .profile-skill-search {
+    max-width: none;
+  }
+  .profile-technical-tools {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .profile-section-card .profile-technical-tools > .profile-skill-sort {
+    flex: auto;
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-section-card .profile-skill-tools > .profile-skill-search,
+  .profile-section-card .profile-skill-tools > .profile-skill-sort {
+    transition: none;
+  }
+}

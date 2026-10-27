@@ -1,5 +1,5 @@
 import { z } from "zod";
-import contract from "../../../../../contracts/validation/organization.json";
+import contract from "../../../contracts/validation/organization.json";
 import { validateOrganization } from "@/lib/domain/organization";
 import type { Organization, RecruiterMember, Verification } from "@/types/domain";
 

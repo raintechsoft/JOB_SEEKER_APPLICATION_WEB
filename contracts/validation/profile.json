@@ -1,0 +1,164 @@
+{
+  "proficiency": [
+    "Not specified",
+    "Beginner",
+    "Elementary",
+    "Intermediate",
+    "Upper-intermediate",
+    "Advanced",
+    "Fluent",
+    "Native or bilingual"
+  ],
+  "collections": {
+    "skills": {
+      "name": "text:200!",
+      "category": "enum:Technical|Design|Business|Communication|Leadership|Other",
+      "level": "enum:Not specified|Beginner|Elementary|Intermediate|Upper-intermediate|Advanced|Fluent|Native or bilingual",
+      "years": "number:0:60"
+    },
+    "employment": {
+      "title": "text:200!",
+      "company": "text:200!",
+      "type": "enum:Full-time|Part-time|Contract|Internship|Freelance|Temporary|Other",
+      "arrangement": "enum:On-site|Hybrid|Remote|Flexible",
+      "location": "text:200",
+      "start": "month!",
+      "end": "month",
+      "description": "text:2500",
+      "responsibilities": "text:2500",
+      "achievements": "text:2500",
+      "skills": "text:200"
+    },
+    "education": {
+      "degree": "text:200!",
+      "institution": "text:200!",
+      "field": "text:200",
+      "start": "month",
+      "end": "month",
+      "grade": "text:200",
+      "type": "enum:Full-time|Part-time|Distance|Other",
+      "description": "text:2500",
+      "coursework": "text:2500"
+    },
+    "technicalSkills": {
+      "name": "text:200!",
+      "version": "text:200",
+      "lastUsed": "month",
+      "years": "number:0:60",
+      "months": "integer:0:11"
+    },
+    "onlineProfiles": {
+      "title": "text:200!",
+      "url": "url!",
+      "label": "text:200"
+    },
+    "workSamples": {
+      "title": "text:200!",
+      "description": "text:2500",
+      "url": "url!",
+      "skills": "text:200"
+    },
+    "publications": {
+      "title": "text:200!",
+      "type": "enum:Research paper|Journal entry|White paper|Article|Book|Other",
+      "authors": "text:200",
+      "publisher": "text:200",
+      "date": "date",
+      "doi": "text:200",
+      "url": "url",
+      "description": "text:2500"
+    },
+    "presentations": {
+      "title": "text:200!",
+      "event": "text:200",
+      "date": "date",
+      "url": "url",
+      "description": "text:2500"
+    },
+    "patents": {
+      "title": "text:200!",
+      "number": "text:200",
+      "authority": "text:200",
+      "filing": "date",
+      "grant": "date",
+      "status": "enum:Filed|Pending|Granted|Expired|Other",
+      "url": "url"
+    },
+    "certifications": {
+      "title": "text:200!",
+      "issuer": "text:200!",
+      "issue": "date",
+      "expiry": "date",
+      "credential": "text:200",
+      "url": "url"
+    },
+    "languages": {
+      "name": "text:200!",
+      "level": "enum:Not specified|Beginner|Elementary|Intermediate|Upper-intermediate|Advanced|Fluent|Native or bilingual",
+      "reading": "enum:Not specified|Beginner|Elementary|Intermediate|Upper-intermediate|Advanced|Fluent|Native or bilingual",
+      "writing": "enum:Not specified|Beginner|Elementary|Intermediate|Upper-intermediate|Advanced|Fluent|Native or bilingual",
+      "speaking": "enum:Not specified|Beginner|Elementary|Intermediate|Upper-intermediate|Advanced|Fluent|Native or bilingual"
+    },
+    "careerBreaks": {
+      "start": "month!",
+      "end": "month",
+      "description": "text:2500"
+    }
+  },
+  "sections": {
+    "identity": {
+      "name": "text:200!",
+      "headline": "text:200!",
+      "location": "text:200!",
+      "years": "number:0:60!",
+      "email": "email!",
+      "phone": "phone",
+      "currentTitle": "text:200",
+      "currentCompany": "text:200",
+      "employmentStatus": "enum:Employed|Self-employed|Student|Seeking opportunities|Other"
+    },
+    "headline": {
+      "headline": "text:200!",
+      "focus": "text:200"
+    },
+    "summary": {
+      "summary": "text:1200!",
+      "interests": "text:200",
+      "strengths": "text:200"
+    },
+    "career": {
+      "industry": "text:200",
+      "department": "text:200",
+      "category": "text:200",
+      "currentType": "enum:Full-time|Part-time|Contract|Freelance|Internship|Temporary|Other",
+      "roles": "text:200",
+      "industries": "text:200",
+      "departments": "text:200",
+      "types": "text:200",
+      "locations": "text:200",
+      "arrangement": "enum:On-site|Hybrid|Remote|Flexible",
+      "notice": "text:200",
+      "salary": "number:0:1000000000",
+      "currency": "currency",
+      "interests": "text:2500"
+    },
+    "personal": {
+      "gender": "text:200",
+      "dob": "date",
+      "marital": "text:200",
+      "nationality": "text:200",
+      "permit": "text:200",
+      "address": "text:200",
+      "city": "text:200",
+      "region": "text:200",
+      "country": "text:200",
+      "postal": "text:200",
+      "contact": "enum:Email|Phone|Messages"
+    },
+    "diversity": {
+      "accessibility": "text:2500",
+      "military": "text:2500",
+      "context": "text:2500"
+    }
+  }
+}

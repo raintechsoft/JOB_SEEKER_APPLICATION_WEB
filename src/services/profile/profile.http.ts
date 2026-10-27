@@ -32,7 +32,7 @@ export function createHttpProfileService(http: HttpClient, media: MediaService, 
       await mutate(`me/profile/records/${collection}`, values, false, revision);
       return { ok: true };
     },
-    deleteRecord: (collection, id, revision) => mutate(`me/profile/records/${collection}/${encodeURIComponent(id)}/delete`, {}, false, revision),
+    deleteRecord: (collection, id, revision, confirmJourneyDelete = false) => mutate(`me/profile/records/${collection}/${encodeURIComponent(id)}/delete`, {confirm_journey_delete:confirmJourneyDelete}, false, revision),
     moveRecord: (collection, id, offset, revision) => collection === "projects" && moveProject ? moveProject(id, offset) : mutate(`me/profile/records/${collection}/${encodeURIComponent(id)}/move`, { offset }, false, revision),
     toggleFeaturedSkill: (id, revision) => mutate(`me/profile/records/skills/${encodeURIComponent(id)}/feature`, {}, false, revision),
     async setPhoto(file, revision) {

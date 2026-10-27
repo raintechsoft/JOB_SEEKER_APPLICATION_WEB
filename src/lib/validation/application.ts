@@ -1,5 +1,5 @@
 import { z } from "zod";
-import rules from "../../../../../contracts/validation/application.json";
+import rules from "../../../contracts/validation/application.json";
 import type { ScreeningQuestion } from "@/types/domain";
 import { calendarDate } from "./job";
 import { today } from "@/lib/utils/date";

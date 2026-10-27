@@ -1,0 +1,63 @@
+{
+  "fields": {
+    "name": "text:200!",
+    "slug": "slug!",
+    "tagline": "text:200",
+    "industry": "text:100!",
+    "organizationType": "text:100",
+    "companySize": "text:100",
+    "foundingYear": "year",
+    "headquartersCountry": "text:100",
+    "headquartersCity": "text:100",
+    "websiteUrl": "url",
+    "description": "text:2500",
+    "overview": "text:2500",
+    "mission": "text:2500",
+    "vision": "text:2500",
+    "productsAndServices": "text:2500",
+    "cultureDescription": "text:2500",
+    "candidateExpectations": "text:2500",
+    "workEnvironment": "text:2500",
+    "cultureHighlights": "text:2500",
+    "hiringStatus": "text:100",
+    "careersUrl": "url",
+    "applicationContact": "email",
+    "publicContactEmail": "email",
+    "publicPhone": "phone",
+    "profileVisibility": "enum:Public|Hidden"
+  },
+  "lists": [
+    "expertiseAreas",
+    "workModes",
+    "workplaceLocations",
+    "benefits",
+    "hiringDepartments",
+    "hiringLocations",
+    "employmentTypes"
+  ],
+  "flags": [
+    "showPublicContact",
+    "showCareers",
+    "acceptInquiries",
+    "notifyApplications",
+    "notifyTeam",
+    "weeklyDigest"
+  ],
+  "recruiter": {
+    "fullName": "text:200!",
+    "jobTitle": "text:200",
+    "professionalBio": "text:2500",
+    "workEmail": "email!",
+    "profileVisibility": "enum:Public|Hidden",
+    "communicationPreference": "text:200"
+  },
+  "verification": {
+    "registrationName": "text:200",
+    "registrationNumber": "text:200",
+    "jurisdiction": "text:200",
+    "representative": "text:200",
+    "representativeTitle": "text:200",
+    "businessEmail": "email",
+    "website": "url"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "basic": {
+    "name": "text:100!",
+    "headline": "text:200!",
+    "location": "text:200!",
+    "years": "number:0:60!"
+  },
+  "background": {
+    "experience": "text:2500!",
+    "education": "text:2500!",
+    "interests": "text:2000"
+  }
+}

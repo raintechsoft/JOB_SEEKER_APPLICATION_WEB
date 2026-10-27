@@ -10,6 +10,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:journey": "vitest run --config vitest.journey.config.mts",
+    "test:journey:browser": "playwright test --config playwright.journey.config.ts",
+    "test:profile:browser": "playwright test --config playwright.profile.config.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "compare": "node scripts/compare-screens.mjs"

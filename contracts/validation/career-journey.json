@@ -1,0 +1,13 @@
+{
+  "titleMax": 120,
+  "storyMax": 2000,
+  "photosMax": 4,
+  "photoBytesMax": 1048576,
+  "altMax": 200,
+  "colleaguesMax": 20,
+  "nameMax": 100,
+  "roleMax": 120,
+  "pageSize": 20,
+  "types": ["Moment", "Milestone", "Reflection"],
+  "imageTypes": ["image/jpeg", "image/png", "image/webp"]
+}
