@@ -1,102 +1,330 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useTransition, type ComponentProps, type MouseEvent } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { Role } from "@/types/domain";
-import { useServices, useServiceQuery } from "@/hooks/use-services";
-import { apiConfig } from "@/services/api/config";
+import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useUiStore } from "@/stores/ui-store";
 import { Button } from "@/components/ui/primitives";
+import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { scopedSearchSchema, searchPageUrl, searchLabels, searchOptionsFromUrl, filterKeysFor, filterLabels, searchSettings, type SearchOptions, type SearchScope } from "@/lib/search/scopes";
-import { searchResultHref, searchResultLabel, resultKindLabels } from "@/services/search/search.service";
+import { scopedSearchSchema, searchPageUrl, searchLabels, searchOptionsFromUrl, scopesFor, withoutSearchSelection, searchKindScope, filterKeysFor, searchSettings, type SearchOptions, type SearchScope } from "@/lib/search/scopes";
+import { searchResultHref, searchResultLabel, type SearchResult } from "@/services/search/search.service";
 import { SearchResultMark } from "./result-mark";
-import { SearchScopeBadges } from "./scope-badges";
-import { SearchHighlight } from "./highlight";
+import { SearchFollowButton, SearchResultCopy, followableId } from "./suggestion-row";
+import { SuggestionCard, SuggestionCardGrid } from "@/components/suggestions/suggestion-card";
+import { track } from "@/lib/analytics";
+import { toast } from "@/stores/toast-store";
+import { SearchFilterBar, SearchSubFilterBar } from "./search-filter-bar";
+import { compatibleSearchOptions } from "@/lib/search/capabilities";
 import { SearchFailure } from "./search-failure";
+import { canFollowSearchResult, companyMetaLine, enrichOwnSearchResult, searchMetaLine, type OwnSearchPerson } from "@/lib/search/result-copy";
+import { formatFollowers } from "@/lib/utils/text";
+import { PermalinkEntry } from "@/features/feed/permalink-entry";
+import { useJobActions } from "@/features/feed/job-dialogs";
+import { similarCompanyCategory, similarCompanyQuery, similarPersonCategory } from "@/lib/search/similar-companies";
+
+const ALL_CATEGORY_PREVIEW = 3;
+
+type SearchResultGroup = { key: string; kind: "post"; item: SearchResult } | { key: string; kind: "rows"; items: SearchResult[] };
+type SearchCategorySection = { scope: SearchScope; items: SearchResult[] };
+
+function searchResultGroups(items: SearchResult[]): SearchResultGroup[] {
+  const groups: SearchResultGroup[] = [];
+  for (const item of items) {
+    if (item.kind === "post") {
+      groups.push({ key: `post:${item.id}`, kind: "post", item });
+      continue;
+    }
+    const last = groups.at(-1);
+    if (last?.kind === "rows") last.items.push(item);
+    else groups.push({ key: `rows:${item.id}`, kind: "rows", items: [item] });
+  }
+  return groups;
+}
+
+function searchResultKey(item: SearchResult) {
+  return `${item.kind}:${item.id}`;
+}
+
+function takeSelectedResult(items: SearchResult[], selected?: string) {
+  if (!selected) return { selectedItem: undefined as SearchResult | undefined, rest: items };
+  const selectedItem = items.find(item => searchResultKey(item) === selected);
+  return { selectedItem, rest: selectedItem ? items.filter(item => searchResultKey(item) !== selected) : items };
+}
+
+function selectedCategory(selected?: string): SearchScope | undefined {
+  return searchKindScope(selected?.split(":")[0] ?? "");
+}
+
+function searchCategorySections(role: Role, items: SearchResult[]): SearchCategorySection[] {
+  const buckets = new Map<SearchScope, SearchResult[]>();
+  for (const item of items) {
+    const kindScope = searchKindScope(item.kind);
+    if (!kindScope) continue;
+    const grouped = buckets.get(kindScope);
+    if (grouped) grouped.push(item);
+    else buckets.set(kindScope, [item]);
+  }
+  return scopesFor(role).flatMap(scope => {
+    const grouped = buckets.get(scope);
+    return grouped ? [{ scope, items: grouped }] : [];
+  });
+}
 
 export function SearchScreen({ role }: { role: Role }) {
   const params = useSearchParams();
   const query = params.get("q") ?? "", category = params.get("scope") ?? "all";
   const encodedOptions = JSON.stringify(searchOptionsFromUrl(params));
   const parsed = useMemo(() => scopedSearchSchema.safeParse({ role, q: query, scope: category, ...JSON.parse(encodedOptions) }), [role, query, category, encodedOptions]);
+  const routeError = !parsed.success && parsed.error.issues[0].code === "unrecognized_keys" ? "This search contains an unsupported or repeated filter." : !parsed.success ? parsed.error.issues[0].message : "";
   const setFeed = useUiStore(s => s.setFeed);
   useEffect(() => { if (parsed.success) setFeed({ query: parsed.data.q, searchScope: parsed.data.scope, searchOptions: JSON.parse(encodedOptions) }); }, [parsed, encodedOptions, setFeed]);
   return <section className="workspace-search-page" aria-label="Search results">
-    <h1>Search results</h1>
-    {!parsed.success ? <>{params.has("q") ? <p role="alert">{parsed.error.issues[0].message} Adjust the query, category or filters.</p> : <p className="muted">Find companies, people, jobs and work shared on Skillora.</p>}<SearchQueryForm role={role} query={query} scope="all" options={{}} /></> : <SearchResults key={`${category}:${query}:${encodedOptions}`} role={role} query={parsed.data.q} scope={parsed.data.scope} options={JSON.parse(encodedOptions)} />}
+    {!parsed.success ? (
+      <div className="workspace-search-main">
+        <h1 className="sr-only">Search results</h1>
+        {params.has("q") ? <p role="alert">{routeError} Use the header search to start another search.</p> : <p className="muted">Find companies, people, jobs and work shared on Skillora using the header search.</p>}
+      </div>
+    ) : <SearchResults key={`${category}:${query}:${encodedOptions}`} role={role} query={parsed.data.q} scope={parsed.data.scope} options={JSON.parse(encodedOptions)} />}
   </section>;
 }
 
 function SearchResults({ role, query, scope, options }: { role: Role; query: string; scope: SearchScope; options: SearchOptions }) {
   const services = useServices(), hydrated = useHydrated(), router = useRouter();
-  const [draft, setDraft] = useState(query), [queryError, setQueryError] = useState("");
+  const [navigating,startNavigation] = useTransition();
+  const navigate = (url: string) => startNavigation(() => router.push(url));
+  const selectionScope = selectedCategory(options.selected);
+  const viewScope = scope === "all" && selectionScope && scopesFor(role).includes(selectionScope) ? selectionScope : scope;
   const changeCategory = (next: SearchScope) => {
-    const nextOptions = Object.fromEntries(Object.entries(options).filter(([key]) => key === "sort" || filterKeysFor(next).includes(key as never)));
-    const parsed = scopedSearchSchema.safeParse({ role, q: draft, scope: next, ...nextOptions });
-    if (!parsed.success) { setQueryError(parsed.error.issues[0].message); document.getElementById("workspace-search-query")?.focus(); return; }
-    router.push(searchPageUrl(role, parsed.data.q, next, nextOptions));
+    if (navigating) return;
+    if (!scopesFor(role).includes(next)) return;
+    const nextOptions = next === "all" ? withoutSearchSelection(compatibleSearchOptions(scope, next, options)) : compatibleSearchOptions(scope, next, options);
+    if (next === viewScope && next !== "all") return;
+    const parsed = scopedSearchSchema.safeParse({ role, q: query, scope: next, ...nextOptions });
+    if (!parsed.success) return;
+    navigate(searchPageUrl(role, parsed.data.q, next, nextOptions));
   };
-  const result = useInfiniteQuery({ queryKey: ["workspace-search", "results", role, scope, query, options], initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam, signal }) => services.search.query({ role, q: query, scope, cursor: pageParam, limit: 20, ...options }, { signal }), getNextPageParam: page => page.nextCursor ?? undefined,
+  const result = useInfiniteQuery({ queryKey: ["workspace-search", "results", role, viewScope, query, options], initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam, signal }) => services.search.query({ role, q: query, scope: viewScope, cursor: pageParam, limit: 20, ...(viewScope === scope ? options : { ...compatibleSearchOptions(scope, viewScope, withoutSearchSelection(options)), selected: options.selected }) }, { signal }), getNextPageParam: page => page.nextCursor ?? undefined,
     enabled: hydrated, placeholderData: () => undefined, retry: false, refetchOnWindowFocus: false });
   const items = result.data?.pages.flatMap(page => page.items) ?? [];
+  const identity = useServiceQuery(["feed", "identity", role], async s => role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person);
+  const profile = useServiceQuery(["profile"], s => s.profile.getProfile(), { enabled: role === "professional" });
+  const ownPerson = role === "professional" ? profile.data?.person ?? identity.data : identity.data;
+  const ownSearch = ownPerson ? { id: ownPerson.id, headline: ownPerson.headline, location: "location" in ownPerson ? String(ownPerson.location ?? "") : "", summary: "summary" in ownPerson ? String(ownPerson.summary ?? "") : "", category: "category" in ownPerson ? String(ownPerson.category ?? "") : "", currentTitle: profile.data?.details.currentTitle } : undefined;
+  const homeCompany = useServiceQuery(["company", "home"], s => s.workspace.getHomeCompany(), { enabled: role === "recruiter" });
+  const network = useServiceQuery(["network", role], s => s.feed.getNetwork(role));
+  const followingPeople = network.data?.following.map(entry => entry.id) ?? [];
+  const followingCompanies = network.data?.companies.map(entry => entry.id) ?? [];
+  const viewItems = viewScope === "all" ? items : items.filter(item => searchKindScope(item.kind) === viewScope);
+  const { selectedItem, rest } = takeSelectedResult(viewItems, options.selected);
+  const stacked = selectedItem ? [selectedItem, ...rest] : viewItems;
+  const listProps = { query, role, options, ownSearch, followingPeople, followingCompanies, ownPersonId: ownPerson?.id ?? identity.data?.id, ownCompanyId: homeCompany.data?.id };
   return <>
-    <SearchQueryForm role={role} query={query} scope={scope} options={options} externalError={queryError} onDraftChange={value => { setDraft(value); setQueryError(""); }} />
-    <SearchScopeBadges role={role} value={scope} onChange={changeCategory} />
-    <SearchFiltersForm role={role} query={draft} submittedQuery={query} scope={scope} options={options} onQueryError={setQueryError} />
-    <p className="workspace-search-summary" role="status">{searchLabels[scope]} results for “{query}”{result.data?.pages[0].total != null ? ` · ${result.data.pages[0].total} ${result.data.pages[0].total === 1 ? "match" : "matches"}` : ""}</p>
-    {result.isFetching && !result.data && <div className="stack" aria-busy="true"><Skeleton style={{ height: 70 }} /><Skeleton style={{ height: 70 }} /></div>}
-    {result.isError && !result.isFetchNextPageError && <SearchFailure error={result.error} retry={() => void result.refetch()} />}
-    {result.isSuccess && !items.length && <p className="card">No matching results in {searchLabels[scope].toLowerCase()}. Try another term, category or filter.{scope === "companies" && " Companies must have a public profile to appear outside their own workspace."}</p>}
-    <ul className="workspace-search-results">{items.map(item => <li key={`${item.kind}:${item.id}`}><Link href={searchResultHref(role, item)} aria-label={searchResultLabel(item)}><SearchResultMark result={item} /><span><strong><SearchHighlight text={item.title} query={query} /></strong><span><SearchHighlight text={item.subtitle} query={query} /></span><small>{resultKindLabels[item.kind]}{item.companyAccess === "workspace" && " · Visible only to your company"}</small></span></Link></li>)}</ul>
-    {result.isFetchNextPageError && <SearchFailure error={result.error} retry={() => void result.fetchNextPage()} />}
-    {result.hasNextPage && <Button disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>Show more results</Button>}
+    <SearchFilterBar role={role} scope={scope} pending={navigating} onCategory={changeCategory} selectionScope={selectionScope} />
+    <SearchSubFilterBar role={role} scope={viewScope} options={viewScope === scope ? options : { ...compatibleSearchOptions(scope, viewScope, withoutSearchSelection(options)), selected: options.selected }} pending={navigating} onApply={next => {
+      if (navigating) return false;
+      const parsed = scopedSearchSchema.safeParse({role,q:query,scope:viewScope,...next});
+      if (!parsed.success) return false;
+      const url=searchPageUrl(role,parsed.data.q,viewScope,next); if(url!==searchPageUrl(role,query,viewScope,options)) navigate(url); return true;
+    }} />
+    <div className="workspace-search-main">
+      <h1 className="sr-only">Search results</h1>
+      <p className="workspace-search-summary" role="status">{searchLabels[viewScope]} results for “{query}”{result.data?.pages[0].total != null ? ` · ${result.data.pages[0].total} ${result.data.pages[0].total === 1 ? "match" : "matches"}` : ""}</p>
+      {result.isFetching && !result.data && <div className="stack" aria-busy="true"><Skeleton style={{ height: 70 }} /><Skeleton style={{ height: 70 }} /></div>}
+      {result.isError && !result.isFetchNextPageError && <SearchFailure error={result.error} retry={() => void result.refetch()} />}
+      {result.isSuccess && !viewItems.length && <EmptySearchResults scope={viewScope} context={listProps} />}
+      <div className="workspace-search-stack">{viewScope === "all" ? searchCategorySections(role, items).map(section => {
+        const preview = section.items.slice(0, ALL_CATEGORY_PREVIEW);
+        return <section key={section.scope} className="workspace-search-category" aria-labelledby={`search-category-${section.scope}`}>
+          <h2 id={`search-category-${section.scope}`}>{searchLabels[section.scope]}</h2>
+          {section.scope === "posts" ? preview.map(item => <PermalinkEntry key={`post:${item.id}`} id={item.id} role={role} surface="search" />) : (
+            <SearchResultList items={preview} {...listProps} />
+          )}
+          <Link href={searchPageUrl(role, query, section.scope, compatibleSearchOptions("all", section.scope, options))} className="workspace-search-show-all">
+            Show all <Icon name="arrow" />
+          </Link>
+        </section>;
+      }) : searchResultGroups(stacked).map(group => group.kind === "post" ? (
+        <PermalinkEntry key={group.key} id={group.item.id} role={role} surface="search" />
+      ) : (
+        <SearchResultList key={group.key} items={group.items} {...listProps} />
+      ))}</div>
+      {result.isFetchNextPageError && <SearchFailure error={result.error} retry={() => void result.fetchNextPage()} />}
+      {result.hasNextPage && viewScope === scope && <Button disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>Show more results</Button>}
+      {viewScope === "companies" && result.isSuccess && !!viewItems.length && (
+        <SimilarCompanies role={role} query={query} items={viewItems} options={options} followingCompanies={followingCompanies} ownCompanyId={homeCompany.data?.id} />
+      )}
+      {viewScope === "people" && result.isSuccess && !!viewItems.length && (
+        <SimilarPeople role={role} query={query} items={viewItems} options={options} followingPeople={followingPeople} ownPersonId={ownPerson?.id ?? identity.data?.id} />
+      )}
+    </div>
   </>;
 }
 
-function SearchQueryForm({ role, query, scope, options, externalError, onDraftChange }: { role: Role; query: string; scope: SearchScope; options: SearchOptions; externalError?: string; onDraftChange?: (value: string) => void }) {
-  const [error, setError] = useState(""); const router = useRouter();
-  return <><form className="workspace-search-form" noValidate data-no-floating-label onSubmit={event => {
-      event.preventDefault();
-      const parsed = scopedSearchSchema.safeParse({ role, q: String(new FormData(event.currentTarget).get("q") ?? ""), scope, ...options });
-      if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
-      setError(""); if (parsed.data.q !== query) router.push(searchPageUrl(role, parsed.data.q, scope, options));
-    }}>
-      <label className="sr-only" htmlFor="workspace-search-query">Edit search query</label>
-      <input id="workspace-search-query" type="search" name="q" defaultValue={query} maxLength={200} onChange={event => { setError(""); onDraftChange?.(event.target.value); }} aria-invalid={!!(error || externalError)} aria-describedby={error || externalError ? "workspace-search-query-error" : undefined} />
-      <Button type="submit" variant="primary" icon="search">Search</Button>
-    </form>
-    {(error || externalError) && <p id="workspace-search-query-error" role="alert">{error || externalError}</p>}
+function EmptySearchResults({ scope, context }: { scope: SearchScope; context: Omit<ComponentProps<typeof SearchResultList>, "items"> }) {
+  const services = useServices();
+  const filters = Object.fromEntries(Object.entries(context.options).filter(([key]) => filterKeysFor(scope).includes(key as never))) as SearchOptions;
+  const input = { role: context.role, q: context.query, scope, ...filters, mode: "related" as const, limit: searchSettings.relatedLimit };
+  const result = useQuery({
+    queryKey: ["workspace-search", "empty-suggestions", context.role, scope, context.query, filters],
+    queryFn: ({ signal }) => services.search.query(input, { signal }),
+    placeholderData: () => undefined,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const suggestions = result.data?.items ?? [];
+  const heading = scope === "all" ? "Suggestions for you" : scope === "skills" ? "Suggested talent" : `Suggested ${searchLabels[scope].toLowerCase()}`;
+  const suggestionContext = { ...context, options: {} };
+  return <>
+    <div className="workspace-search-empty" role="status">
+      <span className="workspace-search-empty-icon" aria-hidden="true"><Icon name="search" /></span>
+      <h2>No result!</h2>
+    </div>
+    {(result.isPending || result.isError || !!suggestions.length) && <section className="workspace-search-similar" aria-label={heading}>
+      <h2>{heading}</h2>
+      {result.isPending && result.isFetching && <div className="stack" aria-busy="true"><Skeleton style={{ height: 88 }} /><Skeleton style={{ height: 88 }} /></div>}
+      {result.isError && <SearchFailure error={result.error} retry={() => void result.refetch()} />}
+      {!!suggestions.length && (scope === "companies" ? <SuggestionCardGrid>{suggestions.map(item => <SimilarCompanyCard key={item.id} item={item} role={context.role} following={context.followingCompanies.includes(item.id)} ownCompanyId={context.ownCompanyId} />)}</SuggestionCardGrid>
+        : ["people", "talent", "skills"].includes(scope) ? <SuggestionCardGrid>{suggestions.map(item => <SimilarPersonCard key={item.id} item={item} role={context.role} following={context.followingPeople.includes(item.id)} ownPersonId={context.ownPersonId} />)}</SuggestionCardGrid>
+        : <SearchResultList items={suggestions} {...suggestionContext} />)}
+    </section>}
   </>;
 }
 
-function SearchFiltersForm({ role, query, submittedQuery, scope, options, onQueryError }: { role: Role; query: string; submittedQuery: string; scope: SearchScope; options: SearchOptions; onQueryError: (error: string) => void }) {
-  const router = useRouter(); const [errors, setErrors] = useState<Record<string,string>>({});
-  const session = useServiceQuery(["auth", "session"], services => services.auth.me(), { enabled: apiConfig.dataSource === "http" });
-  const identity = session.data?.selected_identity_id;
-  const fields = filterKeysFor(scope);
-  const removeFilter = (key: string) => {
-    const next = Object.fromEntries(Object.entries(options).filter(([name]) => name !== key));
-    const parsed = scopedSearchSchema.safeParse({ role, q: query, scope, ...next });
-    if (!parsed.success) { onQueryError(parsed.error.issues[0].message); document.getElementById("workspace-search-query")?.focus(); return; }
-    onQueryError(""); router.push(searchPageUrl(role,parsed.data.q,scope,next));
+function SimilarCompanies({ role, query, items, options, followingCompanies, ownCompanyId }: {
+  role: Role;
+  query: string;
+  items: SearchResult[];
+  options: SearchOptions;
+  followingCompanies: string[];
+  ownCompanyId?: string;
+}) {
+  const services = useServices(), hydrated = useHydrated();
+  const category = similarCompanyCategory(items, options);
+  const similarQuery = similarCompanyQuery(category, query);
+  const parsed = similarQuery ? scopedSearchSchema.safeParse({ role, q: similarQuery, scope: "companies", industry: similarQuery, limit: 8 }) : undefined;
+  const result = useQuery({
+    queryKey: ["workspace-search", "similar-companies", role, similarQuery],
+    queryFn: ({ signal }) => services.search.query({ role, q: similarQuery!, scope: "companies", industry: similarQuery, limit: 8 }, { signal }),
+    enabled: hydrated && !!parsed?.success,
+    placeholderData: () => undefined,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const seen = new Set(items.map(item => item.id));
+  const suggestions = (result.data?.items ?? []).filter(item => item.kind === "company" && !seen.has(item.id));
+  if (!suggestions.length) return null;
+  return <section className="workspace-search-similar" aria-labelledby="search-similar-companies">
+    <h2 id="search-similar-companies">Similar Companies</h2>
+    <SuggestionCardGrid>
+      {suggestions.map(item => (
+        <SimilarCompanyCard key={item.id} item={item} role={role} following={followingCompanies.includes(item.id)} ownCompanyId={ownCompanyId} />
+      ))}
+    </SuggestionCardGrid>
+  </section>;
+}
+
+function SimilarPeople({ role, query, items, options, followingPeople, ownPersonId }: {
+  role: Role;
+  query: string;
+  items: SearchResult[];
+  options: SearchOptions;
+  followingPeople: string[];
+  ownPersonId?: string;
+}) {
+  const services = useServices(), hydrated = useHydrated();
+  const category = similarPersonCategory(items, options);
+  const similarQuery = similarCompanyQuery(category, query);
+  const parsed = similarQuery ? scopedSearchSchema.safeParse({ role, q: similarQuery, scope: "people", ...(options.location ? { location: options.location } : {}), limit: 8 }) : undefined;
+  const result = useQuery({
+    queryKey: ["workspace-search", "similar-people", role, similarQuery, options.location],
+    queryFn: ({ signal }) => services.search.query({ role, q: similarQuery!, scope: "people", ...(options.location ? { location: options.location } : {}), limit: 8 }, { signal }),
+    enabled: hydrated && !!parsed?.success,
+    placeholderData: () => undefined,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const seen = new Set(items.map(item => item.id));
+  if (ownPersonId) seen.add(ownPersonId);
+  const suggestions = (result.data?.items ?? []).filter(item => (item.kind === "person" || item.kind === "talent") && !seen.has(item.id));
+  if (!suggestions.length) return null;
+  return <section className="workspace-search-similar" aria-labelledby="search-similar-people">
+    <h2 id="search-similar-people">Similar People</h2>
+    <SuggestionCardGrid>
+      {suggestions.map(item => (
+        <SimilarPersonCard key={item.id} item={item} role={role} following={followingPeople.includes(item.id)} ownPersonId={ownPersonId} />
+      ))}
+    </SuggestionCardGrid>
+  </section>;
+}
+
+function SimilarPersonCard({ item, role, following, ownPersonId }: { item: SearchResult; role: Role; following: boolean; ownPersonId?: string }) {
+  const run = useServiceAction();
+  const href = searchResultHref(role, item);
+  const follow = canFollowSearchResult(item, ownPersonId) ? async () => {
+    const id = followableId(item.id);
+    if (!id) {
+      toast("This profile cannot be followed.", "error");
+      return;
+    }
+    const next = await run((s) => s.feed.toggleFollow(role, id), { invalidate: ["network", "feed"] });
+    if (next === undefined) return;
+    track("person_followed", { personId: id, following: next });
+    toast(next ? "Following updated." : "Unfollowed.");
+  } : undefined;
+  return <SuggestionCard href={href} label={searchResultLabel(item)} name={item.title} headline={item.designation || item.subtitle} person={{ id: item.id, name: item.title, picture: item.picture }} meta={searchMetaLine([item.location, item.followerCount != null ? formatFollowers(item.followerCount) : ""]) || undefined} following={following} onFollow={follow} />;
+}
+
+function SimilarCompanyCard({ item, role, following, ownCompanyId }: { item: SearchResult; role: Role; following: boolean; ownCompanyId?: string }) {
+  const run = useServiceAction();
+  const href = searchResultHref(role, item);
+  const follow = canFollowSearchResult(item, undefined, ownCompanyId) ? async () => {
+    const id = followableId(item.id);
+    if (!id) {
+      toast("This profile cannot be followed.", "error");
+      return;
+    }
+    const next = await run((s) => s.feed.toggleFollowCompany(role, id), { invalidate: ["network", "feed"] });
+    if (next === undefined) return;
+    track("company_followed", { companyId: id, following: next });
+    toast(next ? "Following company." : "Unfollowed company.");
+  } : undefined;
+  return <SuggestionCard href={href} label={searchResultLabel(item)} name={item.title} headline={companyMetaLine(item)} person={{ id: item.id, name: item.title, picture: item.picture }} kind="company" meta={item.followerCount != null ? formatFollowers(item.followerCount) : undefined} following={following} onFollow={follow} />;
+}
+
+function SearchResultList({ items, query, role, options, ownSearch, followingPeople, followingCompanies, ownPersonId, ownCompanyId }: {
+  items: SearchResult[];
+  query: string;
+  role: Role;
+  options: SearchOptions;
+  ownSearch?: OwnSearchPerson;
+  followingPeople: string[];
+  followingCompanies: string[];
+  ownPersonId?: string;
+  ownCompanyId?: string;
+}) {
+  const jobs = useJobActions();
+  const openJob = (id: string, event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    jobs.view(id, "search");
   };
-  return <div className="workspace-search-filters" data-no-floating-label>
-    <form noValidate aria-label="Search filters" onSubmit={event => {
-      event.preventDefault(); const data = new FormData(event.currentTarget); const next: Record<string,unknown> = {};
-      for (const [key,value] of data) if (String(value).trim()) next[key] = ["days","experienceMin","experienceMax"].includes(key) ? Number(value) : String(value);
-      const parsed = scopedSearchSchema.safeParse({ role, q: query, scope, ...next });
-      if (!parsed.success) { setErrors(Object.fromEntries(parsed.error.issues.map(issue => [String(issue.path[0]),issue.message]))); const queryIssue = parsed.error.issues.find(issue => issue.path[0] === "q"); if (queryIssue) { onQueryError(queryIssue.message); document.getElementById("workspace-search-query")?.focus(); } return; }
-      setErrors({}); onQueryError(""); const url = searchPageUrl(role,parsed.data.q,scope,next as SearchOptions); if (url !== searchPageUrl(role,submittedQuery,scope,options)) router.push(url);
-    }}>
-      <label>Sort<select name="sort" defaultValue={options.sort ?? "relevance"}><option value="relevance">Relevance</option><option value="recent">Most recent</option></select></label>
-      {fields.map(key => { const choices = key === "arrangement" ? searchSettings.arrangements : key === "employment" ? searchSettings.employment : key === "discipline" ? searchSettings.disciplines : null; return <label key={key}>{filterLabels[key]}{key === "author" ? <select name="author" defaultValue={options.author ?? ""}><option value="">Anyone</option>{identity && (scope === "posts" || role === "professional") && <option value={identity}>Me</option>}{options.author && options.author !== identity && <option value={options.author}>Selected author</option>}</select> : choices ? <select name={key} defaultValue={options[key] ?? ""}><option value="">Any</option>{choices.map(value => <option key={value}>{value}</option>)}</select> : <input name={key} aria-label={filterLabels[key]} type={["days","experienceMin","experienceMax"].includes(key) ? "number" : "text"} min={key === "days" ? 1 : 0} max={key === "days" ? 365 : 60} step={key === "days" ? 1 : "any"} maxLength={100} defaultValue={options[key] ?? ""} aria-invalid={!!errors[key]} aria-describedby={errors[key] ? `filter-error-${key}` : undefined} />}{errors[key] && <span id={`filter-error-${key}`} role="alert">{errors[key]}</span>}</label>; })}
-      <Button type="submit">Apply filters</Button>
-    </form>
-    <div className="row wrap">{Object.entries(options).filter(([key]) => key !== "sort").map(([key,value]) => <button type="button" className="search-scope-badge" key={key} aria-label={`Remove ${filterLabels[key as keyof typeof filterLabels]} filter`} onClick={() => removeFilter(key)}>{filterLabels[key as keyof typeof filterLabels]}: {key === "author" ? value === identity ? "Me" : "Selected author" : value} ×</button>)}</div>
-  </div>;
+  return <ul className="workspace-search-results">{items.map(item => {
+    const resultItem = enrichOwnSearchResult(item, ownSearch);
+    return <li key={`${item.kind}:${item.id}`} className={options.selected === `${item.kind}:${item.id}` ? "is-selected" : undefined}>
+      <Link href={searchResultHref(role, item)} aria-label={searchResultLabel(item)} onClick={item.kind === "job" ? (event) => openJob(item.id, event) : undefined}>
+        <SearchResultMark result={resultItem} />
+        <span className="header-search-copy">
+          <SearchResultCopy result={resultItem} query={query} detailed={false} surface="page" />
+          {item.companyAccess === "workspace" ? <small>Visible only to your company</small> : null}
+        </span>
+      </Link>
+      <SearchFollowButton result={resultItem} role={role} followingPeople={followingPeople} followingCompanies={followingCompanies} ownPersonId={ownPersonId} ownCompanyId={ownCompanyId} />
+    </li>;
+  })}</ul>;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import {useRef,useState} from "react";
@@ -81,9 +83,9 @@ export function SettingsScreen() {
           </div>
         ))}
         <DevOnly>
-          <div className="notice" style={{ marginTop: 22 }}>
+          <InfoBadge label="Settings information" style={{ marginTop: 22 }}>
             Visibility controls demonstrate product behavior in this browser. They are not server-enforced security. Demo messages, sample analytics, CV parsing, expiry dates, and OTP are simulations.
-          </div>
+          </InfoBadge>
         </DevOnly>
         <hr className="divider" />
         <h2>{devCopy("Demo account", "Account")}</h2>

@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ProfileCollection, ProfileRecord, Professional, ProfessionalDetails, Project } from "@/types/domain";
@@ -180,7 +182,7 @@ export function RecordForm({ collection, record, details, projects }: { collecti
           Show this record on my public professional profile
         </CheckRow>
       )}
-      {collection === "careerBreaks" && <p className="notice">Optional, private by default. Sharing career-break context does not affect profile completion or ranking.</p>}
+      {collection === "careerBreaks" && <InfoBadge label="Profile privacy information">Optional, private by default. Sharing career-break context does not affect profile completion or ranking.</InfoBadge>}
       <div id="profile-form-error" aria-live="polite">
         <FormError message={error} />
       </div>
@@ -235,7 +237,7 @@ export function SectionForm({ section, person: p, details: d }: { section: Profi
           </CheckRow>
         </>
       )}
-      {["career", "personal", "diversity"].includes(section) && <p className="notice">Salary, notice period, personal details, and diversity information are private by default. Optional sensitive fields never affect completion or candidate ranking.</p>}
+      {["career", "personal", "diversity"].includes(section) && <InfoBadge label="Profile privacy information">Salary, notice period, personal details, and diversity information are private by default. Optional sensitive fields never affect completion or candidate ranking.</InfoBadge>}
       <div id="profile-form-error" aria-live="polite">
         <FormError message={error} />
       </div>

@@ -10,7 +10,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import type { FeedFilter } from "@/services/feed/feed.service";
 import { timeAgo } from "@/lib/utils/date";
-import { devCopy } from "@/lib/env/app-env";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
@@ -23,7 +22,6 @@ import { useNetworkSheet } from "@/features/feed/network-sheet";
 import { useFeedParams } from "@/features/feed/use-feed-params";
 import { openReview } from "./review-dialog";
 import { PermalinkEntry } from "@/features/feed/permalink-entry";
-import { PeopleSearch } from "@/features/feed/people-search";
 
 const TABS: [FeedFilter, string, boolean][] = [
   ["all", "For you", false],
@@ -196,7 +194,7 @@ export function RecruiterFeedScreen() {
   const highlight = useSearchParams().get("post");
   const network = useNetworkSheet();
   useFeedParams("recruiter");
-  const { data, isError, refetch } = useServiceQuery(["feed", "recruiter", feed.filter, feed.sort, feed.query, feed.visible], (s) => s.feed.getFeed({ role: "recruiter", filter: feed.filter, sort: feed.sort, q: feed.query, limit: feed.visible }));
+  const { data, isError, refetch } = useServiceQuery(["feed", "recruiter", feed.filter, feed.sort, feed.visible], (s) => s.feed.getFeed({ role: "recruiter", filter: feed.filter, sort: feed.sort, q: "", limit: feed.visible }));
   useEffect(() => {
     if (highlight && data) requestAnimationFrame(() => document.getElementById("feed-" + highlight)?.scrollIntoView({ block: "start" }));
   }, [highlight, data]);
@@ -211,22 +209,9 @@ export function RecruiterFeedScreen() {
             router.replace(filter === "reposts" ? pathname + "?view=reposts" : pathname, { scroll: false });
           }}
         />
-        {feed.query && (
-          <div className="feed-search-status">
-            Results for “{feed.query}”{" "}
-            <Button variant="text sm" icon="close" onClick={() => { setFeed({ query: "" }); router.replace(pathname, { scroll: false }); }}>
-              Clear
-            </Button>
-          </div>
-        )}
-        {feed.query && <PeopleSearch key={feed.query} role="recruiter" query={feed.query} />}
         <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
         {data && (
           <>
-            <div className="feed-results-label">
-              <span>{data.total} {feed.filter === "reposts" ? "reposts" : "posts"}</span>
-              <span>{devCopy("Your demo community", "Your community")}</span>
-            </div>
             <div className="feed-post-list">
               {highlight && !data.items.some((entry)=>entry.id===highlight) && <PermalinkEntry key={highlight} id={highlight} role="recruiter" />}
               {data.items.length ? (

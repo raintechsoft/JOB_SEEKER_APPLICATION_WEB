@@ -5,7 +5,6 @@ import { QueryFeedback } from "@/components/ui/query-view";
 import { Fragment, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FeedFilter } from "@/services/feed/feed.service";
-import { devCopy } from "@/lib/env/app-env";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Button, EmptyState } from "@/components/ui/primitives";
@@ -15,7 +14,6 @@ import { JobsPanel } from "./jobs-panel";
 import { useNetworkSheet } from "./network-sheet";
 import { useFeedParams } from "./use-feed-params";
 import { PermalinkEntry } from "./permalink-entry";
-import { PeopleSearch } from "./people-search";
 
 const TABS: [FeedFilter, string, boolean][] = [
   ["all", "For you", true],
@@ -33,7 +31,7 @@ export function ProfessionalFeedScreen() {
   const highlight = useSearchParams().get("post");
   const network = useNetworkSheet();
   useFeedParams("professional");
-  const { data, isError, refetch } = useServiceQuery(["feed", "professional", feed.filter, feed.sort, feed.query, feed.visible], (s) => s.feed.getFeed({ role: "professional", filter: feed.filter, sort: feed.sort, q: feed.query, limit: feed.visible }));
+  const { data, isError, refetch } = useServiceQuery(["feed", "professional", feed.filter, feed.sort, feed.visible], (s) => s.feed.getFeed({ role: "professional", filter: feed.filter, sort: feed.sort, q: "", limit: feed.visible }));
 
   useEffect(() => {
     if (!highlight || !data) return;
@@ -45,35 +43,17 @@ export function ProfessionalFeedScreen() {
     router.replace(filter === "reposts" ? pathname + "?view=reposts" : pathname, { scroll: false });
   };
 
-  const label = feed.filter === "jobs" ? "opportunities" : feed.filter === "saved" ? "saved posts" : feed.filter === "reposts" ? "reposts" : "posts";
   return (
     <div className="professional-feed-layout">
       <ProfileColumn />
       <section className="feed-timeline" aria-label="Professional community feed">
         <FeedToolbar tabs={TABS} onFilter={setFilter} />
-        <div id="feed-search-status">
-          {feed.query && (
-            <div className="feed-search-status">
-              Results for “{feed.query}”{" "}
-              <Button variant="text sm" icon="close" onClick={() => { setFeed({ query: "" }); router.replace(pathname, { scroll: false }); }}>
-                Clear search
-              </Button>
-            </div>
-          )}
-        </div>
-        {feed.query && <PeopleSearch key={feed.query} role="professional" query={feed.query} />}
         <div id="feed-post-list" className="feed-post-list">
           {isError && <p role="alert">The feed could not be loaded. <Button onClick={()=>void refetch()}>Try again</Button></p>}
           {highlight && data && !data.items.some((entry)=>entry.id===highlight) && <PermalinkEntry key={highlight} id={highlight} role="professional" />}
           <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
           {data && (
             <>
-              <div className="feed-results-label">
-                <span>
-                  {data.total} {label} {feed.query ? "matching “" + feed.query + "”" : ""}
-                </span>
-                <span>{devCopy("From your demo community", "From your community")}</span>
-              </div>
               {data.items.length ? (
                 data.items.map((entry, i) => (
                   <Fragment key={entry.id}>

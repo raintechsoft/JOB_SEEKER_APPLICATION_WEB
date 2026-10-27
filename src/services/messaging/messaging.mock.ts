@@ -97,7 +97,7 @@ export const mockMessagingService: MessagingService = {
 
   async listRecipients(role) {
     const db = getDb();
-    return [...db.professionals.filter(p => p.public && p.id !== mockIdentity(role)).map(personSummary), ...(role === "professional" ? [feedPerson(db, "r0")] : [])].filter(p => !blockedInMock(db, role, p.id));
+    return [...db.professionals.filter(p => p.public && p.id !== mockIdentity(role)).map(p => personSummary(p, db)), ...(role === "professional" ? [feedPerson(db, "r0")] : [])].filter(p => !blockedInMock(db, role, p.id));
   },
 
   async start(role, targetId, options = {}) {

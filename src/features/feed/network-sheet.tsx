@@ -13,6 +13,7 @@ import { Icon } from "@/components/ui/icon";
 import { Avatar, LinkButton } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import { organizationProfileHref, recruiterProfileHref } from "@/lib/routing/profiles";
 
 type Tab = "following" | "followers";
 
@@ -39,14 +40,12 @@ function NetworkPanel({ role }: { role: Role }) {
   };
 
   const personRow = (p: NetworkPerson) => {
-    const href = p.recruiter ? "/recruiters/" + p.id : role === "recruiter" ? "/recruiter/talent/" + p.id : "/professionals/" + p.slug;
+    const href = p.recruiter ? recruiterProfileHref(role, p.id) : role === "recruiter" ? "/recruiter/talent/" + p.id : "/app/professionals/" + encodeURIComponent(p.slug ?? "");
     return (
       <li className="network-row" key={p.id}>
-        <Link className="network-avatar" href={href} aria-label={`View ${p.name} profile`}>
-          <Avatar person={p} />
-        </Link>
+        {href ? <Link className="network-avatar" href={href} aria-label={`View ${p.name} profile`}><Avatar person={p} /></Link> : <span className="network-avatar"><Avatar person={p} /></span>}
         <div className="network-person">
-          <Link href={href}>{p.name}</Link>
+          {href ? <Link href={href}>{p.name}</Link> : <span>{p.name}</span>}
           <p>{p.headline}</p>
         </div>
         <button type="button" className={"btn sm network-follow " + (p.following ? "is-following" : "")} aria-label={(p.following ? "Unfollow " : "Follow ") + p.name} aria-pressed={p.following} onClick={() => follow(p.id)}>
@@ -86,18 +85,21 @@ function NetworkPanel({ role }: { role: Role }) {
         <ul className="network-list">
           {people.map(personRow)}
           {isFollowing &&
-            data.companies.map((c) => (
+            data.companies.map((c) => {
+              const href = organizationProfileHref(role, c.slug);
+              return (
               <li className="network-row" key={c.id}>
-                <CompanyAvatar company={c} />
+                {href ? <Link className="network-avatar" href={href} aria-label={"View " + c.name + " profile"}><CompanyAvatar company={c} /></Link> : <CompanyAvatar company={c} />}
                 <div className="network-person">
-                  <strong>{c.name}</strong>
+                  {href ? <Link href={href}>{c.name}</Link> : <strong>{c.name}</strong>}
                   <p>{c.industry || "Organization"}</p>
                 </div>
                 <button type="button" className="btn sm network-follow is-following" aria-label={"Unfollow " + c.name} aria-pressed="true" onClick={() => follow(c.id, true)}>
                   Following
                 </button>
               </li>
-            ))}
+              );
+            })}
         </ul>
         {!(isFollowing ? count : data.followers.length) && (
           <div className="network-empty">

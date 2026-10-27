@@ -4,7 +4,7 @@ import { safeVideoUrl } from "@/lib/utils/url";
 import { validateMedia } from "./profile";
 
 const text = (max: number) => z.string().trim().refine((v) => [...v].length <= max, `Use at most ${max} characters.`);
-export const postTextSchema = z.object({ title: text(contract.titleMax).min(1, "Add a post title."), body: text(contract.bodyMax).min(1, "Add your story.") });
+export const postTextSchema = z.object({ title: text(contract.titleMax), body: text(contract.bodyMax) });
 export const commentSchema = text(contract.commentMax).min(1, "Write a comment.");
 export const socialRoleSchema = z.enum(["professional", "recruiter"]);
 export const directVideoSchema = text(2048).refine((v) => !!safeVideoUrl(v) && !new URL(v).username && !new URL(v).password, "Use a direct HTTP or HTTPS MP4 or WebM video URL without credentials.");
@@ -18,7 +18,7 @@ export const postDraftValuesSchema = z.object({ title: text(contract.titleMax), 
   if (new Set(v.media.map((m) => m.src)).size !== v.media.length) ctx.addIssue({ code: "custom", path: ["media"], message: "Choose each media item once." });
 });
 export const postPublishSchema = z.object({ ...postTextSchema.shape, project: z.union([z.uuid(), z.literal("")]), attachments: z.array(media).max(contract.mediaMax) }).superRefine((v, ctx) => {
-  for (const [i, m] of v.attachments.entries()) if (!m.alt) ctx.addIssue({ code: "custom", path: ["attachments", i, "alt"], message: "Describe this media for accessibility." });
+  if (!v.title && !v.body && v.attachments.length === 0 && !v.project) ctx.addIssue({ code: "custom", message: "Add a title, story, or media before publishing." });
   if (new Set(v.attachments.map((m) => m.src)).size !== v.attachments.length || v.attachments.reduce((n, m) => n + (m.type === "image" ? m.bytes ?? 0 : 0), 0) > contract.totalImageBytesMax) ctx.addIssue({ code: "custom", path: ["attachments"], message: "Choose distinct media within the 2 MB image limit." });
 });
 export const socialFeedSchema = z.object({ role: socialRoleSchema, filter: z.enum(["all", "following", "jobs", "saved", "reposts"]), sort: z.enum(["recent", "popular", "recommended"]), q: text(200), limit: z.number().int().min(1).max(1000) });

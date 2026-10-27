@@ -172,7 +172,7 @@ export const mockFeedService: FeedService = {
   async searchPeople(role, q, limit) {
     const values = peopleSearchSchema.parse({ role, q, limit }), db = getDb();
     const terms = values.q.toLocaleLowerCase().split(/\s+/u);
-    const people = [...db.professionals.filter(p => p.public).map(personSummary), ...(currentRecruiter(db).profileVisibility === "Public" && db.organizationWorkspace.organization.profileVisibility === "Public" ? [feedPerson(db, RECRUITER_ID)] : [])]
+    const people = [...db.professionals.filter(p => p.public).map(p => personSummary(p, db)), ...(currentRecruiter(db).profileVisibility === "Public" && db.organizationWorkspace.organization.profileVisibility === "Public" ? [feedPerson(db, RECRUITER_ID)] : [])]
       .filter(p => p.id !== identityId(role) && !blockedInMock(db, role, p.id) && terms.every(term => `${p.name} ${p.headline}`.toLocaleLowerCase().includes(term)))
       .sort((a, b) => a.id.localeCompare(b.id));
     return { items: people.slice(0, values.limit), total: people.length, nextCursor: people.length > values.limit ? people[values.limit - 1].id : null };
@@ -182,7 +182,7 @@ export const mockFeedService: FeedService = {
     const list = filterItems(db, query);
     const page = paginate(list.map((item) => toFeedEntry(db, query.role, item)), 1, query.limit);
     const s = socialFor(db, query.role);
-    const suggestions = query.role === "professional" ? db.professionals.filter((p) => p.id !== ME_ID && p.public && !blockedInMock(db, query.role, p.id) && !s.following.includes(p.id)).slice(0, 3).map(personSummary) : [];
+    const suggestions = query.role === "professional" ? db.professionals.filter((p) => p.id !== ME_ID && p.public && !blockedInMock(db, query.role, p.id) && !s.following.includes(p.id)).slice(0, 3).map(p => personSummary(p, db)) : [];
     return { ...page, suggestions };
   },
 
@@ -220,6 +220,7 @@ export const mockFeedService: FeedService = {
     let saved = false;
     const persisted = commit((db) => {
       saved = toggleIn(graph(db, role).saved, id);
+      if (!saved && role === "professional") delete db.social.archivedSavedJobs?.[id];
     });
     return { saved, persisted };
   },

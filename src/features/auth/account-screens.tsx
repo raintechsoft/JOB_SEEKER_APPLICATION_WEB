@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/primitives";
+import { InfoBadge } from "@/components/ui/info-badge";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -23,17 +24,6 @@ import { RECOVERY_EXPIRED_MESSAGE, RECOVERY_EXPIRED_PATH } from "./recovery-expi
 export { ResetPasswordForm } from "./reset-password-form";
 
 const RESET_EMAIL_INFO = "Enter the email linked to your account. We’ll send a reset code if that account exists.";
-
-function InfoBadge({ text }: { text: string }) {
-  return (
-    <span className="auth-info-badge">
-      <button type="button" aria-label={text}>
-        <span aria-hidden="true">i</span>
-      </button>
-      <span role="tooltip">{text}</span>
-    </span>
-  );
-}
 
 export function AccountPanel({
   eyebrow,
@@ -62,7 +52,7 @@ export function AccountPanel({
               {info ? (
                 <div className="auth-heading-line">
                   <h1>{title}</h1>
-                  <InfoBadge text={info} />
+                  <InfoBadge label="Account recovery information">{info}</InfoBadge>
                 </div>
               ) : (
                 <h1>{title}</h1>

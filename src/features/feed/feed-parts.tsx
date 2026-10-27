@@ -10,12 +10,14 @@ import type { PersonSummary } from "@/types/api";
 import type { Role } from "@/types/domain";
 import type { FeedFilter } from "@/services/feed/feed.service";
 import { track } from "@/lib/analytics";
+import { formatFollowers } from "@/lib/utils/text";
 import { apiConfig } from "@/services/api/config";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
-import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
+import { Avatar, LinkButton } from "@/components/ui/primitives";
+import { SuggestionCard, SuggestionCardGrid } from "@/components/suggestions/suggestion-card";
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingSelect } from "@/components/ui/field";
 import { Heatmap } from "@/components/work/pulse";
@@ -165,29 +167,25 @@ export function NetworkPrompt({ people }: { people: PersonSummary[] }) {
         </div>
         <Icon name="users" />
       </div>
-      <div className="feed-network-people">
+      <SuggestionCardGrid>
         {people.map((p) => (
-          <div key={p.id}>
-            <Link href={"/professionals/" + p.slug} aria-label={"View " + p.name + " profile"}>
-              <Avatar person={p} size="lg" />
-            </Link>
-            <Link href={"/professionals/" + p.slug}>{p.name}</Link>
-            <p>{p.headline}</p>
-            <Button
-              variant="sm"
-              icon="plus"
-              onClick={async () => {
-                const following = await run((s) => s.feed.toggleFollow("professional", p.id));
-                if (following === undefined) return;
-                track("person_followed", { personId: p.id, following });
-                toast("Following updated.");
-              }}
-            >
-              Follow
-            </Button>
-          </div>
+          <SuggestionCard
+            key={p.id}
+            href={"/app/professionals/" + encodeURIComponent(p.slug ?? "")}
+            label={"View " + p.name + " profile"}
+            name={p.name}
+            headline={p.headline}
+            person={p}
+            meta={p.followerCount != null ? formatFollowers(p.followerCount) : undefined}
+            onFollow={async () => {
+              const following = await run((s) => s.feed.toggleFollow("professional", p.id));
+              if (following === undefined) return;
+              track("person_followed", { personId: p.id, following });
+              toast("Following updated.");
+            }}
+          />
         ))}
-      </div>
+      </SuggestionCardGrid>
       <button type="button" className="feed-network-all" onClick={() => network.open("professional")}>
         Explore people & companies <Icon name="arrow" />
       </button>

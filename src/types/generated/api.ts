@@ -1078,10 +1078,10 @@ export interface paths {
         get: operations["phase4_get__me_saved_jobs"];
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["phase4_delete__me_saved_jobs"];
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["phase4_patch__me_saved_jobs"];
         trace?: never;
     };
     "/me/applications": {
@@ -1507,6 +1507,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Exact results and header suggestions retain normal matching and filters. mode=related returns at most 6 separate discovery suggestions, with null total/cursor: shared terms and filters first, then eligible same-category records if no filtered candidates exist. Visibility and role gates never relax. Related mode rejects selected/cursor and limits above 6. */
         get: operations["phase5_get__me_social_identity_search"];
         put?: never;
         post?: never;
@@ -3744,6 +3745,7 @@ export interface components {
             industry?: string;
             logoUrl?: string;
             confidential?: boolean;
+            followerCount?: number;
         };
         HiringJob: {
             /** Format: uuid */
@@ -3852,6 +3854,21 @@ export interface components {
             /** Format: uuid */
             idempotencyKey: string;
         };
+        ApplicationCounts: {
+            all: number;
+            inProgress: number;
+            other: number;
+            statuses: {
+                Applied: number;
+                "In review": number;
+                Shortlisted: number;
+                Interview: number;
+                Offer: number;
+                Hired: number;
+                Rejected: number;
+                Withdrawn: number;
+            };
+        };
         JobRef: {
             /** Format: uuid */
             id: string;
@@ -3882,7 +3899,11 @@ export interface components {
             }[];
             createdAt: string;
             /** @enum {string} */
-            status: "Applied" | "In review" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+            status: "Applied" | "In review" | "Shortlisted" | "Interview" | "Offer" | "Hired" | "Rejected" | "Withdrawn";
+            /** @enum {string} */
+            trackingStatus: "Applied" | "In review" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+            /** @enum {string} */
+            statusSource: "tracking" | "employer" | "withdrawn";
             trackingNote: string;
             followUp: string;
             updatedAt: string;
@@ -4361,6 +4382,24 @@ export interface components {
             emails?: string[];
             note?: string;
         };
+        SavedJob: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            companyId: string;
+            companyName: string;
+            location: string;
+            arrangement: string;
+            employment: string;
+            salary: string;
+            description: string;
+            companyLogo: string;
+            confidential: boolean;
+            postedAt: string | null;
+            archivedAt: string | null;
+            acceptingApplications: boolean;
+            application: components["schemas"]["PersonalApplication"] | null;
+        };
         SocialPerson: {
             /** Format: uuid */
             id: string;
@@ -4370,6 +4409,7 @@ export interface components {
             color: string;
             slug?: string;
             recruiter?: boolean;
+            followerCount?: number;
         };
         SocialMedia: {
             /** @enum {string} */
@@ -4499,6 +4539,7 @@ export interface components {
                 color: string;
                 slug?: string;
                 recruiter?: boolean;
+                followerCount?: number;
                 following: boolean;
             }[];
             followers: {
@@ -4510,6 +4551,7 @@ export interface components {
                 color: string;
                 slug?: string;
                 recruiter?: boolean;
+                followerCount?: number;
                 following: boolean;
             }[];
             companies: components["schemas"]["HiringCompany"][];
@@ -4545,6 +4587,12 @@ export interface components {
             recruiter: boolean;
             ownerId: string | null;
             companyAccess: ("public" | "workspace") | null;
+            designation?: string;
+            bio?: string;
+            location?: string;
+            industry?: string;
+            companyName?: string;
+            followerCount?: number;
         };
         WorkspaceSearchPage: {
             items: components["schemas"]["WorkspaceSearchResult"][];
@@ -6966,6 +7014,7 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
+                state?: "active" | "archived" | "all";
             };
             header?: {
                 /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
@@ -6983,21 +7032,67 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: {
-                            /** Format: uuid */
-                            id: string;
-                            title: string;
-                            companyId: string;
-                            companyName: string;
-                            location: string;
-                            arrangement: string;
-                            employment: string;
-                            salary: string;
-                            description: string;
-                            application: components["schemas"]["PersonalApplication"] | null;
-                        }[];
+                        data: components["schemas"]["SavedJob"][];
                     };
                 };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase4_delete__me_saved_jobs: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase4_patch__me_saved_jobs: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    ids: string[];
+                    /** @enum {string} */
+                    action: "archive" | "restore";
+                };
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Error"];
         };
@@ -7006,7 +7101,7 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
-                status?: "Applied" | "In review" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+                status?: "Applied" | "In review" | "Shortlisted" | "Interview" | "Offer" | "Hired" | "Rejected" | "Withdrawn" | "in-progress" | "other";
             };
             header?: {
                 /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
@@ -7025,6 +7120,9 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["PersonalApplication"][];
+                        meta: {
+                            counts: components["schemas"]["ApplicationCounts"];
+                        };
                     };
                 };
             };
@@ -8085,14 +8183,17 @@ export interface operations {
                 q: string;
                 scope?: "all" | "posts" | "companies" | "people" | "jobs" | "updates" | "talent" | "skills" | "projects";
                 sort?: "relevance" | "recent";
-                mode?: "results" | "suggestions";
+                mode?: "results" | "suggestions" | "related";
                 limit?: number;
                 cursor?: string;
+                selected?: string;
                 location?: string;
                 industry?: string;
                 skill?: string;
                 author?: string;
                 days?: number;
+                contentType?: "text" | "image" | "video" | "project";
+                companyType?: "Privately held" | "Public company" | "Nonprofit" | "Government" | "Partnership" | "Self-employed" | "Other";
                 experienceMin?: number;
                 experienceMax?: number;
                 arrangement?: "On-site" | "Hybrid" | "Remote";

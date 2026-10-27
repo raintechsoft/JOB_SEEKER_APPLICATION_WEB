@@ -34,8 +34,8 @@ export function EditPost({ entry, role }: { entry: FeedEntry; role: Role }) {
     >
       {errors._form && <p role="alert" className="error">{errors._form}</p>}
       <fieldset disabled={pending} className="contents">
-      <TextField label={recruiter ? "Title" : "Post title"} name="title" defaultValue={entry.title} required maxLength={150} error={errors.title} />
-      <TextAreaField label={recruiter ? "Your post" : "Your story"} name="body" defaultValue={entry.body} required maxLength={3000} error={errors.body} />
+      <TextField label={recruiter ? "Title" : "Post title"} name="title" defaultValue={entry.title} maxLength={150} error={errors.title} />
+      <TextAreaField label={recruiter ? "Your post" : "Your story"} name="body" defaultValue={entry.body} maxLength={3000} error={errors.body} />
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
         <Button type="submit" variant="primary" loading={pending}>

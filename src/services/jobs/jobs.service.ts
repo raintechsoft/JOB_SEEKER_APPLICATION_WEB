@@ -24,7 +24,7 @@ export interface ApplyInput {
 export type JobAlertInput = Omit<JobAlert, "id"> & { id?: Id };
 
 export interface JobsService {
-  listOpportunities?(query:import("@/lib/validation/search").JobSearchInput):Promise<{items:{job:Job;company:CompanySummary;saved?:boolean}[];total:number}>;
+  listOpportunities(query:import("@/lib/validation/search").JobSearchInput):Promise<{items:{job:Job;company:CompanySummary;saved?:boolean}[];total:number}>;
   toggleSave?(id: Id): Promise<{ saved: boolean; persisted?: boolean }>;
   getJob(id: Id, role: Role): Promise<JobDetail | null>;
   markSeen(id: Id): Promise<boolean>;

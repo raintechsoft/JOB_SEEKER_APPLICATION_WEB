@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PostDraft, Project, Role } from "@/types/domain";
@@ -21,6 +23,7 @@ import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { ScreenError, ScreenFallback } from "@/components/ui/feedback";
 import { FeedCard } from "@/features/feed/feed-card";
+import { MediaImage } from "@/components/ui/media-image";
 
 const STEPS = ["Post details", "Media & project", "Review & publish"];
 const STEP_COPY = ["Start with the story you want to share.", "Bring your story to life with media and a project.", "Take one last look before publishing."];
@@ -66,6 +69,7 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
   const [creationKey] = useState(() => crypto.randomUUID());
   const [saveStatus, setSaveStatus] = useState(devCopy("Your draft stays in this browser.", "Your draft is saved as you write."));
   const fileInput = useRef<HTMLInputElement>(null);
+  const localPreviews = useRef<Record<string, string>>({});
   const home = role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard";
   const publicProjects = projects.filter((p) => p.visibility === "Public");
 
@@ -87,6 +91,9 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
     const timer = window.setTimeout(() => void persist(d), 700);
     return () => window.clearTimeout(timer);
   }, [d, persist, real]);
+  useEffect(() => () => {
+    for (const url of Object.values(localPreviews.current)) URL.revokeObjectURL(url);
+  }, []);
   const update = (patch: Partial<PostDraft>) => {
     const next = { ...d, ...patch };
     latestDraft.current = next;
@@ -101,10 +108,10 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
     if (n > d.step) {
       const text = postTextSchema.safeParse(d);
       if (!text.success) { setError(text.error.issues[0].message); return; }
-      if (real && n === 2) {
+      if (n === 2) {
         const parsed = postPublishSchema.safeParse({ ...d, attachments: d.media });
         if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
-        if(d.videoUrl.trim()) { setError("Add the pending video or clear its URL before reviewing."); return; }
+        if (d.videoUrl.trim()) { setError("Add the pending video or clear its URL before reviewing."); return; }
       }
     }
     setError("");
@@ -136,7 +143,14 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
     setBusy(true);
     setError("");
     try {
-      const items = await Promise.all(files.map(async (file) => ({ type: "image" as const, src: real ? (await services.media.upload(file, "post_image")).url : await readImage(file), alt: "", name: file.name, bytes: file.size })));
+      const items = await Promise.all(files.map(async (file) => {
+        const src = real ? (await services.media.upload(file, "post_image")).url : await readImage(file);
+        if (real) {
+          if (localPreviews.current[src]) URL.revokeObjectURL(localPreviews.current[src]);
+          localPreviews.current[src] = URL.createObjectURL(file);
+        }
+        return { type: "image" as const, src, alt: "", name: file.name, bytes: file.size };
+      }));
       const next = { ...d, media: [...d.media, ...items] };
       latestDraft.current = next;
       setD(next);
@@ -151,10 +165,6 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
     if (busy || publishing.current) return;
     const details = postTextSchema.safeParse(d);
     if (!details.success) { setError(details.error.issues[0].message); return; }
-    if (!d.title.trim() || !d.body.trim()) {
-      setError("Add a post title and your story to continue.");
-      return update({ step: 0 });
-    }
     if (d.title.length > 150 || d.body.length > 3e3) {
       setError("Keep the title under 150 characters and the story under 3000 characters.");
       return update({ step: 0 });
@@ -166,7 +176,7 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
       draft = withVideo;
     }
     if (draft.step < 2) {
-      if (real && draft.step === 1) {
+      if (draft.step === 1) {
         const result = postPublishSchema.safeParse({ ...draft, attachments: draft.media });
         if (!result.success) { setError(result.error.issues[0].message); return; }
       }
@@ -175,11 +185,9 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
       window.scrollTo(0, 0);
       return;
     }
-    if (real) {
-      const parsed = postPublishSchema.safeParse({ ...draft, attachments: draft.media });
-      if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
-      if (draft.videoUrl.trim()) { setError("Add the pending video or clear its URL before publishing."); return; }
-    }
+    const parsed = postPublishSchema.safeParse({ ...draft, attachments: draft.media });
+    if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
+    if (draft.videoUrl.trim()) { setError("Add the pending video or clear its URL before publishing."); return; }
     publishing.current = true; setBusy(true);
     const signature = JSON.stringify([draft.title,draft.body,draft.project,draft.media]);
     if (real && publicationAttempt.current !== signature && !(await persist(draft))) { publishing.current = false; setBusy(false); return; }
@@ -224,8 +232,10 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
             <span>
               STEP {d.step + 1} OF {STEPS.length}
             </span>
-            <h2>{STEPS[d.step]}</h2>
-            <p>{STEP_COPY[d.step]}</p>
+            <div className="wizard-stage-title-row">
+              <h2>{STEPS[d.step]}</h2>
+              {real && <InfoBadge label="Post visibility information">Published posts follow your profile visibility. Keep your profile public to share them with the community.</InfoBadge>}
+            </div>
           </div>
           <form
             id="post-editor-form"
@@ -236,7 +246,6 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
               void submit();
             }}
           >
-            {real && <p className="notice">Published posts follow your profile visibility. Keep your profile public to share them with the community.</p>}
             {error && (
               <p className="error post-editor-error" role="alert">
                 {error}
@@ -252,9 +261,8 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
                     <p className="small muted">{identity.headline}</p>
                   </div>
                 </div>
-                <TextField label="Post title" name="title" value={d.title} onChange={(e) => update({ title: e.target.value })} required maxLength={150} />
-                <TextAreaField label="Your story" name="body" value={d.body} onChange={(e) => update({ body: e.target.value })} required maxLength={3000} rows={9} />
-                <p className="small muted">Share a team update, a learning, or something you’re working on.</p>
+                <TextField label="Post title" name="title" value={d.title} onChange={(e) => update({ title: e.target.value })} maxLength={150} />
+                <TextAreaField label="Your story" name="body" value={d.body} onChange={(e) => update({ body: e.target.value })} maxLength={3000} rows={9} />
               </>
             )}
             {d.step === 1 && (
@@ -278,10 +286,9 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
                   />
                   <ol className="post-media-grid" aria-label="Selected media in publishing order">
                     {d.media.map((m, i) => (
-                      <li className="post-media-tile" title={m.name || "Video"} key={i}>
+                      <li className="post-media-tile" title={m.name || "Video"} key={m.src}>
                         {m.type === "image" ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- selected media data URL
-                          <img src={m.src} alt={m.alt || m.name || "Selected image"} />
+                          <MediaImage src={localPreviews.current[m.src] || m.src} alt={m.alt || ""} fallback={<span className="media-fallback" aria-hidden><Icon name="image" /></span>} />
                         ) : (
                           <span className="post-tile-video">
                             <Icon name="monitor" />
@@ -291,7 +298,14 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
                         <span className="post-media-position" aria-label={"Position " + (i + 1)}>
                           {i + 1}
                         </span>
-                        <button type="button" className="post-media-remove" aria-label={"Remove " + (m.name || "video")} title="Remove media" onClick={() => update({ media: d.media.filter((_, n) => n !== i) })}>
+                        <button type="button" className="post-media-remove" aria-label={"Remove " + (m.name || "video")} title="Remove media" onClick={() => {
+                          const removed = d.media[i];
+                          if (removed && localPreviews.current[removed.src]) {
+                            URL.revokeObjectURL(localPreviews.current[removed.src]);
+                            delete localPreviews.current[removed.src];
+                          }
+                          update({ media: d.media.filter((_, n) => n !== i) });
+                        }}>
                           <Icon name="close" />
                         </button>
                       </li>
@@ -306,18 +320,6 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
                     )}
                   </ol>
                   <p className="post-upload-help">Up to 5 media items. PNG, JPEG or WebP, 1 MB per image and 2 MB total. New selections are added at the end.</p>
-                  {d.media.length > 0 && (
-                    <details className="post-media-descriptions">
-                      <summary>
-                        Media descriptions <span>{real ? "(required before publishing)" : "(optional)"}</span>
-                      </summary>
-                      <div>
-                        {d.media.map((m, i) => (
-                          <TextField key={i} label={"Media " + (i + 1) + " description"} name={"mediaAlt" + i} value={m.alt || ""} maxLength={300} required={real} onChange={(e) => update({ media: d.media.map((x, n) => (n === i ? { ...x, alt: e.target.value } : x)) })} />
-                        ))}
-                      </div>
-                    </details>
-                  )}
                 </div>
                 <div className="post-video-add">
                   <TextField label="Direct video URL (optional)" name="videoUrl" type="url" value={d.videoUrl} onChange={(e) => update({ videoUrl: e.target.value })} />
@@ -343,8 +345,8 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
                     <Icon name="check" />
                     <div>
                       <strong>Your story</strong>
-                      <p>{d.title}</p>
-                      <span>{d.body.length} / 3000 characters</span>
+                      <p>{d.title.trim() || "No title"}</p>
+                      <span>{d.body.trim() ? `${d.body.length} / 3000 characters` : "No story"}</span>
                     </div>
                     <Button variant="text sm" icon="edit" onClick={() => go(0)}>
                       Edit
@@ -366,7 +368,7 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
                   </div>
                 </div>
                 <DevOnly>
-                  <p className="notice">Your post will appear in the public demo feed in this browser. It won’t be sent to an external social network.</p>
+                  <InfoBadge label="Publishing information">Your post will appear in the public demo feed in this browser. It won’t be sent to an external social network.</InfoBadge>
                 </DevOnly>
               </>
             )}
@@ -396,7 +398,7 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
               {d.step === 2 ? devCopy("Publish demo post", "Publish post") : "Next"}
             </Button>
           </div>
-          <p className="small muted post-editor-footer-note">{busy ? "Adding your media…" : "Progress is saved as you write."}</p>
+          <p className="small muted post-editor-footer-note">{busy && "Adding your media…" }</p>
         </section>
         <aside className="post-preview-column" aria-label="Live post preview">
           <div className="post-preview-heading">
@@ -404,7 +406,6 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
               <Icon name="eye" />
               Live preview
             </span>
-            <span>Only you can see this</span>
           </div>
           <div
             id="post-live-preview"
@@ -416,7 +417,7 @@ function Editor({ role, initial, identity, projects, projectsLoading = false }: 
           >
             <FeedCard entry={previewEntry(d, identity, projects)} role={role} noTracking />
           </div>
-          <p className="post-preview-note">A quick look at your post in the feed. Browse every media item before publishing.</p>
+
         </aside>
       </div>
     </div>

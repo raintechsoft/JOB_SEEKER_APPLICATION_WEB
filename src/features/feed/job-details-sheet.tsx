@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +12,7 @@ import { splitJobAbout, toBulletItems } from "@/lib/domain/job-description";
 import { jobAlertSchema } from "@/services/jobs/jobs.http";
 import { track } from "@/lib/analytics";
 import { HOUR_MS } from "@/lib/utils/date";
+import { formatFollowers } from "@/lib/utils/text";
 import { devCopy } from "@/lib/env/app-env";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
@@ -19,6 +22,7 @@ import { Badge, Button, LinkButton, Tags } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { DevOnly } from "@/components/ui/dev-only";
 import { toast } from "@/stores/toast-store";
+import { organizationProfileHref } from "@/lib/routing/profiles";
 
 const ABOUT_PREVIEW = 220;
 
@@ -32,10 +36,6 @@ function postedLabel(value: IsoDateTime) {
 
 function jobShareUrl(id: Id) {
   return window.location.origin + devCopy("/app/dashboard?post=" + encodeURIComponent(id), "/jobs/" + encodeURIComponent(id));
-}
-
-function formatFollowers(count: number) {
-  return count.toLocaleString() + (count === 1 ? " follower" : " followers");
 }
 
 function useCompanyFollow(role: Role, companyId: Id, enabled: boolean) {
@@ -127,7 +127,7 @@ function CompanyIdentity({
   ownedByViewer: boolean;
   onSave: () => void;
 }) {
-  const href = !company.confidential && company.slug ? "/organizations/" + encodeURIComponent(company.slug) : "";
+  const href = organizationProfileHref(role, company.confidential ? undefined : company.slug) ?? "";
   return (
     <div className="job-sheet-company">
       <div className="job-sheet-company-identity">
@@ -398,7 +398,7 @@ function AboutCompany({
   const { following, toggle } = useCompanyFollow(role, company.id, canFollow);
   const description = (company.description || fallbackDescription).trim();
   const facts = [company.industry, company.companySize].filter(Boolean);
-  const href = !company.confidential && company.slug ? "/organizations/" + encodeURIComponent(company.slug) : "";
+  const href = organizationProfileHref(role, company.confidential ? undefined : company.slug) ?? "";
   const name = href ? <Link href={href}>{company.name}</Link> : <strong>{company.name}</strong>;
   return (
     <section className="job-sheet-about-company" aria-labelledby="job-sheet-about-company-title">
@@ -448,11 +448,11 @@ export function JobDetailsSideSheet({ id, role, onApply, onSave }: { id: Id; rol
       {role === "professional" && (
         <DevOnly>
           <Badge tone="purple">Fictional demo opportunity</Badge>
-          <p className="notice">
+          <InfoBadge label="Job preview information">
             {application
               ? "Your demo application is saved in this browser. It has not been sent to this fictional company."
               : "Fictional role and salary. Applying saves a local demonstration; no real application is submitted."}
-          </p>
+          </InfoBadge>
         </DevOnly>
       )}
     </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import type { Id, JobAlert } from "@/types/domain";
 import {useState} from "react";
 import {jobAlertSchema} from "@/services/jobs/jobs.http";
@@ -64,7 +66,7 @@ function AlertEditor({ alert }: { alert: JobAlert | null }) {
         Keep this alert active
       </label>
       <DevOnly>
-        <p className="notice">Alerts filter the fictional jobs in this browser. They don’t send email or monitor external job boards.</p>
+        <InfoBadge label="Job alert information">Alerts filter the fictional jobs in this browser. They don’t send email or monitor external job boards.</InfoBadge>
       </DevOnly>
       <div className="modal-footer">
         {alert && (

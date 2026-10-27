@@ -21,7 +21,7 @@ export function PublicJobScreen({id}:{id:string}){
 
 export function OpportunitiesScreen(){
   const [filters,setFilters]=useState<JobSearchInput>({q:"",page:1}),[errors,setErrors]=useState<Record<string,string>>({});
-  const {data,isPending,isError,refetch}=useServiceQuery(["job-opportunities",filters],async(s)=>{if(!s.jobs.listOpportunities)throw new Error("Job browsing requires the connected API.");return s.jobs.listOpportunities(filters);},{keepPreviousData:false});
+  const {data,isPending,isError,refetch}=useServiceQuery(["job-opportunities",filters],(s)=>s.jobs.listOpportunities(filters),{keepPreviousData:false});
   const submit=(e:React.FormEvent<HTMLFormElement>)=>{
     e.preventDefault();const form=e.currentTarget,values=new FormData(form);const input:Record<string,unknown>={q:String(values.get("q")??""),page:1};
     for(const key of ["location","skill","arrangement","employment","currency"]){const value=String(values.get(key)??"").trim();if(value)input[key]=value;}

@@ -4,6 +4,7 @@ import { PORTRAITS } from "@/mocks/data/professionals";
 import { cn, initials } from "@/lib/utils/text";
 import { Icon, type IconName } from "./icon";
 import { MediaImage } from "./media-image";
+import { InfoBadge } from "./info-badge";
 export { Button, IconButton } from "./button";
 
 export function Brand({ href = "/" }: { href?: string }) {
@@ -108,9 +109,5 @@ export function PageHeading({ title, subtitle, actions }: { title: ReactNode; su
 }
 
 export function Notice({ children, style, className }: { children: ReactNode; style?: React.CSSProperties; className?: string }) {
-  return (
-    <p className={cn("notice", className)} style={style}>
-      {children}
-    </p>
-  );
+  return <InfoBadge style={style} className={className}>{children}</InfoBadge>;
 }

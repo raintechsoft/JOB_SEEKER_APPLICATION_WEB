@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import Link from "next/link";
@@ -255,7 +257,7 @@ function AiFilterForm({ q }: { q: ResponseParams }) {
         <input type="checkbox" name="shortlist" defaultChecked />
         Automatically shortlist matching New / In review responses
       </label>
-      <p className="notice">This uses transparent keyword matching, not an assessment of candidate ability. Match reasons are shown on each result. Rejected, hired, and interview decisions are preserved.</p>
+      <InfoBadge label="Recruiting information">This uses transparent keyword matching, not an assessment of candidate ability. Match reasons are shown on each result. Rejected, hired, and interview decisions are preserved.</InfoBadge>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
         <Button type="submit" variant="primary">
@@ -311,7 +313,7 @@ function ContactDialog({ item }: { item: ResponseItem }) {
       <TextField label="Application email" name="email" defaultValue={p.email} readOnly />
       {p.phone ? <TextField label="Shared phone number" name="phone" defaultValue={p.phone} readOnly /> : <p className="small muted">Phone number not shared with this application.</p>}
       <DevOnly>
-        <p className="notice">These are fictional or applicant-supplied demo details. No call or email is sent.</p>
+        <InfoBadge label="Recruiting information">These are fictional or applicant-supplied demo details. No call or email is sent.</InfoBadge>
       </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Close</Button>
@@ -346,7 +348,7 @@ function OutreachForm({ ids, names }: { ids: Id[]; names: string[] }) {
       {Object.entries(errors).map(([key,error])=><p role="alert" key={key}>{key}: {error}</p>)}
       <TextField label="Subject" name="subject" required maxLength={150} disabled={pending}/>
       <TextAreaField label="Message draft" name="message" required maxLength={3000} disabled={pending}/>
-      <p className="notice">{devCopy("This saves a local draft only. It does not send email.","Save a draft first, then review recipients and explicitly queue delivery.")}</p>
+      <InfoBadge label="Recruiting information">{devCopy("This saves a local draft only. It does not send email.","Save a draft first, then review recipients and explicitly queue delivery.")}</InfoBadge>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
         <Button type="submit" variant="primary" loading={pending} disabled={pending}>
@@ -484,7 +486,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
 
 function SubmittedProfile({item}:{item:ResponseItem}){
   const {profile:p,application:a,portfolio}=item;
-  return <div className="stack"><div className="row"><Avatar person={p} size="lg"/><div><h2>{p.name}</h2><p>{p.headline}</p></div></div><p className="notice">Submitted with this application on {formatLongDate(a.createdAt.slice(0,10))}. This copy retains what the applicant shared at submission.</p><p>{p.location} · {p.years} years of experience</p><p style={{whiteSpace:"pre-line"}}>{p.summary}</p><p>{p.skills.join(" · ")}</p><h3>Experience</h3><p style={{whiteSpace:"pre-line"}}>{p.experience||"Not provided"}</p><h3>Education</h3><p style={{whiteSpace:"pre-line"}}>{p.educationText||"Not provided"}</p><h3>Shared contact and recruitment details</h3><p>{p.email}{p.phone?" · "+p.phone:""}</p><p>Expected salary: {p.expectedSalary===null?"Not shared":p.expectedSalary+" LPA"} · Notice: {p.notice===null?"Not shared":p.notice+" days"}</p>{portfolio&&<><h3>Included portfolio</h3>{portfolio.person.summary&&<p>{portfolio.person.summary}</p>}{portfolio.projects.map((project)=><section className="card stack" style={{padding:16}} key={project.id}>{project.cover&&<Image src={project.cover} width={400} height={240} unoptimized alt={project.title} style={{maxWidth:"100%",height:"auto"}}/>}<h4>{project.title}</h4><p>{project.description}</p><p>{project.contribution}</p><p>{project.skills.join(" · ")}</p></section>)}{portfolio.updates.map((update)=><section key={update.id}><h4>{update.title}</h4><p>{update.description}</p></section>)}</>}<div className="modal-footer"><Button onClick={()=>modal.close()}>Close</Button><Button variant="primary" onClick={()=>openReview(a.id)}>Review application</Button></div></div>;
+  return <div className="stack"><div className="row"><Avatar person={p} size="lg"/><div><h2>{p.name}</h2><p>{p.headline}</p></div></div><InfoBadge label="Submitted application information">Submitted with this application on {formatLongDate(a.createdAt.slice(0,10))}. This copy retains what the applicant shared at submission.</InfoBadge><p>{p.location} · {p.years} years of experience</p><p style={{whiteSpace:"pre-line"}}>{p.summary}</p><p>{p.skills.join(" · ")}</p><h3>Experience</h3><p style={{whiteSpace:"pre-line"}}>{p.experience||"Not provided"}</p><h3>Education</h3><p style={{whiteSpace:"pre-line"}}>{p.educationText||"Not provided"}</p><h3>Shared contact and recruitment details</h3><p>{p.email}{p.phone?" · "+p.phone:""}</p><p>Expected salary: {p.expectedSalary===null?"Not shared":p.expectedSalary+" LPA"} · Notice: {p.notice===null?"Not shared":p.notice+" days"}</p>{portfolio&&<><h3>Included portfolio</h3>{portfolio.person.summary&&<p>{portfolio.person.summary}</p>}{portfolio.projects.map((project)=><section className="card stack" style={{padding:16}} key={project.id}>{project.cover&&<Image src={project.cover} width={400} height={240} unoptimized alt={project.title} style={{maxWidth:"100%",height:"auto"}}/>}<h4>{project.title}</h4><p>{project.description}</p><p>{project.contribution}</p><p>{project.skills.join(" · ")}</p></section>)}{portfolio.updates.map((update)=><section key={update.id}><h4>{update.title}</h4><p>{update.description}</p></section>)}</>}<div className="modal-footer"><Button onClick={()=>modal.close()}>Close</Button><Button variant="primary" onClick={()=>openReview(a.id)}>Review application</Button></div></div>;
 }
 
 const validBulkSelection=(ids:Id[])=>{if(!ids.length||ids.length>100||new Set(ids).size!==ids.length){toast("Choose 1–100 distinct records for this action.");return false;}return true;};

@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { usePathname,useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {apiConfig} from "@/services/api/config";
@@ -135,7 +137,7 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
         {devCopy("Include my current portfolio in this demo application", "Include my current portfolio in this application")}
       </label>
       <DevOnly>
-        <p className="notice">This fictional application is saved only in your browser. No CV, profile, or message is sent to an employer.</p>
+        <InfoBadge label="Application sharing information">This fictional application is saved only in your browser. No CV, profile, or message is sent to an employer.</InfoBadge>
       </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
