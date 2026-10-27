@@ -83,5 +83,6 @@ body.professional-theme .explore-jobs-layout,
 @media (max-width: 680px) {
   body.professional-theme .explore-jobs-layout,
   .explore-jobs-layout { grid-template-columns: minmax(0, 1fr); max-width: 550px; margin: auto; }
-  .explore-jobs-main { grid-column: 1; }
+  .explore-jobs-layout > .feed-profile-column { grid-column: 1; grid-row: 1; }
+  .explore-jobs-main { grid-column: 1; grid-row: 2; }
 }

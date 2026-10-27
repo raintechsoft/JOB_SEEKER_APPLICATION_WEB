@@ -102,8 +102,12 @@ function SearchResults({ role, query, scope, options }: { role: Role; query: str
   const changeCategory = (next: SearchScope) => {
     if (navigating) return;
     if (!scopesFor(role).includes(next)) return;
-    const nextOptions = next === "all" ? withoutSearchSelection(compatibleSearchOptions(scope, next, options)) : compatibleSearchOptions(scope, next, options);
-    if (next === viewScope && next !== "all") return;
+    const selectedKind = options.selected?.split(":")[0];
+    const keepSelected = !!selectedKind && next !== "all" && searchKindScope(selectedKind) === next;
+    const nextOptions = keepSelected
+      ? compatibleSearchOptions(scope, next, options)
+      : withoutSearchSelection(compatibleSearchOptions(scope, next, options));
+    if (next === scope && next === viewScope) return;
     const parsed = scopedSearchSchema.safeParse({ role, q: query, scope: next, ...nextOptions });
     if (!parsed.success) return;
     navigate(searchPageUrl(role, parsed.data.q, next, nextOptions));

@@ -82,7 +82,8 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
     const nextOptions: SearchOptions = selected
       ? { ...compatibleSearchOptions(category, resultsScope, withoutSearchSelection(options)), selected: `${selected.kind}:${selected.id}` }
       : withoutSearchSelection(options);
-    const valid = scopedSearchSchema.safeParse({ role, q: text, scope: resultsScope, limit: 10, ...nextOptions }).success;
+    let valid = false;
+    try { valid = scopedSearchSchema.safeParse({ role, q: text, scope: resultsScope, limit: 10, ...nextOptions }).success; } catch { valid = false; }
     if (!valid) { setError("Choose a search category available in this workspace."); return; }
     if (!selected) setRecent(rememberSearch(scope, text, scope ? readRecentSearches(scope) : recent));
     setValue(text); setError(undefined); setOpen(false); setActive(-1);

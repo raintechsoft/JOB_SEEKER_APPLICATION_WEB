@@ -43,7 +43,7 @@ function ExploreJobCard({ job, onView }: { job: ExploreJob; onView: (id: string)
         <span className="explore-job-copy">
           <strong>{job.title}</strong>
           {line ? <span className="explore-job-meta">{line}</span> : null}
-          <time dateTime={posted}>Posted {formatDay(posted)}</time>
+          {posted ? <time dateTime={posted}>Posted {formatDay(posted)}</time> : null}
         </span>
       </button>
     </li>
@@ -82,18 +82,20 @@ export function ExploreJobsScreen() {
   const jobs = useJobActions();
   const matched = useServiceQuery(["recommendations", "jobs"], (s) => s.recommendations.getJobsForYou());
   const more = useServiceQuery(["job-opportunities", "explore"], (s) => s.jobs.listOpportunities({ q: "", page: 1, pageSize: 40 }));
-  const matchedJobs: ExploreJob[] = (matched.data?.forYou ?? []).map((job) => ({
+  const matchedJobs: ExploreJob[] = (matched.data?.forYou ?? []).flatMap((job) => job?.id && job.company ? [{
     id: job.id,
     title: job.title,
     createdAt: job.createdAt,
     company: job.company,
-  }));
+  }] : []);
   const matchedIds = new Set(matchedJobs.map((job) => job.id));
   const moreJobs: ExploreJob[] = matched.isPending
     ? []
-    : (more.data?.items ?? [])
-        .filter((row) => !matchedIds.has(row.job.id))
-        .map((row) => ({ id: row.job.id, title: row.job.title, createdAt: row.job.publishedAt || row.job.createdAt, company: row.company }));
+    : (more.data?.items ?? []).flatMap((row) => {
+        const job = row?.job;
+        if (!job?.id || !row.company || matchedIds.has(job.id)) return [];
+        return [{ id: job.id, title: job.title, createdAt: job.publishedAt || job.createdAt, company: row.company }];
+      });
   const openJob = (id: string) => jobs.view(id, "explore-jobs");
 
   return (
