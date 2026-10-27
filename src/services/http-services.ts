@@ -20,6 +20,7 @@ import { createHttpApplicationsService } from "./applications/applications.http"
 import { createHttpRecruitingService } from "./recruiting/recruiting.http";
 import { createHttpTalentService } from "./talent/talent.http";
 import { createHttpSearchService } from "./search/search.http";
+import { createHttpJourneyService } from "./journey/journey.http";
 
 
 /** Enable completed real domains; unimplemented domains never fall back to fixtures. */
@@ -66,7 +67,7 @@ export function createHttpServices(baseUrl: string): Services {
   const recommendations=createHttpRecommendationsService(http,auth);
   const talent = createHttpTalentService(http,auth,()=>recommendations.talent(),()=>messaging.getInbox("recruiter",{q:"",filter:"all",selectedId:null}));
   const search = createHttpSearchService(http, auth);
-  const enabled = { search, analytics,auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
+  const enabled = { journey:createHttpJourneyService(http,media), search, analytics,auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
   return new Proxy(enabled, {
     get: (target, property) => Object.hasOwn(target, property) ? Reflect.get(target, property) : unavailable,
   }) as unknown as Services;

@@ -1,5 +1,5 @@
 import {z} from "zod";
-import rules from "../../../../../contracts/validation/search.json";
+import rules from "../../../contracts/validation/search.json";
 
 export const jobSearchSchema=z.object({
   q:z.string().trim().max(rules.queryMax),page:z.number().int().min(1).max(rules.pageMax),

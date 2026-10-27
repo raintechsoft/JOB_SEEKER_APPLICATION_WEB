@@ -1,0 +1,21 @@
+{
+  "minimum": 2,
+  "maximum": 200,
+  "debounceMs": 300,
+  "scopes": ["all", "posts", "companies", "people", "jobs", "updates", "talent", "skills", "projects"],
+  "recruiterOnly": ["talent", "skills", "projects"],
+  "arrangements": ["On-site", "Hybrid", "Remote"],
+  "employment": ["Full-time", "Part-time", "Contract", "Internship"],
+  "disciplines": ["Design", "Engineering", "Data", "Business"],
+  "filters": {
+    "all": [],
+    "posts": ["days", "author"],
+    "companies": ["location", "industry"],
+    "people": ["location", "skill", "experienceMin", "experienceMax"],
+    "jobs": ["location", "skill", "arrangement", "employment", "days"],
+    "updates": ["days", "author"],
+    "talent": ["location", "skill", "discipline", "experienceMin", "experienceMax"],
+    "skills": ["location", "skill", "experienceMin", "experienceMax"],
+    "projects": ["skill", "discipline", "days", "author"]
+  }
+}

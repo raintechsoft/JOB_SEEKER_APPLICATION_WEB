@@ -19,6 +19,7 @@ import { QueryView } from "@/components/ui/query-view";
 import { PublicCredentials, hasPublicCredentials } from "@/components/portfolio/public-credentials";
 import { ProjectCard } from "@/components/work/project-card";
 import { PulseCard, UpdateItem } from "@/components/work/pulse";
+import { CareerJourney } from "@/features/journey/career-journey";
 import { useCompareToggle, useContactCandidate, useShortlistDialogs } from "./dialogs";
 
 function Candidate({ view, publicView }: { view: CandidateView; publicView: boolean }) {
@@ -84,6 +85,7 @@ function Candidate({ view, publicView }: { view: CandidateView; publicView: bool
             </div>
           </section>
           <PulseCard ownerId={p.id} />
+          <CareerJourney slug={p.slug}/>
           <section className="card profile-section">
             <h2>Notes from the process</h2>
             {updates.length ? updates.map((u) => <UpdateItem key={u.id} update={u} />) : <p>No public updates yet.</p>}

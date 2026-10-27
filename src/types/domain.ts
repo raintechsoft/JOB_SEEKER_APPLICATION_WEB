@@ -748,6 +748,7 @@ export interface DemoSession {
 }
 
 export interface DemoDatabase {
+  careerJourneys?: Record<string, import("@/services/journey/journey.service").JourneyStore>;
   schema: 1;
   social: SocialData;
   recruiterSocial: SocialGraph;

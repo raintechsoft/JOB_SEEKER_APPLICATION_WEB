@@ -1,0 +1,40 @@
+{
+  "batchMax": 20,
+  "surfaces": [
+    "feed",
+    "jobs",
+    "talent",
+    "applications",
+    "responses",
+    "projects",
+    "messages",
+    "job-page",
+    "jobs-rail",
+    "recruiter-feed",
+    "professional-feed"
+  ],
+  "browser": {
+    "search_performed": {
+      "surface": "surface",
+      "hasQuery": "boolean",
+      "resultCount": "optional_count"
+    },
+    "job_viewed": {
+      "jobId": "job",
+      "surface": "surface"
+    },
+    "job_application_started": {
+      "jobId": "job"
+    },
+    "recommendation_exposed": {
+      "requestId": "uuid",
+      "itemId": "uuid",
+      "position": "position"
+    },
+    "recommendation_clicked": {
+      "requestId": "uuid",
+      "itemId": "uuid",
+      "position": "position"
+    }
+  }
+}

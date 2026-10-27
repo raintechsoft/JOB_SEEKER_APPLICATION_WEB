@@ -1,0 +1,7 @@
+{
+  "answerLength": 1000,
+  "noteLength": 2500,
+  "bulkMax": 100,
+  "shortlistNameLength": 100,
+  "compareMax": 4
+}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import contract from "../../../../../contracts/validation/profile.json";
+import contract from "../../../contracts/validation/profile.json";
 import type { ProfileCollection, ProfileRecord } from "@/types/domain";
 import type { ProfileSection } from "@/services/profile/profile.service";
 
@@ -54,6 +54,7 @@ export function validationFields(error: z.ZodError): Record<string, string> {
 }
 
 export const mediaRules = {
+  career_memory: {max:1048576,types:["image/png","image/jpeg","image/webp"],extensions:["png","jpg","jpeg","webp"]},
   message_attachment: {max:2097152,types:["image/png","image/jpeg","image/webp","image/gif","application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/rtf","text/rtf","text/plain"],extensions:["png","jpg","jpeg","webp","gif","pdf","doc","docx","rtf","txt"]},
   post_image: { max: 1048576, types: ["image/png", "image/jpeg", "image/webp"], extensions: ["png", "jpg", "jpeg", "webp"] },
   job_thumbnail: { max: 1048576, types: ["image/png", "image/jpeg", "image/webp"], extensions: ["png", "jpg", "jpeg", "webp"] },

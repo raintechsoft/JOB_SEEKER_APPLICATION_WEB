@@ -1,0 +1,7 @@
+{
+  "messageMax": 10000,
+  "attachmentMax": 3,
+  "attachmentBytesMax": 2097152,
+  "imageBytesMax": 1048576,
+  "reportDetailsMax": 1500
+}

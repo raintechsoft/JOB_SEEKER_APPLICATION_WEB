@@ -1,5 +1,5 @@
 import { z } from "zod";
-import contract from "../../../../../contracts/validation/communication.json";
+import contract from "../../../contracts/validation/communication.json";
 import {validateMedia} from "./profile";
 
 const text=(max:number)=>z.string().trim().refine((v)=>[...v].length<=max,`Use at most ${max} characters.`);

@@ -18,6 +18,7 @@ import { PhotoEditor } from "@/components/profile/photo-editor";
 import { CheckRow, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { FormError } from "@/components/ui/feedback";
 import { Icon } from "@/components/ui/icon";
+import { navigateToProfileSection } from "./profile-navigation";
 
 export const PROFICIENCY = ["Not specified", "Beginner", "Elementary", "Intermediate", "Upper-intermediate", "Advanced", "Fluent", "Native or bilingual"];
 
@@ -105,7 +106,7 @@ function useProfileMutation() {
     try {
       const result = await operation();
       if (result && !result.ok) { setError(result.error); return false; }
-      await Promise.all([cache.invalidateQueries({ queryKey: ["profile"] }), cache.invalidateQueries({ queryKey: ["shell"] }), cache.invalidateQueries({ queryKey: ["auth", "session"] })]);
+      await Promise.all([cache.invalidateQueries({ queryKey: ["journey"] }), cache.invalidateQueries({ queryKey: ["journey-memories"] }), cache.invalidateQueries({ queryKey: ["profile"] }), cache.invalidateQueries({ queryKey: ["shell"] }), cache.invalidateQueries({ queryKey: ["auth", "session"] })]);
       return true;
     } catch (error) {
       const fields = Object.fromEntries(Object.entries(fieldErrors(error)).map(([key, messages]) => [key, messages[0]]));
@@ -271,7 +272,7 @@ export function CompletionChecklist({ percent, items }: { percent: number; items
             onClick={(e) => {
               e.preventDefault();
               modal.close();
-              document.getElementById("profile-" + i.section)?.scrollIntoView({ block: "start" });
+              navigateToProfileSection(i.section);
             }}
           >
             <span>

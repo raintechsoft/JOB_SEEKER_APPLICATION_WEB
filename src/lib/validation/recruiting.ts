@@ -1,5 +1,5 @@
 import {z} from "zod";
-import rules from "../../../../../contracts/validation/recruiting.json";
+import rules from "../../../contracts/validation/recruiting.json";
 export const RECRUITING_RULES=rules;
 export const responseFiltersSchema=z.record(z.string(),z.string()).superRefine((v,ctx)=>{
   const error=(path:string,message:string)=>ctx.addIssue({code:"custom",path:[path],message});

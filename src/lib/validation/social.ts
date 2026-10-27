@@ -1,5 +1,5 @@
 import { z } from "zod";
-import contract from "../../../../../contracts/validation/social.json";
+import contract from "../../../contracts/validation/social.json";
 import { safeVideoUrl } from "@/lib/utils/url";
 import { validateMedia } from "./profile";
 

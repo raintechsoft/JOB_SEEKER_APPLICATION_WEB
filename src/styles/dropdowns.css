@@ -1,0 +1,142 @@
+/* Shared select treatment. Native selects retain form, validation and keyboard behavior.
+ * Customizable pickers progressively enhance browsers supporting base-select:
+ * https://developer.chrome.com/blog/a-customizable-select
+ */
+body :where(select:not([multiple]):not([size])) {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 0;
+  padding: 10px 12px;
+  border: 1px solid #dce4ef;
+  border-radius: 9px;
+  background-color: #fff;
+  color: #43536b;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+body :where(select:not([multiple]):not([size])):hover:not(:disabled) {
+  border-color: #b6c5da;
+}
+body :where(select:not([multiple]):not([size])):focus-visible {
+  outline: none;
+  border-color: #7892e5;
+  box-shadow: 0 0 0 3px #315ef412;
+}
+body select:disabled {
+  cursor: not-allowed;
+}
+body .profile-skill-sort select:focus-visible {
+  box-shadow: none;
+}
+
+@supports (appearance: base-select) {
+  select:not([multiple]):not([size]),
+  select:not([multiple]):not([size])::picker(select) {
+    appearance: base-select;
+  }
+
+  select:not([multiple]):not([size])::picker(select) {
+    min-inline-size: max(anchor-size(inline), 180px);
+    max-inline-size: min(28rem, calc(100vw - 24px));
+    max-block-size: min(320px, 45dvh);
+    margin-block: 6px;
+    padding: 6px;
+    border: 1px solid #e0e7f1;
+    border-radius: 11px;
+    background: #fff;
+    color: #43536b;
+    box-shadow: 0 12px 32px #2439541c, 0 2px 6px #24395406;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    scrollbar-width: thin;
+    scrollbar-color: #ccd6e6 transparent;
+    overflow-y: auto;
+    color-scheme: light;
+  }
+
+  select:not([multiple]):not([size])::picker-icon {
+    content: "";
+    display: block;
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    align-self: center;
+    margin-inline-start: auto;
+    margin-inline-end: 2px;
+    border-right: 1.6px solid currentColor;
+    border-bottom: 1.6px solid currentColor;
+    color: #8291a7;
+    rotate: 45deg;
+    translate: 0 -2px;
+    transition: rotate 150ms;
+  }
+  select:open::picker-icon {
+    rotate: 225deg;
+    color: #5476d7;
+  }
+  body .floating-field.is-select > select {
+    padding-right: 15px;
+  }
+
+  select:not([multiple]):not([size]) option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-block-size: 38px;
+    padding: 9px 11px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #4e5e76;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  select:not([multiple]):not([size]) option + option {
+    margin-top: 2px;
+  }
+  select:not([multiple]):not([size]) option:hover:not(:disabled) {
+    background: #f3f6fc;
+  }
+  select:not([multiple]):not([size]) option:checked {
+    background: #edf2ff;
+    color: #3d62cf;
+    font-weight: 600;
+  }
+  select:not([multiple]):not([size]) option:focus-visible {
+    background: #e7edfc;
+    outline: 1px solid #c2d0f7;
+    outline-offset: -1px;
+  }
+  select:not([multiple]):not([size]) option:disabled {
+    color: #a4aebe;
+    cursor: not-allowed;
+    background: transparent;
+  }
+  select:not([multiple]):not([size]) option::checkmark {
+    order: 1;
+    margin-inline-start: auto;
+    color: #5476d7;
+    font-size: 14px;
+  }
+  select optgroup {
+    padding: 5px 0;
+    color: #8693a7;
+    font-size: 11px;
+    font-weight: 600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body select:not([multiple]):not([size]),
+  select:not([multiple]):not([size])::picker-icon {
+    transition: none;
+  }
+}
