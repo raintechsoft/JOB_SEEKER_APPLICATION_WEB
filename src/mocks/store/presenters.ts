@@ -2,19 +2,33 @@ import type { CompanySummary, PersonSummary } from "@/types/api";
 import type { Company, DemoDatabase, Id, Job, Professional, Project } from "@/types/domain";
 import { displayJobCompany } from "@/lib/domain/jobs";
 import { PORTRAITS } from "../data/professionals";
-import { person, RECRUITER_ID, recruiterIdentity } from "./selectors";
+import { ME_ID, person, RECRUITER_ID, recruiterIdentity } from "./selectors";
 
-export const personSummary = (p: Professional): PersonSummary => ({
+function personFollowerCount(db: DemoDatabase, id: Id) {
+  if (id === ME_ID) return db.social.followers.length;
+  if (id === RECRUITER_ID) return db.recruiterSocial.followers.length;
+  return [db.social, db.recruiterSocial].filter((graph) => graph.following.includes(id)).length;
+}
+
+function companyFollowerCount(db: DemoDatabase, id: Id) {
+  return [db.social, db.recruiterSocial].filter((graph) => graph.followingCompanies.includes(id)).length;
+}
+
+export const personSummary = (p: Professional, db?: DemoDatabase): PersonSummary => ({
   id: p.id,
   name: p.name,
   headline: p.headline,
   picture: p.picture ?? PORTRAITS[p.id],
   color: p.color,
   slug: p.slug,
+  ...(db ? { followerCount: personFollowerCount(db, p.id) } : {}),
 });
 
 /** Author of feed content: the recruiter identity or a professional. */
-export const feedPerson = (db: DemoDatabase, id: Id): PersonSummary => (id === RECRUITER_ID ? recruiterIdentity(db) : personSummary(person(db, id)));
+export const feedPerson = (db: DemoDatabase, id: Id): PersonSummary => {
+  if (id === RECRUITER_ID) return { ...recruiterIdentity(db), followerCount: personFollowerCount(db, id) };
+  return personSummary(person(db, id), db);
+};
 
 export function companySummary(db: DemoDatabase, c: Company): CompanySummary {
   const org = db.organizationWorkspace.organization;
@@ -27,6 +41,7 @@ export function companySummary(db: DemoDatabase, c: Company): CompanySummary {
     slug: own ? org.slug : undefined,
     description: own ? org.description : c.summary,
     companySize: own ? org.companySize : undefined,
+    followerCount: companyFollowerCount(db, c.id),
   };
 }
 

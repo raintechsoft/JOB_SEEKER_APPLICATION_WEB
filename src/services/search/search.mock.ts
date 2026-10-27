@@ -1,23 +1,28 @@
 import { getDb } from "@/mocks/store/demo-db";
 import { blockedInMock, mockFeedService, professionalItems, recruiterItems } from "@/services/feed/feed.mock";
 import { personSummary } from "@/mocks/store/presenters";
-import { scopedSearchSchema } from "@/lib/search/scopes";
+import { scopedSearchSchema, filterKeysFor } from "@/lib/search/scopes";
 import type { SearchResult, SearchService } from "./search.service";
 
 export const mockSearchService: SearchService = { async query(input) {
   const values = scopedSearchSchema.parse(input), db = getDb();
-  const matches = (value: string) => values.q.toLocaleLowerCase().split(/\s+/u).every(term => value.toLocaleLowerCase().includes(term));
+  const related = values.mode === "related";
+  const matches = (value: string) => related || values.q.toLocaleLowerCase().split(/\s+/u).every(term => value.toLocaleLowerCase().includes(term));
   const items: SearchResult[] = [];
   if (values.scope === "people" || values.scope === "all") {
-    const page = await mockFeedService.searchPeople(values.role, values.q, 1000);
-    items.push(...page.items.map(p => ({ id: p.id, kind: "person" as const, title: p.name, subtitle: p.headline ?? "", slug: p.slug ?? null, picture: p.picture ?? "", recruiter: !!p.recruiter })));
+    const page = related ? {items:db.professionals.filter(p => p.public && !blockedInMock(db, values.role, p.id)).map(p => personSummary(p, db))} : await mockFeedService.searchPeople(values.role, values.q, 1000);
+    items.push(...page.items.map(p => {
+      const full = db.professionals.find(profile => profile.id === p.id);
+      return { id: p.id, kind: "person" as const, title: p.name, subtitle: p.headline ?? "", slug: p.slug ?? null, picture: p.picture ?? "", recruiter: !!p.recruiter, designation: full?.professionalDetails?.currentTitle || p.headline || "", bio: full?.summary ?? "", location: full?.location ?? "", followerCount: p.followerCount };
+    }));
   }
   if (values.scope === "companies" || values.scope === "all") {
     const company = db.organizationWorkspace.organization;
-    if (company.profileVisibility === "Public" && matches(`${company.name} ${company.industry}`)) items.push({ id: company.id, kind: "company", title: company.name, subtitle: company.industry, slug: company.slug, picture: company.logoUrl, recruiter: false });
+    const location = [company.headquartersCity, company.headquartersCountry, ...company.workplaceLocations, ...company.hiringLocations].join(" ");
+    if (company.profileVisibility === "Public" && matches(`${company.name} ${company.industry}`) && (!values.industry || company.industry.toLocaleLowerCase().includes(values.industry.toLocaleLowerCase())) && (!values.companyType || company.organizationType === values.companyType) && (!values.location || location.toLocaleLowerCase().includes(values.location.toLocaleLowerCase()))) items.push({ id: company.id, kind: "company", title: company.name, subtitle: company.industry, slug: company.slug, picture: company.logoUrl, recruiter: false, industry: company.industry, followerCount: [db.social, db.recruiterSocial].filter(graph => graph.followingCompanies.includes(company.id)).length });
   }
   if (values.scope === "talent" || values.scope === "skills") {
-    items.push(...db.professionals.filter(p => p.public && !blockedInMock(db, values.role, p.id) && matches(values.scope === "skills" ? p.skills.join(" ") : `${p.name} ${p.headline} ${p.skills.join(" ")} ${db.projects.filter(project => project.owner === p.id && project.visibility === "Public").map(project => `${project.title} ${project.description}`).join(" ")}`)).map(p => ({ id: p.id, kind: "talent" as const, title: p.name, subtitle: p.headline, slug: p.slug, picture: personSummary(p).picture ?? "", recruiter: false })));
+    items.push(...db.professionals.filter(p => p.public && !blockedInMock(db, values.role, p.id) && matches(values.scope === "skills" ? p.skills.join(" ") : `${p.name} ${p.headline} ${p.skills.join(" ")} ${db.projects.filter(project => project.owner === p.id && project.visibility === "Public").map(project => `${project.title} ${project.description}`).join(" ")}`)).map(p => ({ id: p.id, kind: "talent" as const, title: p.name, subtitle: p.headline, slug: p.slug, picture: personSummary(p, db).picture ?? "", recruiter: false, designation: p.professionalDetails?.currentTitle || p.headline, bio: p.summary, location: p.location, followerCount: personSummary(p, db).followerCount })));
   }
   if (values.scope === "projects" || values.role === "recruiter" && values.scope === "all") for (const project of db.projects) {
     const owner = db.professionals.find(p => p.id === project.owner);
@@ -27,9 +32,25 @@ export const mockSearchService: SearchService = { async query(input) {
     const raw = values.role === "professional" ? professionalItems(db) : recruiterItems(db);
     const wanted = values.scope === "posts" ? "post" : values.scope === "jobs" ? "job" : values.scope === "updates" ? "update" : null;
     const entries = await Promise.all(raw.filter(item => !wanted || item.type === wanted).map(item => mockFeedService.getEntry(values.role, item.id)));
-    items.push(...entries.flatMap(entry => entry && matches(`${entry.title} ${entry.body} ${entry.type === "job" && !entry.company?.confidential ? entry.company?.name ?? "" : ""}`) ? [{ id: entry.id, kind: entry.type, title: entry.title, subtitle: entry.type === "job" ? entry.company?.name ?? "Job" : entry.kind, slug: null, picture: "", recruiter: false }] : []));
+    items.push(...entries.flatMap(entry => {
+      if (!entry || !matches(`${entry.title} ${entry.body} ${entry.type === "job" && !entry.company?.confidential ? entry.company?.name ?? "" : ""}`)) return [];
+      if (values.scope === "posts" && values.contentType) {
+        const media = entry.attachments ?? [];
+        const type = values.contentType;
+        if (type === "text" && (media.length || entry.project)) return [];
+        if (type === "image" && !media.some(item => item.type === "image")) return [];
+        if (type === "video" && !media.some(item => item.type === "video")) return [];
+        if (type === "project" && !entry.project) return [];
+      }
+      return [{ id: entry.id, kind: entry.type, title: entry.title, subtitle: entry.type === "job" ? [entry.company?.name, entry.company?.confidential ? "" : entry.company?.industry].filter(Boolean).join(" · ") || "Job" : entry.kind, slug: null, picture: entry.type === "job" ? (entry.company?.confidential ? "" : entry.company?.logoUrl ?? "") : entry.author?.picture ?? "", recruiter: entry.type === "job" || !!entry.author?.recruiter, companyName: entry.type === "job" && !entry.company?.confidential ? entry.company?.name : entry.author?.recruiter ? entry.author.name : undefined, industry: entry.type === "job" && !entry.company?.confidential ? entry.company?.industry : undefined, followerCount: entry.type === "job" ? (entry.company?.confidential ? undefined : entry.company?.followerCount) : entry.author?.followerCount }];
+    }));
   }
-  items.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  const overlap = (item: SearchResult) => values.q.toLocaleLowerCase().split(/\s+/u).filter(term => `${item.title} ${item.subtitle}`.toLocaleLowerCase().includes(term)).length;
+  items.sort((a, b) => (related ? overlap(b)-overlap(a) : 0) || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  if (related) {
+    if (!items.length && filterKeysFor(values.scope).some(key => values[key] !== undefined)) return mockSearchService.query({role:values.role,q:values.q,scope:values.scope,mode:"related",limit:values.limit});
+    return {items:items.slice(0,values.limit),total:null,nextCursor:null};
+  }
   let offset = 0;
   if (values.cursor) {
     const cursor = JSON.parse(values.cursor);

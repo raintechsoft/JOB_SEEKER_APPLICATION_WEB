@@ -221,9 +221,10 @@ body.professional-theme .org-public-hero {padding:0;overflow:hidden;}
 .org-public-cover>img {width:calc(100% + 60px);max-width:none;height:155px;object-fit:cover;margin:-30px;}
 .org-public-cover>span {font-size:13px;color:#E5EDFA;letter-spacing:1.5px;}
 .org-public-identity {display:flex;gap:20px;align-items:flex-start;padding:0 28px 26px;}
-.org-public-logo {width:86px;height:86px;margin-top:-25px;border:4px solid white;border-radius:12px;background:#EAF0FF;display:grid;place-items:center;color:#315EF4;overflow:hidden;flex-shrink:0;}
+.org-public-logo {width:86px;height:86px;margin-top:-25px;border:4px solid white;border-radius:12px;background:#EAF0FF;display:grid;place-items:center;color:#315EF4;overflow:hidden;flex-shrink:0;font-size:32px;font-weight:700;line-height:1;}
 .org-public-logo>.icon {width:38px;height:38px;}
 .org-public-logo>img {width:100%;height:100%;object-fit:contain;background:white;}
+.professional-main .org-public-page {padding-bottom:8px;}
 .org-public-identity>div {padding-top:20px;min-width:0;}
 body.professional-theme .org-public-identity h1 {font-size:28px;color:#172B4D;line-height:1.5;letter-spacing:-.7px;}
 body.professional-theme .org-public-identity p {font-size:16px;color:#667085;line-height:1.8;margin:6px 0;}
@@ -253,10 +254,14 @@ body.professional-theme .org-public-job p {font-size:13px;margin:4px 0;}
 .org-public-layout>aside .org-public-section>a {display:flex;align-items:center;gap:7px;font-size:15px;line-height:1.8;overflow-wrap:anywhere;color:#315EF4;margin-top:12px;}
 .org-public-layout>aside .org-public-section>a>.icon {width:14px;height:14px;flex-shrink:0;}
 .org-recruiter-public {max-width:800px;margin:auto;}
+.org-recruiter-public>.org-public-section {margin-top:23px;}
 .org-recruiter-public-hero>.avatar {width:80px;height:80px;font-size:26px;margin-bottom:15px;}
 body.professional-theme .org-recruiter-public-hero h1 {font-size:28px;color:#172B4D;margin-bottom:7px;}
 .org-public-association {display:flex;align-items:center;gap:7px;margin:18px 0;}
 .org-public-association>img,.org-public-association>.icon {width:28px;height:28px;object-fit:contain;color:#315EF4;}
+.org-public-association>span {width:28px;height:28px;border-radius:6px;background:#EAF0FF;color:#315EF4;display:grid;place-items:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.org-recruiter-logo {overflow:hidden;padding:0;}
+.org-recruiter-logo .avatar {width:100%;height:100%;border-radius:8px;font-size:28px;}
 body.professional-theme .org-recruiter-public-hero h2 {font-size:17px;margin-top:24px;}
 .org-recruiter-link {display:inline-flex;gap:6px;align-items:center;color:#315EF4;font-size:15px;margin-top:22px;}
 .org-recruiter-link>.icon {height:13px;width:13px;}
