@@ -134,7 +134,7 @@ function useWorkspaceRole(role: Role, enabled: boolean) {
 function WorkspaceFrame({ recruiter, nav, navLabel, account, children }: { recruiter: boolean; nav: NavItem[]; navLabel: string; account: ReactNode; children: ReactNode }) {
   const pathname = usePathname();
   const base = recruiter ? "/recruiter" : "/app";
-  const mainClass = pathname === base + "/dashboard" ? "is-feed" : pathname === (recruiter ? "/recruiter/activity" : "/app/updates") ? "is-activity" : pathname === base + "/search" ? "is-search" : "";
+  const mainClass = pathname === base + "/dashboard" || pathname === "/app/jobs" ? "is-feed" : pathname === (recruiter ? "/recruiter/activity" : "/app/updates") ? "is-activity" : pathname === base + "/search" ? "is-search" : "";
   return (
     <div className={`${recruiter ? "professional-app recruiter-app" : "professional-app"}${pathname === base + "/search" ? " is-search" : ""}`}>
       <header className="professional-header">
@@ -158,7 +158,7 @@ function WorkspaceFrame({ recruiter, nav, navLabel, account, children }: { recru
 
 const PROFESSIONAL_NAV: [string, string, IconName][] = [
   ["dashboard", "Feed", "home"],
-  ["applications", "My Application", "briefcase"],
+  ["applications", "Job Tracker", "briefcase"],
   ["updates", "My Activity", "pulse"],
   ["projects", "Projects", "folder"],
   ["portfolio", "Portfolio", "layout"],

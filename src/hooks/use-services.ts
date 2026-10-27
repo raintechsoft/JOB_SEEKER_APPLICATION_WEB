@@ -19,10 +19,10 @@ export function useServices() {
  * Reads data through the service layer with TanStack Query. Until hydration completes the query
  * reports "pending", so server HTML and the first client render always agree.
  */
-export function useServiceQuery<T>(key: QueryKey, fn: (services: Services) => Promise<T>, options: { enabled?: boolean; keepPreviousData?: boolean; refetchInterval?:number } = {}): UseQueryResult<T> {
+export function useServiceQuery<T>(key: QueryKey, fn: (services: Services) => Promise<T>, options: { enabled?: boolean; keepPreviousData?: boolean; refetchInterval?:number; refetchOnWindowFocus?:boolean | "always"; staleTime?:number } = {}): UseQueryResult<T> {
   const services = useServices();
   const hydrated = useHydrated();
-  const result = useQuery({ queryKey: key, queryFn: () => fn(services), enabled: hydrated && options.enabled !== false, refetchInterval:options.refetchInterval, ...(options.keepPreviousData === false ? { placeholderData: () => undefined } : {}) });
+  const result = useQuery({ queryKey: key, queryFn: () => fn(services), enabled: hydrated && options.enabled !== false, refetchInterval:options.refetchInterval, ...(options.staleTime !== undefined ? {staleTime:options.staleTime} : {}), ...(options.refetchOnWindowFocus !== undefined ? {refetchOnWindowFocus:options.refetchOnWindowFocus} : {}), ...(options.keepPreviousData === false ? { placeholderData: () => undefined } : {}) });
   if (hydrated) return result;
   return { ...result, data: undefined, isPending: true, isSuccess: false, isError: false, status: "pending" } as UseQueryResult<T>;
 }

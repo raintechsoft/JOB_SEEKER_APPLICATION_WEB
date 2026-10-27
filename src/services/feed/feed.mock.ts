@@ -220,6 +220,7 @@ export const mockFeedService: FeedService = {
     let saved = false;
     const persisted = commit((db) => {
       saved = toggleIn(graph(db, role).saved, id);
+      if (!saved && role === "professional") delete db.social.archivedSavedJobs?.[id];
     });
     return { saved, persisted };
   },

@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -446,11 +448,11 @@ export function JobDetailsSideSheet({ id, role, onApply, onSave }: { id: Id; rol
       {role === "professional" && (
         <DevOnly>
           <Badge tone="purple">Fictional demo opportunity</Badge>
-          <p className="notice">
+          <InfoBadge label="Job preview information">
             {application
               ? "Your demo application is saved in this browser. It has not been sent to this fictional company."
               : "Fictional role and salary. Applying saves a local demonstration; no real application is submitted."}
-          </p>
+          </InfoBadge>
         </DevOnly>
       )}
     </div>

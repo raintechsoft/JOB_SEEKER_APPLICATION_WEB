@@ -227,12 +227,15 @@ export interface RecruitmentDetails {
   phone?: string;
 }
 
-export type ApplicationStatus = "Applied" | "In review" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+export type TrackingStatus = "Applied" | "In review" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
+export type ApplicationStatus = TrackingStatus | "Shortlisted" | "Hired";
 
 /** A job seeker's own (self-tracked) demo application. */
 export interface SeekerApplication {
   version?: number;
   employerStage?: HiringStage;
+  trackingStatus?: TrackingStatus;
+  statusSource?: "tracking" | "employer" | "withdrawn";
   withdrawnAt?: string | null;
   id: Id;
   job: Id;
@@ -273,6 +276,7 @@ export interface SocialGraph {
 
 /** Shared social content plus the professional's own graph. */
 export interface SocialData extends SocialGraph {
+  archivedSavedJobs?: Record<Id, IsoDateTime>;
   pinnedComments?: Record<Id, Id>;
   comments: Record<Id, Comment[]>;
   applications: SeekerApplication[];
@@ -359,6 +363,7 @@ export interface PortfolioConfig {
 export type HiringStage = "New" | "Reviewing" | "Shortlisted" | "Interview" | "Hired" | "Rejected";
 
 export interface ApplicationTracking {
+  stageUpdated?: boolean;
   status?: HiringStage;
   note?: string;
   followUp?: IsoDate | "";

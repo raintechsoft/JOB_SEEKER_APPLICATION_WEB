@@ -1,10 +1,29 @@
+import { paginate } from "@/types/api";
 import { commit, getDb } from "@/mocks/store/demo-db";
 import { jobCompany } from "@/mocks/store/presenters";
 import { homeCompany, me, socialFor } from "@/mocks/store/selectors";
+import { isOpenJob } from "@/lib/domain/jobs";
+import { jobSearchSchema } from "@/lib/validation/search";
 import { uid } from "@/lib/utils/id";
 import type { JobsService } from "./jobs.service";
 
 export const mockJobsService: JobsService = {
+  async listOpportunities(query) {
+    const values = jobSearchSchema.parse(query);
+    const db = getDb();
+    const term = values.q.toLowerCase();
+    const rows = db.social.jobs.filter(isOpenJob).filter((job) => {
+      const haystack = [job.title, job.description, job.location, job.role, ...job.skills].filter(Boolean).join(" ").toLowerCase();
+      if (term && !haystack.includes(term)) return false;
+      if (values.arrangement && job.arrangement !== values.arrangement) return false;
+      if (values.employment && job.employment !== values.employment) return false;
+      if (values.location && !job.location.toLowerCase().includes(values.location.toLowerCase())) return false;
+      if (values.skill && !job.skills.some((skill) => skill.toLowerCase().includes(values.skill!.toLowerCase()))) return false;
+      return true;
+    }).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((job) => ({ job, company: jobCompany(db, job), saved: db.social.saved.includes(job.id) }));
+    const page = paginate(rows, values.page, values.pageSize ?? 20);
+    return { items: page.items, total: page.total };
+  },
   async getJob(id, role) {
     const db = getDb();
     const job = db.social.jobs.find((j) => j.id === id);

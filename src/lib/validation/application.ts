@@ -19,8 +19,13 @@ export const applicationSchema=(questions:ScreeningQuestion[],requirePortfolio:b
 });
 export const followUp=z.string().refine((v)=>!v || calendarDate(v)&&v>=today()&&Date.parse(v)-Date.parse(today())<=730*86400000,"Choose a valid follow-up date within two years (UTC).");
 export const trackingSchema=z.object({status:z.enum(["Applied","In review","Interview","Offer","Rejected","Withdrawn"]),followUp,trackingNote:text(rules.noteLength)});
+export const applicationFiltersSchema=z.object({q:text(200),status:z.union([trackingSchema.shape.status,z.enum(["Shortlisted","Hired","","in-progress","other"])])});
 export const reviewSchema=z.object({status:z.enum(["New","Reviewing","Shortlisted","Interview","Hired","Rejected"]),followUp,note:text(rules.noteLength)});
 export const bulkIdsSchema=z.array(z.uuid()).min(1).max(rules.bulkMax).refine((ids)=>new Set(ids).size===ids.length,"Select distinct records.");
+export const SAVED_JOB_SELECTION_LIMIT = rules.bulkMax;
+export const savedJobStateSchema = z.enum(["active","archived","all"]);
+export const savedJobActionSchema = z.enum(["archive","restore"]);
+export const savedJobSelectionSchema = z.array(z.string().trim().min(1).max(100)).min(1,"Select at least one job.").max(rules.bulkMax).refine(ids => new Set(ids).size === ids.length,"Select distinct jobs.");
 export const collaborationSchema=z.object({ids:bulkIdsSchema,emails:z.array(z.email().max(254)).max(50).refine((v)=>new Set(v.map((e)=>e.toLowerCase())).size===v.length,"Use distinct email addresses."),note:text(2000)});
 export const outreachSchema=z.object({ids:bulkIdsSchema,subject:text(200).refine(Boolean,"Enter a subject."),message:text(10000).refine(Boolean,"Enter a message.")});
 export const shortlistNameSchema=text(rules.shortlistNameLength).refine(Boolean,"Enter a list name.");

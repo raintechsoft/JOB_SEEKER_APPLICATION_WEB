@@ -1,4 +1,6 @@
 "use client";
+
+import { InfoBadge } from "@/components/ui/info-badge";
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import { useCallback, useState } from "react";
@@ -68,7 +70,7 @@ function ProjectDetails({ id }: { id: Id }) {
           )}
         </div>
         <DevOnly>
-          <p className="notice">Sample projects and external example links illustrate the prototype. Uploaded covers stay in this browser.</p>
+          <InfoBadge label="Project information">Sample projects and external example links illustrate the prototype. Uploaded covers stay in this browser.</InfoBadge>
         </DevOnly>
       </div>
     </>

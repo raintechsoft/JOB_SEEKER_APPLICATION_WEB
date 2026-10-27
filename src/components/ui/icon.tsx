@@ -36,6 +36,8 @@ const PATHS = {
   sliders: "M3 6h18M3 18h18M8 3v6M16 15v6",
   star: "m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z",
   trash: "M3 6h18 M8 6V3h8v3 M5 6l1 15h12l1-15 M10 10v7 M14 10v7",
+  archive: "M3 3h18v5H3z M5 8v13h14V8 M9 12h6",
+  restore: "M3 10a9 9 0 1 1 2 8 M3 3v7h7",
   external: "M14 3h7v7M21 3 11 13 M10 3H3v18h18v-7",
   send: "m22 2-7 20-4-9-9-4z M22 2 11 13",
   file: "M5 2h9l5 5v15H5z M14 2v6h5 M8 12h8 M8 16h8",

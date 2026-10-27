@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import Link from "next/link";
@@ -88,7 +90,7 @@ function JobPreview({ job }: { job: ManagedJob }) {
           ))}
         </div>
       )}
-      {job.draft && <p className="notice">Private draft preview. This job is not visible in the job seeker feed.</p>}
+      {job.draft && <InfoBadge label="Draft visibility information">Private draft preview. This job is not visible in the job seeker feed.</InfoBadge>}
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Close</Button>
         <Button
@@ -113,7 +115,7 @@ function ShareJob({ job }: { job: ManagedJob }) {
       <h3>{job.title}</h3>
       <TextField label="Job link" name="job-share-link" defaultValue={url} readOnly />
       <DevOnly>
-        <p className="notice">This link opens the demo job in the job seeker feed. Local changes and jobs created in this browser are not synchronized to other devices.</p>
+        <InfoBadge label="Job management information">This link opens the demo job in the job seeker feed. Local changes and jobs created in this browser are not synchronized to other devices.</InfoBadge>
       </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Close</Button>
@@ -165,7 +167,7 @@ function Collaborate({ jobs }: { jobs: ManagedJob[] }) {
       <TextField label="Collaborator emails (comma separated)" name="emails" defaultValue={emails.join(", ")} placeholder="colleague@example.com" />
       <TextAreaField label="Team handoff note (optional)" name="note" defaultValue={jobs.length === 1 ? jobs[0].collaborationNote || "" : ""} maxLength={1500} />
       <DevOnly>
-        <p className="notice">These are local demo collaboration settings. No invitations or emails are sent.</p>
+        <InfoBadge label="Collaboration information">These are local demo collaboration settings. No invitations or emails are sent.</InfoBadge>
       </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
