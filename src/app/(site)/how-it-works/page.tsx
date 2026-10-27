@@ -1,3 +1,4 @@
+import { InfoBadge } from "@/components/ui/info-badge";
 import type { Metadata } from "next";
 import { LinkButton } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
@@ -57,9 +58,9 @@ export default function HowItWorksPage() {
             <span className="eyebrow">THE THINKING BEHIND THE WORK</span>
             <h2>Progress has a place here.</h2>
             <p className="sub">Work Pulse is a date-based view of the updates recorded on Skillora. Select a day to read its notes. Explore the ideas, questions, and contributions behind the final result.</p>
-            <p className="notice" style={{ marginTop: 25 }}>
+            <InfoBadge label="Activity information" style={{ marginTop: 25 }}>
               Recorded activity is never a productivity score. It does not verify work quality, hours, or employment status.
-            </p>
+            </InfoBadge>
           </div>
           {apiConfig.dataSource==="mock"?<PulseCard ownerId="p0" days={182} />:<IllustrativePulse/>}
         </div>
@@ -88,9 +89,9 @@ export default function HowItWorksPage() {
             ))}
           </div>
           <DevOnly>
-            <p className="notice" style={{ marginTop: 25 }}>
+            <InfoBadge label="Prototype information" style={{ marginTop: 25 }}>
               This prototype uses fictional professionals and companies. Authentication, CV parsing, messages, analytics, OTP, and link expiry demonstrate intended behavior and are not production services.
-            </p>
+            </InfoBadge>
           </DevOnly>
         </div>
       </section>

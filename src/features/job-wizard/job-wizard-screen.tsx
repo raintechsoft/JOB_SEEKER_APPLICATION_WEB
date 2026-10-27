@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -564,7 +566,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
         {check(devCopy("Keep response notifications enabled in this demo", "Keep response notifications enabled"), "notifyResponses")}
         {area("Application instructions (optional)", "applicationInstructions", { maxLength: 1500 })}
         <DevOnly>
-          <p className="notice">Applications and notification preferences are simulated in this browser. No emails are sent.</p>
+          <InfoBadge label="Publishing information">Applications and notification preferences are simulated in this browser. No emails are sent.</InfoBadge>
         </DevOnly>
       </div>
     ),
@@ -794,7 +796,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               I’ve checked the job details and removed anything unnecessary.
             </label>
             <DevOnly>
-              <p className="notice">This demo uses role-based templates rather than a connected AI service. Publishing saves the job in this browser’s demo feed.</p>
+              <InfoBadge label="Publishing information">This demo uses role-based templates rather than a connected AI service. Publishing saves the job in this browser’s demo feed.</InfoBadge>
             </DevOnly>
           </>
         );
@@ -812,7 +814,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
           {artwork}
           {sections.map(([title, copy], i) => reviewSection(title, i, <p>{copy}</p>))}
           <DevOnly>
-            <p className="notice">Publishing saves this demo job in your local feed. It does not publish to an external job board or send notifications.</p>
+            <InfoBadge label="Publishing information">Publishing saves this demo job in your local feed. It does not publish to an external job board or send notifications.</InfoBadge>
           </DevOnly>
         </>
       );

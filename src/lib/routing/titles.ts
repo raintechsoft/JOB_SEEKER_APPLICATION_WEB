@@ -2,7 +2,8 @@
 const TITLES: [RegExp, string][] = [
   [/^\/(app|recruiter)\/search$/, "Search results"],
   [/^\/app\/dashboard$/, "Your feed"],
-  [/^\/app\/applications$/, "My Application"],
+  [/^\/app\/applications$/, "Job Tracker"],
+  [/^\/app\/jobs$/, "Explore jobs"],
   [/^\/app\/profile$/, "Profile"],
   [/^\/app\/professionals\//, "Profile"],
   [/^\/app\/work-pulse$/, "Work Pulse"],

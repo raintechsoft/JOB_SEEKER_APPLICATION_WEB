@@ -1,4 +1,6 @@
 "use client";
+
+import { InfoBadge } from "@/components/ui/info-badge";
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import Link from "next/link";
@@ -108,7 +110,7 @@ function ShareBody({ ownerId }: { ownerId: Id }) {
             <input type="checkbox" name="otp" defaultChecked={view.config.otp} />
             Demonstrate OTP protection setting
           </label>
-          <div className="notice">Expiry and OTP settings are simulations and do not restrict access. A link opened on another device uses that browser’s sample data. Local edits are not uploaded or synchronized.</div>
+          <InfoBadge label="Sharing information">Expiry and OTP settings are simulations and do not restrict access. A link opened on another device uses that browser’s sample data. Local edits are not uploaded or synchronized.</InfoBadge>
         </DevOnly>
         <div className="modal-footer">
           <Link className="btn" href={"/portfolio/" + view.config.slug}>

@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { QueryFeedback } from "@/components/ui/query-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiConfig } from "@/services/api/config";
@@ -377,9 +379,9 @@ export function CompareScreen() {
                 </tbody>
               </table>
             </div>
-            <p className="notice" style={{ marginTop: 18 }}>
+            <InfoBadge label="Candidate comparison information" style={{ marginTop: 18 }}>
               Compare the available evidence. Activity records and profile completeness do not measure candidate quality or suitability.
-            </p>
+            </InfoBadge>
           </>
         ))}
     </>

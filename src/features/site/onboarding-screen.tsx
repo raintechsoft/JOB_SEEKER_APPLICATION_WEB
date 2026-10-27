@@ -1,5 +1,7 @@
 "use client";
 
+import { InfoBadge } from "@/components/ui/info-badge";
+
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { parseSkills } from "@/lib/utils/text";
@@ -94,7 +96,7 @@ function PrototypeOnboardingScreen() {
               <TextField label="Hiring interests" name="interests" defaultValue={company.interests} />
             </div>
             <DevOnly>
-              <p className="notice">Your company starts as Not verified. Verification in this prototype is a demo review status.</p>
+              <InfoBadge label="Onboarding information">Your company starts as Not verified. Verification in this prototype is a demo review status.</InfoBadge>
             </DevOnly>
           </>
         ) : step === 0 ? (
@@ -129,7 +131,7 @@ function PrototypeOnboardingScreen() {
               <p id="cv-status">{cvName ? "Selected: " + cvName + devCopy(" · Local only", "") : "No file selected. You can also continue without a CV."}</p>
             </div>
             <DevOnly>
-              <p className="notice">Simulated CV parsing: the file stays on your device. We use sample information, not extracted content. Review and edit it below before continuing.</p>
+              <InfoBadge label="Onboarding information">Simulated CV parsing: the file stays on your device. We use sample information, not extracted content. Review and edit it below before continuing.</InfoBadge>
             </DevOnly>
             <Button icon="spark" onClick={parseCv}>
               {cvParsed ? devCopy("Sample information loaded", "CV details loaded") : devCopy("Load sample CV information", "Fill in from my CV")}
@@ -165,7 +167,7 @@ function PrototypeOnboardingScreen() {
               {devCopy("Make my professional profile visible in the demo directory", "Make my professional profile visible in the talent directory")}
             </label>
             <DevOnly>
-              <p className="notice">This is a local prototype setting. It does not create secure access controls. Your profile and updates are stored in this browser.</p>
+              <InfoBadge label="Onboarding information">This is a local prototype setting. It does not create secure access controls. Your profile and updates are stored in this browser.</InfoBadge>
             </DevOnly>
           </>
         )}

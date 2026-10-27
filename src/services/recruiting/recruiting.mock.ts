@@ -101,7 +101,9 @@ export const mockRecruitingService: RecruitingService = {
 
   async saveReview(id, input) {
     return commit((db) => {
-      Object.assign(track(db, id), { status: HIRING_STAGES.includes(input.status) ? input.status : "New", note: input.note, followUp: input.followUp });
+      const tracking = track(db,id);
+      const next=HIRING_STAGES.includes(input.status) ? input.status : "New";
+      Object.assign(tracking, { status:next,stageUpdated:tracking.stageUpdated || (tracking.status ?? "New") !== next,note:input.note,followUp:input.followUp });
     });
   },
 
@@ -226,7 +228,7 @@ export const mockRecruitingService: RecruitingService = {
     const known = new Set(receivedApplications(getDb()).map((a) => a.id));
     const valid = ids.filter((id) => known.has(id));
     commit((db) => {
-      for (const id of valid) Object.assign(track(db, id), { status, updatedAt: new Date().toISOString() });
+      for (const id of valid) {const tracking=track(db,id);Object.assign(tracking,{status,stageUpdated:tracking.stageUpdated || (tracking.status ?? "New") !== status,updatedAt:new Date().toISOString()});}
     });
     return valid.length;
   },

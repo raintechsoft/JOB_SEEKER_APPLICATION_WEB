@@ -363,18 +363,20 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
         </div>
       </header>
       <div className="feed-post-body">
-        {!job && <h3>{entry.title}</h3>}
-        <p>
-          {text}
-          {long && (
-            <>
-              …{" "}
-              <button type="button" className="feed-read-more" onClick={() => toggleFeedList("expanded", entry.id)}>
-                see more
-              </button>
-            </>
-          )}
-        </p>
+        {!job && entry.title.trim() ? <h3>{entry.title}</h3> : null}
+        {text ? (
+          <p>
+            {text}
+            {long && (
+              <>
+                …{" "}
+                <button type="button" className="feed-read-more" onClick={() => toggleFeedList("expanded", entry.id)}>
+                  see more
+                </button>
+              </>
+            )}
+          </p>
+        ) : null}
         {entry.skills.length > 0 && (
           <div className="feed-post-tags">
             <Tags items={entry.skills} />
