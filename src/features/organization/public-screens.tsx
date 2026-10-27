@@ -3,7 +3,7 @@
 import { MediaImage } from "@/components/ui/media-image";
 
 import type { ReactNode } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { Job } from "@/types/domain";
 import { publicOrganization, publicRecruiter, type PublicOrganization, type PublicRecruiter } from "@/lib/domain/organization";
 import { safeUrl } from "@/lib/utils/url";
@@ -17,6 +17,7 @@ import { VerificationBadge } from "@/components/organization/controls";
 import { useJobActions } from "@/features/feed/job-dialogs";
 import { recruiterAvatar } from "./team-section";
 import { useOrganizationEditor, useRecruiterDraft } from "./use-organization-editor";
+import { organizationProfileHref } from "@/lib/routing/profiles";
 
 const Paragraph = ({ value }: { value?: string }) => (value ? <p>{value}</p> : null);
 const Chips = ({ items }: { items: string[] }) =>
@@ -60,7 +61,7 @@ function Unavailable({ title, description }: { title: string; description: strin
   );
 }
 
-function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: Job[]; preview: boolean }) {
+function OrganizationPage({ o, jobs, preview, inWorkspace = false }: { o: PublicOrganization; jobs: Job[]; preview: boolean; inWorkspace?: boolean }) {
   const jobActions = useJobActions();
   const section = useSearchParams().get("section") || "overview";
   const culture = !!(o.cultureDescription || o.workEnvironment || o.workModes.length || o.workplaceLocations.length || o.workplaceImages.length || o.benefits.length || o.cultureHighlights || o.candidateExpectations);
@@ -79,11 +80,11 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
             Return to editor
           </LinkButton>
         </div>
-      ) : (
+      ) : !inWorkspace ? (
         <DevOnly>
           <p className="org-demo-caption">Demonstration organization · Browser-local prototype</p>
         </DevOnly>
-      )}
+      ) : null}
       <header className="card org-public-hero">
         <div className="org-public-cover">
           {o.coverImageUrl ? (
@@ -97,19 +98,19 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
             {o.logoUrl ? (
               <MediaImage src={o.logoUrl} alt={o.name + " logo"} />
             ) : (
-              <Icon name="building" />
+              <span aria-hidden="true">{o.name.trim().slice(0, 1).toUpperCase() || "C"}</span>
             )}
           </span>
           <div>
             <div className="row wrap">
               <h1>{o.name}</h1>
-              <VerificationBadge status={o.verificationStatus} />
+              {o.verificationStatus === "Verified" && <VerificationBadge status={o.verificationStatus} />}
             </div>
             <p>{o.tagline}</p>
             <div className="org-public-facts">
-              <span>{o.industry}</span>
-              <span>{o.companySize}</span>
-              <span>{[o.headquartersCity, o.headquartersCountry].filter(Boolean).join(", ")}</span>
+              {[o.industry, o.companySize, [o.headquartersCity, o.headquartersCountry].filter(Boolean).join(", ")].filter(Boolean).map((fact) => (
+                <span key={fact}>{fact}</span>
+              ))}
             </div>
             <div className="org-public-links">
               <External label="Company website" url={o.websiteUrl} />
@@ -122,8 +123,14 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
         <div>
           <section className="card org-public-section">
             <h2>About {o.name}</h2>
-            <Paragraph value={o.description} />
-            <Paragraph value={o.overview} />
+            {o.description || o.overview ? (
+              <>
+                <Paragraph value={o.description} />
+                <Paragraph value={o.overview} />
+              </>
+            ) : (
+              <p className="muted">This organization has not added a public description yet.</p>
+            )}
             {(o.mission || o.vision) && (
               <div className="org-public-mission">
                 <div>
@@ -195,26 +202,19 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
           </section>
         </div>
         <aside>
-          <Section title="Organization details">
+          <Section title="Organization details" show={!!(o.industry || o.companySize || o.organizationType || o.foundingYear || o.headquartersCity || o.headquartersCountry || o.hiringStatus)}>
             <dl>
-              <dt>Industry</dt>
-              <dd>{o.industry}</dd>
-              <dt>Company size</dt>
-              <dd>{o.companySize}</dd>
-              <dt>Organization type</dt>
-              <dd>{o.organizationType || "Not specified"}</dd>
-              {o.foundingYear && (
+              {o.industry ? <><dt>Industry</dt><dd>{o.industry}</dd></> : null}
+              {o.companySize ? <><dt>Company size</dt><dd>{o.companySize}</dd></> : null}
+              {o.organizationType ? <><dt>Organization type</dt><dd>{o.organizationType}</dd></> : null}
+              {o.foundingYear ? <><dt>Founded</dt><dd>{o.foundingYear}</dd></> : null}
+              {[o.headquartersCity, o.headquartersCountry].filter(Boolean).length ? (
                 <>
-                  <dt>Founded</dt>
-                  <dd>{o.foundingYear}</dd>
+                  <dt>Headquarters</dt>
+                  <dd>{[o.headquartersCity, o.headquartersCountry].filter(Boolean).join(", ")}</dd>
                 </>
-              )}
-              <dt>Headquarters</dt>
-              <dd>
-                {o.headquartersCity}, {o.headquartersCountry}
-              </dd>
-              <dt>Hiring status</dt>
-              <dd>{o.hiringStatus}</dd>
+              ) : null}
+              {o.hiringStatus ? <><dt>Hiring status</dt><dd>{o.hiringStatus}</dd></> : null}
             </dl>
           </Section>
           <Section title="Connect with us" show={connect}>
@@ -236,16 +236,24 @@ function OrganizationPage({ o, jobs, preview }: { o: PublicOrganization; jobs: J
           </Section>
         </aside>
       </div>
-      <DevOnly>
-        <p className="org-demo-caption">Fictional company data. Verification badges represent explicit demo review states.</p>
-      </DevOnly>
+      {!inWorkspace && (
+        <DevOnly>
+          <p className="org-demo-caption">Fictional company data. Verification badges represent explicit demo review states.</p>
+        </DevOnly>
+      )}
     </div>
   );
 }
 
-function RecruiterPage({ r, o, preview, editHref }: { r: PublicRecruiter; o: PublicOrganization; preview: boolean; editHref: string }) {
+function RecruiterPage({ r, o, preview, editHref, inWorkspace = false }: { r: PublicRecruiter; o: PublicOrganization; preview: boolean; editHref: string; inWorkspace?: boolean }) {
+  const pathname = usePathname();
+  const companyHref = o.profileVisibility === "Public" && o.slug
+    ? inWorkspace
+      ? organizationProfileHref(pathname.startsWith("/recruiter") ? "recruiter" : "professional", o.slug)
+      : "/organizations/" + o.slug
+    : undefined;
   return (
-    <div className="org-recruiter-public">
+    <div className="org-public-page org-recruiter-public">
       {preview ? (
         <div className="org-preview-banner">
           <span>
@@ -256,30 +264,46 @@ function RecruiterPage({ r, o, preview, editHref }: { r: PublicRecruiter; o: Pub
             Return to edit
           </LinkButton>
         </div>
-      ) : (
+      ) : !inWorkspace ? (
         <DevOnly>
           <p className="org-demo-caption">Demonstration recruiter profile</p>
         </DevOnly>
-      )}
-      <section className="card org-public-section org-recruiter-public-hero">
-        <Avatar person={recruiterAvatar(r)} size="xl" />
-        <h1>{r.fullName}</h1>
-        <p>{r.jobTitle}</p>
-        <div className="org-public-association">
-          {o.logoUrl ? (
-            <MediaImage src={o.logoUrl} alt="Organization logo" />
+      ) : null}
+      <header className="card org-public-hero">
+        <div className="org-public-cover">
+          {o.coverImageUrl ? (
+            <MediaImage src={o.coverImageUrl} alt={o.name + " cover"} />
           ) : (
-            <Icon name="building" />
-          )}
-          {o.profileVisibility === "Public" ? (
-            <LinkButton href={"/organizations/" + o.slug} variant="text sm">
-              {o.name}
-            </LinkButton>
-          ) : (
-            o.name
+            <span>GOOD WORK STARTS WITH GOOD PEOPLE.</span>
           )}
         </div>
-        <Paragraph value={r.professionalBio} />
+        <div className="org-public-identity">
+          <span className="org-public-logo org-recruiter-logo">
+            <Avatar person={recruiterAvatar(r)} size="xl" />
+          </span>
+          <div>
+            <h1>{r.fullName}</h1>
+            <p>{r.jobTitle}</p>
+            <div className="org-public-association">
+              {o.logoUrl ? (
+                <MediaImage src={o.logoUrl} alt="" />
+              ) : (
+                <span aria-hidden="true">{o.name.trim().slice(0, 1).toUpperCase() || "C"}</span>
+              )}
+              {companyHref ? (
+                <LinkButton href={companyHref} variant="text sm">
+                  {o.name}
+                </LinkButton>
+              ) : (
+                o.name
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+      <section className="card org-public-section">
+        <h2>About</h2>
+        {r.professionalBio ? <Paragraph value={r.professionalBio} /> : <p className="muted">This recruiter has not added a public bio yet.</p>}
         {r.hiringDepartments.length > 0 && (
           <>
             <h2>Hiring focus</h2>
@@ -294,17 +318,17 @@ function RecruiterPage({ r, o, preview, editHref }: { r: PublicRecruiter; o: Pub
         )}
         <External label="LinkedIn" url={r.professionalLinks.linkedin} className="org-recruiter-link" />
       </section>
-      <p className="org-demo-caption">Public identity excludes account email, internal role, and permissions.</p>
+      {!inWorkspace && <p className="org-demo-caption">Public identity excludes account email, internal role, and permissions.</p>}
     </div>
   );
 }
 
-export function PublicOrganizationScreen({ slug }: { slug: string }) {
+export function PublicOrganizationScreen({ slug, inWorkspace = false }: { slug: string; inWorkspace?: boolean }) {
   const { data, isPending, isError, refetch } = useServiceQuery(["organization", "public", slug], (s) => s.organization.getPublicOrganization(slug),{ keepPreviousData: false });
   if (isError) return <ScreenError onRetry={() => void refetch()} />;
   if (isPending) return <ScreenFallback layout="profile" />;
   if (!data) return <Unavailable title="Organization profile unavailable." description="This profile is hidden or the address has changed." />;
-  return <OrganizationPage o={data.organization} jobs={data.openJobs} preview={false} />;
+  return <OrganizationPage o={data.organization} jobs={data.openJobs} preview={false} inWorkspace={inWorkspace} />;
 }
 
 export function OrganizationPreviewScreen() {
@@ -314,12 +338,12 @@ export function OrganizationPreviewScreen() {
   return <OrganizationPage o={publicOrganization(draft.organization)} jobs={ctx.openJobs} preview />;
 }
 
-export function PublicRecruiterScreen({ id }: { id: string }) {
+export function PublicRecruiterScreen({ id, inWorkspace = false }: { id: string; inWorkspace?: boolean }) {
   const { data, isPending, isError, refetch } = useServiceQuery(["recruiter", "public", id], (s) => s.organization.getPublicRecruiter(id),{ keepPreviousData: false });
   if (isError) return <ScreenError onRetry={() => void refetch()} />;
   if (isPending) return <ScreenFallback layout="profile" />;
   if (!data) return <Unavailable title="Recruiter profile unavailable." description="This profile is not currently public." />;
-  return <RecruiterPage r={data.recruiter} o={data.organization} preview={false} editHref="" />;
+  return <RecruiterPage r={data.recruiter} o={data.organization} preview={false} editHref="" inWorkspace={inWorkspace} />;
 }
 
 export function RecruiterPreviewScreen() {

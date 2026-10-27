@@ -22,6 +22,10 @@ export const firstName = (name: string) => name.split(" ")[0];
 
 export const plural = (n: number, one: string, many = one + "s") => (n === 1 ? one : many);
 
+export function formatFollowers(count: number) {
+  return count.toLocaleString() + " " + plural(count, "follower");
+}
+
 /** Class name joiner. */
 export function cn(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");

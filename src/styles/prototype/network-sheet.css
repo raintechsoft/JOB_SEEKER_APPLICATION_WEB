@@ -18,7 +18,7 @@ body.professional-theme .following-sheet .modal-body {padding:0;display:block;mi
 .network-person>a,.network-person>strong {font-size:16px;line-height:1.5;font-weight:600;color:#202A36;overflow-wrap:anywhere;}
 .network-person>p {font-size:14px;line-height:1.6;color:#626B76;margin-top:3px;overflow-wrap:anywhere;}
 body.professional-theme .network-row .network-follow {font-size:14px;border-radius:24px;min-width:105px;min-height:36px;padding:7px 14px;flex-shrink:0;border-color:#315EF4;color:#315EF4;background:#FFF;}
-body.professional-theme .network-row .network-follow.is-following {border-color:#626B76;color:#344054;}
+body.professional-theme .network-row .network-follow.is-following {border-color:#626B76;color:#315ef4;}
 body.professional-theme .network-row .network-follow:hover {background:#F1F5FA;}
 .network-footer {padding:20px 26px 26px;display:flex;flex-direction:column;align-items:flex-start;gap:13px;}
 body.professional-theme .network-footer .btn {font-size:15px;}

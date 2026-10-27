@@ -21,7 +21,7 @@ import { ProjectCard } from "@/components/work/project-card";
 import { PulseCard, UpdateItem } from "@/components/work/pulse";
 import { useCompareToggle, useContactCandidate, useShortlistDialogs } from "./dialogs";
 
-function Candidate({ view, publicView }: { view: CandidateView; publicView: boolean }) {
+function Candidate({ view, publicView, inWorkspace = false }: { view: CandidateView; publicView: boolean; inWorkspace?: boolean }) {
   const { person: p, projects, updates } = view;
   const shortlists = useShortlistDialogs();
   const contact = useContactCandidate();
@@ -30,26 +30,30 @@ function Candidate({ view, publicView }: { view: CandidateView; publicView: bool
   return (
     <>
       {!publicView && <Suspense fallback={null}><ProjectSearchTarget view={view} /></Suspense>}
-      <div className="row between print-hide" style={{ marginBottom: 18 }}>
-        <Link href={publicView ? "/talent" : "/recruiter/discover"} className="small muted">
-          ← Back to talent
-        </Link>
-        <DevOnly>
-          <span className="tag">Fictional demo professional</span>
-        </DevOnly>
-      </div>
+      {!inWorkspace && (
+        <div className="row between print-hide" style={{ marginBottom: 18 }}>
+          <Link href={publicView ? "/talent" : "/recruiter/discover"} className="small muted">
+            ← Back to talent
+          </Link>
+          <DevOnly>
+            <span className="tag">Fictional demo professional</span>
+          </DevOnly>
+        </div>
+      )}
       <div className="profile-cover" />
       <header className="profile-header">
         <div className="row between">
           <Avatar person={p} size="xl" />
-          <div className="row wrap" style={{ paddingTop: 18 }}>
-            <Button icon="bookmark" onClick={() => shortlists.choose(p.id)}>
-              {view.saved ? "Saved to shortlist" : "Save to shortlist"}
-            </Button>
-            <Button variant="primary" icon="message" onClick={() => contact(p.id)}>
-              Start a conversation
-            </Button>
-          </div>
+          {!inWorkspace && (
+            <div className="row wrap" style={{ paddingTop: 18 }}>
+              <Button icon="bookmark" onClick={() => shortlists.choose(p.id)}>
+                {view.saved ? "Saved to shortlist" : "Save to shortlist"}
+              </Button>
+              <Button variant="primary" icon="message" onClick={() => contact(p.id)}>
+                Start a conversation
+              </Button>
+            </div>
+          )}
         </div>
         <h1>{p.name}</h1>
         <p>{p.headline}</p>
@@ -162,26 +166,25 @@ export function RecruiterCandidateScreen({ id }: { id: string }) {
   return <QueryView query={query} fallback={<ScreenFallback layout="profile" />}>{(view) => (view ? <Candidate view={view} publicView={false} /> : <NotFoundState />)}</QueryView>;
 }
 
-/** Public professional profile (`/professionals/[slug]`). */
-export function PublicCandidateScreen({ slug }: { slug: string }) {
+/** Public professional profile (`/professionals/[slug]`), or the in-app workspace view (`/app/professionals/[slug]`). */
+export function PublicCandidateScreen({ slug, inWorkspace = false }: { slug: string; inWorkspace?: boolean }) {
   const query = useServiceQuery(["candidate", "slug", slug], (s) => s.talent.getCandidateBySlug(slug),{ keepPreviousData: false });
   return (
     <QueryView query={query} fallback={<ScreenFallback layout="profile" />}>
-      {(view) =>
-        !view ? (
-          <main id="main" className="container section">
-            <NotFoundState />
-          </main>
+      {(view) => {
+        const profile = !view ? (
+          <NotFoundState />
         ) : !view.person.public ? (
-          <main id="main" className="container section">
-            <EmptyState title="This profile is private." description={devCopy("Explore other professionals in the demo directory.", "Explore other professionals in the directory.")} action={<LinkButton href="/talent">Explore talent</LinkButton>} />
-          </main>
+          <EmptyState title="This profile is private." description={devCopy("Explore other professionals in the demo directory.", inWorkspace ? "This person keeps their profile private." : "Explore other professionals in the directory.")} action={<LinkButton href={inWorkspace ? "/app/dashboard" : "/talent"}>{inWorkspace ? "Back to feed" : "Explore talent"}</LinkButton>} />
         ) : (
-          <main id="main" className="container" style={{ paddingTop: 25, paddingBottom: 60 }}>
-            <Candidate view={view} publicView />
+          <Candidate view={view} publicView inWorkspace={inWorkspace} />
+        );
+        return inWorkspace ? profile : (
+          <main id="main" className={!view || !view.person.public ? "container section" : "container"} style={!view || !view.person.public ? undefined : { paddingTop: 25, paddingBottom: 60 }}>
+            {profile}
           </main>
-        )
-      }
+        );
+      }}
     </QueryView>
   );
 }

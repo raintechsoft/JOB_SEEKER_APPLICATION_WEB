@@ -12,12 +12,13 @@ import { track } from "@/lib/analytics";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { readRecentSearches, rememberSearch } from "./recent-searches";
-import { scopedSearchSchema, scopesFor, searchLabels, searchPageUrl, searchSettings, searchQuerySchema, normalizeSearch, filterKeysFor, type SearchOptions, type SearchScope } from "@/lib/search/scopes";
-import { resultKindLabels, searchResultHref, type SearchResult } from "@/services/search/search.service";
+import { scopedSearchSchema, scopesFor, searchLabels, searchPageUrl, searchSettings, searchQuerySchema, normalizeSearch, filterKeysFor, withoutSearchSelection, searchKindScope, type SearchOptions, type SearchScope } from "@/lib/search/scopes";
+import type { SearchResult } from "@/services/search/search.service";
+import { enrichOwnSearchResult } from "@/lib/search/result-copy";
 import { SearchScopeBadges } from "./scope-badges";
-import { SearchResultMark } from "./result-mark";
 import { SearchFailure } from "./search-failure";
-import { SearchHighlight } from "./highlight";
+import { SearchSuggestionRow } from "./suggestion-row";
+import { compatibleSearchOptions } from "@/lib/search/capabilities";
 
 export function HeaderSearch({ role }: { role: Role }) {
   const query = useUiStore(s => s.feed.query);
@@ -44,6 +45,7 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
   const [error, setError] = useState<string>();
   const [category, setCategory] = useState(initialCategory);
   const [activeOptions, setActiveOptions] = useState(initialOptions);
+  const pointerInside = useRef(false);
   const parsed = searchQuerySchema.safeParse(value);
   const term = normalizeSearch(value);
   const options = Object.fromEntries(Object.entries(activeOptions).filter(([key]) => key === "sort" || filterKeysFor(category).includes(key as never))) as SearchOptions;
@@ -52,35 +54,55 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
   const people = ready && !result.isError ? result.data?.items ?? [] : [];
   const choices = term ? people.length : recent.length;
   const activeId = open && active >= 0 && active < choices ? `${id}-option-${active}` : undefined;
+  const identity = useServiceQuery(["feed", "identity", role], async s => role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person, { enabled: open });
+  const profile = useServiceQuery(["profile"], s => s.profile.getProfile(), { enabled: open && role === "professional" });
+  const homeCompany = useServiceQuery(["company", "home"], s => s.workspace.getHomeCompany(), { enabled: open && role === "recruiter" });
+  const network = useServiceQuery(["network", role], s => s.feed.getNetwork(role), { enabled: open });
+  const ownPerson = role === "professional" ? profile.data?.person ?? identity.data : identity.data;
+  const ownSearch = ownPerson ? { id: ownPerson.id, headline: ownPerson.headline, location: "location" in ownPerson ? String(ownPerson.location ?? "") : "", summary: "summary" in ownPerson ? String(ownPerson.summary ?? "") : "", category: "category" in ownPerson ? String(ownPerson.category ?? "") : "", currentTitle: profile.data?.details.currentTitle } : undefined;
+  const detailedPeople = category === "people" || category === "talent";
 
   useEffect(() => { if (composing) return; const timer = window.setTimeout(() => setDebounced(normalizeSearch(value)), searchSettings.debounceMs); return () => window.clearTimeout(timer); }, [value, composing]);
   useEffect(() => {
-    const close = (event: PointerEvent) => { if (!ref.current?.contains(event.target as Node)) { setOpen(false); setActive(-1); } };
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
+    const onPointerDown = (event: PointerEvent) => {
+      const inside = !!ref.current?.contains(event.target as Node);
+      pointerInside.current = inside;
+      if (!inside) { setOpen(false); setActive(-1); }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
   useEffect(() => { if (activeId) document.getElementById(activeId)?.scrollIntoView?.({ block: "nearest" }); }, [activeId]);
 
-  const submit = (query: string) => {
+  const submit = (query: string, selected?: SearchResult) => {
     const input = searchQuerySchema.safeParse(query);
     if (!input.success) { setError(input.error.issues[0].message); return; }
     const text = input.data;
-    const valid = scopedSearchSchema.safeParse({ role, q: text, scope: category, limit: 10, ...options }).success;
+    const resultsScope: SearchScope = selected ? searchKindScope(selected.kind) ?? "all" : category;
+    const nextOptions: SearchOptions = selected
+      ? { ...compatibleSearchOptions(category, resultsScope, withoutSearchSelection(options)), selected: `${selected.kind}:${selected.id}` }
+      : withoutSearchSelection(options);
+    const valid = scopedSearchSchema.safeParse({ role, q: text, scope: resultsScope, limit: 10, ...nextOptions }).success;
     if (!valid) { setError("Choose a search category available in this workspace."); return; }
-    setRecent(rememberSearch(scope, text, scope ? readRecentSearches(scope) : recent));
+    if (!selected) setRecent(rememberSearch(scope, text, scope ? readRecentSearches(scope) : recent));
     setValue(text); setError(undefined); setOpen(false); setActive(-1);
-    setFeed({ query: text, searchScope: category, searchOptions: options, filter: "all", visible: 12 });
+    setFeed({ query: text, searchScope: resultsScope, searchOptions: nextOptions, filter: "all", visible: 12 });
     track("search_performed", { surface: "feed", hasQuery: !!text });
-    router.push(searchPageUrl(role, text, category, options));
+    router.push(searchPageUrl(role, text, resultsScope, nextOptions));
   };
-  const visit = (person: SearchResult) => {
-    setOpen(false); setActive(-1);
-    router.push(searchResultHref(role, person));
+  const visit = (result: SearchResult) => {
+    submit(value, result);
   };
 
   return <form ref={ref} className={`professional-search header-search${value.length ? " has-query" : ""}`} id="feed-search-form" role="search" noValidate
     onSubmit={event => { event.preventDefault(); if (!composing) submit(value); }}
-    onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) { setOpen(false); setActive(-1); } }}>
+    onPointerDownCapture={() => { pointerInside.current = true; }}
+    onBlur={event => {
+      const next = event.relatedTarget as Node | null;
+      if (event.currentTarget.contains(next)) return;
+      if (!next && pointerInside.current) return;
+      setOpen(false); setActive(-1);
+    }}>
     {!value.length && <Icon name="search" />}
     <input id={`${id}-input`} name="query" type="search" role="combobox" aria-label="Search Skillora" placeholder="Search Skillora" autoComplete="off" maxLength={200} value={value}
       aria-autocomplete="list" aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? `${id}-list` : undefined} aria-activedescendant={activeId}
@@ -103,12 +125,15 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
     {!!value.length && <button type="button" className="header-search-clear" aria-label="Clear search" onClick={() => { setValue(""); setDebounced(""); setActive(-1); setError(undefined); setOpen(true); setRecent(readRecentSearches(scope)); ref.current?.querySelector("input")?.focus(); }}><Icon name="close" /></button>}
     {error && <span id={`${id}-error`} role="alert" className="header-search-error">{error}</span>}
     {open && <div className="header-search-dropdown">
-      <SearchScopeBadges role={role} value={category} onChange={next => { setCategory(next); setActive(-1); ref.current?.querySelector("input")?.focus(); }} />
+      <SearchScopeBadges role={role} value={category} onChange={next => { setActiveOptions(compatibleSearchOptions(category,next,options)); setCategory(next); setActive(-1); ref.current?.querySelector("input")?.focus(); }} />
       <div className="header-search-results">
         <h2>{term ? category === "all" ? "Results" : searchLabels[category] : "Recent searches"}</h2>
         <div id={`${id}-list`} role="listbox" aria-label={term ? "Matching search results" : "Recent searches"}>
           {!term && recent.map((query, index) => <button key={query} id={`${id}-option-${index}`} type="button" role="option" aria-selected={active === index} className="header-search-option recent-search-option" onClick={() => submit(query)}><Icon name="clock" /><span>{query}</span></button>)}
-          {term && people.map((person, index) => <button key={`${person.kind}:${person.id}`} id={`${id}-option-${index}`} type="button" role="option" aria-selected={active === index} className="header-search-option" onClick={() => visit(person)}><SearchResultMark result={person} /><span><strong><SearchHighlight text={person.title} query={term} /></strong><span>{resultKindLabels[person.kind]}{person.subtitle ? <> · <SearchHighlight text={person.subtitle} query={term} /></> : ""}{person.companyAccess === "workspace" && " · Your company only"}</span></span></button>)}
+          {term && people.map((person, index) => {
+            const result = enrichOwnSearchResult(person, ownSearch);
+            return <SearchSuggestionRow key={`${person.kind}:${person.id}`} result={result} query={term} detailed={detailedPeople} selected={active === index} optionId={`${id}-option-${index}`} role={role} followingPeople={network.data?.following.map(entry => entry.id) ?? []} followingCompanies={network.data?.companies.map(entry => entry.id) ?? []} ownPersonId={ownPerson?.id ?? identity.data?.id} ownCompanyId={homeCompany.data?.id} onVisit={visit} />;
+          })}
         </div>
         {Object.keys(options).some(key => key !== "sort") && <p className="header-search-hint">Filters are applied to this search. <button type="button" onClick={() => { setActiveOptions({ sort: options.sort }); setActive(-1); ref.current?.querySelector("input")?.focus(); }}>Clear filters</button></p>}
         {!term && !recent.length && <p className="header-search-hint">Your recent searches will appear here.</p>}

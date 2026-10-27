@@ -1507,6 +1507,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Exact results and header suggestions retain normal matching and filters. mode=related returns at most 6 separate discovery suggestions, with null total/cursor: shared terms and filters first, then eligible same-category records if no filtered candidates exist. Visibility and role gates never relax. Related mode rejects selected/cursor and limits above 6. */
         get: operations["phase5_get__me_social_identity_search"];
         put?: never;
         post?: never;
@@ -3744,6 +3745,7 @@ export interface components {
             industry?: string;
             logoUrl?: string;
             confidential?: boolean;
+            followerCount?: number;
         };
         HiringJob: {
             /** Format: uuid */
@@ -4370,6 +4372,7 @@ export interface components {
             color: string;
             slug?: string;
             recruiter?: boolean;
+            followerCount?: number;
         };
         SocialMedia: {
             /** @enum {string} */
@@ -4499,6 +4502,7 @@ export interface components {
                 color: string;
                 slug?: string;
                 recruiter?: boolean;
+                followerCount?: number;
                 following: boolean;
             }[];
             followers: {
@@ -4510,6 +4514,7 @@ export interface components {
                 color: string;
                 slug?: string;
                 recruiter?: boolean;
+                followerCount?: number;
                 following: boolean;
             }[];
             companies: components["schemas"]["HiringCompany"][];
@@ -4545,6 +4550,12 @@ export interface components {
             recruiter: boolean;
             ownerId: string | null;
             companyAccess: ("public" | "workspace") | null;
+            designation?: string;
+            bio?: string;
+            location?: string;
+            industry?: string;
+            companyName?: string;
+            followerCount?: number;
         };
         WorkspaceSearchPage: {
             items: components["schemas"]["WorkspaceSearchResult"][];
@@ -8085,14 +8096,17 @@ export interface operations {
                 q: string;
                 scope?: "all" | "posts" | "companies" | "people" | "jobs" | "updates" | "talent" | "skills" | "projects";
                 sort?: "relevance" | "recent";
-                mode?: "results" | "suggestions";
+                mode?: "results" | "suggestions" | "related";
                 limit?: number;
                 cursor?: string;
+                selected?: string;
                 location?: string;
                 industry?: string;
                 skill?: string;
                 author?: string;
                 days?: number;
+                contentType?: "text" | "image" | "video" | "project";
+                companyType?: "Privately held" | "Public company" | "Nonprofit" | "Government" | "Partnership" | "Self-employed" | "Other";
                 experienceMin?: number;
                 experienceMax?: number;
                 arrangement?: "On-site" | "Hybrid" | "Remote";

@@ -134,9 +134,9 @@ function useWorkspaceRole(role: Role, enabled: boolean) {
 function WorkspaceFrame({ recruiter, nav, navLabel, account, children }: { recruiter: boolean; nav: NavItem[]; navLabel: string; account: ReactNode; children: ReactNode }) {
   const pathname = usePathname();
   const base = recruiter ? "/recruiter" : "/app";
-  const mainClass = pathname === base + "/dashboard" ? "is-feed" : pathname === (recruiter ? "/recruiter/activity" : "/app/updates") ? "is-activity" : "";
+  const mainClass = pathname === base + "/dashboard" ? "is-feed" : pathname === (recruiter ? "/recruiter/activity" : "/app/updates") ? "is-activity" : pathname === base + "/search" ? "is-search" : "";
   return (
-    <div className={recruiter ? "professional-app recruiter-app" : "professional-app"}>
+    <div className={`${recruiter ? "professional-app recruiter-app" : "professional-app"}${pathname === base + "/search" ? " is-search" : ""}`}>
       <header className="professional-header">
         <div className="professional-header-inner">
           <Brand href={base + "/dashboard"} />
@@ -283,14 +283,14 @@ function MockRecruiterShell({ children }: { children: ReactNode }) {
 export function ProfessionalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   if (!pathname.startsWith("/app/")) return <>{children}</>;
-  const connected = ["/app/search", "/app/messages", "/app/settings", "/app/dashboard", "/app/posts/new", "/app/updates", "/app/profile", "/app/projects", "/app/work-pulse", "/app/portfolio", "/app/portfolio/preview", "/app/applications", "/app/jobs"].includes(pathname);
+  const connected = ["/app/search", "/app/messages", "/app/settings", "/app/dashboard", "/app/posts/new", "/app/updates", "/app/profile", "/app/projects", "/app/work-pulse", "/app/portfolio", "/app/portfolio/preview", "/app/applications", "/app/jobs"].includes(pathname) || pathname.startsWith("/app/professionals/") || pathname.startsWith("/app/organizations/") || pathname.startsWith("/app/recruiters/");
   if(apiConfig.dataSource === "http") return connected ? <WorkspaceAccessGate role="professional"><MockProfessionalShell>{children}</MockProfessionalShell></WorkspaceAccessGate> : <RealWorkspace role="professional"/>;
   return <MockProfessionalShell>{children}</MockProfessionalShell>;
 }
 
 export function RecruiterShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const connected = ["/recruiter/search", "/recruiter/messages", "/recruiter/dashboard", "/recruiter/posts/new", "/recruiter/activity", "/recruiter/company", "/recruiter/company/preview", "/recruiter/organization", "/recruiter/profile", "/recruiter/profile/preview", "/recruiter/jobs/new", "/recruiter/jobs", "/recruiter/applications", "/recruiter/discover", "/recruiter/shortlists", "/recruiter/compare", "/recruiter/overview"].includes(pathname) || pathname.startsWith("/recruiter/team/") || pathname.startsWith("/recruiter/talent/");
+  const connected = ["/recruiter/search", "/recruiter/messages", "/recruiter/dashboard", "/recruiter/posts/new", "/recruiter/activity", "/recruiter/company", "/recruiter/company/preview", "/recruiter/organization", "/recruiter/profile", "/recruiter/profile/preview", "/recruiter/jobs/new", "/recruiter/jobs", "/recruiter/applications", "/recruiter/discover", "/recruiter/shortlists", "/recruiter/compare", "/recruiter/overview"].includes(pathname) || pathname.startsWith("/recruiter/team/") || pathname.startsWith("/recruiter/talent/") || pathname.startsWith("/recruiter/organizations/") || pathname.startsWith("/recruiter/recruiters/");
   if(apiConfig.dataSource === "http") return connected ? <WorkspaceAccessGate role="recruiter"><MockRecruiterShell>{children}</MockRecruiterShell></WorkspaceAccessGate> : <RealWorkspace role="recruiter"/>;
   return <MockRecruiterShell>{children}</MockRecruiterShell>;
 }

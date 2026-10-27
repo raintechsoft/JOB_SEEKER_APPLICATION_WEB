@@ -7,7 +7,8 @@ import type { Id, Role } from "@/types/domain";
 import type { PersonSummary } from "@/types/api";
 import type { FeedComment, FeedEntry } from "@/services/feed/feed.service";
 import { timeAgo } from "@/lib/utils/date";
-import { firstName } from "@/lib/utils/text";
+import { organizationProfileHref, recruiterProfileHref } from "@/lib/routing/profiles";
+import { firstName, formatFollowers } from "@/lib/utils/text";
 import { devCopy } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
@@ -41,15 +42,15 @@ function authorHref(role: Role, entry: FeedEntry) {
   const a = entry.author;
   if (!a) return undefined;
   if (entry.viewer.own) return role === "recruiter" ? "/recruiter/profile" : "/app/profile";
-  if (a.recruiter) return "/recruiters/" + a.id;
+  if (a.recruiter) return recruiterProfileHref(role, a.id);
   if (a.id === "r0") return role === "recruiter" ? "/recruiter/company" : "/app/dashboard?post=" + entry.id;
-  return role === "recruiter" ? "/recruiter/talent/" + a.id : a.slug ? "/professionals/" + a.slug : undefined;
+  return role === "recruiter" ? "/recruiter/talent/" + a.id : a.slug ? "/app/professionals/" + encodeURIComponent(a.slug) : undefined;
 }
 
 function personHref(role: Role, person: PersonSummary) {
-  if (person.recruiter) return "/recruiters/" + person.id;
-  if (person.id === "r0") return role === "recruiter" ? "/recruiter/profile" : "/recruiters/" + person.id;
-  return role === "recruiter" ? "/recruiter/talent/" + person.id : person.slug ? "/professionals/" + person.slug : undefined;
+  if (person.recruiter) return recruiterProfileHref(role, person.id);
+  if (person.id === "r0") return recruiterProfileHref(role, person.id, role === "recruiter");
+  return role === "recruiter" ? "/recruiter/talent/" + person.id : person.slug ? "/app/professionals/" + encodeURIComponent(person.slug) : undefined;
 }
 
 function CommentComposer({ entryId, role, identity, parentId, fieldId, placeholder, onPosted }: { entryId: Id; role: Role; identity?: PersonSummary; parentId?: Id; fieldId: string; placeholder: string; onPosted?: () => void }) {
@@ -270,7 +271,7 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
   const ref = useImpression<HTMLElement>(() => {if(noTracking)return;if(entry.analyticsContext)track("recommendation_exposed",entry.analyticsContext);else track("feed_item_impression", { itemId: entry.id, itemType: entry.type, surface, position });},entry.analyticsContext?.requestId);
   const job = entry.type === "job";
   const p = job ? entry.company! : entry.author!;
-  const href = authorHref(role, entry);
+  const href = job ? organizationProfileHref(role, entry.company?.confidential ? undefined : entry.company?.slug) : authorHref(role, entry);
   const open = openComments.includes(entry.id);
   const isExpanded = expanded.includes(entry.id);
   const long = entry.body?.length > 420 && !isExpanded;
@@ -294,21 +295,40 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
     if (!open) requestAnimationFrame(() => document.getElementById("comment-" + entry.id)?.focus({ preventScroll: true }));
   };
   const share = () => shareSheet.open(role, entry.id);
-
-  const contextLine = repost.enabled ? "You reposted" : entry.repost ? entry.repost.author.name + " reposted" : job ? "An opportunity to do meaningful work" : entry.viewer.own ? "Your professional story" : firstName(p.name) + " is part of your network";
+  const { data: identity } = useServiceQuery(["feed", "identity", role], async (s) => (role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person));
+  const reposter = repost.enabled ? identity ?? entry.repost?.author : entry.repost?.author;
+  const contextLine = job ? "An opportunity to do meaningful work" : entry.viewer.own ? "Your professional story" : firstName(p.name) + " is part of your network";
   const headline = JOB_HEADLINES[entry.job?.art ?? ""] ?? ["Make room", "for bold ideas."];
+  const followers = job ? (entry.company?.confidential ? undefined : entry.company?.followerCount) : entry.author?.followerCount;
+  const followerText = followers == null ? "" : formatFollowers(followers);
+  const reposterLink = reposter ? (repost.enabled ? (role === "recruiter" ? "/recruiter/profile" : "/app/profile") : personHref(role, reposter)) : undefined;
 
   return (
     <article ref={ref} className={"card feed-post" + (job ? " feed-job-post" : "") + (highlighted ? " is-highlighted" : "")} id={"feed-" + entry.id} data-post-id={entry.id}>
       {entry.recommendationReason&&<p className="small muted" style={{padding:"12px 20px 0"}}>{entry.recommendationReason}</p>}
       <div className="feed-post-context">
-        <Icon name={repost.enabled || entry.repost ? "repost" : job ? "briefcase" : entry.type === "update" ? "pulse" : "users"} />
-        <span>{contextLine}</span>
+        {reposter ? (
+          <>
+            {reposterLink ? <Link href={reposterLink} aria-label={"View " + reposter.name + " profile"}><Avatar person={reposter} /></Link> : <Avatar person={reposter} />}
+            <span>{reposterLink ? <Link href={reposterLink}><strong>{reposter.name}</strong></Link> : <strong>{reposter.name}</strong>} reposted this</span>
+          </>
+        ) : (
+          <>
+            <Icon name={job ? "briefcase" : entry.type === "update" ? "pulse" : "users"} />
+            <span>{contextLine}</span>
+          </>
+        )}
       </div>
       <header className="feed-post-header">
         <div className="row">
           {job ? (
-            <CompanyAvatar company={entry.company!} />
+            href ? (
+              <Link href={href} aria-label={"View " + p.name + " profile"}>
+                <CompanyAvatar company={entry.company!} />
+              </Link>
+            ) : (
+              <CompanyAvatar company={entry.company!} />
+            )
           ) : href ? (
             <Link href={href} aria-label={"View " + p.name + " profile"}>
               <Avatar person={p} />
@@ -318,15 +338,18 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
           )}
           <div className="grow">
             <h2>
-              {job ? p.name : href ? <Link href={href}>{p.name}</Link> : p.name}
+              {href ? <Link href={href}>{p.name}</Link> : p.name}
               {job && <span className="feed-company-label">Company</span>}
             </h2>
             <p className="feed-post-byline" title={job ? entry.company?.industry || "Creative & technology" : entry.author?.headline}>
               {job ? entry.company?.industry || "Creative & technology" : entry.author?.headline}
             </p>
-            <time dateTime={entry.createdAt} title={entry.createdAt}>
-              {timeAgo(entry.createdAt)}
-            </time>
+            <p className="feed-post-meta">
+              {followerText ? <>{followerText}<span aria-hidden> · </span></> : null}
+              <time dateTime={entry.createdAt} title={entry.createdAt}>
+                {timeAgo(entry.createdAt)}
+              </time>
+            </p>
           </div>
         </div>
         <div className="feed-post-header-tools">

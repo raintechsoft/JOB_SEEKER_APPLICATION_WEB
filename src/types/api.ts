@@ -40,6 +40,7 @@ export interface PersonSummary {
   picture?: string;
   color?: string;
   slug?: string;
+  followerCount?: number;
 }
 
 /** Company as displayed on jobs (may be confidential). */
