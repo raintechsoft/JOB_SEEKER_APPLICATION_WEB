@@ -382,6 +382,104 @@ body.professional-theme .job-sheet-alert .switch input:checked + span,
   background-color: #0a66c2;
 }
 
+.job-details-skeleton .job-sheet-skeleton-logo,
+.job-details-skeleton .job-sheet-skeleton-menu {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.job-details-skeleton .job-sheet-skeleton-menu {
+  margin-left: auto;
+  border-radius: 8px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-title {
+  width: min(78%, 420px);
+  height: 32px;
+  margin: 4px 0 0;
+  border-radius: 8px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-meta {
+  width: min(62%, 340px);
+  height: 14px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-badge,
+.job-details-skeleton .job-sheet-skeleton-follow,
+.job-details-skeleton .job-sheet-skeleton-switch {
+  height: 32px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.job-details-skeleton .job-sheet-skeleton-badge {
+  width: 92px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-action {
+  width: 118px;
+  height: 40px;
+  border-radius: 999px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-action.is-secondary {
+  width: 88px;
+}
+
+.job-details-skeleton .job-sheet-about > .job-sheet-skeleton-heading,
+.job-details-skeleton .job-sheet-about-company > .job-sheet-skeleton-heading {
+  width: 186px;
+  height: 24px;
+  margin: 8px 0 4px;
+  border-radius: 6px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-subheading {
+  width: 148px;
+  height: 16px;
+  margin: 0 0 8px;
+}
+
+.job-details-skeleton .job-sheet-section > ul > li > .skeleton {
+  height: 13px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-tag {
+  width: 76px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-company-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.job-details-skeleton .job-sheet-skeleton-follow {
+  width: 92px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-facts {
+  width: min(48%, 220px);
+  height: 13px;
+}
+
+.job-details-skeleton .job-sheet-skeleton-switch {
+  width: 40px;
+  height: 22px;
+}
+
 @media (max-width: 600px) {
   body.professional-theme dialog.following-sheet:has(.job-details-sheet),
   dialog.following-sheet:has(.job-details-sheet) {

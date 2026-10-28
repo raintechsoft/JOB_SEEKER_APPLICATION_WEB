@@ -9,20 +9,24 @@ import { useJobActions } from "@/features/feed/job-dialogs";
 import { useJobAlertDialogs } from "@/features/feed/job-alerts";
 import { formatLongDate } from "@/lib/utils/date";
 
-function OpportunityList({ label, heading, children }: { label: string; heading: string; children: ReactNode }) {
-  return <div className="saved-opportunities"><table className="saved-opportunities-table opportunity-list-table" aria-label={label}>
-    <thead><tr><th scope="col">{heading}</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+function OpportunityList({ label, heading, children, statusLabel }: { label: string; heading: string; children: ReactNode; statusLabel?: string }) {
+  return <div className="saved-opportunities"><table className={"saved-opportunities-table opportunity-list-table" + (statusLabel ? " has-status-column" : "")} aria-label={label}>
+    <thead><tr>
+      <th scope="col">{heading}</th>
+      {statusLabel ? <th scope="col" className="opportunity-status-cell">{statusLabel}</th> : null}
+      <th scope="col"><span className="sr-only">Actions</span></th>
+    </tr></thead>
     <tbody>{children}</tbody>
   </table></div>;
 }
 
-export function AppliedOpportunities({ items, onDetails, onEdit }: { items: ApplicationRecord[]; onDetails: (id: string) => void; onEdit: (id: string) => void | Promise<void> }) {
+export function AppliedOpportunities({ items, onEdit }: { items: ApplicationRecord[]; onEdit: (id: string) => void | Promise<void> }) {
   const jobs = useJobActions();
-  return <OpportunityList label="Your applications" heading="Jobs">{items.map(application => {
+  return <OpportunityList label="Your applications" heading="Jobs" statusLabel="Status">{items.map(application => {
     const job = application.jobRef;
     const companyName = job?.companyName ?? "Company unavailable";
     const title = job?.title ?? "Archived opportunity";
-    const status = ["Interview","Offer","Shortlisted","Hired"].includes(application.status) ? "positive" : ["Rejected","Withdrawn"].includes(application.status) ? "muted-status" : "pending";
+    const status = ["Interview","Offer","Shortlisted","Hired"].includes(application.status) ? "positive" : application.status === "Rejected" ? "negative" : "pending";
     return <tr key={application.id} data-application-id={application.id}>
       <td><div className="saved-opportunity-job">
         <CompanyAvatar company={{id:job?.companyId ?? application.job,name:companyName,confidential:companyName === "Confidential company"}} />
@@ -33,13 +37,12 @@ export function AppliedOpportunities({ items, onDetails, onEdit }: { items: Appl
           {application.followUp && <small className="opportunity-follow-up">Follow up {formatLongDate(application.followUp)}</small>}
         </div>
       </div></td>
-      <td className="saved-opportunity-action"><div className="opportunity-row-actions">
+      <td className="opportunity-status-cell">
         <span className={`application-status ${status}`}>{application.status}</span>
         {application.statusSource === "employer" && <small className="muted">Updated by employer</small>}
-        <div>
-          <Button unstyled className="saved-opportunity-apply" icon="file" aria-label={`Details for ${title}`} onClick={() => onDetails(application.id)}>Details</Button>
-          <Button unstyled className="saved-opportunity-apply" icon="edit" aria-label={`Update tracking for ${title}`} onClick={() => onEdit(application.id)}>Update tracking</Button>
-        </div>
+      </td>
+      <td className="saved-opportunity-action"><div className="opportunity-row-actions">
+        <Button unstyled className="saved-opportunity-apply" icon="edit" aria-label={`Edit notes for ${title}`} onClick={() => onEdit(application.id)}>Edit notes</Button>
       </div></td>
     </tr>;
   })}</OpportunityList>;

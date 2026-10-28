@@ -55,7 +55,7 @@ export function useImageUploads() {
       toast("Wait for the current image to finish loading.");
       return null;
     }
-    if (files.some((f) => f.size > max || !IMAGE_TYPES.includes(f.type))) {
+    if (apiConfig.dataSource !== "http" && files.some((f) => f.size > max || !IMAGE_TYPES.includes(f.type))) {
       toast(UPLOAD_ERROR(max));
       return null;
     }
@@ -64,8 +64,11 @@ export function useImageUploads() {
       if (apiConfig.dataSource === "http") {
         for (const file of files) { const error = validateMedia(file, purpose); if (error) throw new Error(error); }
         const context = await services.organization.getContext();
-        const images: WorkplaceImage[] = [];
-        for (const file of files) { const asset = await services.media.upload(file, purpose, context.workspace.organization.id); images.push({ id: asset.id, url: asset.url, alt: file.name.replace(/\.[^.]+$/, ""), bytes: asset.bytes }); }
+        const images: WorkplaceImage[] = await Promise.all(files.map(async file => {
+          const asset = await services.media.upload(file, purpose, context.workspace.organization.id, {manual:purpose==="gallery"});
+          return { id: asset.id, url: asset.url, alt: file.name.replace(/\.[^.]+$/, ""), bytes: asset.bytes };
+        }));
+        if (purpose !== "recruiter_photo" && useOrganizationDrafts.getState().organization?.organization.id !== context.workspace.organization.id) throw new Error("Your workspace changed. Reopen the original organization to continue editing.");
         toast("Image uploaded. Save your changes to attach it.");
         return images;
       }

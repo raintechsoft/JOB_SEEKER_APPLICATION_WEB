@@ -12,7 +12,7 @@ export function createHttpRecommendationsService(http:HttpClient,auth:AuthServic
   }
   const service:RecommendationsService={async getJobsForYou(){
     const page=await read("jobs",20);
-    const forYou=page.items.filter((r):r is components["schemas"]["RecommendedJob"]=>"job" in r).map(({job,company,saved,reason,matchedAlerts,analyticsContext})=>({analyticsContext,id:job.id,title:job.title,companyId:company.id,company,location:job.location,arrangement:job.arrangement,employment:job.employment,salary:job.salary,createdAt:job.createdAt,isNew:Date.now()-Date.parse(job.createdAt)<7*86400000,saved,matchedAlerts,reason}));
+    const forYou=page.items.filter((r):r is components["schemas"]["RecommendedJob"]=>"job" in r).map(({job,company,saved,reason,matchedAlerts,analyticsContext})=>({analyticsContext,id:job.id,title:job.title,companyId:company.id,company,location:job.location,arrangement:job.arrangement,employment:job.employment,salary:job.salary,createdAt:job.createdAt,isNew:Date.now()-Date.parse(job.createdAt)<7*86400000,saved,closed:job.closed,matchedAlerts,reason}));
     return {strategyVersion:page.strategyVersion,forYou,alertMatches:forYou.filter((j)=>j.matchedAlerts.length>0),newCount:forYou.filter((j)=>j.isNew).length};
   }};
   return {...service,async talent(){const page=await read("talent",6);return page.items.filter((r):r is components["schemas"]["RecommendedTalent"]=>"person" in r).map((r)=>({...r.person,recommendationReason:r.reason,analyticsContext:r.analyticsContext}));}};

@@ -27,7 +27,7 @@ export function OtpFields({ error, legend = "Enter the 6-digit OTP" }: { error?:
   };
   return (
     <fieldset className="er-otp" data-no-floating-label aria-describedby={error ? "otp-code-error" : undefined} aria-invalid={!!error}>
-      <legend>{legend}</legend>
+      <legend>{legend} <span aria-hidden="true">*</span></legend>
       <div>
         {Array.from({ length: 6 }, (_, i) => (
           <input
@@ -61,6 +61,20 @@ export function OtpFields({ error, legend = "Enter the 6-digit OTP" }: { error?:
       )}
     </fieldset>
   );
+}
+
+export function OtpExpiry({ expiresAt }: { expiresAt: number | null }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (expiresAt === null || !Number.isFinite(expiresAt)) return null;
+  const seconds = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+  const clock = String(Math.floor(seconds / 60)).padStart(2, "0") + ":" + String(seconds % 60).padStart(2, "0");
+  return <p className="er-hint" role={seconds === 0 ? "alert" : undefined} data-code-expiry>
+    {seconds === 0 ? "Code expired. Request a new code." : `Code expires in ${clock}.`}
+  </p>;
 }
 
 export function OtpResend({ sentAt, onResend, disabled = false, label = "Resend OTP" }: { sentAt: number | null; onResend: () => void; disabled?: boolean; label?: string }) {

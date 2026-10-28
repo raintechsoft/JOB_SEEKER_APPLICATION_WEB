@@ -73,9 +73,9 @@ export function ReviewEditor({initialData}:{initialData:ReviewView}){
       </LinkButton>
       {errors._form&&<p role="alert">{errors._form}</p>}
       {a.withdrawnAt&&<p className="notice">The applicant withdrew this application. Its hiring stage cannot change.</p>}
-      <SelectField label="Hiring status" name="status" error={errors.status} defaultValue={a.status} options={isPrototype?HIRING_STAGES:[a.status,...(a.withdrawnAt?[]:RECRUITING_RULES.transitions[a.status])]} />
+      <SelectField required label="Hiring status" name="status" error={errors.status} defaultValue={a.status} options={isPrototype?HIRING_STAGES:[a.status,...(a.withdrawnAt?[]:RECRUITING_RULES.transitions[a.status])]} />
       <TextAreaField label="Private hiring notes" name="note" error={errors.note} defaultValue={a.recruiterNote} maxLength={2000} />
-      <TextField label="Follow-up date (optional)" name="followUp" error={errors.followUp} type="date" defaultValue={a.followUp} />
+      <TextField label="Follow-up date" name="followUp" error={errors.followUp} type="date" defaultValue={a.followUp} />
       <InfoBadge label="Application status information">Status changes appear in the candidate’s application tracker. Hiring notes and follow-up dates stay private to your team.</InfoBadge>
       {!!a.history?.length&&<details><summary>Private review history</summary>{a.history.map((event)=><p key={event.id} className="small"><strong>{event.author}</strong> · {event.kind==="stage"?`${event.from} → ${event.to}`:event.body||"Note cleared"}</p>)}</details>}
       <div className="modal-footer">

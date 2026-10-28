@@ -13,8 +13,8 @@ import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-serv
 import { useNavigationDock } from "@/hooks/use-navigation-dock";
 import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
-import { Avatar, Brand, IconButton } from "@/components/ui/primitives";
-import { workspaceDialogs } from "@/features/workspace/dialogs";
+import { Avatar, Brand } from "@/components/ui/primitives";
+import { NotificationBell } from "@/features/workspace/notification-bell";
 import { useNetworkSheet } from "@/features/feed/network-sheet";
 import { apiConfig } from "@/services/api/config";
 import { RealWorkspace } from "@/features/auth/real-workspace";
@@ -132,6 +132,7 @@ function useWorkspaceRole(role: Role, enabled: boolean) {
 }
 
 function WorkspaceFrame({ recruiter, nav, navLabel, account, children }: { recruiter: boolean; nav: NavItem[]; navLabel: string; account: ReactNode; children: ReactNode }) {
+  useServiceQuery(["media-policy"], service => service.media.policy!(), {enabled:apiConfig.dataSource==="http",staleTime:Infinity});
   const pathname = usePathname();
   const base = recruiter ? "/recruiter" : "/app";
   const mainClass = pathname === base + "/dashboard" || pathname === "/app/jobs" ? "is-feed" : pathname === (recruiter ? "/recruiter/activity" : "/app/updates") ? "is-activity" : pathname === base + "/search" ? "is-search" : "";
@@ -144,7 +145,7 @@ function WorkspaceFrame({ recruiter, nav, navLabel, account, children }: { recru
           <WorkspaceNav items={nav} label={navLabel} />
           <div className="professional-header-tools">
             <Link href={base + "/search"} className="mobile-workspace-search iconbtn" aria-label="Search Skillora"><Icon name="search" /></Link>
-            <IconButton icon="bell" label="Notifications" onClick={workspaceDialogs.notifications} />
+            <NotificationBell role={recruiter ? "recruiter" : "professional"} />
             {account}
           </div>
         </div>
@@ -229,6 +230,7 @@ const RECRUITER_MENU: [string, string, IconName][] = [
   ["discover", "Discover Talent", "search"],
   ["shortlists", "Shortlists", "bookmark"],
   ["compare", "Compare Candidates", "compare"],
+  ["settings", "Settings & privacy", "settings"],
 ];
 
 function MockRecruiterShell({ children }: { children: ReactNode }) {
@@ -290,7 +292,7 @@ export function ProfessionalShell({ children }: { children: ReactNode }) {
 
 export function RecruiterShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const connected = ["/recruiter/search", "/recruiter/messages", "/recruiter/dashboard", "/recruiter/posts/new", "/recruiter/activity", "/recruiter/company", "/recruiter/company/preview", "/recruiter/organization", "/recruiter/profile", "/recruiter/profile/preview", "/recruiter/jobs/new", "/recruiter/jobs", "/recruiter/applications", "/recruiter/discover", "/recruiter/shortlists", "/recruiter/compare", "/recruiter/overview"].includes(pathname) || pathname.startsWith("/recruiter/team/") || pathname.startsWith("/recruiter/talent/") || pathname.startsWith("/recruiter/organizations/") || pathname.startsWith("/recruiter/recruiters/");
+  const connected = ["/recruiter/search", "/recruiter/messages", "/recruiter/settings", "/recruiter/dashboard", "/recruiter/posts/new", "/recruiter/activity", "/recruiter/company", "/recruiter/company/preview", "/recruiter/organization", "/recruiter/profile", "/recruiter/profile/preview", "/recruiter/jobs/new", "/recruiter/jobs", "/recruiter/applications", "/recruiter/discover", "/recruiter/shortlists", "/recruiter/compare", "/recruiter/overview"].includes(pathname) || pathname.startsWith("/recruiter/team/") || pathname.startsWith("/recruiter/talent/") || pathname.startsWith("/recruiter/organizations/") || pathname.startsWith("/recruiter/recruiters/");
   if(apiConfig.dataSource === "http") return connected ? <WorkspaceAccessGate role="recruiter"><MockRecruiterShell>{children}</MockRecruiterShell></WorkspaceAccessGate> : <RealWorkspace role="recruiter"/>;
   return <MockRecruiterShell>{children}</MockRecruiterShell>;
 }

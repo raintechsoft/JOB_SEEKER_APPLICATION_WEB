@@ -77,7 +77,7 @@ const mockServices: Services = {
   media: { async upload() { throw new Error("Managed uploads require HTTP mode."); }, async remove() { throw new Error("Managed uploads require HTTP mode."); } },
   auth: new Proxy({} as AuthService, { get: () => async () => { throw new Error("Real account operations require HTTP mode."); } }),
   activity: mockActivityService,
-  notifications:{async list(){return {items:[],unreadCount:0};},async markRead(){},async preferences(){return [];},async savePreference(){}},
+  notifications:{async list(){return {items:[],unreadCount:0,newCount:0,seenToken:"mock"};},async counts(){return {unreadCount:0,newCount:0};},async markSeen(){},async delete(){},async markRead(){},async preferences(){return [];},async savePreference(){}},
   admin: mockAdminService,
   applications: mockApplicationsService,
   feed: mockFeedService,

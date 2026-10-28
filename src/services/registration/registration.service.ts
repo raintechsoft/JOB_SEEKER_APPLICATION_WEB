@@ -1,11 +1,11 @@
 export interface OtpChallenge {
   id: string;
-  kind: "sms" | "email";
+  kind: "whatsapp" | "email";
   target: string;
   sentAt: number;
   expiresAt: number;
   /**
-   * DEMO ONLY: the mock returns the code so the UI can display it ("No SMS is sent"). A real
+   * DEMO ONLY: the mock returns the code so the UI can display it ("No WhatsApp message is sent"). A real
    * backend never returns the code to the client.
    */
   demoCode?: string;
@@ -29,7 +29,7 @@ export interface EmployerRegistrationInput {
 }
 
 export interface RegistrationService {
-  requestOtp(kind: "sms" | "email", target: string): Promise<OtpChallenge>;
+  requestOtp(kind: "whatsapp" | "email", target: string): Promise<OtpChallenge>;
   verifyOtp(challengeId: string, target: string, code: string): Promise<OtpResult>;
   /** Requires both challenges to have been verified for the same mobile number and email. */
   registerEmployer(input: EmployerRegistrationInput): Promise<OtpResult>;

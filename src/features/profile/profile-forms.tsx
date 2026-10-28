@@ -30,25 +30,25 @@ type FieldConfig = [name: string, label: string, type?: string, options?: string
 const CONFIGS: Record<ProfileCollection, FieldConfig[]> = {
   skills: [["name", "Skill name", "text", null, true], ["category", "Category", "select", ["Technical", "Design", "Business", "Communication", "Leadership", "Other"]], ["level", "Proficiency", "select", PROFICIENCY], ["years", "Years of experience", "number"]],
   employment: [["title", "Job title", "text", null, true], ["company", "Company / organization", "text", null, true], ["type", "Employment type", "select", ["Full-time", "Part-time", "Contract", "Internship", "Freelance", "Temporary", "Other"]], ["arrangement", "Work arrangement", "select", ["On-site", "Hybrid", "Remote", "Flexible"]], ["location", "Location"], ["start", "Start month", "month", null, true], ["end", "End month", "month"], ["description", "Description", "textarea"], ["responsibilities", "Key responsibilities", "textarea"], ["achievements", "Key achievements", "textarea"], ["skills", "Skills used (comma separated)"]],
-  education: [["degree", "Qualification / degree", "text", null, true], ["institution", "Institution", "text", null, true], ["field", "Field of study"], ["start", "Start date", "month"], ["end", "Completion / expected date", "month"], ["grade", "Grade / percentage (optional)"], ["type", "Education type", "select", ["Full-time", "Part-time", "Distance", "Other"]], ["description", "Description", "textarea"], ["coursework", "Relevant coursework", "textarea"]],
-  technicalSkills: [["name", "Skill / technology", "text", null, true], ["version", "Version (optional)"], ["lastUsed", "Last used", "month"], ["years", "Experience — years", "number"], ["months", "Experience — months", "number"]],
+  education: [["degree", "Qualification / degree", "text", null, true], ["institution", "Institution", "text", null, true], ["field", "Field of study"], ["start", "Start date", "month"], ["end", "Completion / expected date", "month"], ["grade", "Grade / percentage"], ["type", "Education type", "select", ["Full-time", "Part-time", "Distance", "Other"]], ["description", "Description", "textarea"], ["coursework", "Relevant coursework", "textarea"]],
+  technicalSkills: [["name", "Skill / technology", "text", null, true], ["version", "Version"], ["lastUsed", "Last used", "month"], ["years", "Experience — years", "number"], ["months", "Experience — months", "number"]],
   onlineProfiles: [["title", "Platform name", "text", null, true], ["url", "Profile URL", "url", null, true], ["label", "Display label"]],
   workSamples: [["title", "Work sample title", "text", null, true], ["description", "Description", "textarea"], ["url", "Work sample URL", "url", null, true], ["skills", "Skills demonstrated (comma separated)"]],
-  publications: [["title", "Publication title", "text", null, true], ["type", "Publication type", "select", ["Research paper", "Journal entry", "White paper", "Article", "Book", "Other"]], ["authors", "Authors"], ["publisher", "Publisher / journal"], ["date", "Publication date", "date"], ["doi", "DOI (optional)"], ["url", "External URL", "url"], ["description", "Description", "textarea"]],
+  publications: [["title", "Publication title", "text", null, true], ["type", "Publication type", "select", ["Research paper", "Journal entry", "White paper", "Article", "Book", "Other"]], ["authors", "Authors"], ["publisher", "Publisher / journal"], ["date", "Publication date", "date"], ["doi", "DOI"], ["url", "External URL", "url"], ["description", "Description", "textarea"]],
   presentations: [["title", "Presentation title", "text", null, true], ["event", "Event / organization"], ["date", "Date", "date"], ["url", "Presentation URL", "url"], ["description", "Description", "textarea"]],
   patents: [["title", "Patent title", "text", null, true], ["number", "Patent / application number"], ["authority", "Issuing authority"], ["filing", "Filing date", "date"], ["grant", "Grant date", "date"], ["status", "Status", "select", ["Filed", "Pending", "Granted", "Expired", "Other"]], ["url", "Reference URL", "url"]],
   certifications: [["title", "Certification name", "text", null, true], ["issuer", "Issuing organization", "text", null, true], ["issue", "Issue date", "date"], ["expiry", "Expiry date", "date"], ["credential", "Credential ID"], ["url", "Credential URL", "url"]],
   languages: [["name", "Language", "text", null, true], ["level", "Overall proficiency", "select", PROFICIENCY], ["reading", "Reading", "select", PROFICIENCY], ["writing", "Writing", "select", PROFICIENCY], ["speaking", "Speaking", "select", PROFICIENCY]],
-  careerBreaks: [["start", "Start month", "month", null, true], ["end", "End month", "month"], ["description", "Explanation (optional)", "textarea"]],
+  careerBreaks: [["start", "Start month", "month", null, true], ["end", "End month", "month"], ["description", "Explanation", "textarea"]],
 };
 
 const SECTION_FORMS: Record<ProfileSection, FieldConfig[]> = {
   identity: [["name", "Full name", "text", null, true], ["headline", "Professional headline", "text", null, true], ["location", "General location (city, country)", "text", null, true], ["years", "Total experience — years", "number", null, true], ["email", "Email address", "email", null, true], ["phone", "Phone number", "tel"], ["currentTitle", "Current job title"], ["currentCompany", "Current company / organization"], ["employmentStatus", "Employment status", "select", ["Employed", "Self-employed", "Student", "Seeking opportunities", "Other"]]],
   headline: [["headline", "Professional headline", "text", null, true], ["focus", "Specialization / focus"]],
   summary: [["summary", "Professional summary (up to 1,200 characters)", "textarea", null, true], ["interests", "Professional interests"], ["strengths", "Key strengths"]],
-  career: [["industry", "Current industry"], ["department", "Current department / function"], ["category", "Current role category"], ["currentType", "Current employment type", "select", ["Full-time", "Part-time", "Contract", "Freelance", "Internship", "Temporary", "Other"]], ["roles", "Preferred roles (comma separated)"], ["industries", "Preferred industries (comma separated)"], ["departments", "Preferred departments (comma separated)"], ["types", "Preferred employment types (comma separated)"], ["locations", "Preferred work locations (comma separated)"], ["arrangement", "Work arrangement preference", "select", ["On-site", "Hybrid", "Remote", "Flexible"]], ["notice", "Availability / notice period"], ["salary", "Expected annual compensation (optional)", "number"], ["currency", "Currency (required if compensation entered)"], ["interests", "Career interests", "textarea"]],
-  personal: [["gender", "Gender (optional)"], ["dob", "Date of birth (optional)", "date"], ["marital", "Marital status (optional)"], ["nationality", "Nationality / citizenship"], ["permit", "Work authorization / permit"], ["address", "Address (private)"], ["city", "City"], ["region", "State / region"], ["country", "Country"], ["postal", "Postal code"], ["contact", "Preferred contact method", "select", ["Email", "Phone", "Messages"]]],
-  diversity: [["accessibility", "Accessibility information (optional)", "textarea"], ["military", "Military service (optional)", "textarea"], ["context", "Additional context (optional)", "textarea"]],
+  career: [["industry", "Current industry"], ["department", "Current department / function"], ["category", "Current role category"], ["currentType", "Current employment type", "select", ["Full-time", "Part-time", "Contract", "Freelance", "Internship", "Temporary", "Other"]], ["roles", "Preferred roles (comma separated)"], ["industries", "Preferred industries (comma separated)"], ["departments", "Preferred departments (comma separated)"], ["types", "Preferred employment types (comma separated)"], ["locations", "Preferred work locations (comma separated)"], ["arrangement", "Work arrangement preference", "select", ["On-site", "Hybrid", "Remote", "Flexible"]], ["notice", "Availability / notice period"], ["salary", "Expected annual compensation", "number"], ["currency", "Currency"], ["interests", "Career interests", "textarea"]],
+  personal: [["gender", "Gender"], ["dob", "Date of birth", "date"], ["marital", "Marital status"], ["nationality", "Nationality / citizenship"], ["permit", "Work authorization / permit"], ["address", "Address (private)"], ["city", "City"], ["region", "State / region"], ["country", "Country"], ["postal", "Postal code"], ["contact", "Preferred contact method", "select", ["Email", "Phone", "Messages"]]],
+  diversity: [["accessibility", "Accessibility information", "textarea"], ["military", "Military service", "textarea"], ["context", "Additional context", "textarea"]],
 };
 
 const COLLECTION_TITLES: Partial<Record<ProfileCollection, string>> = { skills: "key skill", technicalSkills: "technical skill", careerBreaks: "career break" };
@@ -60,7 +60,7 @@ function Fields({ config, values, disabled = {}, requiredOverride = {}, section,
       {config.map(([name, label, type = "text", options, required]) => {
         const value = values[name];
         const req = requiredOverride[name] ?? required;
-        if (type === "select") return <SelectField key={name} label={label} name={name} error={errors[name]} defaultValue={String(value || options![0])} options={options!} />;
+        if (type === "select") return <SelectField key={name} label={label} name={name} error={errors[name]} defaultValue={String(value || options![0])} options={options!} required={req} disabled={disabled[name]} />;
         if (type === "textarea")
           return (
             <div style={{ gridColumn: "1/-1" }} key={name}>
@@ -200,6 +200,8 @@ export function SectionForm({ section, person: p, details: d }: { section: Profi
   const { services, execute, error, errors, setError, setErrors, pending } = useProfileMutation();
   const setDirty = useModalStore((s) => s.setDirty);
   const values: Record<string, unknown> = section === "career" ? { ...d.career } : section === "personal" ? { ...d.personal } : section === "diversity" ? { ...d.diversity } : { ...p, ...d, interests: d.career.interests || p.interests };
+  const [hasCompensation, setHasCompensation] = useState(() => String(values.salary ?? "").trim() !== "");
+  const requiredOverride: Record<string, boolean> = section === "career" ? { currency: hasCompensation } : section === "identity" && d.employment.some(entry => entry.current) ? { currentTitle: true, currentCompany: true } : {};
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -219,8 +221,8 @@ export function SectionForm({ section, person: p, details: d }: { section: Profi
     toast("Profile changes saved across your workspace.");
   };
   return (
-    <form id="profile-section-form" data-profile-editor data-section={section} className="stack" noValidate onSubmit={submit} onInput={() => setDirty(true)}>
-      <Fields config={SECTION_FORMS[section]} values={values} errors={errors} section={section} />
+    <form id="profile-section-form" data-profile-editor data-section={section} className="stack" noValidate onSubmit={submit} onInput={event => { setDirty(true); const field = event.target; if (field instanceof HTMLInputElement && field.name === "salary") setHasCompensation(field.value.trim() !== ""); }}>
+      <Fields config={SECTION_FORMS[section]} values={values} errors={errors} section={section} requiredOverride={requiredOverride} />
       {section === "identity" && (
         <>
           <CheckRow name="available" defaultChecked={p.available}>

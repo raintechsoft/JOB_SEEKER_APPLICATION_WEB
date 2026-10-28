@@ -48,7 +48,7 @@ test("career memories persist, publish selectively, replay, and fit mobile", asy
   await dialog.getByLabel("Search people you follow").fill("Maya");
   await dialog.getByRole("radio", { name: /Maya Chen/ }).check();
   await dialog
-    .getByLabel("Role or connection (optional)")
+    .getByLabel("Role or connection")
     .fill("Design teammate");
   await dialog
     .getByRole("button", { name: "Save colleague", exact: true })
@@ -64,7 +64,7 @@ test("career memories persist, publish selectively, replay, and fit mobile", asy
     .fill("The launch we built together");
   await dialog.getByLabel("When did it happen?").fill("2025-04-20");
   await dialog
-    .getByLabel("The story (optional)")
+    .getByLabel("The story")
     .fill(
       "A year of small ideas became something our whole team was proud of.",
     );

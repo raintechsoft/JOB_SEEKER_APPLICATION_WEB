@@ -1,4 +1,5 @@
 "use client";
+import {uploadManager} from "@/services/media/upload-manager";
 
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -100,16 +101,18 @@ export function OrganizationEditorScreen() {
     if (!guard()) return;
     const purpose = kind === "logoUrl" ? "logo" : "cover";
     modal.show(kind === "logoUrl" ? "Organization logo" : "Cover image", <PhotoEditor purpose={purpose} sources="computer" imageUrl={kind === "logoUrl" ? o.logoUrl : o.coverImageUrl} savedMessage="Image added to your draft. Save Changes to apply it." removedMessage="Image removed from your draft. Save Changes to apply it." onSave={async file => {
+      const current=uploadManager.claimEdit(`${o.id}:${kind}`);
       if (!guard()) throw new Error("Organization admin access is required.");
       const images = await uploads.load([file], purpose === "logo" ? uploads.limits.logo : uploads.limits.cover, purpose);
       if (!images) throw new Error("The image could not be uploaded. Please try again.");
+      if(!current())throw new Error("A newer image change is already in progress.");
       setOrg((d) => void (d[kind] = images[0].url));
-    }} onRemove={async () => { if (!guard()) throw new Error("Organization admin access is required."); setOrg((d) => void (d[kind] = "")); }} />, "photo");
+    }} onRemove={async () => {uploadManager.claimEdit(`${o.id}:${kind}`); if (!guard()) throw new Error("Organization admin access is required."); setOrg((d) => void (d[kind] = "")); }} />, "photo");
   };
   const uploadGallery = async (files: File[], replace?: number) => {
     if (!guard() || !files.length) return;
     const existing = o.workplaceImages.reduce((n, im, i) => n + (replace === i ? 0 : im.bytes || 0), 0);
-    if ((replace === undefined && files.length + o.workplaceImages.length > 4) || existing + files.reduce((n, f) => n + f.size, 0) > 1.5 * MB) return toast("Use up to four workplace images, totaling 1.5 MB or less.");
+    if ((replace === undefined && files.length + o.workplaceImages.length > 4) || apiConfig.dataSource !== "http" && existing + files.reduce((n, f) => n + f.size, 0) > 1.5 * MB) return toast("Use up to four workplace images, totaling 1.5 MB or less.");
     const images = await uploads.load(files, uploads.limits.gallery);
     if (images) setOrg((d) => (replace === undefined ? void d.workplaceImages.push(...images) : void (d.workplaceImages[replace] = images[0])));
   };
@@ -229,7 +232,7 @@ export function OrganizationEditorScreen() {
               />
             </label>
           </div>
-          <p className="org-help">Up to 4 images, 500 KB each and 1.5 MB total. {devCopy("Public gallery; files stay in this browser.", "Shown in your public gallery.")}</p>
+          <p className="org-help">Up to 4 images within your upload allowance. {devCopy("Public gallery; files stay in this browser.", "Shown in your public gallery.")}</p>
           {o.workplaceImages.length ? (
             <div className="org-gallery">
               {o.workplaceImages.map((im, i) => (
@@ -378,7 +381,7 @@ export function OrganizationEditorScreen() {
             <h3>
               Supporting document references <span className="org-private-label">Private</span>
             </h3>
-            <p className="org-help">PDF, PNG or JPEG, up to 2 MB. Attach at least one document to submit.{devCopy(" Only file names are recorded for this demo. File contents are not uploaded or stored.", "")}</p>
+            <p className="org-help">PDF, PNG or JPEG. Attach at least one document to submit.{devCopy(" Only file names are recorded for this demo. File contents are not uploaded or stored.", "")}</p>
             <label className="btn sm org-file-button">
               <Icon name="file" />
               Select a document
@@ -396,8 +399,8 @@ export function OrganizationEditorScreen() {
                   if (v.documents.length >= 5) return setErrors({ documents: "Use up to five documents." });
                   setDocumentBusy(true);
                   try {
-                    const asset = apiConfig.dataSource === "http" ? await services.media.upload(file, "business_document", o.id) : { id: uid() };
-                    updateOrganization((d) => void d.verification.documents.push({ id: asset.id, name: file.name, size: file.size, type: file.type }));
+                    const asset = apiConfig.dataSource === "http" ? await services.media.upload(file, "business_document", o.id, {manual:true}) : { id: uid() };
+                    updateOrganization((d) => { if (d.organization.id === o.id) d.verification.documents.push({ id: asset.id, name: file.name, size: file.size, type: file.type }); });
                     setErrors({});
                   } catch (error) { setErrors({ documents: errorMessage(error) }); }
                   finally { setDocumentBusy(false); }
@@ -445,7 +448,7 @@ export function OrganizationEditorScreen() {
         </div>
         <div className="org-form-grid">
           {field("Public contact email", "publicContactEmail", { type: "email", maxLength: 150 })}
-          {field("Public phone (optional)", "publicPhone", { type: "tel", maxLength: 25 })}
+          {field("Public phone", "publicPhone", { type: "tel", maxLength: 25 })}
           <OrgField label="Public LinkedIn URL" name="socialLinks.linkedin" type="url" maxLength={250} value={o.socialLinks.linkedin} error={errors["socialLinks.linkedin"]} onValue={(value) => setOrg((d) => void (d.socialLinks.linkedin = value))} />
           <OrgField label="Other public social URL" name="socialLinks.other" type="url" maxLength={250} value={o.socialLinks.other} error={errors["socialLinks.other"]} onValue={(value) => setOrg((d) => void (d.socialLinks.other = value))} />
           {field("Careers page URL", "careersUrl", { type: "url", maxLength: 250 })}

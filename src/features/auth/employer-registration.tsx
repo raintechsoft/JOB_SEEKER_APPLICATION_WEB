@@ -23,7 +23,7 @@ import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { AuthHeader, AuthStory } from "@/components/layout/auth-chrome";
-import { OtpFields, OtpResend, readOtpCode } from "./otp-ui";
+import { OtpFields, OtpResend, OtpExpiry, readOtpCode } from "./otp-ui";
 
 interface Draft {
   step: number;
@@ -64,7 +64,7 @@ const maskedEmail = (d: Draft) => {
 function Choice({ name, options, value }: { name: "accountType" | "hiringFor"; options: [string, string][]; value: string }) {
   return (
     <fieldset className="er-choice">
-      <legend>{name === "accountType" ? "You’re creating account as" : "Hiring for"}</legend>
+      <legend>{name === "accountType" ? "You’re creating account as" : "Hiring for"} <span aria-hidden="true">*</span></legend>
       {options.map(([id, label]) => (
         <label key={id}>
           <input type="radio" name={name} value={id} defaultChecked={id === value} required />
@@ -89,7 +89,7 @@ export function EmployerRegistrationScreen() {
   const busyRef = useRef(false);
   const real = apiConfig.dataSource === "http";
   const challengeView = (value: Challenge, target: string): OtpChallenge => {
-    if (value.kind !== "sms" && value.kind !== "email") throw new Error("Unexpected registration challenge purpose.");
+    if (value.kind !== "whatsapp" && value.kind !== "email") throw new Error("Unexpected registration challenge purpose.");
     return { id: value.id, kind: value.kind, target, sentAt: Date.parse(value.sent_at), expiresAt: Date.parse(value.expires_at) };
   };
 
@@ -106,7 +106,7 @@ export function EmployerRegistrationScreen() {
     setErrors({});
     const d = collectFirst ? collect() : { ...useRegistration.getState().draft };
     let c = useRegistration.getState().challenge;
-    if (!real && step === 1 && c?.kind !== "sms") c = await services.registration.requestOtp("sms", phoneE164(d.country, d.mobile));
+    if (!real && step === 1 && c?.kind !== "whatsapp") c = await services.registration.requestOtp("whatsapp", phoneE164(d.country, d.mobile));
     if (!real && step === 3 && c?.kind !== "email") c = await services.registration.requestOtp("email", d.email);
     set({ draft: { ...d, step }, challenge: c, error: "" });
     if (step === 4) setCompanyName(d.companyName);
@@ -115,7 +115,7 @@ export function EmployerRegistrationScreen() {
 
   const fail = (message: string) => toast(message, "error");
 
-  const verify = async (kind: "sms" | "email", target: string) => {
+  const verify = async (kind: "whatsapp" | "email", target: string) => {
     const code = readOtpCode(formRef.current);
     const c = useRegistration.getState().challenge;
     if (!c || c.kind !== kind) {
@@ -124,6 +124,10 @@ export function EmployerRegistrationScreen() {
     }
     const checked = otpSchema.safeParse({ code });
     if (!checked.success) { setErrors({ code: checked.error.issues[0].message }); return false; }
+    if (kind === "whatsapp" && (!Number.isFinite(c.expiresAt) || Date.now() >= c.expiresAt)) {
+      setErrors({ code: "This code has expired. Request a new code." });
+      return false;
+    }
     if (real) {
       if (!intentId) { fail("Start with your mobile number again."); return false; }
       await services.auth.employerVerify(intentId, { challenge_id: c.id, code });
@@ -163,12 +167,12 @@ export function EmployerRegistrationScreen() {
           const started = await services.auth.startEmployer({ country: d.country, mobile: d.mobile });
           set({ intentId: started.intent_id });
           c = challengeView(started.challenge, phone);
-        } else c = await services.registration.requestOtp("sms", phone);
+        } else c = await services.registration.requestOtp("whatsapp", phone);
         set({ phoneVerified: "", emailVerified: "", challenge: c });
         return go(1);
       }
       case 1:
-        if (await verify("sms", phone)) {
+        if (await verify("whatsapp", phone)) {
           set({ phoneVerified: phone });
           await go(2);
         }
@@ -223,8 +227,8 @@ export function EmployerRegistrationScreen() {
     if (busyRef.current) return;
     busyRef.current = true; setBusy(true);
     try {
-      const kind = d.step === 1 ? "sms" : "email";
-      const target = kind === "sms" ? phoneE164(d.country, d.mobile) : d.email;
+      const kind = d.step === 1 ? "whatsapp" : "email";
+      const target = kind === "whatsapp" ? phoneE164(d.country, d.mobile) : d.email;
       if (real && !intentId) return fail("Start with your mobile number again.");
       const next = real ? challengeView(await services.auth.employerResend(intentId!, kind), target) : await services.registration.requestOtp(kind, target);
       set({ challenge: next, error: "" });
@@ -266,25 +270,26 @@ export function EmployerRegistrationScreen() {
           <form id="employer-registration-form" className="er-form" data-step={step} ref={formRef} onSubmit={submit} key={step} noValidate onInput={(event) => { const name = (event.target as HTMLInputElement).name; setErrors((previous) => ({ ...previous, [name]: "" })); }}>
             {step === 0 && (
               <>
-                <p className="er-lead">Use your mobile number to get started.</p>
+                <p className="er-lead">Use your WhatsApp number to get started.</p>
                 <div className="er-phone-grid">
                   <CountryCodeField name="country" error={errors.country} required defaultValue={draft.country} />
                   <TextField label="Mobile number" name="mobile" error={errors.mobile} type="tel" defaultValue={draft.mobile} required inputMode="numeric" autoComplete="tel-national" maxLength={15} placeholder="Enter mobile number" />
                 </div>
-                <p className="er-hint">Choose your country code and enter your mobile number.</p>
+                <p className="er-hint">Choose your country code and enter a number you use on WhatsApp.</p>
               </>
             )}
             {step === 1 && (
               <>
                 <p className="er-lead">
-                  Enter the OTP sent to SMS on <strong>{maskedPhone(draft)}</strong>
+                  Check WhatsApp for the verification code for <strong>{maskedPhone(draft)}</strong>
                 </p>
                 <button type="button" className="er-text" onClick={editMobile}>
                   Edit mobile number <Icon name="edit" />
                 </button>
                 <OtpFields error={errors.code} />
+                <OtpExpiry expiresAt={challenge?.expiresAt ?? null} />
                 <OtpResend sentAt={challenge?.sentAt ?? null} onResend={resend} />
-                {demoCode("SMS")}
+                {demoCode("WhatsApp")}
               </>
             )}
             {step === 2 && (

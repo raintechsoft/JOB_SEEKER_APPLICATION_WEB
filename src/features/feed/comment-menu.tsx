@@ -29,13 +29,13 @@ function CommentReportForm({ role, comment }: { role: Role; comment: FeedComment
   }}>
     <p>Report {comment.author.name}’s comment. Your report is private.</p>
     {errors._form && <p className="error" role="alert">{errors._form}</p>}
-    <SelectField label="Reason" name="reason" options={["Spam or unwanted messages", "Harassment", "Misleading job or identity", "Other"]} defaultValue="Spam or unwanted messages" error={errors.reason} disabled={pending} />
+    <SelectField required label="Reason" name="reason" options={["Spam or unwanted messages", "Harassment", "Misleading job or identity", "Other"]} defaultValue="Spam or unwanted messages" error={errors.reason} disabled={pending} />
     <TextAreaField label="Additional details" name="details" maxLength={1500} error={errors.details} disabled={pending} />
     <div className="modal-footer"><Button onClick={() => modal.close()} disabled={pending}>Cancel</Button><Button type="submit" variant="primary" loading={pending}>Submit report</Button></div>
   </form>;
 }
 
-export function CommentMenu({ role, entry, comment }: { role: Role; entry: FeedEntry; comment: FeedComment }) {
+export function CommentMenu({ role, entry, comment, onEdit }: { role: Role; entry: FeedEntry; comment: FeedComment; onEdit?: () => void }) {
   const ref = useRef<HTMLDetailsElement>(null);
   useDismissableDetails(ref, { closeOnAction: true });
   useEffect(() => {
@@ -84,6 +84,7 @@ export function CommentMenu({ role, entry, comment }: { role: Role; entry: FeedE
         {!own && comment.following && <Button variant="text sm" icon="userMinus" disabled={pending} onClick={async () => {
           if (await execute(async s => { await s.feed.toggleFollow(role, comment.author.id, false); }, { invalidate: invalidates })) toast("Unfollowed " + name + ".");
         }}>Unfollow {name}</Button>}
+        {own && onEdit && <Button variant="text sm" icon="edit" disabled={pending} onClick={onEdit}>Edit</Button>}
         {(comment.canDelete ?? (own || entry.viewer.own)) && <Button variant="text sm" icon="trash" disabled={pending} onClick={async () => {
           if (await execute(s => s.feed.deleteComment(role, entry.id, comment.id, comment.version), { invalidate: invalidates })) toast("Comment deleted.");
         }}>Delete</Button>}

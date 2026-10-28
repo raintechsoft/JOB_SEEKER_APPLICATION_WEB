@@ -691,10 +691,74 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["phase2_get__media_asset_"];
         put?: never;
         post?: never;
         delete: operations["phase2_delete__media_asset_"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["phase2_get__media_policy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/{asset}/authorization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["phase2_post__media_asset_authorization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/{asset}/parts/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["phase2_post__media_asset_parts_sign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/{asset}/abort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["phase2_post__media_asset_abort"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1114,6 +1178,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["phase4_patch__me_applications_application_"];
+        trace?: never;
+    };
+    "/me/applications/{application}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["phase4_post__me_applications_application_withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/me/job-alerts": {
@@ -1758,6 +1838,23 @@ export interface paths {
         patch: operations["phase5_patch__me_social_identity_follows_kind_target_"];
         trace?: never;
     };
+    "/me/social/{identity}/link-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Fetches or reuses cached public HTML metadata for an http(s) URL. Private, loopback, link-local, reserved and metadata destinations are rejected (422) before any request; DNS and every redirect (max 3) are revalidated. data is null when the page is unreachable, not HTML or has no metadata. Rate limited per user (429). */
+        post: operations["phase5_post__me_social_identity_link_previews"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/communications/{identity}/unread-count": {
         parameters: {
             query?: never;
@@ -1929,6 +2026,54 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/communications/{identity}/notifications/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["phase6_get__me_communications_identity_notifications_counts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/communications/{identity}/notifications/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["phase6_post__me_communications_identity_notifications_seen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/communications/{identity}/notifications/{notification}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["phase6_delete__me_communications_identity_notifications_notification_"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2385,7 +2530,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "sms" | "email" | "reset";
+            kind: "sms" | "whatsapp" | "email" | "reset";
             /** Format: date-time */
             sent_at: string;
             /** Format: date-time */
@@ -2474,6 +2619,8 @@ export interface components {
             bytes: number;
             /** Format: uuid */
             organization_id?: string;
+            /** Format: uuid */
+            initiationKey?: string;
         };
         MediaPending: {
             /** Format: uuid */
@@ -3442,6 +3589,50 @@ export interface components {
             organization: components["schemas"]["PublicOrganizationProfile"];
             recruiter: components["schemas"]["PublicRecruiterProfile"];
         };
+        MediaSignedUpload: {
+            url: string;
+            headers: {
+                [key: string]: string;
+            };
+            expiresAt: string;
+        };
+        MediaUploadStatus: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            state: "pending" | "uploaded" | "processing" | "accepted" | "rejected" | "cancelled" | "deleting";
+            failureCode: string | null;
+            expiresAt: string;
+            asset: components["schemas"]["ManagedAsset"] | null;
+        };
+        MediaAuthorization: {
+            /** @enum {string} */
+            mode: "local" | "put" | "multipart" | "uploaded";
+            chunkBytes: number;
+            expiresAt: string;
+            parts: {
+                number: number;
+                bytes: number;
+                etag: string;
+                checksum: string | null;
+            }[];
+            upload: components["schemas"]["MediaSignedUpload"] | null;
+        };
+        MediaPartInput: {
+            number: number;
+            checksum: string;
+        };
+        MediaPolicy: {
+            rules: {
+                [key: string]: (number | string[])[];
+            };
+            fileConcurrency: number;
+            partConcurrency: number;
+            retries: number;
+            postMaxItems: number;
+            postTotalBytes: number;
+            jobTotalBytes: number;
+        };
         ProjectInput: {
             title: string;
             /** @enum {string} */
@@ -3903,7 +4094,7 @@ export interface components {
             /** @enum {string} */
             trackingStatus: "Applied" | "In review" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
             /** @enum {string} */
-            statusSource: "tracking" | "employer" | "withdrawn";
+            statusSource: "submitted" | "employer" | "withdrawn";
             trackingNote: string;
             followUp: string;
             updatedAt: string;
@@ -3962,8 +4153,6 @@ export interface components {
         };
         TrackingInput: {
             version: number;
-            /** @enum {string} */
-            status: "Applied" | "In review" | "Interview" | "Offer" | "Rejected" | "Withdrawn";
             trackingNote: string;
             followUp: string;
         };
@@ -4413,7 +4602,7 @@ export interface components {
         };
         SocialMedia: {
             /** @enum {string} */
-            type: "image" | "video";
+            type: "image" | "video" | "document";
             src: string;
             alt: string;
             name: string;
@@ -4430,6 +4619,8 @@ export interface components {
             videoUrl: string;
             step: number;
             reached: number;
+            previewUrl?: string | "";
+            previewDismissedUrls?: string[];
         };
         PostPublish: {
             title: string;
@@ -4441,6 +4632,8 @@ export interface components {
             /** Format: uuid */
             draftId?: string;
             draftVersion?: number;
+            /** @description URL from body whose stored server preview should be shown. An unfetched or unavailable URL publishes without a preview. */
+            previewUrl?: string | "";
         };
         SocialComment: {
             /** Format: uuid */
@@ -4520,6 +4713,7 @@ export interface components {
                 author: components["schemas"]["SocialPerson"];
                 createdAt: string;
             } | null;
+            linkPreview?: components["schemas"]["LinkPreview"];
             recommendationReason?: string;
             analyticsContext?: components["schemas"]["AnalyticsContext"];
         };
@@ -4604,6 +4798,16 @@ export interface components {
             total: number;
             nextCursor: string | null;
         };
+        LinkPreview: {
+            /** @description Normalized URL from the post text; this is the navigation destination. */
+            url: string;
+            canonicalUrl: string | null;
+            title: string | null;
+            description: string | null;
+            imageUrl: string | null;
+            siteName: string | null;
+            domain: string;
+        };
         MessageAttachment: {
             /** Format: uuid */
             id: string;
@@ -4674,10 +4878,32 @@ export interface components {
             /** Format: uuid */
             creationKey: string;
         };
+        NotificationAvatar: {
+            /** @enum {string} */
+            type: "person" | "company";
+            id: string;
+            name: string;
+            picture: string;
+            confidential: boolean;
+        };
+        NotificationCounts: {
+            unreadCount: number;
+            newCount: number;
+        };
+        NotificationSeenInput: {
+            seenToken: string;
+        };
         NotificationView: {
             /** Format: uuid */
             id: string;
+            /** @enum {string} */
+            category: "messages" | "applications" | "job_alerts";
             title: string;
+            segments: {
+                text: string;
+                emphasis: boolean;
+            }[];
+            avatar: components["schemas"]["NotificationAvatar"] | null;
             href: string;
             read: boolean;
             createdAt: string;
@@ -4685,6 +4911,8 @@ export interface components {
         Notifications: {
             items: components["schemas"]["NotificationView"][];
             unreadCount: number;
+            newCount: number;
+            seenToken: string;
         };
         NotificationPreference: {
             /** @enum {string} */
@@ -5044,7 +5272,7 @@ export interface components {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    kind: "sms" | "email";
+                    kind: "whatsapp" | "email";
                 };
             };
         };
@@ -6159,10 +6387,159 @@ export interface operations {
                     };
                 };
             };
+            /** @description Object received; verification queued. Poll the owned upload status until accepted. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaUploadStatus"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase2_get__media_asset_: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                asset: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaUploadStatus"];
+                    };
+                };
+            };
             default: components["responses"]["Error"];
         };
     };
     phase2_delete__media_asset_: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                asset: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase2_get__media_policy: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaPolicy"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase2_post__media_asset_authorization: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                asset: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaAuthorization"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase2_post__media_asset_parts_sign: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                asset: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaPartInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaSignedUpload"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase2_post__media_asset_abort: {
         parameters: {
             query?: never;
             header?: {
@@ -6208,6 +6585,27 @@ export interface operations {
                 content: {
                     "application/octet-stream": string;
                 };
+            };
+            /** @description Authorized single-range video stream. */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Short-lived private storage GET redirect for eligible non-CORS media requests. Never persist the Location. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requested video range is not satisfiable. */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Error"];
         };
@@ -7202,6 +7600,36 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["TrackingInput"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase4_post__me_applications_application_withdraw: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                application: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    version: number;
+                };
             };
         };
         responses: {
@@ -8493,6 +8921,8 @@ export interface operations {
                     version: number;
                     title: string;
                     body: string;
+                    /** @description Omit to keep the current preview while its URL remains in the body; empty removes it. */
+                    previewUrl?: string | "";
                 };
             };
         };
@@ -8839,6 +9269,40 @@ export interface operations {
                         data: {
                             enabled: boolean;
                         };
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_post__me_social_identity_link_previews: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    url: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LinkPreview"] | null;
                     };
                 };
             };
@@ -9229,6 +9693,87 @@ export interface operations {
                         data: components["schemas"]["Notifications"];
                     };
                 };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase6_get__me_communications_identity_notifications_counts: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["NotificationCounts"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase6_post__me_communications_identity_notifications_seen: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSeenInput"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase6_delete__me_communications_identity_notifications_notification_: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                notification: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Error"];
         };

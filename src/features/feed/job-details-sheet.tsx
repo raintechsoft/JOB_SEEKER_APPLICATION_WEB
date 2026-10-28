@@ -21,6 +21,7 @@ import { QueryFeedback } from "@/components/ui/query-view";
 import { Badge, Button, LinkButton, Tags } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { DevOnly } from "@/components/ui/dev-only";
+import { LoadingRegion, Skeleton, TextSkeleton } from "@/components/ui/skeleton";
 import { toast } from "@/stores/toast-store";
 import { organizationProfileHref } from "@/lib/routing/profiles";
 
@@ -423,10 +424,99 @@ function AboutCompany({
   );
 }
 
+function JobSheetSectionSkeleton({ lines = 3, list = false }: { lines?: number; list?: boolean }) {
+  return (
+    <section className={"job-sheet-section" + (list ? " job-sheet-list" : "")}>
+      <Skeleton className="job-sheet-skeleton-subheading" />
+      {list ? (
+        <ul>
+          {Array.from({ length: lines }, (_, index) => (
+            <li key={index}>
+              <Skeleton style={{ width: index === lines - 1 ? "68%" : "92%" }} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <TextSkeleton lines={lines} />
+      )}
+    </section>
+  );
+}
+
+function JobDetailsSkeleton({ role }: { role: Role }) {
+  return (
+    <LoadingRegion label="Loading opportunity" className="job-details-sheet job-details-skeleton">
+      <header className="job-sheet-header">
+        <div className="job-sheet-company">
+          <div className="job-sheet-company-identity">
+            <Skeleton className="job-sheet-skeleton-logo" />
+            <Skeleton style={{ width: 148, height: 14 }} />
+          </div>
+          <Skeleton className="job-sheet-skeleton-menu" />
+        </div>
+        <Skeleton className="job-sheet-skeleton-title" />
+        <Skeleton className="job-sheet-skeleton-meta" />
+        <div className="job-sheet-badges">
+          <Skeleton className="job-sheet-skeleton-badge" />
+          <Skeleton className="job-sheet-skeleton-badge" />
+        </div>
+      </header>
+      <div className="job-sheet-actions">
+        <Skeleton className="job-sheet-skeleton-action" />
+        {role === "professional" && <Skeleton className="job-sheet-skeleton-action is-secondary" />}
+      </div>
+      <div className="job-sheet-about">
+        <Skeleton className="job-sheet-skeleton-heading" />
+        <JobSheetSectionSkeleton lines={3} />
+        <JobSheetSectionSkeleton lines={3} list />
+        <JobSheetSectionSkeleton lines={3} list />
+        <section className="job-sheet-section">
+          <Skeleton className="job-sheet-skeleton-subheading" />
+          <div className="job-sheet-skeleton-tags">
+            <Skeleton className="job-sheet-skeleton-tag" />
+            <Skeleton className="job-sheet-skeleton-tag" />
+            <Skeleton className="job-sheet-skeleton-tag" />
+          </div>
+        </section>
+      </div>
+      <section className="job-sheet-about-company">
+        <Skeleton className="job-sheet-skeleton-heading" />
+        <div className="job-sheet-about-company-card">
+          <div className="job-sheet-about-company-head">
+            <Skeleton className="job-sheet-skeleton-company-logo" />
+            <div className="job-sheet-about-company-copy">
+              <Skeleton style={{ width: 160, height: 16 }} />
+              <Skeleton style={{ width: 96, height: 12, marginTop: 6 }} />
+            </div>
+            <Skeleton className="job-sheet-skeleton-follow" />
+          </div>
+          <Skeleton className="job-sheet-skeleton-facts" />
+          <TextSkeleton lines={2} />
+        </div>
+      </section>
+      {role === "professional" && (
+        <section className="job-sheet-alert">
+          <div>
+            <Skeleton style={{ width: 210, height: 16 }} />
+            <Skeleton style={{ width: 180, height: 12, marginTop: 8 }} />
+          </div>
+          <div className="job-sheet-alert-control">
+            <Skeleton style={{ width: 24, height: 12 }} />
+            <Skeleton className="job-sheet-skeleton-switch" />
+          </div>
+        </section>
+      )}
+    </LoadingRegion>
+  );
+}
+
 /** LinkedIn-style job details drawer opened from View opportunity. */
 export function JobDetailsSideSheet({ id, role, onApply, onSave }: { id: Id; role: Role; onApply: () => void; onSave: () => void }) {
   const { data, isError, refetch } = useServiceQuery(["job", id, role], (s) => s.jobs.getJob(id, role));
-  if (!data) return <div className="job-details-sheet"><QueryFeedback data={data} error={isError} retry={refetch} layout="profile" label="Loading opportunity" /></div>;
+  if (!data) {
+    if (isError) return <div className="job-details-sheet"><QueryFeedback data={data} error retry={refetch} label="Loading opportunity" /></div>;
+    return <JobDetailsSkeleton role={role} />;
+  }
   const { job, company, saved, application, ownedByViewer } = data;
   const about = splitJobAbout(job.description);
   const companyDescription = (company.description || about.company).trim();

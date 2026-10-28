@@ -8,7 +8,7 @@ import {apiConfig} from "@/services/api/config";
 import {RealNotificationsSheet} from "./notifications-sheet";
 
 function PrivacyInfo() {
-  if(apiConfig.dataSource==="http")return <div className="stack"><p>Your account data is stored securely by Skillora. Profile, portfolio and individual work visibility determine what others can see.</p><p>Private conversations and files are available to their authorized participants. Notification channels can be changed in Notifications. Optional external analytics and recommendations are introduced only in their documented advanced phases.</p><LinkButton href="/app/settings">Privacy settings</LinkButton></div>;
+  if(apiConfig.dataSource==="http")return <div className="stack"><p>Your account data is stored securely by Skillora. Profile, portfolio and individual work visibility determine what others can see.</p><p>Private conversations and files are available to their authorized participants. Notification channels can be changed in Settings. Optional external analytics and recommendations are introduced only in their documented advanced phases.</p><LinkButton href="/app/settings">Privacy settings</LinkButton></div>;
   return (
     <div className="stack">
       <p className="small muted">Skillora is a frontend prototype. Changes are saved in this browser’s local storage. All people, companies, conversations, and project examples are fictional.</p>

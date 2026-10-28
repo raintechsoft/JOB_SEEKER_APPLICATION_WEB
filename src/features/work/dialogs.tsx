@@ -3,13 +3,14 @@
 import { InfoBadge } from "@/components/ui/info-badge";
 import { QueryFeedback } from "@/components/ui/query-view";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { Id, IsoDate, Project, WorkUpdate } from "@/types/domain";
 import { formatLongDate, formatShortDate, today } from "@/lib/utils/date";
-import { safeUrl } from "@/lib/utils/url";
+import { isSafeMediaSrc, safeUrl } from "@/lib/utils/url";
 import { devCopy } from "@/lib/env/app-env";
 import { useZodForm } from "@/lib/validation/form";
+import { validateMedia } from "@/lib/validation/profile";
 import { projectSchema, updateSchema, workSkills, type ProjectFormValues, type UpdateFormValues } from "@/lib/validation/work";
 import { useFormAction } from "@/hooks/use-form-action";
 import { apiConfig } from "@/services/api/config";
@@ -19,12 +20,117 @@ import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Badge, Button, EmptyState } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
-import { CheckRow, FileField, SelectField, TextAreaField, TextField } from "@/components/ui/field";
+import { CheckRow, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { confirmAction, FormError } from "@/components/ui/feedback";
 import { ProjectCard } from "@/components/work/project-card";
 import { UpdateItem } from "@/components/work/pulse";
+import "./project-cover.css";
 
 const STORAGE_FALLBACK = "Saved for this page only. Browser storage is full or unavailable.";
+
+function fileListFrom(file: File) {
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  return transfer.files;
+}
+
+function ProjectCoverField({
+  selected,
+  existingCover,
+  error,
+  onPick,
+}: {
+  selected?: File;
+  existingCover?: string;
+  error?: string;
+  onPick: (file?: File) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const preview = useMemo(() => (selected ? URL.createObjectURL(selected) : ""), [selected]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  const coverSrc = preview || (isSafeMediaSrc(existingCover) ? existingCover : "");
+  const hasCover = Boolean(selected || existingCover);
+
+  function takeFiles(list: FileList | null) {
+    if (!list?.length) return;
+    if (list.length !== 1) {
+      onPick(undefined);
+      return;
+    }
+    onPick(list[0]);
+  }
+
+  return (
+    <div className="project-cover-field">
+      {hasCover && (
+        <div className="project-cover-record">
+          {coverSrc ? <img src={coverSrc} alt="" /> : <span className="project-cover-record-icon"><Icon name="image" /></span>}
+          <div>
+            <strong>{selected?.name ?? "Current cover"}</strong>
+            <p>{selected ? `${Math.max(1, Math.round(selected.size / 1024))} KB` : "Saved cover image"}</p>
+          </div>
+        </div>
+      )}
+      <div
+        className={`project-cover-zone${dragging ? " is-dragging" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (e.dataTransfer.types.includes("Files")) setDragging(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          takeFiles(e.dataTransfer.files);
+        }}
+      >
+        <div className="project-cover-main">
+          <div className="project-cover-art" aria-hidden="true">
+            <div className="project-cover-sheet">
+              <Icon name="image" />
+              <span>COVER</span>
+            </div>
+            <span className="project-cover-badge"><Icon name="upload" /></span>
+          </div>
+          <div className="project-cover-copy">
+            <h3>{hasCover ? "Keep the cover up to date" : "A cover for this project"}</h3>
+            <p>{hasCover ? "Drop a new image here to replace the current cover." : "Drop a cover image here, or choose a file to get started."}</p>
+          </div>
+          <label className="btn primary project-cover-choose">
+            <input
+              type="file"
+              id="project-cover"
+              accept="image/png,image/jpeg,image/webp"
+              className="sr-only"
+              aria-label={hasCover ? "Replace cover" : "Upload cover"}
+              aria-describedby="project-cover-guidance project-cover-status"
+              onChange={(e) => {
+                takeFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <Icon name="upload" />
+            {hasCover ? "Replace cover" : "Upload cover"}
+          </label>
+        </div>
+        <div className="project-cover-footer" id="project-cover-guidance">
+          <div className="project-cover-formats" aria-label="Accepted file formats">
+            <span>PNG</span>
+            <span>JPEG</span>
+            <span>WEBP</span>
+            <small>Up to 1 MB</small>
+          </div>
+          <DevOnly>
+            <span className="project-cover-storage"><Icon name="shield" />Saved in this browser</span>
+          </DevOnly>
+        </div>
+      </div>
+      <p className="project-cover-status" id="project-cover-status" role="alert" aria-live="polite">{error ?? ""}</p>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------------------------
 // Projects
@@ -99,7 +205,28 @@ export function ProjectForm({ project: initialProject }: { project: Project | nu
     featured: project?.featured ?? false,
     coverFile: null,
   } satisfies ProjectFormValues);
-  const { register, handleSubmit } = form;
+  const { register, handleSubmit, setValue, watch, setError: setFieldError, clearErrors } = form;
+  const selectedCover = watch("coverFile")?.[0];
+
+  const pickCover = (file?: File) => {
+    if (!file) {
+      setFieldError("coverFile", { type: "manual", message: "Select one cover image." });
+      return;
+    }
+    const invalid = validateMedia(file, "project_cover");
+    if (invalid) {
+      setFieldError("coverFile", { type: "manual", message: invalid });
+      return;
+    }
+    setValue("coverFile", fileListFrom(file), { shouldDirty: true });
+    clearErrors("coverFile");
+    setServerErrors((fields) => {
+      const next = { ...fields };
+      delete next.coverFile;
+      return next;
+    });
+    if (pathname === "/app/profile") setDirty(true);
+  };
 
   const submit = handleSubmit(async (v) => {
     const skills = workSkills(v.skills);
@@ -116,26 +243,35 @@ export function ProjectForm({ project: initialProject }: { project: Project | nu
 
   return (
     <form id="project-form" className="stack" noValidate onSubmit={submit} onInput={() => pathname === "/app/profile" && setDirty(true)}>
-      <div className="grid cols2">
-        <TextField label="Project title" required maxLength={120} {...register("title")} error={form.formState.errors.title?.message ?? serverErrors.title} />
-        <SelectField label="Discipline" options={["Design", "Engineering", "Data", "Business"]} {...register("category")} error={form.formState.errors.category?.message ?? serverErrors.category} />
-      </div>
-      <TextAreaField label="Project overview" required maxLength={2000} {...register("description")} error={form.formState.errors.description?.message ?? serverErrors.description} />
-      <TextAreaField label="Your role & contribution" required maxLength={1200} {...register("contribution")} error={form.formState.errors.contribution?.message ?? serverErrors.contribution} />
-      <TextField label="Skills & technologies (comma separated)" required {...register("skills")} error={form.formState.errors.skills?.message ?? serverErrors.skills} />
-      <FileField label="Project cover image (optional)" id="project-cover" accept="image/png,image/jpeg,image/webp" hint={devCopy("PNG, JPEG, or WebP up to 1 MB. Kept in local browser storage.", "PNG, JPEG, or WebP up to 1 MB.")} {...register("coverFile")} />
-      <div className="grid cols2">
-        <TextField label="Project URL" type="url" {...register("url")} error={form.formState.errors.url?.message ?? serverErrors.url} />
-        <TextField label="Repository URL" type="url" {...register("repository")} error={form.formState.errors.repository?.message ?? serverErrors.repository} />
-        <TextField label="Start date" type="date" required max={today()} {...register("start")} error={form.formState.errors.start?.message ?? serverErrors.start} />
-        <TextField label="Completion date" type="date" required max={today()} {...register("date")} error={form.formState.errors.date?.message ?? serverErrors.date} />
-        <SelectField label="Visibility" options={["Public", "Private"]} {...register("visibility")} error={form.formState.errors.visibility?.message ?? serverErrors.visibility} />
-      </div>
-      <CheckRow {...register("featured")}>Feature this project in my portfolio</CheckRow>
-      <div id="project-error">
-        <FormError message={error} />
-        {Object.entries(form.formState.errors).map(([key, value]) => value?.message && <p className="error" role="alert" key={key}>{String(value.message)}</p>)}
-        {Object.entries(serverErrors).filter(([key]) => key !== "_form").map(([key, message]) => <p className="error" role="alert" key={key}>{message}</p>)}
+      <div className="project-form-body">
+        <div className="grid cols2">
+          <TextField label="Project title" required maxLength={120} {...register("title")} error={form.formState.errors.title?.message ?? serverErrors.title} />
+          <SelectField required label="Discipline" options={["Design", "Engineering", "Data", "Business"]} {...register("category")} error={form.formState.errors.category?.message ?? serverErrors.category} />
+        </div>
+        <TextAreaField label="Project overview" required maxLength={2000} {...register("description")} error={form.formState.errors.description?.message ?? serverErrors.description} />
+        <TextAreaField label="Your role & contribution" required maxLength={1200} {...register("contribution")} error={form.formState.errors.contribution?.message ?? serverErrors.contribution} />
+        <TextField label="Skills & technologies (comma separated)" required {...register("skills")} error={form.formState.errors.skills?.message ?? serverErrors.skills} />
+        <ProjectCoverField
+          selected={selectedCover}
+          existingCover={project?.cover}
+          error={form.formState.errors.coverFile?.message ?? serverErrors.coverFile}
+          onPick={pickCover}
+        />
+        <div className="grid cols2">
+          <TextField label="Project URL" type="url" {...register("url")} error={form.formState.errors.url?.message ?? serverErrors.url} />
+          <TextField label="Repository URL" type="url" {...register("repository")} error={form.formState.errors.repository?.message ?? serverErrors.repository} />
+        </div>
+        <div className="grid cols2">
+          <TextField label="Start date" type="date" required max={today()} {...register("start")} error={form.formState.errors.start?.message ?? serverErrors.start} />
+          <TextField label="Completion date" type="date" required max={today()} {...register("date")} error={form.formState.errors.date?.message ?? serverErrors.date} />
+        </div>
+        <SelectField required label="Visibility" options={["Public", "Private"]} {...register("visibility")} error={form.formState.errors.visibility?.message ?? serverErrors.visibility} />
+        <CheckRow {...register("featured")}>Feature this project in my portfolio</CheckRow>
+        <div id="project-error">
+          <FormError message={error} />
+          {Object.entries(form.formState.errors).map(([key, value]) => key !== "coverFile" && value?.message && <p className="error" role="alert" key={key}>{String(value.message)}</p>)}
+          {Object.entries(serverErrors).filter(([key]) => key !== "_form" && key !== "coverFile").map(([key, message]) => <p className="error" role="alert" key={key}>{message}</p>)}
+        </div>
       </div>
       <div className="modal-footer">
         {project && (
@@ -222,12 +358,12 @@ export function UpdateFormFields({ update: initialUpdate, defaultVisibility, pro
       <TextField label="Update title" required maxLength={150} placeholder="What did you work on?" {...register("title")} error={form.formState.errors.title?.message ?? errors.title} />
       <TextAreaField label="The story behind it" required maxLength={2000} placeholder="What did you make, learn, or move forward?" {...register("description")} error={form.formState.errors.description?.message ?? errors.description} />
       <div className="grid cols2">
-        <SelectField label="Category" options={["Design", "Development", "Research", "Learning", "Marketing", "Collaboration"]} {...register("category")} error={form.formState.errors.category?.message ?? errors.category} />
+        <SelectField required label="Category" options={["Design", "Development", "Research", "Learning", "Marketing", "Collaboration"]} {...register("category")} error={form.formState.errors.category?.message ?? errors.category} />
         <TextField label="Date" type="date" required max={today()} {...register("date")} error={form.formState.errors.date?.message ?? errors.date} />
       </div>
       <TextField label="Skills (comma separated)" required {...register("skills")} error={form.formState.errors.skills?.message ?? errors.skills} />
       <SelectField label="Related project" options={[{ label: "No related project", value: "" }, ...projects.map((p) => ({ label: p.title, value: p.id }))]} {...register("project")} error={form.formState.errors.project?.message ?? errors.project} />
-      <SelectField label="Visibility" options={["Public", "Private"]} {...register("visibility")} error={form.formState.errors.visibility?.message ?? errors.visibility} />
+      <SelectField required label="Visibility" options={["Public", "Private"]} {...register("visibility")} error={form.formState.errors.visibility?.message ?? errors.visibility} />
       {Object.entries(form.formState.errors).map(([key, value]) => value?.message && <p className="error" role="alert" key={key}>{String(value.message)}</p>)}
       {Object.entries(errors).map(([key, message]) => <p className="error" role="alert" key={key}>{message}</p>)}
       <div className="modal-footer">

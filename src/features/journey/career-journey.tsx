@@ -779,12 +779,9 @@ function MemoryEditor({
     useModalStore.setState({ blocking: true });
     const added: JourneyPhoto[] = [];
     try {
-      for (const file of Array.from(files)) {
-        const photo = await services.journey.upload(file);
-        if (!mounted.current) {
-          await services.journey.discardPhoto(photo.id).catch(() => undefined);
-          return;
-        }
+      const photos = await Promise.all(Array.from(files, file => services.journey.upload(file)));
+      if (!mounted.current) return;
+      for (const photo of photos) {
         newPhotos.current.add(photo.id);
         added.push(photo);
       }
@@ -861,8 +858,9 @@ function MemoryEditor({
         {step === 0 ? (
           <>
             <label>
-              Workplace
+              Workplace <span aria-hidden="true">*</span>
               <select
+                required
                 value={input.employmentId}
                 onChange={(e) =>
                   patch({
@@ -880,8 +878,9 @@ function MemoryEditor({
               </select>
             </label>
             <label>
-              What kind of memory?
+              What kind of memory? <span aria-hidden="true">*</span>
               <select
+                required
                 value={input.type}
                 onChange={(e) =>
                   patch({ type: e.target.value as MemoryInput["type"] })
@@ -906,7 +905,7 @@ function MemoryEditor({
         ) : step === 1 ? (
           <>
             <label>
-              Give this memory a title
+              Give this memory a title <span aria-hidden="true">*</span>
               <input
                 value={input.title}
                 maxLength={120}
@@ -916,7 +915,7 @@ function MemoryEditor({
               />
             </label>
             <label>
-              When did it happen?
+              When did it happen? <span aria-hidden="true">*</span>
               <input
                 type="date"
                 value={input.date}
@@ -927,7 +926,7 @@ function MemoryEditor({
               />
             </label>
             <label>
-              The story (optional)
+              The story
               <textarea
                 value={input.story}
                 maxLength={2000}
@@ -1236,7 +1235,7 @@ function ColleagueEditor({
           </p>
         )}
         <label>
-          Role or connection (optional)
+          Role or connection
           <input
             value={role}
             onChange={(e) => {

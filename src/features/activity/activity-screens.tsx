@@ -3,22 +3,15 @@
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import Link from "next/link";
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 import { useSearchParams } from "next/navigation";
-import type { Comment, Id, Role } from "@/types/domain";
+import type { Role } from "@/types/domain";
 import { ACTIVITY_SECTIONS, type ActivityData, type ActivitySection } from "@/services/activity/activity.service";
-import { timeAgo } from "@/lib/utils/date";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
-import { modal } from "@/stores/modal-store";
-import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, LinkButton, PageHeading } from "@/components/ui/primitives";
-import { TextAreaField } from "@/components/ui/field";
-import { confirmAction } from "@/components/ui/feedback";
 import { FeedCard } from "@/features/feed/feed-card";
 import { useCompose } from "@/features/feed/feed-parts";
-import { commentSchema } from "@/lib/validation/social";
-import { useFormAction } from "@/hooks/use-form-action";
 
 const ICONS: Record<ActivitySection, IconName> = { posts: "edit", comments: "message", videos: "monitor", images: "image", reactions: "like" };
 
@@ -28,35 +21,6 @@ function useActivityParams() {
   const tab: ActivitySection = raw && Object.hasOwn(ACTIVITY_SECTIONS, raw) ? (raw as ActivitySection) : "posts";
   const limit = Math.max(12, Math.min(1e4, Number(params.get("limit")) || 12));
   return { tab, limit };
-}
-
-function EditComment({ postId, comment }: { postId: Id; comment: Comment }) {
-  const [errors,setErrors] = useState<Record<string,string>>({});
-  const {execute,pending} = useFormAction(setErrors);
-  return (
-    <form
-      id="activity-comment-form"
-      className="stack"
-      noValidate
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const parsed = commentSchema.safeParse(String(new FormData(e.currentTarget).get("text") || ""));
-        if (!parsed.success) { setErrors({ text: parsed.error.issues[0].message }); return; }
-        if (!(await execute((s) => s.feed.editComment(postId, comment.id, parsed.data, comment.version)))) return;
-        modal.close();
-        toast("Changes saved.");
-      }}
-    >
-      {errors._form && <p role="alert" className="error">{errors._form}</p>}
-      <TextAreaField label="Comment" name="text" defaultValue={comment.text} required maxLength={1000} error={errors.text} disabled={pending} />
-      <div className="modal-footer">
-        <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
-          Save comment
-        </Button>
-      </div>
-    </form>
-  );
 }
 
 function Sidebar({ role, tab, counts }: { role: Role; tab: ActivitySection; counts: Record<ActivitySection, number> }) {
@@ -98,15 +62,6 @@ export function ProfessionalActivityScreen() {
   const me = shell?.person;
   const items = data ? (tab === "comments" ? data.comments : data[tab]) : [];
   const total = data ? (tab === "comments" ? data.commentCount : data[tab].length) : 0;
-
-  const removeComment = (postId: Id, id: Id) =>
-    confirmAction("Delete this comment?", "Your comment will be removed from the post.", async () => {
-      const revision = data?.comments.flatMap((g)=>g.comments).find((c)=>c.id===id)?.version;
-      const ok = await run(async (s) => { await s.feed.deleteComment("professional", postId, id, revision); return true; });
-      if (!ok) return;
-      modal.close();
-      toast("Comment deleted.");
-    }, "Delete comment");
 
   const emptyAction =
     tab === "videos" ? (
@@ -165,26 +120,7 @@ export function ProfessionalActivityScreen() {
                             <strong>{me?.name}</strong> commented on this post
                           </span>
                         </div>
-                        <FeedCard entry={group.post} role="professional" activity surface="activity" />
-                        {group.comments.map((c) => (
-                          <div className="activity-own-comment" key={c.id}>
-                            {me && <Avatar person={me} />}
-                            <div className="grow">
-                              <strong>
-                                {me?.name} <span>· You · {timeAgo(c.createdAt)}</span>
-                              </strong>
-                              <p>{c.text}</p>
-                              <div className="activity-comment-tools">
-                                <Button variant="text sm" icon="edit" onClick={() => modal.show("Edit your comment", <EditComment postId={group.post.id} comment={c} />)}>
-                                  Edit
-                                </Button>
-                                <Button variant="text sm" icon="trash" onClick={() => removeComment(group.post.id, c.id)}>
-                                  Delete
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                        <FeedCard entry={group.post} role="professional" activity surface="activity" focusComments={group.comments.map((c) => c.id)} />
                       </div>
                     );
                   }
@@ -229,12 +165,10 @@ export function ProfessionalActivityScreen() {
 
 export function RecruiterActivityScreen() {
   const { tab, limit } = useActivityParams();
-  const run = useServiceAction();
   const compose = useCompose("recruiter");
   const { data, isError, refetch } = useServiceQuery(["activity", "recruiter"], (s) => s.activity.getRecruiterActivity());
-  const { data: shell } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
-  const identity = shell?.identity;
   const list = data ? (tab === "comments" ? data.comments.map((g) => g.post) : data[tab]) : [];
+  const commentIds = (postId: string) => data?.comments.find((g) => g.post.id === postId)?.comments.map((c) => c.id) ?? [];
   return (
     <div className="activity-workspace">
       <PageHeading
@@ -269,32 +203,7 @@ export function RecruiterActivityScreen() {
                         <Icon name="like" /> You liked this post
                       </div>
                     )}
-                    <FeedCard entry={entry} role="recruiter" activity={entry.viewer.own} surface="activity" />
-                    {tab === "comments" &&
-                      entry.comments
-                        .filter((c) => c.author.id === identity?.id)
-                        .map((c) => (
-                          <div className="card recruiter-own-comment" key={c.id}>
-                            <div className="row">
-                              {identity && <Avatar person={identity} />}
-                              <strong>{identity?.name}</strong>
-                              <time>{timeAgo(c.createdAt)}</time>
-                            </div>
-                            <p>{c.text}</p>
-                            <Button
-                              variant="text sm"
-                              icon="trash"
-                              onClick={async () => {
-                                const version = data?.comments.flatMap((g)=>g.comments).find((x)=>x.id===c.id)?.version;
-                                const ok = await run(async (s) => { await s.feed.deleteComment("recruiter", entry.id, c.id, version); return true; });
-                                if (!ok) return;
-                                toast("Comment deleted.");
-                              }}
-                            >
-                              Delete comment
-                            </Button>
-                          </div>
-                        ))}
+                    <FeedCard entry={entry} role="recruiter" activity={entry.viewer.own} surface="activity" focusComments={tab === "comments" ? commentIds(entry.id) : undefined} />
                   </Fragment>
                 ))
               ) : (

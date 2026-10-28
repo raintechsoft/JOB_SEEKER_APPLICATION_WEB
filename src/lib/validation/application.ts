@@ -18,8 +18,8 @@ export const applicationSchema=(questions:ScreeningQuestion[],requirePortfolio:b
   }
 });
 export const followUp=z.string().refine((v)=>!v || calendarDate(v)&&v>=today()&&Date.parse(v)-Date.parse(today())<=730*86400000,"Choose a valid follow-up date within two years (UTC).");
-export const trackingSchema=z.object({status:z.enum(["Applied","In review","Interview","Offer","Rejected","Withdrawn"]),followUp,trackingNote:text(rules.noteLength)});
-export const applicationFiltersSchema=z.object({q:text(200),status:z.union([trackingSchema.shape.status,z.enum(["Shortlisted","Hired","","in-progress","other"])])});
+export const trackingSchema=z.object({followUp,trackingNote:text(rules.noteLength)}).strict();
+export const applicationFiltersSchema=z.object({q:text(200),status:z.enum(["Applied","In review","Shortlisted","Interview","Offer","Hired","Rejected","Withdrawn","","in-progress","other"])});
 export const reviewSchema=z.object({status:z.enum(["New","Reviewing","Shortlisted","Interview","Hired","Rejected"]),followUp,note:text(rules.noteLength)});
 export const bulkIdsSchema=z.array(z.uuid()).min(1).max(rules.bulkMax).refine((ids)=>new Set(ids).size===ids.length,"Select distinct records.");
 export const SAVED_JOB_SELECTION_LIMIT = rules.bulkMax;

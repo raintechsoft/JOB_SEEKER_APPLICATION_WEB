@@ -4,6 +4,7 @@ import type { Services } from "./index";
 import { createHttpClient } from "./api/client";
 import { createHttpAuthService } from "./auth/auth.http";
 import { createMediaService } from "./media/media.http";
+import {uploadManager} from "./media/upload-manager";
 import { createHttpProfileService } from "./profile/profile.http";
 import { createHttpOrganizationService } from "./organization/organization.http";
 import { createHttpOnboardingService } from "./onboarding/onboarding.http";
@@ -35,8 +36,8 @@ export function createHttpServices(baseUrl: string): Services {
   });
   const http = createHttpClient(baseUrl);
   const analytics=createHttpAnalyticsService(http);
-  const auth = createHttpAuthService(http, () => { profile.reset(); work.reset(); portfolio.reset(); jobPosts.reset(); jobs.reset(); applications.reset(); recruiting.reset(); talent.reset(); social.reset(); messaging.reset(); settings.reset();analytics.reset(); },session=>{void analytics.attach(session);});
-  const media = createMediaService(http);
+  const auth = createHttpAuthService(http, () => { uploadManager.clear(); profile.reset(); work.reset(); portfolio.reset(); jobPosts.reset(); jobs.reset(); applications.reset(); recruiting.reset(); talent.reset(); social.reset(); messaging.reset(); settings.reset();analytics.reset(); },session=>{void analytics.attach(session);});
+  const media = createMediaService(http, () => auth.me());
   const work = createHttpWorkService(http, media);
   const profile = createHttpProfileService(http, media, (id, offset) => work.moveProject(id, offset));
   const portfolio = createHttpPortfolioService(http);

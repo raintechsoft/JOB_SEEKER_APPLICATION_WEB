@@ -1,4 +1,5 @@
 "use client";
+import {uploadManager} from "@/services/media/upload-manager";
 
 import { MediaImage } from "@/components/ui/media-image";
 import { PhotoEditor } from "@/components/profile/photo-editor";
@@ -55,11 +56,13 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
   const photo = () => {
     if (!guard()) return;
     modal.show("Profile photo", <PhotoEditor person={recruiterAvatar(r)} purpose="recruiter_photo" savedMessage="Photo added to your draft. Save Changes to apply it." removedMessage="Photo removed from your draft. Save Changes to apply it." onSave={async file => {
+      const current=uploadManager.claimEdit(`${r.id}:avatar`);
       if (!guard()) throw new Error("You cannot edit this profile.");
       const images = await uploads.load([file], uploads.limits.photo, "recruiter_photo");
       if (!images) throw new Error("The photo could not be uploaded. Please try again.");
+      if(!current())throw new Error("A newer image change is already in progress.");
       update(d => { d.avatarUrl = images[0].url; });
-    }} onRemove={async () => { if (!guard()) throw new Error("You cannot edit this profile."); update(d => { d.avatarUrl = ""; }); }} />, "photo");
+    }} onRemove={async () => {uploadManager.claimEdit(`${r.id}:avatar`); if (!guard()) throw new Error("You cannot edit this profile."); update(d => { d.avatarUrl = ""; }); }} />, "photo");
   };
   const text = (label: string, name: keyof RecruiterMember, props: { required?: boolean; maxLength?: number } = {}) => <OrgField label={label} name={name} value={String(r[name] ?? "")} error={errors[name]} onValue={(value) => update((d) => void ((d as unknown as Record<string, unknown>)[name] = value))} {...props} />;
   const save = async () => {
