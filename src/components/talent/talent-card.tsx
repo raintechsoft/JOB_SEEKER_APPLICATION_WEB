@@ -10,6 +10,8 @@ import { useProjectDialogs } from "@/features/work/dialogs";
 import { useShortlistDialogs } from "@/features/talent/dialogs";
 import {useImpression} from "@/hooks/use-impression";
 import {track} from "@/lib/analytics";
+import { MatchBadge } from "@/components/jobs/match-badge";
+import { useInteractionTracking } from "@/hooks/use-interaction-tracking";
 
 export function TalentCard({ person: p, publicMode = false }: { person: TalentCardData; publicMode?: boolean }) {
   const projects = useProjectDialogs();
@@ -17,8 +19,11 @@ export function TalentCard({ person: p, publicMode = false }: { person: TalentCa
   const target = publicMode ? "/professionals/" + p.slug : "/recruiter/talent/" + p.id;
   const proj = p.featuredProject;
   const ref=useImpression<HTMLElement>(()=>{if(p.analyticsContext)track("recommendation_exposed",p.analyticsContext);},p.analyticsContext?.requestId);
+  // Watch history: opening a suggested person is the talent surface's "open" outcome (M2).
+  const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLElement>(publicMode ? null : { kind: "professional", id: p.id }, { surface: "talent", position: p.analyticsContext?.position, requestId: p.analyticsContext?.requestId });
+  const setRef = (el: HTMLElement | null) => { ref.current = el; watchRef.current = el; };
   return (
-    <article ref={ref} className="card talent-card" onClickCapture={(e)=>{if(p.analyticsContext&&(e.target as HTMLElement).closest("a"))track("recommendation_clicked",p.analyticsContext);}}>
+    <article ref={setRef} className="card talent-card" onClickCapture={(e)=>{if((e.target as HTMLElement).closest("a")){if(p.analyticsContext)track("recommendation_clicked",p.analyticsContext);watchClick();}}}>
       <div className="row between">
         <Link href={target} className="talent-avatar-link" aria-label={"View " + p.name + " profile"}>
           <Avatar person={p} size="lg" />
@@ -30,6 +35,9 @@ export function TalentCard({ person: p, publicMode = false }: { person: TalentCa
       </h3>
       <p className="headline">{p.headline}</p>
       {p.recommendationReason&&<p className="small muted">{p.recommendationReason}</p>}
+      {!publicMode&&p.hiringMatch&&<p className="small muted talent-hiring-match">{p.hiringMatch.reason}</p>}
+      {!publicMode&&p.pool&&<p className="small muted talent-pool">In your {p.pool.name} pool</p>}
+      <MatchBadge match={p.match} showJob />
       <div className="meta">
         <span>
           <Icon name="location" /> {p.location}

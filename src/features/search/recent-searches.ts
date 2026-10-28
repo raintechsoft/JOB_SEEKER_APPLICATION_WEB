@@ -15,6 +15,15 @@ export function readRecentSearches(scope?: string): string[] {
   } catch { return []; }
 }
 
+/** Removes one recent search (case-insensitive) or, without a query, all of them. */
+export function forgetRecentSearch(scope: string | undefined, query?: string): string[] {
+  const next = query === undefined ? [] : readRecentSearches(scope).filter(item => item.toLocaleLowerCase() !== query.toLocaleLowerCase());
+  if (scope) {
+    try { sessionStorage.setItem(storageKey(scope), JSON.stringify(next)); } catch { /* Search still works when browser storage is unavailable. */ }
+  }
+  return next;
+}
+
 export function rememberSearch(scope: string | undefined, query: string, previous: string[]): string[] {
   const value = feedSearchSchema.safeParse(query);
   if (!value.success || !value.data) return previous;

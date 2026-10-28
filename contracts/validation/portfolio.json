@@ -1,13 +1,5 @@
 {
-  "shareExpiryMaxDays": 365,
-  "sections": [
-    "Introduction",
-    "About",
-    "Skills & expertise",
-    "Featured projects",
-    "Experience",
-    "Work updates",
-    "Education",
-    "Contact"
-  ]
+  "fields": {"title":"text:120!","headline":"text:200!","slug":"slug!","theme":"text:7!"},
+  "sections": ["Introduction","About","Skills & expertise","Featured projects","Experience","Work updates","Education","Accomplishments","Contact"],
+  "shareExpiryMaxDays": 365, "otpEnabled": false
 }

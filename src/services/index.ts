@@ -23,6 +23,7 @@ import type { ProfileService } from "./profile/profile.service";
 import { mockProfileService } from "./profile/profile.mock";
 import type { RecommendationsService } from "./recommendations/recommendations.service";
 import { mockRecommendationsService } from "./recommendations/recommendations.mock";
+import type { PersonalizationService } from "./personalization/personalization.service";
 import type { RecruitingService } from "./recruiting/recruiting.service";
 import { mockRecruitingService } from "./recruiting/recruiting.mock";
 import type { RegistrationService } from "./registration/registration.service";
@@ -62,6 +63,7 @@ export interface Services {
   portfolio: PortfolioService;
   profile: ProfileService;
   recommendations: RecommendationsService;
+  personalization: PersonalizationService;
   recruiting: RecruitingService;
   registration: RegistrationService;
   talent: TalentService;
@@ -89,6 +91,8 @@ const mockServices: Services = {
   portfolio: mockPortfolioService,
   profile: mockProfileService,
   recommendations: mockRecommendationsService,
+  // Demo mode records no activity; the choices only live for this page.
+  personalization: (() => { let settings = { personalize: true, searchHistory: true }; return { async get() { return settings; }, async set(key: "personalize" | "searchHistory", value: boolean) { settings = { ...settings, [key]: value }; return settings; }, async clearHistory() {}, async exportData() { return { choices: settings, note: "Demo mode records no activity." }; } }; })(),
   recruiting: mockRecruitingService,
   registration: mockRegistrationService,
   talent: mockTalentService,

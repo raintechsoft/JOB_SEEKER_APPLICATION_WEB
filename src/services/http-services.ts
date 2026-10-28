@@ -1,4 +1,6 @@
 import {createHttpRecommendationsService} from "./recommendations/recommendations.http";
+import {createHttpInteractionsService} from "./interactions/interactions.http";
+import {createHttpPersonalizationService} from "./personalization/personalization.http";
 import {createHttpAnalyticsService} from "./analytics/analytics.http";
 import type { Services } from "./index";
 import { createHttpClient } from "./api/client";
@@ -35,7 +37,8 @@ export function createHttpServices(baseUrl: string): Services {
   });
   const http = createHttpClient(baseUrl);
   const analytics=createHttpAnalyticsService(http);
-  const auth = createHttpAuthService(http, () => { profile.reset(); work.reset(); portfolio.reset(); jobPosts.reset(); jobs.reset(); applications.reset(); recruiting.reset(); talent.reset(); social.reset(); messaging.reset(); settings.reset();analytics.reset(); },session=>{void analytics.attach(session);});
+  const interactions=createHttpInteractionsService(http);
+  const auth = createHttpAuthService(http, () => { profile.reset(); work.reset(); portfolio.reset(); jobPosts.reset(); jobs.reset(); applications.reset(); recruiting.reset(); talent.reset(); social.reset(); messaging.reset(); settings.reset();analytics.reset();interactions.reset(); },session=>{void analytics.attach(session);interactions.attach(session);});
   const media = createMediaService(http);
   const work = createHttpWorkService(http, media);
   const profile = createHttpProfileService(http, media, (id, offset) => work.moveProject(id, offset));
@@ -65,9 +68,11 @@ export function createHttpServices(baseUrl: string): Services {
   const applications = createHttpApplicationsService(http);
   const recruiting = createHttpRecruitingService(http,auth);
   const recommendations=createHttpRecommendationsService(http,auth);
+  // Switching personalisation stops (or resumes) the interactions tracker at once (F12).
+  const personalization = createHttpPersonalizationService(http, (settings) => { if (!settings.personalize) interactions.setEnabled(false, null); else void auth.me().then((session) => interactions.setEnabled(true, session), () => undefined); });
   const talent = createHttpTalentService(http,auth,()=>recommendations.talent(),()=>messaging.getInbox("recruiter",{q:"",filter:"all",selectedId:null}));
   const search = createHttpSearchService(http, auth);
-  const enabled = { journey:createHttpJourneyService(http,media), search, analytics,auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
+  const enabled = { journey:createHttpJourneyService(http,media), search, analytics, personalization, auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
   return new Proxy(enabled, {
     get: (target, property) => Object.hasOwn(target, property) ? Reflect.get(target, property) : unavailable,
   }) as unknown as Services;

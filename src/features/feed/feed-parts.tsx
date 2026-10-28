@@ -215,9 +215,9 @@ export function FeedToolbar({ tabs, onFilter }: { tabs: [FeedFilter, string, boo
           value={sort}
           onChange={(e) => setFeed({ sort: e.target.value as "recent" | "popular" | "recommended" })}
           options={[
+            { value: "recommended", label: "For you" },
             { value: "recent", label: "Recent" },
             { value: "popular", label: "Most liked" },
-            ...(apiConfig.dataSource==="http"?[{value:"recommended",label:"For you: follows & skills"}]:[]),
           ]}
         />
       </label>

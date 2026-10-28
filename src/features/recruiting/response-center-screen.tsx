@@ -27,6 +27,9 @@ import { Avatar, Button, EmptyState, IconButton, LinkButton, PageHeading } from 
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingInput, FloatingSelect, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { useContactCandidate } from "@/features/talent/dialogs";
+import { MatchBadge } from "@/components/jobs/match-badge";
+import { useImpression } from "@/hooks/use-impression";
+import { useInteractionTracking } from "@/hooks/use-interaction-tracking";
 import { openReview } from "./review-dialog";
 import {ExportRequest,OutreachDeliveryReview} from "./delivery-dialogs";
 
@@ -364,17 +367,24 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
   const { application: a, profile: p, fit, distance } = item;
   const canMove=(stage:HiringStage)=>isPrototype||!a.withdrawnAt&&(a.status===stage||(RECRUITING_RULES.transitions[a.status] as string[]).includes(stage));
   const fitOn = q.fit === "1";
+  // A best-match list is a recommendation list (U9): exposure, and opening an applicant, teach the ranking.
+  const context = item.analyticsContext;
+  const seenRef = useImpression<HTMLElement>(() => { if (context) track("recommendation_exposed", context); }, context?.requestId);
+  const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLElement>(item.ranking ? { kind: "professional", id: a.candidate } : null, { surface: "applicants", position: context?.position, requestId: context?.requestId });
+  const setRef = (el: HTMLElement | null) => { seenRef.current = el; watchRef.current = el; };
+  const open = () => { if (context) track("recommendation_clicked", context); watchClick(); actions.view(a.id); };
   return (
-    <article className={"card response-candidate" + (q.rows === "compact" ? " is-compact" : "")} data-response-id={a.id}>
+    <article ref={setRef} className={"card response-candidate" + (q.rows === "compact" ? " is-compact" : "")} data-response-id={a.id}>
       <div className="response-candidate-main">
         <div className="response-candidate-heading">
           <input type="checkbox" checked={selected} onChange={(e) => onSelect(e.target.checked)} aria-label={"Select " + p.name} />
-          <button type="button" onClick={() => actions.view(a.id)}>
+          <button type="button" onClick={open}>
             <h2>{p.name}</h2>
           </button>
-          {fitOn ? <span className="response-fit-badge">{fit.score}% keyword match</span> : a.portfolio ? <span className="response-portfolio-badge">Portfolio included</span> : null}
+          {item.ranking?.match ? <MatchBadge match={item.ranking.match} /> : fitOn ? <span className="response-fit-badge">{fit.score}% keyword match</span> : a.portfolio ? <span className="response-portfolio-badge">Portfolio included</span> : null}
           <span className="response-status">{a.withdrawnAt?"Withdrawn · Previously "+a.status:a.status}</span>
         </div>
+        {item.ranking && <p className="response-match-reason">{item.ranking.reason}</p>}
         <div className="response-facts">
           <span>
             <Icon name="briefcase" />
@@ -668,7 +678,7 @@ export function ResponseCenterScreen() {
                 options={[
                   { value: "newest", label: "Newest first" },
                   { value: "oldest", label: "Oldest first" },
-                  { value: "relevance", label: "Keyword relevance" },
+                  { value: "relevance", label: "Best match" },
                   { value: "experience", label: "Experience" },
                 ]}
               />

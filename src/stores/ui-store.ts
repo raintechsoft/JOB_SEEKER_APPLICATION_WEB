@@ -40,7 +40,7 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  feed: { filter: "all", sort: "recent", query: "", searchScope: "all", searchOptions: {}, visible: 12, openComments: [], expanded: [] },
+  feed: { filter: "all", sort: "recommended", query: "", searchScope: "all", searchOptions: {}, visible: 12, openComments: [], expanded: [] },
   jobsPanel: { view: "all", mobileOpen: false },
   messaging: { query: "", filter: "all", mobileChat: false, conversation: apiConfig.dataSource==="http"?null:"conv0" },
   talent: EMPTY_TALENT_FILTERS,

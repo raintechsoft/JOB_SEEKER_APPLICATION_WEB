@@ -264,6 +264,8 @@ export interface JobAlert {
 
 export interface SocialGraph {
   blocked?: Id[];
+  /** "Not interested" items (demo mode). */
+  hidden?: Id[];
   commentReports?: {commentId:Id;reason:string;details:string;createdAt:string}[];
   repostDates?: Record<Id, IsoDateTime>;
   following: Id[];

@@ -207,7 +207,7 @@ export function useJobActions() {
   };
   const view = (id: Id, surface = "feed") => {
     track("job_viewed", { jobId: id, surface });
-    modal.show("Job details", <JobDetailsSideSheet id={id} role={role} onApply={() => apply(id)} onSave={() => void toggleSave("professional", id, "job")} />, "following");
+    modal.show("Job details", <JobDetailsSideSheet id={id} role={role} onApply={() => apply(id)} onSave={() => void toggleSave("professional", id, "job")} onOpenJob={(next) => view(next, "job-page")} />, "following");
     void queryClient.prefetchQuery({ queryKey: jobQueryKey(id), queryFn: () => services.jobs.getJob(id, role) });
     if (role === "professional") void queryClient.prefetchQuery({ queryKey: ["profile"], queryFn: () => services.profile.getProfile() });
     if (apiConfig.dataSource !== "http") void services.jobs.markSeen(id);

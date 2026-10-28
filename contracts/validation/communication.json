@@ -1,7 +1,12 @@
 {
-  "messageMax": 10000,
+  "messageMax": 4000,
   "attachmentMax": 3,
   "attachmentBytesMax": 2097152,
   "imageBytesMax": 1048576,
-  "reportDetailsMax": 1500
+  "reportDetailsMax": 1500,
+  "reportReasons": ["Spam or unwanted messages", "Harassment", "Misleading job or identity", "Other"],
+  "filters": ["all", "jobs", "unread", "starred", "archived"],
+  "flags": ["jobLabelBy", "mutedBy", "archivedBy", "blockedBy", "starredBy", "deletedBy"],
+  "categories": ["messages", "applications", "job_alerts"],
+  "channels": ["in_app", "email", "sms"]
 }

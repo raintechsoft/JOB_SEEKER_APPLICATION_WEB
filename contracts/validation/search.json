@@ -2,22 +2,10 @@
   "queryMax": 200,
   "pageMax": 10000,
   "pageSizeMax": 100,
-  "arrangements": [
-    "On-site",
-    "Hybrid",
-    "Remote"
-  ],
-  "employment": [
-    "Full-time",
-    "Part-time",
-    "Contract",
-    "Internship"
-  ],
-  "currencies": [
-    "INR",
-    "USD",
-    "EUR",
-    "GBP"
-  ],
-  "recommendationLimit": 100
+  "recommendationLimit": 20,
+  "candidateLimit": 200,
+  "strategyVersion": "rules-1",
+  "arrangements": ["On-site", "Hybrid", "Remote"],
+  "employment": ["Full-time", "Part-time", "Contract", "Internship"],
+  "currencies": ["INR", "USD", "EUR", "GBP"]
 }

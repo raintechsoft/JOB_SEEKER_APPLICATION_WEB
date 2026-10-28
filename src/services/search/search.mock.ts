@@ -1,8 +1,9 @@
 import { getDb } from "@/mocks/store/demo-db";
 import { blockedInMock, mockFeedService, professionalItems, recruiterItems } from "@/services/feed/feed.mock";
 import { personSummary } from "@/mocks/store/presenters";
+import { homeCompany, me, ME_ID, socialFor } from "@/mocks/store/selectors";
 import { scopedSearchSchema, filterKeysFor } from "@/lib/search/scopes";
-import type { SearchResult, SearchService } from "./search.service";
+import type { SearchResult, SearchService, SearchSuggestionsData } from "./search.service";
 
 export const mockSearchService: SearchService = { async query(input) {
   const values = scopedSearchSchema.parse(input), db = getDb();
@@ -59,4 +60,38 @@ export const mockSearchService: SearchService = { async query(input) {
   }
   const next = offset + values.limit;
   return { items: items.slice(offset, next), total: items.length, nextCursor: next < items.length ? JSON.stringify({ q: values.q, scope: values.scope, role: values.role, offset: next }) : null };
+},
+
+async forgetSearch() {},
+async clearSearches() {},
+async resultOpened() {},
+
+/** Demo empty-box suggestions: your skills first among the skills demo jobs ask for, companies hiring for them, people sharing them. */
+async suggestions(role): Promise<SearchSuggestionsData> {
+  const db = getDb(), social = socialFor(db, role);
+  const mine = role === "professional" ? me(db).skills : db.social.jobs.filter(job => job.company === homeCompany(db).id).flatMap(job => job.skills);
+  const own = new Set(mine.map(skill => skill.toLowerCase()));
+  const counts = new Map<string, number>();
+  for (const job of db.social.jobs) for (const skill of job.skills) counts.set(skill, (counts.get(skill) ?? 0) + 1);
+  const trending = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+  const skills = [
+    ...trending.filter(name => own.has(name.toLowerCase())).map(name => ({ name, reason: role === "recruiter" ? "You hire for this" : "In your skills" })),
+    ...trending.filter(name => !own.has(name.toLowerCase())).map(name => ({ name, reason: "Trending" })),
+  ].slice(0, 6);
+  const companies = db.companies
+    .filter(company => !social.followingCompanies.includes(company.id) && company.id !== (role === "recruiter" ? homeCompany(db).id : ""))
+    .map(company => ({ company, shared: [...new Set(db.social.jobs.filter(job => job.company === company.id).flatMap(job => job.skills).filter(skill => own.has(skill.toLowerCase())))] }))
+    .filter(entry => entry.shared.length)
+    .slice(0, 4)
+    .map(({ company, shared }) => ({ id: company.id, name: company.name, slug: "", industry: company.industry ?? "", picture: "", reason: "Hiring for " + shared.slice(0, 2).join(", ") }));
+  const people = db.professionals
+    .filter(person => person.id !== ME_ID && person.public && !blockedInMock(db, role, person.id) && !social.following.includes(person.id))
+    .map(person => ({ person, shared: person.skills.filter(skill => own.has(skill.toLowerCase())) }))
+    .sort((a, b) => b.shared.length - a.shared.length || a.person.id.localeCompare(b.person.id))
+    .slice(0, 4)
+    .map(({ person, shared }) => {
+      const summary = personSummary(person, db);
+      return { ...summary, headline: summary.headline ?? "", picture: summary.picture ?? "", color: summary.color ?? "", reason: shared.length ? "Shares your skills: " + shared.slice(0, 2).join(", ") : "Suggested for you" };
+    });
+  return { recent: [], skills, companies, people };
 } };

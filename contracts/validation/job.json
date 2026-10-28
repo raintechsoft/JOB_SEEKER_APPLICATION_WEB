@@ -31,18 +31,38 @@
     "Hybrid",
     "Remote"
   ],
-  "itemLength": 100,
-  "questionLength": 240,
-  "idealLength": 200,
-  "annualSalaryMax": 1000000000000,
-  "questionsMax": 6,
-  "expiryMaxDays": 730,
+  "currencies": [
+    "INR",
+    "USD",
+    "EUR",
+    "GBP"
+  ],
+  "templates": [
+    "cobalt",
+    "sage",
+    "graphite",
+    "lavender",
+    "none"
+  ],
   "text": {
+    "companyName": 100,
+    "title": 120,
+    "role": 100,
     "description": 5000,
     "responsibilities": 3000,
     "requirements": 3000,
-    "benefits": 2000
+    "benefits": 2000,
+    "reference": 100,
+    "applicationInstructions": 2000
   },
+  "lists": {
+    "locations": 20,
+    "skills": 20,
+    "essentialSkills": 20,
+    "education": 7,
+    "industries": 20
+  },
+  "itemLength": 100,
   "requiredStages": [
     [
       "companyName",
@@ -52,6 +72,7 @@
       "employment",
       "experienceMin",
       "experienceMax",
+      "currency",
       "salaryMin",
       "salaryMax",
       "arrangement",
@@ -74,15 +95,20 @@
     [],
     []
   ],
+  "questionsMax": 6,
+  "questionLength": 240,
+  "idealLength": 200,
+  "annualSalaryMax": 1000000000000,
+  "expiryMaxDays": 730,
+  "filesMax": 3,
+  "fileMaxBytes": 1048576,
+  "filesTotalBytes": 1572864,
   "attachmentTypes": [
-    "image/png",
     "image/jpeg",
+    "image/png",
     "image/webp",
     "application/pdf",
     "video/mp4",
     "video/webm"
-  ],
-  "fileMaxBytes": 1048576,
-  "filesMax": 3,
-  "filesTotalBytes": 1572864
+  ]
 }

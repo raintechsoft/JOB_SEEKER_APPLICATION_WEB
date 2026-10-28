@@ -119,6 +119,7 @@ function Candidate({ view, publicView, inWorkspace = false }: { view: CandidateV
               View portfolio
             </LinkButton>
           </section>
+          {!publicView && <SimilarCandidates id={p.id} />}
           {!publicView && (
             <section className="card side-card">
               <h3>Compare with context</h3>
@@ -134,6 +135,31 @@ function Candidate({ view, publicView, inWorkspace = false }: { view: CandidateV
         </aside>
       </div>
     </>
+  );
+}
+
+/** Recruiters: people close to this candidate (E6) — meaning when embeddings are on, shared skills otherwise. */
+function SimilarCandidates({ id }: { id: string }) {
+  const { data } = useServiceQuery(["similar-people", id], (s) => s.recommendations.similarPeople(id, 4));
+  if (!data?.length) return null;
+  return (
+    <section className="card side-card similar-candidates" aria-labelledby={`similar-people-${id}`}>
+      <h3 id={`similar-people-${id}`}>Similar candidates</h3>
+      <ul>
+        {data.map((person) => (
+          <li key={person.id}>
+            <Link href={"/recruiter/talent/" + person.id} className="similar-candidate">
+              <Avatar person={person} />
+              <span>
+                <strong>{person.name}</strong>
+                {person.headline ? <small>{person.headline}</small> : null}
+                <small className="search-result-reason">{person.reason}</small>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

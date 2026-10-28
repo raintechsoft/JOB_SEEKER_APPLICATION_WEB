@@ -34,6 +34,8 @@ export interface HttpClient {
   delete<T>(path: string, body?: unknown): Promise<T>;
   upload<T>(path: string, file: File): Promise<T>;
   blob(path: string): Promise<Blob>;
+  /** Fire-and-forget POST that survives the page closing. Returns false when it could not be sent. */
+  beacon(path: string, body: unknown): boolean;
 }
 
 export function createHttpClient(baseUrl: string): HttpClient {
@@ -88,5 +90,17 @@ export function createHttpClient(baseUrl: string): HttpClient {
     delete: (path, body) => request("DELETE", path, body),
     upload: (path, file) => { const data = new FormData(); data.set("file", file); return request("POST", path, data); },
     blob: (path) => request<Blob>("GET", path, undefined, undefined, true),
+    beacon: (path, body) => {
+      // The page is closing: one keepalive request on the existing session, no CSRF prefetch, no retry, never throws.
+      const xsrf = typeof document === "undefined" ? undefined : document.cookie.split("; ").find((c) => c.startsWith("XSRF-TOKEN="))?.slice(11);
+      if (!xsrf || !userContext) return false;
+      try {
+        const url = new URL(path.replace(/^\//, ""), baseUrl.endsWith("/") ? baseUrl : baseUrl + "/");
+        void fetch(url, { method: "POST", keepalive: true, credentials: "include", headers: { Accept: "application/json", "Content-Type": "application/json", "X-Skillora-User": userContext, "X-XSRF-TOKEN": decodeURIComponent(xsrf) }, body: JSON.stringify(body) }).catch(() => undefined);
+        return true;
+      } catch {
+        return false;
+      }
+    },
   };
 }

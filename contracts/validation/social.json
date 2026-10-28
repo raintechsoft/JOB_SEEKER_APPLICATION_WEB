@@ -2,10 +2,14 @@
   "titleMax": 150,
   "bodyMax": 3000,
   "commentMax": 1000,
-  "altMax": 200,
+  "mediaMax": 5,
   "imageBytesMax": 1048576,
   "totalImageBytesMax": 2097152,
-  "mediaMax": 5,
-  "searchMax": 200,
-  "shareFollowersMax": 50
+  "altMax": 300,
+  "filters": ["all", "following", "jobs", "saved", "reposts"],
+  "sorts": ["recent", "popular"],
+  "roles": ["professional", "recruiter"],
+  "pageMax": 40,
+  "shareFollowersMax": 50,
+  "searchMax": 200
 }

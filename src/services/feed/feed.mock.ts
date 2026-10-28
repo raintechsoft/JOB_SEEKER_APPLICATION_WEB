@@ -3,7 +3,7 @@ import { paginate } from "@/types/api";
 import type { DemoDatabase, Id, Job, Post, Role, SocialGraph, WorkUpdate } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
 import { companySummary, feedPerson, jobCompany, personSummary, projectSummary } from "@/mocks/store/presenters";
-import { currentRecruiter, homeCompany, isJobOpen, ME_ID, person, RECRUITER_ID, socialFor } from "@/mocks/store/selectors";
+import { currentRecruiter, homeCompany, isJobOpen, me, ME_ID, person, RECRUITER_ID, socialFor } from "@/mocks/store/selectors";
 import { uid } from "@/lib/utils/id";
 import type { FeedEntry, FeedQuery, FeedService, Network } from "./feed.service";
 import { reportSchema } from "@/lib/validation/communication";
@@ -132,6 +132,20 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
   };
 }
 
+/** Demo "For you": skills the viewer has (or, for a recruiter, hires for) first, then people and companies followed. */
+function recommendation(db: DemoDatabase, role: Role) {
+  const s = socialFor(db, role);
+  const skills = new Set((role === "professional" ? me(db).skills : db.social.jobs.filter((j) => j.company === homeCompany(db).id).flatMap((j) => j.skills)).map((k) => k.toLowerCase()));
+  return (item: RawItem) => {
+    const followed = item.type === "job" ? s.followingCompanies.includes(item.company) : s.following.includes(item.owner);
+    const shared = skillsOf(item).filter((k) => skills.has(k.toLowerCase()));
+    const reason = shared.length
+      ? (role === "recruiter" ? "Skills you hire for: " : "Matches your skills: ") + shared.slice(0, 2).join(", ")
+      : followed ? (item.type === "job" ? "From a company you follow" : "From someone you follow") : "Recent in your network";
+    return { score: 2 * Math.min(3, shared.length) + 3 * Number(followed), reason };
+  };
+}
+
 function filterItems(db: DemoDatabase, query: FeedQuery) {
   const s = socialFor(db, query.role);
   let list: RawItem[];
@@ -150,12 +164,15 @@ function filterItems(db: DemoDatabase, query: FeedQuery) {
   if (query.filter === "saved") list = list.filter((p) => s.saved.includes(p.id));
   const q = query.q.trim().toLowerCase();
   if (q) list = list.filter((p) => searchText(db, query.role, p).includes(q));
+  // "Not interested" items leave the main feeds; saved, reposts and searches still show them.
+  else if (["all", "jobs", "following"].includes(query.filter)) list = list.filter((p) => !s.hidden?.includes(p.id));
   const score = (p: RawItem) => (p.likes || 0) + Number(s.liked.includes(p.id));
+  const time = (item: RawItem) => [item.createdAt, networkRepost(db, query.role, item.id, false)?.createdAt ?? ""].sort().at(-1)!;
   if (query.sort === "popular") list.sort((a, b) => score(b) - score(a));
-  else {
-    const time = (item: RawItem) => [item.createdAt, networkRepost(db, query.role, item.id, false)?.createdAt ?? ""].sort().at(-1)!;
-    list.sort((a, b) => time(b).localeCompare(time(a)) || b.id.localeCompare(a.id));
-  }
+  else if (query.sort === "recommended") {
+    const rank = recommendation(db, query.role);
+    list.sort((a, b) => rank(b).score - rank(a).score || time(b).localeCompare(time(a)) || b.id.localeCompare(a.id));
+  } else list.sort((a, b) => time(b).localeCompare(time(a)) || b.id.localeCompare(a.id));
   return list;
 }
 
@@ -180,7 +197,8 @@ export const mockFeedService: FeedService = {
   async getFeed(query) {
     const db = getDb();
     const list = filterItems(db, query);
-    const page = paginate(list.map((item) => toFeedEntry(db, query.role, item)), 1, query.limit);
+    const rank = recommendation(db, query.role);
+    const page = paginate(list.map((item) => ({ ...toFeedEntry(db, query.role, item), ...(query.sort === "recommended" ? { recommendationReason: rank(item).reason } : {}) })), 1, query.limit);
     const s = socialFor(db, query.role);
     const suggestions = query.role === "professional" ? db.professionals.filter((p) => p.id !== ME_ID && p.public && !blockedInMock(db, query.role, p.id) && !s.following.includes(p.id)).slice(0, 3).map(p => personSummary(p, db)) : [];
     return { ...page, suggestions };
@@ -214,6 +232,15 @@ export const mockFeedService: FeedService = {
     }, { rollbackOnFailure: true });
     if (!persisted) throw new Error("Your repost could not be saved. Please try again.");
     return enabled;
+  },
+
+  async setHidden(role, id, _type, hidden) {
+    const persisted = commit((db) => {
+      const list = graph(db, role).hidden ??= [];
+      if (hidden !== list.includes(id)) toggleIn(list, id);
+    }, { rollbackOnFailure: true });
+    if (!persisted) throw new Error("This change could not be saved. Please try again.");
+    return hidden;
   },
 
   async toggleSave(role, id) {

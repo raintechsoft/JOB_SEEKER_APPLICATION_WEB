@@ -1,4 +1,4 @@
-import rules from "../../../../../contracts/validation/application.json";
+import rules from "../../../contracts/validation/application.json";
 import { APPLICATION_DISPLAY_STATUSES, type ApplicationCounts, type ApplicationFilter, type ApplicationRecord } from "@/services/applications/applications.service";
 import type { ApplicationStatus } from "@/types/domain";
 

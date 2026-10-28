@@ -19,6 +19,7 @@ import { ScreenFallback } from "@/components/ui/feedback";
 import { Spinner } from "@/components/ui/spinner";
 import { OrgArea, OrgChips, OrgField, OrgSelect } from "@/components/organization/controls";
 import { recruiterAvatar } from "./team-section";
+import { PersonalizationPreference } from "@/features/settings/personalization-preference";
 import { ADMIN_ONLY, addChips, useImageUploads, useOrganizationEditor, useRecruiterDraft } from "./use-organization-editor";
 
 const ROOT = "/recruiter/company";
@@ -189,6 +190,7 @@ export function RecruiterIdentityScreen({ memberId }: { memberId?: string }) {
           )}
         </footer>
       </section>
+      {!memberId && apiConfig.dataSource === "http" && <PersonalizationPreference />}
     </div>
   );
 }

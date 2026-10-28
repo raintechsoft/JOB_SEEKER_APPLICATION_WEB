@@ -20,6 +20,7 @@ import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
 import { resetOrganizationDrafts } from "@/features/organization/draft-store";
 import {AnalyticsPreference} from "./analytics-preference";
+import {PersonalizationPreference} from "./personalization-preference";
 
 export function SettingsScreen() {
   const run = useServiceAction();
@@ -115,6 +116,7 @@ export function SettingsScreen() {
           </Button>
         </div>
       </section>
+      {apiConfig.dataSource==="http"&&<PersonalizationPreference/>}
       {apiConfig.dataSource==="http"&&<AnalyticsPreference/>}
     </>
   );
