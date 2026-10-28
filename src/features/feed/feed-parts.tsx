@@ -17,19 +17,22 @@ import { useUiStore } from "@/stores/ui-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, LinkButton } from "@/components/ui/primitives";
+import { MediaImage } from "@/components/ui/media-image";
 import { SuggestionCard, SuggestionCardGrid } from "@/components/suggestions/suggestion-card";
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingSelect } from "@/components/ui/field";
-import { Heatmap } from "@/components/work/pulse";
+import { ActivityHeatmap } from "./activity-heatmap";
 import { workspaceDialogs } from "@/features/workspace/dialogs";
 import { useNetworkSheet } from "./network-sheet";
+
+/** Work Pulse is temporarily hidden from the home feed; set true to restore the monthly activity card. */
+export const SHOW_WORK_PULSE = false;
 
 /** Left column of the professional feed: identity, profile strength, Work Pulse and shortcuts. */
 export function ProfileColumn() {
   const [showProfile, setShowProfile] = useState(false);
   const network = useNetworkSheet();
   const { data, isError, refetch } = useServiceQuery(["feed", "summary"], (s) => s.workspace.getProfessionalSummary());
-  const { data: pulse, isError: pulseError, refetch: retryPulse } = useServiceQuery(["pulse", "feed", 91], (s) => s.work.getPulse(apiConfig.dataSource === "http" ? "me" : "p0", 91));
   const networkQuery = useServiceQuery(["feed-network", "professional"], s => s.feed.getNetwork("professional"), { enabled: apiConfig.dataSource === "http" });
   const savedQuery = useServiceQuery(["feed-saved-count", "professional"], s => s.feed.getFeed({ role: "professional", filter: "saved", sort: "recent", q: "", limit: 1 }), { enabled: apiConfig.dataSource === "http" });
   if (!data) return <aside className="feed-profile-column" aria-label="Your profile and activity"><QueryFeedback data={data} error={isError} retry={refetch} label="Loading profile" /></aside>;
@@ -42,11 +45,17 @@ export function ProfileColumn() {
         <div className="feed-welcome">
           <h1>Welcome back, {p.name.split(" ")[0]}.</h1>
         </div>
-        <div className="feed-profile-cover">
-          <span>MADE OF WHAT YOU DO.</span>
-          <i />
-          <i />
-          <i />
+        <div className={"feed-profile-cover" + (p.cover ? " has-image" : "")}>
+          {p.cover ? (
+            <MediaImage src={p.cover} alt="" fallback={null} />
+          ) : (
+            <>
+              <span>MADE OF WHAT YOU DO.</span>
+              <i />
+              <i />
+              <i />
+            </>
+          )}
         </div>
         <div className="feed-profile-details">
           <Link href="/app/profile" className="feed-avatar-link">
@@ -66,41 +75,39 @@ export function ProfileColumn() {
         </div>
       </section>
       <button type="button" className="feed-mobile-profile-toggle" aria-expanded={showProfile} onClick={() => setShowProfile((v) => !v)}>
-        {showProfile ? "Hide profile insights" : "Your profile insights & Work Pulse"}
+        {showProfile ? "Hide profile insights" : SHOW_WORK_PULSE ? "Your profile insights & Work Pulse" : "Your profile insights"}
         <Icon name={showProfile ? "up" : "down"} />
       </button>
-      <section className="card feed-strength">
-        <div className="row between">
-          <h2>A stronger profile. More possibilities.</h2>
-          <span>{p.complete}%</span>
-        </div>
-        <div className="progress" role="progressbar" aria-label="Profile completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={p.complete}>
-          <i style={{ width: p.complete + "%" }} />
-        </div>
-        <LinkButton href="/app/profile" variant="primary sm fix-profile-button" icon="edit">
-          Fix profile
-        </LinkButton>
-      </section>
-      <section className="card feed-pulse">
-        <div className="row between">
-          <h2>
-            <Icon name="pulse" />
-            Work Pulse
-          </h2>
-          <Link href="/app/work-pulse">
-            View all <Icon name="arrowUp" />
-          </Link>
-        </div>
-        <p>Small steps, a bigger story.</p>
-        <span className="feed-pulse-range">Last 3 months</span>
-        <QueryFeedback data={pulse} error={pulseError} retry={retryPulse} layout="chart" label="Loading Work Pulse" />
-        {pulse && <Heatmap pulse={pulse} ownerId={apiConfig.dataSource==="http"?"me":"p0"} />}
-        <div className="feed-pulse-total">
-          <strong>{pulse?.activeDays ?? data.pulseDays ?? (pulseError ? "—" : <Skeleton style={{ width: 30, height: 20 }} />)}</strong>
-          <span>days of recorded progress</span>
-        </div>
-        <small>Recorded activity, never a productivity score.</small>
-      </section>
+      {p.complete < 100 && (
+        <section className="card feed-strength">
+          <div className="row between">
+            <h2>A stronger profile. More possibilities.</h2>
+            <span>{p.complete}%</span>
+          </div>
+          <div className="progress" role="progressbar" aria-label="Profile completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={p.complete}>
+            <i style={{ width: p.complete + "%" }} />
+          </div>
+          <LinkButton href="/app/profile" variant="primary sm fix-profile-button" icon="edit">
+            Fix profile
+          </LinkButton>
+        </section>
+      )}
+      {SHOW_WORK_PULSE && (
+        <section className="card feed-pulse">
+          <div className="row between">
+            <h2>
+              <Icon name="pulse" />
+              Work Pulse
+            </h2>
+            <Link href="/app/work-pulse">
+              View all <Icon name="arrowUp" />
+            </Link>
+          </div>
+          <p>Small steps, a bigger story.</p>
+          <ActivityHeatmap role="professional" />
+          <small>Recorded activity, never a productivity score.</small>
+        </section>
+      )}
       <section className="card feed-connections">
         <button type="button" onClick={() => network.open("professional")}>
           <span>

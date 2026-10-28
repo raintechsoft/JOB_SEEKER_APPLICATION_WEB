@@ -35,6 +35,8 @@ export interface PublicProfessional {
   public: boolean;
   website: string;
   picture?: string;
+  /** Directory-profile banner only; never part of portfolio shares or application snapshots. */
+  cover?: string;
   color: string;
   lastActive: IsoDate;
   credentials: PublicCredentials;
@@ -87,6 +89,7 @@ export function toPublicProfessional(p: Professional): PublicProfessional {
     public: p.public,
     website: p.website,
     picture: p.picture ?? PORTRAITS[p.id],
+    cover: p.cover ?? "",
     color: p.color,
     lastActive: p.lastActive,
     credentials: publicCredentials(p),

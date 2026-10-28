@@ -61,7 +61,7 @@ export const mockWorkspaceService: WorkspaceService = {
     const db = getDb();
     const p = me(db);
     return {
-      person: { ...personSummary(p), location: p.location, complete: p.complete },
+      person: { ...personSummary(p), location: p.location, complete: p.complete, cover: p.cover },
       pulseDays: new Set(updatesFor(db, ME_ID).map((u) => u.date)).size,
       followingCount: db.social.following.length + db.social.followingCompanies.length,
       savedCount: db.social.saved.length,

@@ -15,24 +15,51 @@ const RAMP = ["#eff1f1", "#d5eddf", "#a6d7bd", "#66b58b", "#2e8c60"];
 /** Static marketing illustration; never queries a fictional account or implies recorded activity. */
 export function IllustrativePulse(){return <section className="card"><div className="card-head"><div><h2>Work Pulse</h2><p>Illustration of a work journal.</p></div></div><div className="heatmap" aria-label="Illustrative activity calendar"><div className="heat-body"><div className="heat-grid" aria-hidden="true">{Array.from({length:182},(_,i)=><span key={i} className={`heat-cell l${i%7===0?3:i%5===0?2:0}`}/>)}</div></div></div><p className="small muted">Example only. Your calendar reflects updates you choose to record.</p></section>;}
 
+const WEEKDAYS = ["", "Mon", "", "Wed", "", "Fri", ""];
+
+/**
+ * Sunday-first week columns. The first day is offset to its weekday row, and a month is labelled
+ * above the column containing its 1st (the opening month only when there is room before the next).
+ */
+export function pulseLayout(cells: Pulse["cells"]) {
+  const weekday = (date: string) => new Date(date + "T00:00:00Z").getUTCDay();
+  const offset = cells.length ? weekday(cells[0].date) : 0;
+  const months: { column: number; label: string }[] = [];
+  cells.forEach(({ date }, i) => {
+    const day = new Date(date + "T00:00:00Z");
+    const column = Math.floor((i + offset) / 7);
+    if (i === 0 || day.getUTCDate() === 1) months.push({ column, label: day.toLocaleString("en", { month: "short", timeZone: "UTC" }) });
+  });
+  if (months.length > 1 && months[1].column - months[0].column < 3) months.shift();
+  return { offset, months };
+}
+
 /** Calendar heatmap of recorded work updates. Selecting a day opens its updates. */
 export function Heatmap({ pulse, ownerId }: { pulse: Pulse; ownerId: Id }) {
   const dialogs = useUpdateDialogs();
+  const { offset, months } = pulseLayout(pulse.cells);
   return (
     <>
       <div className="heatmap">
-        <div className="heatmap-months">
-          {pulse.months.map((m, i) => (
-            <span key={m + i}>{m}</span>
-          ))}
+        {/* Keeps the label row's height; labels are positioned on their grid columns below. */}
+        <div className="heatmap-months" aria-hidden="true">
+          <span>&nbsp;</span>
         </div>
         <div className="heat-body">
-          <div className="weekdays">
-            <span>Mon</span>
-            <span>Wed</span>
-            <span>Fri</span>
+          <div className="weekdays" aria-hidden="true">
+            {WEEKDAYS.map((label, row) => (
+              <span key={row}>{label}</span>
+            ))}
           </div>
           <div className="heat-grid">
+            {months.map(({ column, label }) => (
+              <span key={label + column} className="heat-month" aria-hidden="true" style={{ gridColumn: column + 1 }}>
+                {label}
+              </span>
+            ))}
+            {Array.from({ length: offset }, (_, i) => (
+              <span key={"pad" + i} className="heat-cell heat-pad" aria-hidden="true" />
+            ))}
             {pulse.cells.map(({ date, count }) => (
               <button
                 key={date}

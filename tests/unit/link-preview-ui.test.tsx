@@ -184,7 +184,7 @@ async function publishFromStory() {
 it("publishes the previewed link and shows it in the live preview", async () => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   const { createPost } = editor(vi.fn().mockResolvedValue(preview("https://github.com/", "GitHub")));
-  fireEvent.change(await screen.findByRole("textbox", { name: "Your story" }), { target: { value: "My repo: https://github.com today" } });
+  fireEvent.change(await screen.findByRole("textbox", { name: "Caption" }), { target: { value: "My repo: https://github.com today" } });
   await settle();
   expect(await screen.findByTestId("live-preview")).toHaveTextContent("GitHub");
   await publishFromStory();
@@ -195,7 +195,7 @@ it("publishes the previewed link and shows it in the live preview", async () => 
 it("publishes text-only after dismissal or a failed preview and persists the dismissal", async () => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   const { createPost, storePostDraft } = editor(vi.fn().mockResolvedValue(preview("https://github.com/", "GitHub")));
-  const story = await screen.findByRole("textbox", { name: "Your story" });
+  const story = await screen.findByRole("textbox", { name: "Caption" });
   fireEvent.change(story, { target: { value: "My repo: https://github.com today" } });
   await settle();
   fireEvent.click(await screen.findByRole("button", { name: "Remove link preview for github.com" }));
@@ -213,7 +213,7 @@ it("publishes text-only after dismissal or a failed preview and persists the dis
 it("never blocks publication on a failing preview service", async () => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   const { createPost } = editor(vi.fn().mockRejectedValue(new Error("Service unavailable")));
-  fireEvent.change(await screen.findByRole("textbox", { name: "Your story" }), { target: { value: "See https://down.example.com/ now" } });
+  fireEvent.change(await screen.findByRole("textbox", { name: "Caption" }), { target: { value: "See https://down.example.com/ now" } });
   await settle();
   await publishFromStory();
   await waitFor(() => expect(createPost).toHaveBeenCalledOnce());

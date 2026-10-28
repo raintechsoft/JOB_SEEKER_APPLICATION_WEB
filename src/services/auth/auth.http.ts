@@ -37,6 +37,7 @@ export function createHttpAuthService(http: HttpClient, onSessionChange: () => v
     employerResend: (id, kind) => post(`registration-intents/${encodeURIComponent(id)}/challenge`, { kind }),
     employerVerify: (id, input) => http.post(`registration-intents/${encodeURIComponent(id)}/verify`, input),
     employerFinalize: (id, input) => authenticate(()=>post<AuthSession>(`registration-intents/${encodeURIComponent(id)}/finalize`, input)),
+    completeExternalSignIn: () => authenticate(()=>get<AuthSession>("auth/me")),
     acceptInvitation: (token) => post("invitations/accept", { token }),
     organization: (id) => get(`organizations/${encodeURIComponent(id)}`),
     invite: async (id, input) => { await http.post(`organizations/${encodeURIComponent(id)}/invitations`, input); },

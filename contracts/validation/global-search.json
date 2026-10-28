@@ -3,27 +3,177 @@
   "maximum": 200,
   "debounceMs": 300,
   "relatedLimit": 6,
-  "scopes": ["all", "posts", "companies", "people", "jobs", "updates", "talent", "skills", "projects"],
-  "recruiterOnly": ["talent", "skills", "projects"],
+  "scopes": [
+    "all",
+    "posts",
+    "companies",
+    "people",
+    "jobs",
+    "updates",
+    "talent",
+    "skills",
+    "projects"
+  ],
+  "recruiterOnly": [
+    "talent",
+    "skills",
+    "projects"
+  ],
   "selectionKinds": {
-    "all": ["person", "company", "post", "job", "update", "talent", "project"],
-    "posts": ["post"], "companies": ["company"], "people": ["person"], "jobs": ["job"],
-    "updates": ["update"], "talent": ["talent"], "skills": ["talent"], "projects": ["project"]
+    "all": [
+      "person",
+      "company",
+      "post",
+      "job",
+      "update",
+      "talent",
+      "project"
+    ],
+    "posts": [
+      "post"
+    ],
+    "companies": [
+      "company"
+    ],
+    "people": [
+      "person"
+    ],
+    "jobs": [
+      "job"
+    ],
+    "updates": [
+      "update"
+    ],
+    "talent": [
+      "talent"
+    ],
+    "skills": [
+      "talent"
+    ],
+    "projects": [
+      "project"
+    ]
   },
   "filters": {
     "all": [],
-    "posts": ["days", "contentType"],
-    "companies": ["industry", "location", "companyType"],
-    "people": ["location"],
-    "jobs": ["location", "skill", "arrangement", "employment", "experienceMin", "experienceMax", "days"],
-    "updates": ["days", "author"],
-    "talent": ["location", "skill", "experienceMin", "experienceMax"],
-    "skills": ["location", "experienceMin", "experienceMax"],
-    "projects": ["skill", "discipline", "days"]
+    "posts": [
+      "days",
+      "contentType"
+    ],
+    "companies": [
+      "industry",
+      "location",
+      "companyType"
+    ],
+    "people": [
+      "location"
+    ],
+    "jobs": [
+      "location",
+      "skill",
+      "arrangement",
+      "employment",
+      "education",
+      "experienceMin",
+      "experienceMax",
+      "salaryMin",
+      "salaryMax",
+      "currency",
+      "compensationPeriod",
+      "days"
+    ],
+    "updates": [
+      "days",
+      "author"
+    ],
+    "talent": [
+      "location",
+      "skill",
+      "experienceMin",
+      "experienceMax"
+    ],
+    "skills": [
+      "location",
+      "experienceMin",
+      "experienceMax"
+    ],
+    "projects": [
+      "skill",
+      "discipline",
+      "days"
+    ]
   },
-  "arrangements": ["On-site", "Hybrid", "Remote"],
-  "employment": ["Full-time", "Part-time", "Contract", "Internship"],
-  "disciplines": ["Design", "Engineering", "Data", "Business"],
-  "contentTypes": ["text", "image", "video", "project"],
-  "companyTypes": ["Privately held", "Public company", "Nonprofit", "Government", "Partnership", "Self-employed", "Other"]
+  "arrangements": [
+    "On-site",
+    "Hybrid",
+    "Remote"
+  ],
+  "employment": [
+    "Full-time",
+    "Part-time",
+    "Contract",
+    "Internship",
+    "Apprenticeship",
+    "Consultancy",
+    "Deputation",
+    "Empanelment"
+  ],
+  "disciplines": [
+    "Design",
+    "Engineering",
+    "Data",
+    "Business"
+  ],
+  "contentTypes": [
+    "text",
+    "image",
+    "video",
+    "project"
+  ],
+  "companyTypes": [
+    "Privately held",
+    "Public company",
+    "Nonprofit",
+    "Government",
+    "Partnership",
+    "Self-employed",
+    "Other"
+  ],
+  "education": [
+    "Any graduate",
+    "Any qualification",
+    "Undergraduate",
+    "Diploma",
+    "Bachelor’s degree",
+    "Master’s degree",
+    "Doctorate",
+    "Class 8",
+    "Class 10 / SSLC",
+    "Class 12 / HSC",
+    "ITI",
+    "CA",
+    "CMA",
+    "CS",
+    "Professional qualification"
+  ],
+  "currencies": [
+    "INR",
+    "USD",
+    "EUR",
+    "GBP"
+  ],
+  "compensationPeriods": [
+    "hour",
+    "day",
+    "week",
+    "month",
+    "year",
+    "case",
+    "duty",
+    "engagement"
+  ],
+  "jobSalarySorts": [
+    "salary_asc",
+    "salary_desc"
+  ]
 }

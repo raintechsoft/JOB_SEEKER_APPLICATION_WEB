@@ -19,10 +19,9 @@ for (const role of ["professional", "recruiter"] as const) test(`${role} drafts,
   await page.getByRole("button", { name: /^login$/i }).click(); await check(page).toHaveURL(new RegExp(base + "/dashboard$"));
   await page.goto(base + "/posts/new");
   const title = `Verified ${role} image story`;
-  await page.getByRole("textbox", { name: "Post title", exact: true }).fill(title);
-  await page.getByRole("textbox", { name: "Your story", exact: true }).fill("A story with managed media and a preserved draft.");
+  await page.getByRole("textbox", { name: "Caption", exact: true }).fill(title + ": a story with managed media and a preserved draft.");
   await check(page.locator("#post-save-status")).toHaveText("Draft saved");
-  await page.reload(); await check(page.getByRole("textbox", { name: "Post title", exact: true })).toHaveValue(title);
+  await page.reload(); await check(page.getByRole("textbox", { name: "Caption", exact: true })).toHaveValue(title + ": a story with managed media and a preserved draft.");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   const fixturePng=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=640;c.height=360;const ctx=c.getContext('2d')!;ctx.fillStyle='#315ef4';ctx.fillRect(0,0,640,360);ctx.fillStyle='#f0a14a';ctx.fillRect(320,0,320,360);return c.toDataURL('image/png').split(',')[1];});
   const png=Buffer.from(fixturePng,'base64');

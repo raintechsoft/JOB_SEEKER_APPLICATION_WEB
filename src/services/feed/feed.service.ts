@@ -2,6 +2,7 @@ import type { CompanySummary, Paginated, PersonSummary } from "@/types/api";
 import type { Id, IsoDateTime, JobMedia, JobThumbnail, MediaItem, Role, Visibility } from "@/types/domain";
 import type { ProjectSummary } from "@/mocks/store/presenters";
 import type { LinkPreview } from "@/lib/validation/link-preview";
+import type { ActivityCalendarMonth } from "@/lib/activity/activity-calendar";
 
 export type FeedFilter = "all" | "following" | "jobs" | "saved" | "reposts";
 export type FeedSort = "recent" | "popular" | "recommended";
@@ -134,5 +135,7 @@ export interface FeedService {
   updatePost(role: Role, id: Id, input: { title: string; body: string; version?: number; previewUrl?: string }): Promise<boolean>;
   /** Server-fetched metadata for a public link, or null when the page offers none. */
   getLinkPreview(role: Role, url: string, signal?: AbortSignal): Promise<LinkPreview | null>;
+  /** One month of the selected identity's qualifying activity, a record per date. */
+  getActivityCalendar(role: Role, year: number, month: number): Promise<ActivityCalendarMonth>;
   deletePost(role: Role, id: Id, version?: number): Promise<void>;
 }

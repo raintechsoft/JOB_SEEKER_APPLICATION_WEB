@@ -34,3 +34,7 @@
 .phase-one-workspace .card { margin-bottom: 20px; }
 .phase-one-workspace .row { gap: 12px; flex-wrap: wrap; }
 .phase-one-workspace select { max-width: 100%; }
+
+/* Google sign-in round trip status on the job-seeker login page. */
+.auth-google-status { margin: 0 0 12px; font-size: 13px; line-height: 1.5; }
+.auth-google-button:disabled { opacity: .7; cursor: progress; }

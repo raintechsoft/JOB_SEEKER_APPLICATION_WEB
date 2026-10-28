@@ -1,5 +1,5 @@
 import type { DemoDatabase, Id, Professional, Role, SocialGraph } from "@/types/domain";
-import { today } from "@/lib/utils/date";
+import { isOpenJob } from "@/lib/domain/jobs";
 
 /** The signed-in demo professional (Alex Morgan). */
 export const ME_ID = "p0";
@@ -44,6 +44,6 @@ export function recruiterIdentity(db: DemoDatabase) {
 
 export const socialFor = (db: DemoDatabase, role: Role): SocialGraph => (role === "recruiter" ? db.recruiterSocial : db.social);
 
-export const isJobOpen = (j: { closed?: boolean; draft?: boolean; expiresAt?: string }) => !j.closed && !j.draft && (!j.expiresAt || j.expiresAt >= today());
+export const isJobOpen = isOpenJob;
 
 export const ownJobs = (db: DemoDatabase) => db.social.jobs.filter((j) => j.company === homeCompany(db).id);

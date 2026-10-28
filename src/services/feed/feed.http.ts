@@ -8,6 +8,7 @@ import type { ActivityData, ActivityService } from "../activity/activity.service
 import { commentSchema, peopleSearchSchema, postDraftValuesSchema, postPublishSchema, postTextSchema, socialFeedSchema, socialRoleSchema } from "@/lib/validation/social";
 import { reportSchema } from "@/lib/validation/communication";
 import { linkPreviewRequestSchema, linkPreviewSchema, previewUrlInBody } from "@/lib/validation/link-preview";
+import { activityCalendarContract, daysInMonth, type ActivityCalendarMonth } from "@/lib/activity/activity-calendar";
 import { communicationPath } from "../messaging/messaging.http";
 
 type Page = components["schemas"]["SocialFeedPage"];
@@ -125,6 +126,14 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
       socialRoleSchema.parse(role); z.uuid().parse(id); const values = postTextSchema.parse(input), version = rev(input.version ?? postVersions.get(id));
       if (input.previewUrl !== undefined && !previewUrlInBody(z.string().parse(input.previewUrl), values.body)) throw new Error("The previewed link must appear in your story.");
       await http.patch(`${await base(role)}/posts/${id}`, { ...values, version, ...(input.previewUrl !== undefined ? { previewUrl: input.previewUrl } : {}) }); return true;
+    },
+    async getActivityCalendar(role, year, month) {
+      socialRoleSchema.parse(role);
+      const period = z.object({ year: z.number().int().min(activityCalendarContract.minYear).max(9999), month: z.number().int().min(1).max(12) }).parse({ year, month });
+      const data = (await http.get<{ data: ActivityCalendarMonth }>(`${await base(role)}/activity-calendar`, period)).data;
+      // A response for another period (or a partial one) must never be rendered as this month.
+      if (data.year !== year || data.month !== month || data.days.length !== daysInMonth(year, month)) throw new Error("The activity calendar response did not match the selected month.");
+      return data;
     },
     async getLinkPreview(role, url, signal) {
       socialRoleSchema.parse(role); const value = linkPreviewRequestSchema.parse(url);

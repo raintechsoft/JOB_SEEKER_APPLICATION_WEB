@@ -3,6 +3,7 @@ import { blockedInMock, mockFeedService, professionalItems, recruiterItems } fro
 import { personSummary } from "@/mocks/store/presenters";
 import { scopedSearchSchema, filterKeysFor } from "@/lib/search/scopes";
 import type { SearchResult, SearchService } from "./search.service";
+import { matchesJobDiscovery, jobPayReference } from "@/lib/domain/job-discovery";
 
 export const mockSearchService: SearchService = { async query(input) {
   const values = scopedSearchSchema.parse(input), db = getDb();
@@ -34,6 +35,12 @@ export const mockSearchService: SearchService = { async query(input) {
     const entries = await Promise.all(raw.filter(item => !wanted || item.type === wanted).map(item => mockFeedService.getEntry(values.role, item.id)));
     items.push(...entries.flatMap(entry => {
       if (!entry || !matches(`${entry.title} ${entry.body} ${entry.type === "job" && !entry.company?.confidential ? entry.company?.name ?? "" : ""}`)) return [];
+      if(entry.type==="job"&&values.scope==="jobs"){
+        const job=db.social.jobs.find(job=>job.id===entry.id);if(!job||!matchesJobDiscovery(job,values))return [];
+        if(values.location&&!job.location.toLocaleLowerCase().includes(values.location.toLocaleLowerCase()))return [];
+        if(values.skill&&!job.skills.some(skill=>skill.toLocaleLowerCase().includes(values.skill!.toLocaleLowerCase())))return [];
+        if(values.arrangement&&job.arrangement!==values.arrangement)return [];
+      }
       if (values.scope === "posts" && values.contentType) {
         const media = entry.attachments ?? [];
         const type = values.contentType;
@@ -46,7 +53,13 @@ export const mockSearchService: SearchService = { async query(input) {
     }));
   }
   const overlap = (item: SearchResult) => values.q.toLocaleLowerCase().split(/\s+/u).filter(term => `${item.title} ${item.subtitle}`.toLocaleLowerCase().includes(term)).length;
-  items.sort((a, b) => (related ? overlap(b)-overlap(a) : 0) || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  items.sort((a, b) => {
+    if(values.sort==="salary_asc"||values.sort==="salary_desc"){
+      const left=db.social.jobs.find(job=>job.id===a.id),right=db.social.jobs.find(job=>job.id===b.id),l=left?jobPayReference(left,values):null,r=right?jobPayReference(right,values):null;
+      if(l===null||r===null){if(l!==r)return l===null?1:-1;}else if(l!==r)return(values.sort==="salary_asc"?1:-1)*(l-r);
+    }
+    return (related ? overlap(b)-overlap(a) : 0) || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id);
+  });
   if (related) {
     if (!items.length && filterKeysFor(values.scope).some(key => values[key] !== undefined)) return mockSearchService.query({role:values.role,q:values.q,scope:values.scope,mode:"related",limit:values.limit});
     return {items:items.slice(0,values.limit),total:null,nextCursor:null};

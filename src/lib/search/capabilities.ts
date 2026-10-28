@@ -1,12 +1,12 @@
 import { filterKeysFor, type SearchFilters, type SearchOptions, type SearchScope } from "./scopes";
 
-export type FilterControl = Exclude<keyof SearchFilters, "experienceMin" | "experienceMax"> | "experience";
-export const controlKeys = (control: FilterControl): (keyof SearchFilters)[] => control === "experience" ? ["experienceMin", "experienceMax"] : [control];
+export type FilterControl = Exclude<keyof SearchFilters, "experienceMin" | "experienceMax" | "salaryMin" | "salaryMax" | "currency" | "compensationPeriod"> | "experience" | "compensation";
+export const controlKeys = (control: FilterControl): (keyof SearchFilters)[] => control === "experience" ? ["experienceMin", "experienceMax"] : control === "compensation" ? ["salaryMin", "salaryMax", "currency", "compensationPeriod"] : [control];
 export const filterLayouts: Record<SearchScope, { quick: FilterControl[]; more: FilterControl[] }> = {
   all: { quick: [], more: [] },
   companies: { quick: ["location", "industry", "companyType"], more: [] },
   people: { quick: ["location"], more: [] },
-  jobs: { quick: ["location", "arrangement", "employment"], more: ["skill", "experience", "days"] },
+  jobs: { quick: ["location", "arrangement", "employment"], more: ["skill", "experience", "education", "compensation", "days"] },
   posts: { quick: ["days", "contentType"], more: [] },
   updates: { quick: ["days"], more: ["author"] },
   talent: { quick: ["location", "skill"], more: ["experience"] },
@@ -14,12 +14,12 @@ export const filterLayouts: Record<SearchScope, { quick: FilterControl[]; more: 
   projects: { quick: ["skill", "discipline"], more: ["days"] },
 };
 
-export const controlLabel = (control: FilterControl, scope: SearchScope) => ({ location: "Location", industry: "Industry", skill: scope === "projects" ? "Technology" : "Skill", arrangement: "Workplace", employment: "Employment type", days: scope === "projects" ? "Updated within days" : scope === "posts" ? "Date posted" : "Posted within days", author: "Author", discipline: "Discipline", experience: "Experience (years)", contentType: "Content type", companyType: "Company type" })[control];
+export const controlLabel = (control: FilterControl, scope: SearchScope) => ({ location: "Location", industry: "Industry", skill: scope === "projects" ? "Technology" : "Skill", arrangement: "Workplace", employment: "Employment type", education: "Qualification", compensation: "Compensation", days: scope === "projects" ? "Updated within days" : scope === "posts" ? "Date posted" : "Posted within days", author: "Author", discipline: "Discipline", experience: "Experience (years)", contentType: "Content type", companyType: "Company type" })[control];
 
 /** Preserve only dimensions whose source meaning stays the same, not merely matching key names. */
 export function compatibleSearchOptions(from: SearchScope, to: SearchScope, options: SearchOptions): SearchOptions {
   return Object.fromEntries(Object.entries(options).filter(([key]) => {
-    if (key === "sort") return true;
+    if (key === "sort") return options.sort !== "salary_asc" && options.sort !== "salary_desc" || to === "jobs";
     if (key === "selected") return from === to;
     if (!filterKeysFor(to).includes(key as keyof SearchFilters)) return false;
     if (from === to) return true;

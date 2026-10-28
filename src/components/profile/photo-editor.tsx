@@ -11,7 +11,7 @@ import { ApiError, errorMessage } from "@/services/api/client";
 import { modal, useModalStore } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 
-export type PhotoEditorPurpose = "portrait" | "recruiter_photo" | "logo" | "cover";
+export type PhotoEditorPurpose = "portrait" | "recruiter_photo" | "logo" | "cover" | "profile_cover";
 interface PhotoEditorProps {
   person?: AvatarPerson;
   imageUrl?: string;
@@ -43,6 +43,7 @@ const copy: Record<PhotoEditorPurpose, {
   recruiter_photo: { titles: { preview: "Profile photo", edit: "Edit photo", update: "Update profile photo", camera: "Take a photo", remove: "Remove profile photo?" }, emptyHint: "Add a photo to help people recognize you.", updateHint: "Choose how you’d like to add your photo.", typeHint: "You can adjust it before saving.", removeHint: "Your initials will appear until you add another photo.", saveLabel: "Save photo", changeLabel: "Change photo", removeLabel: "Remove photo", fileLabel: "Choose a profile photo", cropLabel: "Cropped profile photo preview", filename: "profile-photo.jpg", shape: "circle", emptyIcon: "user" },
   logo: { titles: { preview: "Organization logo", edit: "Edit logo", update: "Update organization logo", camera: "Take a photo", remove: "Remove organization logo?" }, emptyHint: "Add a square logo for your organization.", updateHint: "Upload a logo from your computer.", typeHint: "Square image recommended. You can adjust it before saving.", removeHint: "A building icon will appear until you add another logo.", saveLabel: "Save logo", changeLabel: "Change logo", removeLabel: "Remove logo", fileLabel: "Choose an organization logo", cropLabel: "Cropped organization logo preview", filename: "organization-logo.jpg", shape: "square", emptyIcon: "building" },
   cover: { titles: { preview: "Cover image", edit: "Edit cover image", update: "Update cover image", camera: "Take a photo", remove: "Remove cover image?" }, emptyHint: "Add a landscape cover image for your organization.", updateHint: "Upload a cover image from your computer.", typeHint: "Landscape image recommended. You can adjust it before saving.", removeHint: "The default banner will appear until you add another cover image.", saveLabel: "Save cover", changeLabel: "Change cover", removeLabel: "Remove cover", fileLabel: "Choose a cover image", cropLabel: "Cropped cover image preview", filename: "organization-cover.jpg", shape: "landscape", emptyIcon: "image" },
+  profile_cover: { titles: { preview: "Cover image", edit: "Edit cover image", update: "Update cover image", camera: "Take a photo", remove: "Remove cover image?" }, emptyHint: "Add a landscape cover image to personalize your profile.", updateHint: "Upload a cover image from your computer.", typeHint: "Landscape image recommended. You can adjust it before saving.", removeHint: "The default banner will appear until you add another cover image.", saveLabel: "Save cover", changeLabel: "Change cover", removeLabel: "Remove cover", fileLabel: "Choose a cover image", cropLabel: "Cropped cover image preview", filename: "profile-cover.jpg", shape: "landscape", emptyIcon: "image" },
 };
 const photoError = (error: unknown) => error instanceof ApiError ? errorMessage(error) : error instanceof Error ? error.message : errorMessage(error);
 

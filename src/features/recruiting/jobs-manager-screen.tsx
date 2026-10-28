@@ -1,6 +1,7 @@
 "use client";
 
 import { InfoBadge } from "@/components/ui/info-badge";
+import jobRules from "../../../../../contracts/validation/job-v2.json";
 
 import { QueryFeedback } from "@/components/ui/query-view";
 
@@ -403,7 +404,7 @@ export function JobsManagerScreen() {
                 Category
                 <Icon name="down" />
               </summary>
-              {["Full-time", "Part-time", "Contract", "Internship"].map((v) => (
+              {jobRules.employment.map((v) => (
                 <label className="jobs-filter-check" key={v}>
                   <input type="checkbox" name="category" value={v} defaultChecked={query.categories.includes(v)} />
                   <span>{v}</span>

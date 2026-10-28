@@ -10,6 +10,7 @@ import { formatLocaleDate } from "@/lib/utils/date";
 import { MB } from "@/lib/utils/files";
 import { useState } from "react";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useQueryClient } from "@tanstack/react-query";
 import { organizationSchema, verificationSchema } from "@/lib/validation/organization";
 import { validateMedia, validationFields } from "@/lib/validation/profile";
 import { apiConfig } from "@/services/api/config";
@@ -59,7 +60,8 @@ export function OrganizationEditorScreen() {
   const jobs = useJobActions();
   const uploads = useImageUploads();
   const editor = useOrganizationEditor();
-  const { query, ctx, draft, dirty, errors, setErrors, canManage, guard, setOrg, updateOrganization, discardOrganization } = editor;
+  const { query, ctx, draft, saved, dirty, errors, setErrors, canManage, guard, setOrg, updateOrganization, discardOrganization } = editor;
+  const cache = useQueryClient();
   const { execute, pending } = useFormAction(setErrors);
   const services = useServices();
   const [documentBusy, setDocumentBusy] = useState(false);
@@ -100,14 +102,26 @@ export function OrganizationEditorScreen() {
   const openImageEditor = (kind: "logoUrl" | "coverImageUrl") => {
     if (!guard()) return;
     const purpose = kind === "logoUrl" ? "logo" : "cover";
-    modal.show(kind === "logoUrl" ? "Organization logo" : "Cover image", <PhotoEditor purpose={purpose} sources="computer" imageUrl={kind === "logoUrl" ? o.logoUrl : o.coverImageUrl} savedMessage="Image added to your draft. Save Changes to apply it." removedMessage="Image removed from your draft. Save Changes to apply it." onSave={async file => {
+    const label = kind === "logoUrl" ? "Logo" : "Cover image";
+    modal.show(kind === "logoUrl" ? "Organization logo" : "Cover image", <PhotoEditor purpose={purpose} sources="computer" imageUrl={kind === "logoUrl" ? o.logoUrl : o.coverImageUrl} savedMessage={label + " updated."} removedMessage={label + " removed."} onSave={async file => {
       const current=uploadManager.claimEdit(`${o.id}:${kind}`);
       if (!guard()) throw new Error("Organization admin access is required.");
       const images = await uploads.load([file], purpose === "logo" ? uploads.limits.logo : uploads.limits.cover, purpose);
       if (!images) throw new Error("The image could not be uploaded. Please try again.");
       if(!current())throw new Error("A newer image change is already in progress.");
-      setOrg((d) => void (d[kind] = images[0].url));
-    }} onRemove={async () => {uploadManager.claimEdit(`${o.id}:${kind}`); if (!guard()) throw new Error("Organization admin access is required."); setOrg((d) => void (d[kind] = "")); }} />, "photo");
+      await applyImage(kind, images[0].url);
+    }} onRemove={async () => {uploadManager.claimEdit(`${o.id}:${kind}`); if (!guard()) throw new Error("Organization admin access is required."); await applyImage(kind, ""); }} />, "photo");
+  };
+  /**
+   * Logo and cover apply at once, like a profile photo: only the image changes on the saved
+   * organization, and other unsaved edits stay in the draft on the new version.
+   */
+  const applyImage = async (kind: "logoUrl" | "coverImageUrl", url: string) => {
+    if (!saved) throw new Error("Reload the organization and try again.");
+    await services.organization.saveOrganization({ ...saved.organization, [kind]: url }, saved.verification);
+    const version = saved.organization.version;
+    setOrg((d) => { d[kind] = url; if (version !== undefined) d.version = version + 1; });
+    await cache.invalidateQueries({ queryKey: ["organization"] });
   };
   const uploadGallery = async (files: File[], replace?: number) => {
     if (!guard() || !files.length) return;

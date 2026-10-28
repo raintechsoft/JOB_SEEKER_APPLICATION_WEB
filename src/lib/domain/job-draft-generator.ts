@@ -4,6 +4,8 @@
  * This is NOT a model: it picks a role family by keyword and fills role-based templates, exactly as
  * the prototype does. The UI labels it "Demo generator · Role-based templates".
  */
+import type { CompensationV2 } from "@/lib/validation/job-v2";
+import { formatCompensation } from "./job-compensation";
 import type { ScreeningQuestion } from "@/types/domain";
 
 interface RoleFamily {
@@ -40,12 +42,13 @@ export interface JobBrief {
   employment: string;
   skills: string;
   hideSalary: boolean;
+  compensation?: CompensationV2;
 }
 
 export function draftJobFromBrief(brief: JobBrief) {
   const family = FAMILIES.find((f) => f.test.test(brief.role)) ?? FAMILIES[FAMILIES.length - 1];
   const experience =
-    brief.experienceMin === "0"
+    brief.experienceMax === "" ? (brief.experienceMin === "0" ? "No previous professional experience is required." : "At least " + brief.experienceMin + " years of relevant experience.") : brief.experienceMin === "0"
       ? brief.experienceMax === "0"
         ? "No previous professional experience is required."
         : "Open to candidates with 0–" + brief.experienceMax + " years of relevant experience."
@@ -62,7 +65,7 @@ export function draftJobFromBrief(brief: JobBrief) {
     if (pattern.test(brief.role) && !skills.includes(skill)) skills.unshift(skill);
   }
   const symbol = { INR: "₹", USD: "$", EUR: "€", GBP: "£" }[brief.currency];
-  const compensation = symbol + brief.salaryMin + "–" + brief.salaryMax + (brief.currency === "INR" ? " LPA" : " per year");
+  const compensation = brief.compensation ? formatCompensation(brief.compensation) : symbol + brief.salaryMin + "–" + brief.salaryMax + (brief.currency === "INR" ? " LPA" : " per year");
   const questions: Omit<ScreeningQuestion, "id">[] = [
     { text: "How many years of relevant experience do you have for this " + brief.role + " role?", type: "number", required: false, ideal: brief.experienceMin },
     { text: "Briefly describe " + family.evidence + ".", type: "text", required: false, ideal: "" },
@@ -86,7 +89,7 @@ export function draftJobFromBrief(brief: JobBrief) {
     essentialSkills: skills.slice(0, Math.min(3, skills.length)),
     education: ["Any qualification"],
     industries: [] as string[],
-    description: `We are looking for a ${brief.role} to ${family.focus}.\n\n${experience} This is a ${brief.employment.toLowerCase()} opportunity based in ${brief.location}, with a ${brief.arrangement.toLowerCase()} work arrangement.\n\n${brief.hideSalary ? "" : "The annual salary range for this role is " + compensation + ". "}You will work with colleagues to understand priorities, deliver thoughtful work, and improve outcomes.`,
+    description: `We are looking for a ${brief.role} to ${family.focus}.\n\n${experience} This is a ${brief.employment.toLowerCase()} opportunity based in ${brief.location}, with a ${brief.arrangement.toLowerCase()} work arrangement.\n\n${brief.hideSalary ? "" : (brief.compensation ? "Compensation for this role: " : "The annual salary range for this role is ") + compensation + ". "}You will work with colleagues to understand priorities, deliver thoughtful work, and improve outcomes.`,
     responsibilities: family.tasks.join("\n"),
     requirements: [experience, "Practical knowledge of " + skills.slice(0, 3).join(", ") + ".", "Ability to communicate clearly and collaborate with relevant stakeholders.", "Ability to explain your approach, learn from feedback, and deliver agreed work."].join("\n"),
     questions,

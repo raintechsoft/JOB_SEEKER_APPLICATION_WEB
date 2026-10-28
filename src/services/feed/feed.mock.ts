@@ -8,6 +8,7 @@ import { uid } from "@/lib/utils/id";
 import type { FeedEntry, FeedQuery, FeedService, Network } from "./feed.service";
 import { reportSchema } from "@/lib/validation/communication";
 import { peopleSearchSchema } from "@/lib/validation/social";
+import { activityCalendarContract, activityLevel, currentPeriod, daysInMonth, isoDate, periodKey, type ActivityType } from "@/lib/activity/activity-calendar";
 
 type RawItem = (Post & { type: "post" }) | (Job & { type: "job"; owner?: undefined }) | (WorkUpdate & { type: "update"; body: string; createdAt: string; likes: number; kind: string; media: ""; image: "" });
 
@@ -338,6 +339,27 @@ export const mockFeedService: FeedService = {
       { rollbackOnFailure: true },
     );
     return ok ? { id } : null;
+  },
+
+  // Prototype data: the same aggregation policy applied to the in-browser demo posts and work updates.
+  async getActivityCalendar(role, year, month) {
+    const db = getDb();
+    const owner = identityId(role);
+    const zoneDate = new Intl.DateTimeFormat("en-CA", { timeZone: activityCalendarContract.timezone, year: "numeric", month: "2-digit", day: "2-digit" });
+    const events: [string, ActivityType][] = [
+      ...db.social.posts.filter((p) => p.owner === owner).map((p): [string, ActivityType] => [zoneDate.format(new Date(p.createdAt)), "post_published"]),
+      ...(role === "professional" ? db.updates.filter((u) => u.owner === owner).map((u): [string, ActivityType] => [u.date.slice(0, 10), "work_update_recorded"]) : []),
+    ];
+    const days = Array.from({ length: daysInMonth(year, month) }, (_, i) => {
+      const date = isoDate(year, month, i + 1);
+      const activities = (Object.keys(activityCalendarContract.labels) as ActivityType[])
+        .map((type) => ({ type, label: activityCalendarContract.labels[type], count: events.filter(([d, t]) => d === date && t === type).length }))
+        .filter((a) => a.count);
+      const count = activities.reduce((n, a) => n + a.count, 0);
+      return { date, count, level: activityLevel(count), activities };
+    });
+    const latest = currentPeriod();
+    return { year, month, timezone: activityCalendarContract.timezone, total: days.reduce((n, d) => n + d.count, 0), days, range: { earliest: `${latest.year - 1}-01`, latest: periodKey(latest) } };
   },
 
   // The prototype data source never contacts external sites; links stay plain clickable text.

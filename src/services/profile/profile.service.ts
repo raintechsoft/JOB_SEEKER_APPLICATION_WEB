@@ -23,6 +23,8 @@ export interface ProfileService {
   saveSection(section: ProfileSection, values: Record<string, string | boolean>, revision?: number): Promise<SaveResult>;
   setPhoto(file: File, revision?: number): Promise<SaveResult>;
   useDefaultPhoto(revision?: number): Promise<void>;
+  setCover(file: File, revision?: number): Promise<SaveResult>;
+  removeCover(revision?: number): Promise<void>;
   uploadResume(file: File, revision?: number): Promise<SaveResult>;
   downloadResume(): Promise<{ name: string; blob: Blob } | null>;
   removeResume(revision?: number): Promise<SaveResult>;

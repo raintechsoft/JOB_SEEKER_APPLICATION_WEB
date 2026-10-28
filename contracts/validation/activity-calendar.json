@@ -1,0 +1,14 @@
+{
+  "timezone": "Asia/Kolkata",
+  "minYear": 2000,
+  "levelThresholds": [1, 3, 6, 11],
+  "weekStartsOn": "monday",
+  "labels": {
+    "work_update_recorded": "Work updates recorded",
+    "post_published": "Posts published",
+    "comment_added": "Comments added",
+    "application_submitted": "Job applications submitted",
+    "project_added": "Projects added",
+    "job_published": "Jobs published"
+  }
+}

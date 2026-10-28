@@ -1,5 +1,6 @@
 import {z} from "zod";
-import rules from "../../../contracts/validation/search.json";
+import rules from "../../../../../contracts/validation/search.json";
+import { compensationQueryShape, compensationQueryErrors } from "./job-discovery";
 
 export const jobSearchSchema=z.object({
   q:z.string().trim().max(rules.queryMax),page:z.number().int().min(1).max(rules.pageMax),
@@ -7,11 +8,11 @@ export const jobSearchSchema=z.object({
   arrangement:z.enum(rules.arrangements).optional(),employment:z.enum(rules.employment).optional(),
   location:z.string().trim().max(200).optional(),skill:z.string().trim().max(100).optional(),
   experience:z.number().min(0).max(60).optional(),
-  salaryMin:z.number().min(0).max(1e12).optional(),salaryMax:z.number().min(0).max(1e12).optional(),
-  currency:z.enum(rules.currencies).optional(),
+  ...compensationQueryShape,
+  education:z.enum(rules.education).optional(),
+  sort:z.enum(rules.jobSorts).optional(),
 }).superRefine((v,ctx)=>{
-  if(v.salaryMin!==undefined&&v.salaryMax!==undefined&&v.salaryMin>v.salaryMax)ctx.addIssue({code:"custom",path:["salaryMax"],message:"The maximum must be at least the minimum."});
-  if((v.salaryMin!==undefined||v.salaryMax!==undefined)&&!v.currency)ctx.addIssue({code:"custom",path:["currency"],message:"Choose a currency for salary filters."});
+  for(const[key,message]of Object.entries(compensationQueryErrors(v)))ctx.addIssue({code:"custom",path:[key],message});
 });
 export type JobSearchInput=z.infer<typeof jobSearchSchema>;
 export const recommendationQuerySchema=z.object({identity:z.uuid(),surface:z.enum(["jobs","feed","talent"]),limit:z.number().int().min(1).max(rules.recommendationLimit)});

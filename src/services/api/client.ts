@@ -29,8 +29,8 @@ type Query = Record<string, string | number | boolean | string[] | undefined>;
 export interface HttpClient {
   setUserContext(userId: string | null): void;
   get<T>(path: string, query?: Query, options?: { signal?: AbortSignal }): Promise<T>;
-  post<T>(path: string, body?: unknown, options?: { signal?: AbortSignal }): Promise<T>;
-  patch<T>(path: string, body?: unknown): Promise<T>;
+  post<T>(path: string, body?: unknown, options?: { signal?: AbortSignal; headers?: Record<string,string> }): Promise<T>;
+  patch<T>(path: string, body?: unknown, options?: {headers?: Record<string,string>}): Promise<T>;
   delete<T>(path: string, body?: unknown): Promise<T>;
   upload<T>(path: string, file: File, options?: { signal?: AbortSignal; onProgress?: (fraction: number) => void }): Promise<T>;
   blob(path: string): Promise<Blob>;
@@ -44,7 +44,7 @@ export function createHttpClient(baseUrl: string): HttpClient {
     if (id !== userContext || id === null) { contextEpoch++; contextReady = null; }
     userContext = id;
   };
-  async function request<T>(method: string, path: string, body?: unknown, query?: Query, binary = false, signal?: AbortSignal): Promise<T> {
+  async function request<T>(method: string, path: string, body?: unknown, query?: Query, binary = false, signal?: AbortSignal, headers?: Record<string,string>): Promise<T> {
     const mutation = method !== "GET";
     const scoped = /^(?:me|organizations|admin)(?:\/|$)/.test(path) || binary || mutation && /^(?:(?:media|jobs)(?:\/|$)|auth\/(?:logout|password|email))/.test(path);
     // Establish the actor before loading an owned form, including a direct workspace navigation.
@@ -72,7 +72,7 @@ export function createHttpClient(baseUrl: string): HttpClient {
     const response = await fetch(url, {
       method,
       credentials: "include",
-      headers: { Accept: binary ? "application/octet-stream" : "application/json", ...(expectedUser ? { "X-Skillora-User": expectedUser } : {}), ...(body !== undefined && !(body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...(mutation && xsrf ? { "X-XSRF-TOKEN": decodeURIComponent(xsrf) } : {}) },
+      headers: { ...headers, Accept: binary ? "application/octet-stream" : "application/json", ...(expectedUser ? { "X-Skillora-User": expectedUser } : {}), ...(body !== undefined && !(body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...(mutation && xsrf ? { "X-XSRF-TOKEN": decodeURIComponent(xsrf) } : {}) },
       body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
     });
@@ -83,8 +83,8 @@ export function createHttpClient(baseUrl: string): HttpClient {
   return {
     setUserContext: setContext,
     get: (path, query, options) => request("GET", path, undefined, query, false, options?.signal),
-    post: (path, body, options) => request("POST", path, body, undefined, false, options?.signal),
-    patch: (path, body) => request("PATCH", path, body),
+    post: (path, body, options) => request("POST", path, body, undefined, false, options?.signal, options?.headers),
+    patch: (path, body, options) => request("PATCH", path, body, undefined, false, undefined, options?.headers),
     delete: (path, body) => request("DELETE", path, body),
     async upload<T>(path: string, file: File, options = {} as { signal?: AbortSignal; onProgress?: (fraction: number) => void }): Promise<T> {
       if (!options.onProgress && !options.signal) { const data = new FormData(); data.set("file", file); return request("POST", path, data); }

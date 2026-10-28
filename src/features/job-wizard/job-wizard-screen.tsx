@@ -1,5 +1,9 @@
 "use client";
 
+import { JOB_V2_RULES } from "@/lib/validation/job-v2";
+import { jobEditorErrors } from "@/lib/domain/job-editor";
+import { CompensationFields, DeadlineFields } from "./job-value-fields";
+import { JobValueSummary } from "@/components/jobs/job-value-summary";
 import { InfoBadge } from "@/components/ui/info-badge";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -23,19 +27,19 @@ import { ScreenFallback } from "@/components/ui/feedback";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
 import { isPrototype } from "@/lib/env/app-env";
-import { jobErrors, validateJobFiles } from "@/lib/validation/job";
+import { validateJobFiles } from "@/lib/validation/job";
 import { errorMessage, fieldErrors } from "@/services/api/client";
 import { useFormAction } from "@/hooks/use-form-action";
 import { JobArtwork, JobMediaExtras, type JobVisualData } from "@/components/jobs/job-visuals";
 
 const STEPS = ["Job details", "Preferred candidate details", "Job description", "Screening questions", "Advanced options", "Media & thumbnail", "Review & publish"];
 const DEPARTMENTS = ["Design", "Engineering", "Product", "Data & analytics", "Sales & retail", "Marketing", "Operations", "Human resources", "Finance", "Other"];
-const EDUCATION = ["Any graduate", "Any qualification", "Undergraduate", "Diploma", "Bachelor’s degree", "Master’s degree", "Doctorate"];
+const EDUCATION = JOB_V2_RULES.education;
 type Errors = Record<string, string>;
 type ChipKey = "locations" | "skills" | "education" | "industries";
 
 function validate(step: number, v: JobWizardValues): Errors {
-  if (!isPrototype) return jobErrors(v, step);
+  if (v.schemaVersion===2 || !isPrototype) return jobEditorErrors(v, step);
   const e: Errors = {};
   if (step === 0) {
     for (const [key, label] of [
@@ -90,13 +94,13 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
         if(busy)return;
         const f = new FormData(e.currentTarget);
         const t = (n: string) => String(f.get(n) || "").trim();
-        const brief = { role: t("role"), location: t("location"), arrangement: t("arrangement"), employment: t("employment"), currency: t("currency") as JobBrief["currency"], skills: t("skills"), hideSalary: values.hideSalary, experienceMin: t("experienceMin"), experienceMax: t("experienceMax"), salaryMin: t("salaryMin"), salaryMax: t("salaryMax") };
+        const brief = { role: t("role"), location: t("location"), arrangement: t("arrangement"), employment: t("employment"), currency: t("currency") as JobBrief["currency"], skills: t("skills"), hideSalary: values.compensation?.hidden??values.hideSalary, ...(values.compensation?{compensation:values.compensation}:{}), experienceMin: t("experienceMin"), experienceMax: t("experienceMax"), salaryMin: t("salaryMin"), salaryMax: t("salaryMax") };
         let message = "";
         if (!brief.role || brief.role.length > 100 || !brief.location || brief.location.length > 250) message = "Add a role name and job location.";
-        else if ((["experienceMin", "experienceMax", "salaryMin", "salaryMax"] as const).some((k) => brief[k] === "" || !Number.isFinite(Number(brief[k])))) message = "Enter valid numbers for experience and salary.";
-        else if (Number(brief.experienceMin) < 0 || Number(brief.experienceMax) > 50 || Number(brief.experienceMin) > Number(brief.experienceMax)) message = "Choose an experience range from 0 to 50 years, with the maximum at least the minimum.";
-        else if (Number(brief.salaryMin) < 0 || Number(brief.salaryMin) > Number(brief.salaryMax)) message = "Maximum salary must be at least the minimum salary.";
-        else if (!["INR", "USD", "EUR", "GBP"].includes(brief.currency) || !["On-site", "Hybrid", "Remote"].includes(brief.arrangement) || !["Full-time", "Part-time", "Contract", "Internship"].includes(brief.employment)) message = "Choose valid salary and work options.";
+        else if ((values.schemaVersion===2 ? ["experienceMin"] as const : ["experienceMin", "experienceMax", "salaryMin", "salaryMax"] as const).some((k) => brief[k] === "" || !Number.isFinite(Number(brief[k])))) message = "Enter valid numbers for experience and salary.";
+        else if (Number(brief.experienceMin) < 0 || Number(brief.experienceMax) > 50 || (brief.experienceMax!==""&&Number(brief.experienceMin) > Number(brief.experienceMax))) message = "Choose an experience range from 0 to 50 years, with the maximum at least the minimum.";
+        else if (values.schemaVersion!==2 && (Number(brief.salaryMin) < 0 || Number(brief.salaryMin) > Number(brief.salaryMax))) message = "Maximum salary must be at least the minimum salary.";
+        else if (!["INR", "USD", "EUR", "GBP"].includes(brief.currency) || !["On-site", "Hybrid", "Remote"].includes(brief.arrangement) || !JOB_V2_RULES.employment.includes(brief.employment)) message = "Choose valid salary and work options.";
         else if (replace && !f.has("replace")) message = "Confirm replacing the job content in this draft to continue.";
         if (message) return setError(message);
         setBusy(true);try{if(!await onGenerate(brief))setError("The draft could not be saved. Keep this form open to retry, or close it to correct the highlighted job details.");}finally{setBusy(false);}
@@ -107,8 +111,9 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
       <TextField label="Role name" name="role" defaultValue={values.role || values.title} required maxLength={100} />
       <div className="grid cols2">
         <TextField label="Minimum experience (years)" name="experienceMin" type="number" defaultValue={String(values.experienceMin)} required min={0} max={50} step={1} />
-        <TextField label="Maximum experience (years)" name="experienceMax" type="number" defaultValue={String(values.experienceMax)} required min={0} max={50} step={1} />
+        <TextField label="Maximum experience (years)" name="experienceMax" type="number" defaultValue={String(values.experienceMax)} required={values.schemaVersion!==2} min={0} max={50} step={1} />
       </div>
+      {values.schemaVersion!==2&&<>
       <SelectField required label="Salary currency" name="currency" value={currency} onChange={(e) => setCurrency(e.target.value as JobWizardValues["currency"])} options={["INR", "USD", "EUR", "GBP"]} />
       <div className="grid cols2">
         <TextField label="Minimum annual salary" name="salaryMin" type="number" defaultValue={values.salaryMin} required min={0} step={0.1} />
@@ -117,6 +122,8 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
       <p className="job-ai-salary-help" id="job-ai-salary-unit">
         {currency === "INR" ? "INR amounts are in lakhs per year (LPA)." : "Amounts are annual salaries in " + currency + "."}
       </p>
+      </>}
+      {values.compensation&&<JobValueSummary compensation={values.compensation}/>}
       <TextField label="Job location" name="location" defaultValue={values.locations.join("; ")} required maxLength={250} />
       <details className="job-ai-options">
         <summary>
@@ -125,7 +132,7 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
         <div className="job-ai-options-fields">
           <div className="grid cols2">
             <SelectField required label="Work mode" name="arrangement" defaultValue={values.arrangement} options={["On-site", "Hybrid", "Remote"]} />
-            <SelectField required label="Employment type" name="employment" defaultValue={values.employment} options={["Full-time", "Part-time", "Contract", "Internship"]} />
+            <SelectField required label="Employment type" name="employment" defaultValue={values.employment} options={JOB_V2_RULES.employment} />
           </div>
           <TextField label="Key skills (comma separated)" name="skills" maxLength={400} />
         </div>
@@ -150,7 +157,7 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
   );
 }
 
-function Wizard({ ctx }: { ctx: JobDraftContext }) {
+export function Wizard({ ctx }: { ctx: JobDraftContext }) {
   const services = useServices();
   const cache=useQueryClient();
   const router = useRouter();
@@ -178,7 +185,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const store = async (next: JobDraft) => {
-    if (!isPrototype) { const invalid=jobErrors(next.values,"draft"); if(Object.keys(invalid).length){setErrors(invalid);setSavedNote("Unsaved changes. Check the entered values.");return false;} }
+    if (next.values.schemaVersion===2 || !isPrototype) { const invalid=jobEditorErrors(next.values,"draft"); if(Object.keys(invalid).length){setErrors(invalid);setSavedNote("Unsaved changes. Check the entered values.");return false;} }
     try {
       const ok = await services.jobPosts.storeJobDraft(ctx.key, next);
       if (ok) setSavedNote(devCopy("Progress saved in this browser", "Progress saved"));
@@ -258,10 +265,11 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
 
   const generate = async (brief: JobBrief) => {
     const changes = draftJobFromBrief(brief);
+    if(v.schemaVersion===2){ for(const key of ["currency","salaryMin","salaryMax","hideSalary","variableEnabled","variablePercent"] as const) delete (changes as Partial<JobWizardValues>)[key]; }
     const values = { ...changes, questions: changes.questions.map((q) => ({ ...q, id: uid() })), aiVerified: false };
     const previousValues = Object.fromEntries(Object.keys(values).map((k) => [k, structuredClone(v[k as keyof JobWizardValues] ?? (k === "aiVerified" ? false : ""))])) as Partial<JobWizardValues>;
     const next: JobDraft = { ...d, aiPrevious: { values: previousValues, step: d.step, reached: d.reached, generated: d.generated || false }, values: { ...v, ...values }, generated: { mode: "template-demo", role: brief.role, at: new Date().toISOString() }, step: 6, reached: 6 };
-    if (!isPrototype) { const invalid = jobErrors(next.values, "publish"); if (Object.keys(invalid).length) { setErrors(invalid); return false; } }
+    if (!isPrototype) { const invalid = jobEditorErrors(next.values, "publish"); if (Object.keys(invalid).length) { setErrors(invalid); return false; } }
     if (timer.current) clearTimeout(timer.current);
     if (!await store(next)) return false;
     setD(next);
@@ -304,7 +312,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
       toast("Add a job title before saving a draft.");
       return document.querySelector<HTMLElement>("[name=title]")?.focus();
     }
-    const invalid = isPrototype ? {} : jobErrors(v, "draft");
+    const invalid = isPrototype && v.schemaVersion!==2 ? {} : jobEditorErrors(v, "draft");
     if (Object.keys(invalid).length) return setErrors(invalid);
     if (timer.current) clearTimeout(timer.current);
     if (!await execute(async (s) => (await s.jobPosts.saveJobAsDraft(ctx.key, d)).ok,{invalidate:["jobs-manager"]})) return;
@@ -407,6 +415,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
     if(key==="jobMedia")return <>{values.jobMedia?.video&&<p>{values.jobMedia.video}</p>}{values.jobMedia?.files.map((file)=><p key={file.id}>{file.name}</p>)}</>;
     if(Array.isArray(value))return value.join(", ")||"Not set";
     if(typeof value==="boolean")return value?"Yes":"No";
+    if(value && typeof value==="object")return JSON.stringify(value);
     return String(value??"")||"Not set";
   };
 
@@ -424,16 +433,17 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
           <div className="grid cols2">
             {dropdown("Department", "department", DEPARTMENTS, { required: true })}
             {input("Role", "role", { required: true, maxLength: 100 })}
-            {dropdown("Employment type", "employment", ["Full-time", "Part-time", "Contract", "Internship"], { required: true })}
+            {dropdown("Employment type", "employment", JOB_V2_RULES.employment, { required: true })}
           </div>
         </div>
         <div className="wizard-section">
           <h2>Experience & compensation</h2>
           <div className="grid cols2">
             {input("Minimum experience (years)", "experienceMin", { type: "number", required: true, min: 0, max: 50, step: 1 })}
-            {input("Maximum experience (years)", "experienceMax", { type: "number", required: true, min: 0, max: 50, step: 1 })}
+            {input("Maximum experience (years)", "experienceMax", { type: "number", required: v.schemaVersion!==2, min: 0, max: 50, step: 1 })}
           </div>
           {err("experience")}
+          {v.compensation ? <CompensationFields value={v.compensation} onChange={compensation=>set({compensation},{debounce:true})} errors={errors}/> : <>
           <div className="wizard-salary-row">
             {dropdown("Currency", "currency", ["INR", "USD", "EUR", "GBP"], { required: true })}
             {input(v.currency === "INR" ? "Minimum annual salary (LPA)" : "Minimum annual salary", "salaryMin", { type: "number", required: true, min: 0, step: 0.1 })}
@@ -445,6 +455,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
           </Button>
           {v.variableEnabled && input("Variable component (%)", "variablePercent", { type: "number", required: true, min: 0, max: 100, step: 0.1 })}
           {check("Hide salary details from candidates", "hideSalary")}
+          </>}
         </div>
         <div className="wizard-section">
           <h2>Where & how you’ll work</h2>
@@ -463,19 +474,9 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
           {chips("locations", { suggestions: ["Bengaluru, India", "Mumbai, India", "Remote, India"] })}
           {err("locations")}
           {check("Include candidates ready to relocate to these locations", "relocate")}
-          <div className="wizard-vacancies">
-            <h3>Number of vacancies <span aria-hidden="true">*</span></h3>
-            <Button variant="sm" onClick={() => set({ vacancies: Math.max(1, Math.min(999, Number(v.vacancies || 1) - 1)) })}>
-              −
-            </Button>
-            <label className="sr-only" htmlFor="wizard-vacancies">
-              Number of vacancies
-            </label>
-            <input id="wizard-vacancies" name="vacancies" value={String(v.vacancies)} onChange={(e) => set({ vacancies: e.target.value }, { debounce: true })} type="number" min={1} max={999} required aria-label="Number of vacancies" data-no-floating-label />
-            <Button variant="sm" onClick={() => set({ vacancies: Math.max(1, Math.min(999, Number(v.vacancies || 1) + 1)) })}>
-              +
-            </Button>
-          </div>
+          {v.schemaVersion===2 ? <><TextField label="Number of vacancies" name="vacancies" type="number" min={1} max={1000000} value={v.vacancies} error={errors.vacancies} onChange={e=>set({vacancies:e.target.value},{debounce:true})}/><p className="small muted">Leave blank when the count is unknown.</p></> : <div className="wizard-vacancies">
+            {input("Number of vacancies", "vacancies", {type:"number",required:true,min:1,max:999})}
+          </div>}
         </div>
       </>
     ),
@@ -561,8 +562,9 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
     () => (
       <div className="wizard-section">
         <h2>Posting preferences</h2>
+        {v.schemaVersion===2&&<DeadlineFields value={v.deadline??null} onChange={deadline=>set({deadline,expiresAt:deadline?.date??""},{debounce:true})} errors={errors}/>}
         <div className="grid cols2">
-          {input("Closing date", "expiresAt", { type: "date", min: today() })}
+          {v.schemaVersion!==2 && input("Closing date", "expiresAt", { type: "date", min: today() })}
           {input("Reference code", "reference", { maxLength: 40 })}
           {input("Recruiter email", "contactEmail", { type: "email", required: true, maxLength: 150 })}
         </div>
@@ -660,7 +662,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
       </>
     ),
     () => {
-      const details = `${v.title} · ${v.role}\n${v.hideCompany ? "Confidential company" : v.companyName}\n${v.locations.join(" · ")} · ${v.arrangement} · ${v.employment}\n${v.experienceMin}–${v.experienceMax} years · ${v.vacancies} `;
+      const details = `${v.title} · ${v.role}\n${v.hideCompany ? "Confidential company" : v.companyName}\n${v.locations.join(" · ")} · ${v.arrangement} · ${v.employment}\n${v.experienceMin}${v.experienceMax!==""?"–"+v.experienceMax:"+"} years · ${v.vacancies||"Unknown"} `;
       const artwork = (
         <div className="wizard-review-preview">
           <JobArtwork job={visual(v)} />
@@ -774,7 +776,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
                 <p>
                   Recruiter email: {v.contactEmail}
                   <br />
-                  Closing date: {v.expiresAt || "Not set"}
+                  Closing date: {v.deadline ? `${v.deadline.date}${v.deadline.time?" at "+v.deadline.time:""} (${v.deadline.timezone})` : v.expiresAt || "Not set"}
                   <br />
                   Portfolio: {v.requirePortfolio ? "Required" : "Optional"}
                   <br />
@@ -811,12 +813,13 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
         ["Preferred candidate details", `${v.skills.join(", ")}\nEssential: ${v.essentialSkills.join(", ") || "Not marked"}\nEducation: ${v.education.join(", ")}${v.industries.length ? "\nIndustries: " + v.industries.join(", ") : ""}`],
         ["Job description", v.description + "\n\nResponsibilities\n" + v.responsibilities + "\n\nRequirements\n" + v.requirements + (v.benefits ? "\n\nBenefits\n" + v.benefits : "")],
         ["Screening questions", v.questions.length ? v.questions.map((q, i) => i + 1 + ". " + q.text + (q.required ? " (required)" : "")).join("\n") : "No screening questions."],
-        ["Advanced options", `Closing date: ${v.expiresAt || "Not set"}\nReference: ${v.reference || "Not set"}\nPortfolio: ${v.requirePortfolio ? "Required" : "Optional"}\nResponse notifications: ${v.notifyResponses ? "Enabled" : "Disabled"}\nRecruiter email: ${v.contactEmail}${v.applicationInstructions ? "\nInstructions: " + v.applicationInstructions : ""}`],
+        ["Advanced options", `Closing date: ${v.deadline ? `${v.deadline.date}${v.deadline.time?" at "+v.deadline.time:""} (${v.deadline.timezone})` : v.expiresAt || "Not set"}\nReference: ${v.reference || "Not set"}\nPortfolio: ${v.requirePortfolio ? "Required" : "Optional"}\nResponse notifications: ${v.notifyResponses ? "Enabled" : "Disabled"}\nRecruiter email: ${v.contactEmail}${v.applicationInstructions ? "\nInstructions: " + v.applicationInstructions : ""}`],
         ["Media & thumbnail", `${v.thumbnail.image ? "Uploaded thumbnail" : JOB_THUMBNAIL_TEMPLATES.find((t) => t.id === v.thumbnail.template)?.name || "No thumbnail"}\n${v.jobMedia.files.length} supporting files${v.jobMedia.video ? " · Video included" : ""}`],
       ];
       return (
         <>
           {artwork}
+          <JobValueSummary compensation={v.compensation} deadline={v.deadline}/>
           {sections.map(([title, copy], i) => reviewSection(title, i, <p>{copy}</p>))}
           <DevOnly>
             <InfoBadge label="Publishing information">Publishing saves this demo job in your local feed. It does not publish to an external job board or send notifications.</InfoBadge>
@@ -828,7 +831,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
 
   return (
     <div className="job-wizard-workspace">
-      {!!ctx.latestJobVersion&&d.jobVersion!==ctx.latestJobVersion&&<section className="card stack" style={{padding:24,marginBottom:24}}><h2>The current job changed</h2><p>Your private draft is retained. Compare it with the latest job before continuing. Keeping your entire draft does not publish it; publishing later replaces the current job details.</p><details><summary>Compare current job and your draft</summary><div style={{overflowX:"auto"}}><table><thead><tr><th>Field</th><th>Current job</th><th>Your draft</th></tr></thead><tbody>{(Object.keys(v) as (keyof JobWizardValues)[]).filter((key)=>key!=="aiVerified"&&JSON.stringify(v[key])!==JSON.stringify(ctx.latestJob?.wizardValues?.[key])).map((key)=><tr key={key}><th>{key.replace(/([A-Z])/g," $1")}</th><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,ctx.latestJob?.wizardValues??{})}</td><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,v)}</td></tr>)}</tbody></table></div></details><form onSubmit={async(e)=>{e.preventDefault();if(!new FormData(e.currentTarget).has("confirmed"))return setErrors({_form:"Confirm that you reviewed the comparison."});const invalid=jobErrors(v,"draft");if(Object.keys(invalid).length)return setErrors(invalid);if(timer.current)clearTimeout(timer.current);if(!await execute(async(s)=>{if(!s.jobPosts.rebaseJobDraft)throw new Error("Draft recovery is unavailable.");const next=await s.jobPosts.rebaseJobDraft(ctx.key,d,ctx.latestJobVersion!);setD(next);return store(next);},{invalidate:[]}))return;toast("Your private draft can be edited again. Review it before publishing.");}}><label className="check-row"><input name="confirmed" type="checkbox" required/>I compared the job and draft and will reconcile changes before publishing. <span aria-hidden="true">*</span></label><Button type="submit" loading={pending} disabled={pending} variant="primary">Keep my private draft</Button></form></section>}
+      {!!ctx.latestJobVersion&&d.jobVersion!==ctx.latestJobVersion&&<section className="card stack" style={{padding:24,marginBottom:24}}><h2>The current job changed</h2><p>Your private draft is retained. Compare it with the latest job before continuing. Keeping your entire draft does not publish it; publishing later replaces the current job details.</p><details><summary>Compare current job and your draft</summary><div style={{overflowX:"auto"}}><table><thead><tr><th>Field</th><th>Current job</th><th>Your draft</th></tr></thead><tbody>{(Object.keys(v) as (keyof JobWizardValues)[]).filter((key)=>key!=="aiVerified"&&JSON.stringify(v[key])!==JSON.stringify(ctx.latestJob?.wizardValues?.[key])).map((key)=><tr key={key}><th>{key.replace(/([A-Z])/g," $1")}</th><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,ctx.latestJob?.wizardValues??{})}</td><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,v)}</td></tr>)}</tbody></table></div></details><form onSubmit={async(e)=>{e.preventDefault();if(!new FormData(e.currentTarget).has("confirmed"))return setErrors({_form:"Confirm that you reviewed the comparison."});const invalid=jobEditorErrors(v,"draft");if(Object.keys(invalid).length)return setErrors(invalid);if(timer.current)clearTimeout(timer.current);if(!await execute(async(s)=>{if(!s.jobPosts.rebaseJobDraft)throw new Error("Draft recovery is unavailable.");const next=await s.jobPosts.rebaseJobDraft(ctx.key,d,ctx.latestJobVersion!);setD(next);return store(next);},{invalidate:[]}))return;toast("Your private draft can be edited again. Review it before publishing.");}}><label className="check-row"><input name="confirmed" type="checkbox" required/>I compared the job and draft and will reconcile changes before publishing. <span aria-hidden="true">*</span></label><Button type="submit" loading={pending} disabled={pending} variant="primary">Keep my private draft</Button></form></section>}
       <div className="job-wizard-top">
         <div>
           <span className="eyebrow">YOUR NEXT TEAMMATE STARTS HERE</span>

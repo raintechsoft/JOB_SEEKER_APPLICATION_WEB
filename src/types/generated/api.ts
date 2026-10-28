@@ -1855,6 +1855,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/social/{identity}/activity-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One record per date of the month in Asia/Kolkata. total = sum(days.count); count = sum(activities.count); level thresholds [1,3,6,11]. Months outside range return 422. */
+        get: operations["phase5_get__me_social_identity_activity_calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/communications/{identity}/unread-count": {
         parameters: {
             query?: never;
@@ -2613,7 +2630,7 @@ export interface components {
         };
         MediaInit: {
             /** @enum {unknown} */
-            purpose: "portrait" | "resume" | "logo" | "cover" | "gallery" | "recruiter_photo" | "business_document" | "project_cover" | "job_thumbnail" | "job_attachment" | "post_image" | "message_attachment";
+            purpose: "portrait" | "profile_cover" | "resume" | "logo" | "cover" | "gallery" | "recruiter_photo" | "business_document" | "project_cover" | "job_thumbnail" | "job_attachment" | "post_image" | "message_attachment";
             name: string;
             mime: string;
             bytes: number;
@@ -4478,6 +4495,8 @@ export interface components {
             };
             saved: boolean;
             recentDays: number[];
+            /** @description Profile cover image URL; empty when the default banner is shown. Directory and owner views only. */
+            cover?: string;
             analyticsContext?: components["schemas"]["AnalyticsContext"];
         };
         ShortlistView: {
@@ -4807,6 +4826,29 @@ export interface components {
             imageUrl: string | null;
             siteName: string | null;
             domain: string;
+        };
+        ActivityCalendarMonth: {
+            year: number;
+            month: number;
+            /** @constant */
+            timezone: "Asia/Kolkata";
+            total: number;
+            days: {
+                /** Format: date */
+                date: string;
+                count: number;
+                level: number;
+                activities: {
+                    /** @enum {string} */
+                    type: "work_update_recorded" | "post_published" | "comment_added" | "application_submitted" | "project_added" | "job_published";
+                    label: string;
+                    count: number;
+                }[];
+            }[];
+            range: {
+                earliest: string;
+                latest: string;
+            };
         };
         MessageAttachment: {
             /** Format: uuid */
@@ -7278,13 +7320,16 @@ export interface operations {
                 page?: number;
                 pageSize?: number;
                 arrangement?: "On-site" | "Hybrid" | "Remote";
-                employment?: "Full-time" | "Part-time" | "Contract" | "Internship";
+                employment?: "Full-time" | "Part-time" | "Contract" | "Internship" | "Apprenticeship" | "Consultancy" | "Deputation" | "Empanelment";
                 location?: string;
                 skill?: string;
                 experience?: number;
                 salaryMin?: number;
                 salaryMax?: number;
                 currency?: "INR" | "USD" | "EUR" | "GBP";
+                compensationPeriod?: "hour" | "day" | "week" | "month" | "year" | "case" | "duty" | "engagement";
+                education?: "Any graduate" | "Any qualification" | "Undergraduate" | "Diploma" | "Bachelor’s degree" | "Master’s degree" | "Doctorate" | "Class 8" | "Class 10 / SSLC" | "Class 12 / HSC" | "ITI" | "CA" | "CMA" | "CS" | "Professional qualification";
+                sort?: "newest" | "oldest" | "salary_asc" | "salary_desc";
             };
             header?: {
                 /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
@@ -8610,7 +8655,7 @@ export interface operations {
             query: {
                 q: string;
                 scope?: "all" | "posts" | "companies" | "people" | "jobs" | "updates" | "talent" | "skills" | "projects";
-                sort?: "relevance" | "recent";
+                sort?: "relevance" | "recent" | "salary_asc" | "salary_desc";
                 mode?: "results" | "suggestions" | "related";
                 limit?: number;
                 cursor?: string;
@@ -8625,7 +8670,12 @@ export interface operations {
                 experienceMin?: number;
                 experienceMax?: number;
                 arrangement?: "On-site" | "Hybrid" | "Remote";
-                employment?: "Full-time" | "Part-time" | "Contract" | "Internship";
+                employment?: "Full-time" | "Part-time" | "Contract" | "Internship" | "Apprenticeship" | "Consultancy" | "Deputation" | "Empanelment";
+                education?: "Any graduate" | "Any qualification" | "Undergraduate" | "Diploma" | "Bachelor’s degree" | "Master’s degree" | "Doctorate" | "Class 8" | "Class 10 / SSLC" | "Class 12 / HSC" | "ITI" | "CA" | "CMA" | "CS" | "Professional qualification";
+                salaryMin?: number;
+                salaryMax?: number;
+                currency?: "INR" | "USD" | "EUR" | "GBP";
+                compensationPeriod?: "hour" | "day" | "week" | "month" | "year" | "case" | "duty" | "engagement";
                 discipline?: "Design" | "Engineering" | "Data" | "Business";
             };
             header?: {
@@ -9303,6 +9353,37 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["LinkPreview"] | null;
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_get__me_social_identity_activity_calendar: {
+        parameters: {
+            query: {
+                year: number;
+                month: number;
+            };
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ActivityCalendarMonth"];
                     };
                 };
             };

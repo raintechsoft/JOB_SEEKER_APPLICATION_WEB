@@ -28,7 +28,8 @@ import { confirmAction } from "@/components/ui/feedback";
 import { QueryView } from "@/components/ui/query-view";
 import { ProjectArt } from "@/components/work/project-art";
 import { useProjectDialogs } from "@/features/work/dialogs";
-import { collectionTitle, CompletionChecklist, PhotoForm, RecordForm, SectionForm } from "./profile-forms";
+import { collectionTitle, CompletionChecklist, CoverForm, PhotoForm, RecordForm, SectionForm } from "./profile-forms";
+import { MediaImage } from "@/components/ui/media-image";
 import { validateMedia } from "@/lib/validation/profile";
 import { useFormAction } from "@/hooks/use-form-action";
 
@@ -349,6 +350,13 @@ function Profile({ view }: { view: ProfileView }) {
 
   return (
     <div className="profile-management">
+      <div className={"profile-cover profile-cover-owner" + (p.cover ? " has-image" : "")}>
+        {p.cover && <MediaImage src={p.cover} alt="" fallback={null} />}
+        <button type="button" className="profile-cover-edit" onClick={() => modal.show("Cover image", <CoverForm person={p} revision={view.version} />)}>
+          <Icon name="camera" />
+          {p.cover ? "Edit cover" : "Add cover image"}
+        </button>
+      </div>
       <header className="card professional-profile-summary" id="profile-identity">
         <ProfileActionsMenu slug={p.slug} onCopy={copyLink} onImprove={completion}/>
         <div className="profile-photo-area">

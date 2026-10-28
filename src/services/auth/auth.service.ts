@@ -28,6 +28,8 @@ export interface AuthService {
   employerVerify(intent: string, input: { challenge_id: string; code: string }): Promise<void>;
   employerFinalize(intent: string, input: EmployerCompany): Promise<AuthSession>;
   acceptInvitation(token: string): Promise<AuthSession>;
+  /** Adopts a session Laravel established outside the SPA (Google sign-in redirect). */
+  completeExternalSignIn(): Promise<AuthSession>;
   organization(id: string): Promise<OrganizationAccess>;
   invite(id: string, input: { email: string; role: NonNullable<Workspace["role"]> }): Promise<void>;
   updateMember(organization: string, member: string, input: { role: NonNullable<Workspace["role"]>; status: "active" | "inactive" }): Promise<void>;

@@ -1,3 +1,4 @@
+import jobRules from "../../../../../contracts/validation/job-v2.json";
 import type { Draft } from "immer";
 import { paginate } from "@/types/api";
 import type { ApplicationTracking, DemoDatabase, HiringStage, Id, Job, ReceivedApplication } from "@/types/domain";
@@ -5,7 +6,7 @@ import { commit, getDb } from "@/mocks/store/demo-db";
 import { personSummary } from "@/mocks/store/presenters";
 import { isJobOpen, ownJobs, person } from "@/mocks/store/selectors";
 import { jobStatus } from "@/lib/domain/jobs";
-import { DAY_MS, today } from "@/lib/utils/date";
+import { DAY_MS } from "@/lib/utils/date";
 import { uid } from "@/lib/utils/id";
 import { HIRING_STAGES, RESPONSE_TABS, type ManagedJob, type RecruitingService, type ResponseItem, type ResponseParams, type ResponseTab } from "./recruiting.service";
 import { applicantProfile, matchScore, passesFilters, splitTerms, stageMatch, distance } from "./response-matching";
@@ -126,7 +127,7 @@ export const mockRecruitingService: RecruitingService = {
     list.sort((a, b) => (q.sort === "oldest" ? posted(a).localeCompare(posted(b)) : q.sort === "responses" ? count(b.id) - count(a.id) : posted(b).localeCompare(posted(a))));
     const published = all.filter((j) => !j.draft);
     const statusCounts = Object.fromEntries(["Active", "Closed", "Expired"].map((s) => [s, published.filter((j) => jobStatus(j) === s).length]));
-    const categoryCounts = Object.fromEntries(["Full-time", "Part-time", "Contract", "Internship"].map((s) => [s, all.filter((j) => !!j.draft === q.drafts && j.employment === s).length]));
+    const categoryCounts = Object.fromEntries(jobRules.employment.map((s) => [s, all.filter((j) => !!j.draft === q.drafts && j.employment === s).length]));
     const page = paginate(
       list.map((j) => managed(db, j, apps)),
       q.page,
@@ -148,8 +149,8 @@ export const mockRecruitingService: RecruitingService = {
       if (!j || j.draft) return;
       if (jobStatus(j) === "Active") j.closed = true;
       else {
+        if(!isJobOpen({...j,closed:false}))throw new Error("Update the closing date explicitly in the job editor before reopening this job.");
         j.closed = false;
-        if (j.expiresAt && j.expiresAt < today()) j.expiresAt = new Date(Date.now() + 30 * DAY_MS).toISOString().slice(0, 10);
       }
       status = jobStatus(j);
     });

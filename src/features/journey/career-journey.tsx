@@ -163,6 +163,8 @@ function JourneyContent({ slug, onAddEmployment, onEditEmployment }: Props) {
     (n, c) => n + (c.memoryCount ?? 0),
     0,
   );
+  // Every memory has a date, so a chapter with memories (public ones, for visitors) lists at least one year.
+  const hasMemories = view.chapters.some((c) => c.years.length > 0);
   const colleagueCount = view.chapters.reduce(
     (n, c) => n + (c.colleagues?.length ?? 0),
     0,
@@ -185,9 +187,11 @@ function JourneyContent({ slug, onAddEmployment, onEditEmployment }: Props) {
           <p>The places, people, and moments that shaped your career.</p>
         </div>
         <div className="journey-actions">
-          <Button onClick={() => void replay()} disabled={replayLoading}>
-            {replayLoading ? "Preparing…" : "▷ Play journey"}
-          </Button>
+          {hasMemories && (
+            <Button onClick={() => void replay()} disabled={replayLoading}>
+              {replayLoading ? "Preparing…" : "▷ Play journey"}
+            </Button>
+          )}
           {owner && (
             <Button
               variant="primary"

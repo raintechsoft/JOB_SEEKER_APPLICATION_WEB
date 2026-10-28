@@ -16,6 +16,7 @@ import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Badge, Button, EmptyState, LinkButton, Tags } from "@/components/ui/primitives";
 import { QueryView } from "@/components/ui/query-view";
+import { MediaImage } from "@/components/ui/media-image";
 import { PublicCredentials, hasPublicCredentials } from "@/components/portfolio/public-credentials";
 import { ProjectCard } from "@/components/work/project-card";
 import { PulseCard, UpdateItem } from "@/components/work/pulse";
@@ -41,7 +42,7 @@ function Candidate({ view, publicView, inWorkspace = false }: { view: CandidateV
           </DevOnly>
         </div>
       )}
-      <div className="profile-cover" />
+      <div className={"profile-cover" + (p.cover ? " has-image" : "")}>{p.cover && <MediaImage src={p.cover} alt="" fallback={null} />}</div>
       <header className="profile-header">
         <div className="row between">
           <Avatar person={p} size="xl" />

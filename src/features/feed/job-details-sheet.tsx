@@ -1,13 +1,15 @@
 "use client";
 
 import { InfoBadge } from "@/components/ui/info-badge";
+import { JobValueSummary } from "@/components/jobs/job-value-summary";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CompanySummary } from "@/types/api";
 import type { Id, IsoDateTime, Job, Role } from "@/types/domain";
-import { isOpenJob, isSimilarJobAlert, similarJobAlertInput } from "@/lib/domain/jobs";
+import { isSimilarJobAlert, similarJobAlertInput } from "@/lib/domain/jobs";
+import { useOpenJob } from "@/hooks/use-open-job";
 import { splitJobAbout, toBulletItems } from "@/lib/domain/job-description";
 import { jobAlertSchema } from "@/services/jobs/jobs.http";
 import { track } from "@/lib/analytics";
@@ -154,7 +156,7 @@ function JobMetadata({ job }: { job: Job }) {
   const experienceMax = job.wizardValues?.experienceMax;
   const experience = experienceMin != null && experienceMax != null && String(experienceMin) !== "" && String(experienceMax) !== ""
     ? `${experienceMin}–${experienceMax} years`
-    : "";
+    : experienceMin != null && String(experienceMin) !== "" ? `${experienceMin}+ years` : "";
   const parts = [job.location, postedLabel(posted), experience, job.hideSalary ? "" : job.salary].filter(Boolean);
   return <p className="job-sheet-meta">{parts.join(" · ")}</p>;
 }
@@ -198,8 +200,8 @@ function JobHeader({
   );
 }
 
-function ApplyButton({ job, applied, onApply }: { job: Job; applied: boolean; onApply: () => void }) {
-  const open = isOpenJob(job);
+export function ApplyButton({ job, applied, onApply }: { job: Job; applied: boolean; onApply: () => void }) {
+  const open = useOpenJob(job);
   return (
     <Button variant="primary" icon="arrow" disabled={!open && !applied} onClick={onApply}>
       {applied ? "View application" : open ? "Apply" : "Applications closed"}
@@ -278,6 +280,7 @@ function JobDescription({ job, hideCompanyCopy }: { job: Job; hideCompanyCopy: b
   return (
     <div className="job-sheet-about">
       <h3>About the job</h3>
+      <JobValueSummary compensation={job.compensation} deadline={job.deadline}/>
       {!hideCompanyCopy && <DescriptionBlock title="Company Description">{about.company}</DescriptionBlock>}
       <DescriptionBlock title="Role Description">{about.role}</DescriptionBlock>
       <ListBlock title="Responsibilities" items={job.responsibilities} />

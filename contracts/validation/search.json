@@ -11,7 +11,11 @@
     "Full-time",
     "Part-time",
     "Contract",
-    "Internship"
+    "Internship",
+    "Apprenticeship",
+    "Consultancy",
+    "Deputation",
+    "Empanelment"
   ],
   "currencies": [
     "INR",
@@ -19,5 +23,38 @@
     "EUR",
     "GBP"
   ],
-  "recommendationLimit": 100
+  "recommendationLimit": 20,
+  "education": [
+    "Any graduate",
+    "Any qualification",
+    "Undergraduate",
+    "Diploma",
+    "Bachelor’s degree",
+    "Master’s degree",
+    "Doctorate",
+    "Class 8",
+    "Class 10 / SSLC",
+    "Class 12 / HSC",
+    "ITI",
+    "CA",
+    "CMA",
+    "CS",
+    "Professional qualification"
+  ],
+  "compensationPeriods": [
+    "hour",
+    "day",
+    "week",
+    "month",
+    "year",
+    "case",
+    "duty",
+    "engagement"
+  ],
+  "jobSorts": [
+    "newest",
+    "oldest",
+    "salary_asc",
+    "salary_desc"
+  ]
 }
