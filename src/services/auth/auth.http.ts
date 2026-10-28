@@ -14,7 +14,7 @@ export function createHttpAuthService(http: HttpClient, onSessionChange: () => v
   const authenticate=async(action:()=>Promise<AuthSession>)=>{resetReads();const result=await action();resetReads();onSessionChange();observed=null;return bind(result);};
   const signOut=async(action:()=>Promise<unknown>)=>{resetReads();await action();resetReads();http.setUserContext(null);observed=null;onSessionChange();};
   return {
-    login: (input, portal = "professional") => authenticate(()=>post<AuthSession>(`auth/${portal}/login`, input)),
+    login: (input, portal = "professional") => authenticate(()=>post<AuthSession>(portal === "admin" ? "auth/login" : `auth/${portal}/login`, input)),
     register: (input) => authenticate(()=>post<AuthSession>("auth/register", input)),
     me: () => {
       if(pendingSession)return pendingSession;

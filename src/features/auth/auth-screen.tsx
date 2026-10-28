@@ -53,10 +53,12 @@ export function SignInForm({ role }: { role: Role }) {
       noValidate
       onSubmit={submit(async (values) => {
         if (apiConfig.dataSource === "http") {
-          const session = await services.auth.login(values, role === "recruiter" ? "employer" : "professional");
-          clearIdentityState(); cache.clear();
           const next = new URLSearchParams(window.location.search).get("next");
-          router.push(session.user.email_verified && next?.startsWith("/accept-invitation?") ? next : authDestination(session, role));
+          // Sent here by an admin page: sign in without entering a workspace (an admin may have none), then go back.
+          const admin = !!next && /^\/admin\/[a-z-]+$/.test(next);
+          const session = await services.auth.login(values, admin ? "admin" : role === "recruiter" ? "employer" : "professional");
+          clearIdentityState(); cache.clear();
+          router.push(admin ? next : session.user.email_verified && next?.startsWith("/accept-invitation?") ? next : authDestination(session, role));
           return;
         }
         await services.workspace.signIn(role);
