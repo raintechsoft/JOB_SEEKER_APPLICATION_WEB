@@ -9,7 +9,8 @@ export type OrganizationAccess = components["schemas"]["OrganizationAccess"];
 export type RecoveryStatus = { step: "email" | "code" | "password"; expires_at: string | null };
 
 export interface AuthService {
-  login(input: components["schemas"]["Login"], portal?: "professional" | "employer"): Promise<AuthSession>;
+  /** `portal` picks the workspace to enter; "admin" signs in without one (platform administrators, checked by the API on every admin call). */
+  login(input: components["schemas"]["Login"], portal?: "professional" | "employer" | "admin"): Promise<AuthSession>;
   register(input: components["schemas"]["Register"]): Promise<AuthSession>;
   me(): Promise<AuthSession>;
   logout(): Promise<void>;
