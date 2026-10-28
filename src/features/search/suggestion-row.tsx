@@ -18,7 +18,7 @@ export function followableId(id: string) {
   return id.trim() || null;
 }
 
-export function SearchResultCopy({ result, query, detailed, surface = "dropdown" }: { result: SearchResult; query: string; detailed: boolean; surface?: "dropdown" | "page" }) {
+function SearchResultCopyBody({ result, query, detailed, surface = "dropdown" }: { result: SearchResult; query: string; detailed: boolean; surface?: "dropdown" | "page" }) {
   const followers = result.followerCount != null ? formatFollowers(result.followerCount) : "";
   if (result.kind === "person" || result.kind === "talent") {
     const bio = detailed ? personDetailBio(result) : personCompactLine(result);
@@ -61,6 +61,14 @@ export function SearchResultCopy({ result, query, detailed, surface = "dropdown"
   return <>
     <strong><SearchHighlight text={result.title} query={query} /></strong>
     {result.subtitle?.trim() ? <span className="header-search-meta"><SearchHighlight text={result.subtitle} query={query} /></span> : null}
+  </>;
+}
+
+/** Result text plus, when present, why it is shown to this person ("Hiring for React · You follow"). */
+export function SearchResultCopy(props: Parameters<typeof SearchResultCopyBody>[0]) {
+  return <>
+    <SearchResultCopyBody {...props} />
+    {props.result.reason ? <span className="search-result-reason">{props.result.reason}</span> : null}
   </>;
 }
 

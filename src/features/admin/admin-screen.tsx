@@ -10,7 +10,7 @@ import {RealAdminScreen} from "./real-admin-screen";
 import { TableRowsSkeleton } from "@/components/ui/skeleton";
 import { QueryFeedback } from "@/components/ui/query-view";
 
-export type AdminPage = "dashboard" | "users" | "companies" | "moderation";
+export type AdminPage = "dashboard" | "users" | "companies" | "moderation" | "quality";
 
 const STORAGE_FALLBACK = "Saved for this page only. Browser storage is full or unavailable.";
 
@@ -128,7 +128,7 @@ export function AdminScreen({ page }: { page: AdminPage }) {
   return (
     <>
       <PageHeading title="A little platform perspective." subtitle="A lightweight administrative demo. No real users or companies are managed here." />
-      {page === "users" ? <Users /> : page === "companies" ? <Companies /> : page === "moderation" ? <EmptyState title="The demo queue is clear." description="No reported content in the seeded dataset." /> : <Overview />}
+      {page === "quality" ? <EmptyState title="Recommendation quality uses live data." description="Served lists and what people did with them are measured by the backend. Switch to the API data source to see them." /> : page === "users" ? <Users /> : page === "companies" ? <Companies /> : page === "moderation" ? <EmptyState title="The demo queue is clear." description="No reported content in the seeded dataset." /> : <Overview />}
     </>
   );
 }

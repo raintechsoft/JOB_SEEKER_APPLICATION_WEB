@@ -11,6 +11,8 @@ import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import {useImpression} from "@/hooks/use-impression";
 import {track} from "@/lib/analytics";
+import { MatchBadge } from "@/components/jobs/match-badge";
+import { useInteractionTracking } from "@/hooks/use-interaction-tracking";
 
 /**
  * Person result in the shared suggestion-card style: name and designation only; Follow below and a
@@ -22,6 +24,9 @@ export function TalentCard({ person: p, publicMode = false, role = "recruiter" }
   const run = useServiceAction();
   const target = publicMode ? "/professionals/" + p.slug : role === "professional" ? "/app/professionals/" + encodeURIComponent(p.slug) : "/recruiter/talent/" + p.id;
   const ref=useImpression<HTMLDivElement>(()=>{if(p.analyticsContext)track("recommendation_exposed",p.analyticsContext);},p.analyticsContext?.requestId);
+  // Watch history: opening a suggested person is the talent surface's "open" outcome (M2).
+  const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLDivElement>(publicMode ? null : { kind: "professional", id: p.id }, { surface: "talent", position: p.analyticsContext?.position, requestId: p.analyticsContext?.requestId });
+  const setRef = (el: HTMLDivElement | null) => { ref.current = el; watchRef.current = el; };
   // Follow only where the list reports the current state, so the button never shows a guess.
   const follow = !publicMode && p.following !== undefined ? async () => {
     const next = await run((s) => s.feed.toggleFollow(role, p.id), { invalidate: ["talent", "network", "feed"] });
@@ -34,7 +39,7 @@ export function TalentCard({ person: p, publicMode = false, role = "recruiter" }
     ? [message, { label: "View profile", icon: "user", onSelect: () => router.push(target) }]
     : [{ label: p.saved ? "Manage saved lists" : "Save to shortlist", icon: "bookmark", onSelect: () => shortlists.choose(p.id) }, message];
   return (
-    <div ref={ref} className="talent-suggestion" onClickCapture={(e)=>{if(p.analyticsContext&&(e.target as HTMLElement).closest("a"))track("recommendation_clicked",p.analyticsContext);}}>
+    <div ref={setRef} className="talent-suggestion" onClickCapture={(e)=>{if((e.target as HTMLElement).closest("a")){if(p.analyticsContext)track("recommendation_clicked",p.analyticsContext);watchClick();}}}>
       <SuggestionCard
         href={target}
         name={p.name}
@@ -46,6 +51,7 @@ export function TalentCard({ person: p, publicMode = false, role = "recruiter" }
         onFollow={follow}
         menu={menu}
       />
+      <MatchBadge match={p.match} showJob />
     </div>
   );
 }

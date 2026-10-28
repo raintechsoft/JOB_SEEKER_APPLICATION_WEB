@@ -1,5 +1,7 @@
 {
+  "version": 1,
   "batchMax": 20,
+  "bodyBytesMax": 16384,
   "surfaces": [
     "feed",
     "jobs",
@@ -35,6 +37,41 @@
       "requestId": "uuid",
       "itemId": "uuid",
       "position": "position"
+    }
+  },
+  "server": {
+    "job_application_completed": {
+      "jobId": "job"
+    },
+    "post_published": {
+      "postId": "post"
+    },
+    "post_commented": {
+      "postId": "feed"
+    },
+    "post_liked": {
+      "postId": "feed",
+      "liked": "boolean"
+    },
+    "post_saved": {
+      "postId": "feed",
+      "saved": "boolean"
+    },
+    "job_saved": {
+      "jobId": "job",
+      "saved": "boolean"
+    },
+    "company_followed": {
+      "organizationId": "organization",
+      "following": "boolean"
+    },
+    "person_followed": {
+      "personId": "identity",
+      "following": "boolean"
+    },
+    "item_hidden": {
+      "itemId": "item",
+      "hidden": "boolean"
     }
   }
 }

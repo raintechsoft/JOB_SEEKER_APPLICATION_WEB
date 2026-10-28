@@ -17,7 +17,7 @@ export function createHttpTalentService(http:HttpClient,auth:AuthService,recomme
   return {
     reset(){lists.clear();},search,listShortlists,setCandidateShortlists,getRecommendedTalent:recommended,
     async shareShortlist(id,input){z.uuid().parse(id);z.enum(["private","organization"]).parse(input.visibility);const list=await known(id);await http.patch(`${await hiringPath(auth)}/shortlists/${id}`,{name:list.name,version:input.version??list.version,visibility:input.visibility});lists.delete(id);},
-    async getFilterOptions(){return (await http.get<{data:{locations:string[];skills:string[]}}>(`${await discoveryPath()}talent-options`)).data;},
+    async getFilterOptions(){return (await http.get<{data:{locations:string[];skills:string[];hiringSkills?:string[]}}>(`${await discoveryPath()}talent-options`)).data;},
     async getCandidate(id){z.uuid().parse(id);return (await http.get<{data:CandidateView}>(`${await hiringPath(auth)}/talent/${id}`)).data;},
     async getDiscovery(section,jobId){const query=discoveryRequestSchema.parse({section,job:jobId});return (await http.get<{data:TalentDiscovery}>(`${await hiringPath(auth)}/talent-discovery`,query)).data;},
     async getPeopleDiscovery(section){const query=section?{section:peopleSectionSchema.parse(section)}:{};return (await http.get<{data:TalentDiscovery}>("me/people-discovery",query)).data;},

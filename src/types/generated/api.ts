@@ -4265,6 +4265,7 @@ export interface components {
             saved: boolean;
             application: components["schemas"]["PersonalApplication"] | null;
             ownedByViewer: boolean;
+            match?: components["schemas"]["MatchBadge"] | null;
         };
         TrackingInput: {
             version: number;
@@ -4395,6 +4396,15 @@ export interface components {
                     }[];
                 } | null;
             };
+            /** @description Best match (sort=relevance under rules-2): structured fit by ApplicantScorer. Shown, never used to hide anyone. */
+            ranking?: {
+                /** @constant */
+                strategy: "rules-2";
+                score: number;
+                reason: string;
+                match: components["schemas"]["MatchBadge"] | null;
+            } | null;
+            analyticsContext?: components["schemas"]["AnalyticsContext"];
         };
         ResponsesPage: {
             items: components["schemas"]["ResponseItem"][];
@@ -4641,6 +4651,11 @@ export interface components {
             cover?: string;
             following?: boolean;
             analyticsContext?: components["schemas"]["AnalyticsContext"];
+            /** @description Talent search inside an organization (U10): the skills it hires for that this person has. Shown, never used to hide anyone. */
+            hiringMatch?: {
+                skills: string[];
+                reason: string;
+            };
         };
         ShortlistView: {
             /** Format: uuid */
@@ -5281,6 +5296,7 @@ export interface components {
             saved: boolean;
             matchedAlerts: string[];
             analyticsContext?: components["schemas"]["AnalyticsContext"];
+            match?: components["schemas"]["MatchBadge"] | null;
         };
         RecommendedFeed: {
             /** Format: uuid */
@@ -5295,13 +5311,19 @@ export interface components {
             reason: string;
             person: components["schemas"]["TalentCard"];
             analyticsContext?: components["schemas"]["AnalyticsContext"];
+            match?: components["schemas"]["MatchBadge"] | null;
+            /** @description Talent pool (E8.f1): the topic this person shares with one of the organization's open jobs. */
+            pool?: {
+                topic: number;
+                name: string;
+            };
         };
         BaselineRecommendations: {
             /** @enum {string} */
             surface: "jobs" | "feed" | "talent";
             strategyVersion: string;
-            /** @constant */
-            candidateLimit: 200;
+            /** @description Candidates the strategy considered: rules-1 the newest 200, rules-2 up to 500 from its candidate sources. */
+            candidateLimit: number;
             /** Format: date-time */
             generatedAt: string;
             items: (components["schemas"]["RecommendedJob"] | components["schemas"]["RecommendedFeed"] | components["schemas"]["RecommendedTalent"])[];
@@ -5407,6 +5429,97 @@ export interface components {
             /** Format: uuid */
             identityId: string;
             events: components["schemas"]["AnalyticsEvent"][];
+        };
+        HiddenItemRequest: {
+            /** @enum {string} */
+            itemKind: "job" | "post" | "update";
+            /** Format: uuid */
+            itemId: string;
+        };
+        HiddenItem: {
+            /** @enum {string} */
+            itemKind: "job" | "post" | "update";
+            /** Format: uuid */
+            itemId: string;
+            /** @constant */
+            hidden: true;
+        };
+        /** @description How well a person fits a job. Shown, never used to hide anyone. */
+        MatchBadge: {
+            /** @enum {string} */
+            level: "strong" | "good" | "partial";
+            /** @enum {string} */
+            label: "Strong match" | "Good match" | "Partial match";
+            summary: string;
+            matchedSkills: string[];
+            requiredSkills: number;
+            missingSkills: string[];
+            missingEssential: string[];
+            /** @enum {string|null} */
+            experience: "fit" | "stretch" | "over" | "far" | null;
+            reasons: string[];
+            job?: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+            };
+        };
+        /** @description Jobs (anyone) or candidates (recruiters) similar to one item: nearest in meaning with embeddings, else most shared skills. */
+        SimilarItems: {
+            /** @enum {string} */
+            kind: "job" | "professional";
+            items: (components["schemas"]["RecommendedJob"] | components["schemas"]["RecommendedTalent"])[];
+        };
+        /** @description Live quality per surface and strategy from first-party served lists; an action counts within windowHours of the first serving of that item to that person. */
+        RecommendationQuality: {
+            days: number;
+            /** Format: date-time */
+            generatedAt: string;
+            minimumServed: number;
+            windowHours: number;
+            surfaces: {
+                surface: string;
+                strategy: string;
+                served: number;
+                people: number;
+                viewed: number;
+                rates: {
+                    view: number | null;
+                    open: number | null;
+                    save: number | null;
+                    apply: number | null;
+                    like: number | null;
+                    hide: number | null;
+                };
+                firstOpenPosition: number | null;
+                enoughData: boolean;
+            }[];
+            search: {
+                source: string;
+                searches: number;
+                zeroResultRate: number | null;
+            }[];
+            /** @description Latest offline accuracy per surface and strategy on held-out recent activity (skillora:evaluate-recommendations / skillora:tune-weights with --store). */
+            offline: {
+                /** @enum {string} */
+                surface: "jobs" | "feed";
+                strategy: string;
+                /** @enum {string} */
+                split: "all" | "train" | "validation";
+                /** @enum {string} */
+                data: "development" | "production";
+                queries: number;
+                days: number;
+                weights: {
+                    [key: string]: number;
+                } | null;
+                ndcgAt10: number | null;
+                precisionAt10: number | null;
+                recallAt10: number | null;
+                mrr: number | null;
+                /** Format: date-time */
+                evaluatedAt: string;
+            }[];
         };
     };
     responses: {

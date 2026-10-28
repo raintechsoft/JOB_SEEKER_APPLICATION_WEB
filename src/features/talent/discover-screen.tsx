@@ -142,6 +142,15 @@ export function DiscoverScreen({ publicMode = false, role = "recruiter" }: { pub
         {optionsError && <p role="alert" className="small muted">Location and skill options could not be loaded. <Button variant="text sm" onClick={() => retryOptions()}>Try again</Button></p>}
       </aside>}
       <div className="talent-discover-main">
+      {!publicMode && !!options?.hiringSkills?.length && (
+        <div className="row wrap talent-hiring-skills" aria-label="Candidates with the skills you hire for">
+          {options.hiringSkills.map((skill) => (
+            <button type="button" key={skill} className={"tag" + (filters.skill === skill ? " purple" : "")} aria-pressed={filters.skill === skill} onClick={() => setTalent({ skill: filters.skill === skill ? "" : skill })}>
+              Candidates with {skill}
+            </button>
+          ))}
+        </div>
+      )}
       <div id="active-filters" className="row wrap" style={{ marginBottom: 15 }}>
         {CHIP_KEYS.filter((k) => filters[k]).map((k) => (
           <button type="button" key={k} className="tag purple" onClick={() => setTalent({ [k]: "" } as Partial<TalentFilters>)}>

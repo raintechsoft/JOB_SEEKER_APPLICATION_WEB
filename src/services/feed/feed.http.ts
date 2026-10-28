@@ -87,6 +87,13 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
     toggleLike: (role, id, enabled) => intent(role, id, "liked", enabled),
     setReposted: async (role, id, enabled) => { z.boolean().parse(enabled); return intent(role, id, "reposted", enabled); },
     async toggleSave(role, id) { return { saved: await intent(role, id, "saved"), persisted: true }; },
+    async setHidden(role, id, type, hidden) {
+      z.uuid().parse(id); z.enum(["post", "job", "update"]).parse(type);
+      const identity = (await base(role)).split("/")[2];
+      if (hidden) await http.post(`me/hidden-items/${identity}`, { itemKind: type, itemId: id });
+      else await http.delete(`me/hidden-items/${identity}/${type}/${id}`);
+      return hidden;
+    },
     toggleFollow: (role, id, enabled) => follow(role, id, false, enabled),
     toggleFollowCompany: (role, id) => follow(role, id, true),
     async getNetwork(role) {

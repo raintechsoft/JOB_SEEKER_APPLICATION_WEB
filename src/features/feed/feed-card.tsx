@@ -14,6 +14,8 @@ import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { useImpression } from "@/hooks/use-impression";
+import { useInteractionTracking } from "@/hooks/use-interaction-tracking";
+import { INTERACTION_SURFACES } from "@/lib/validation/interactions";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { FeedActionIcon, Icon } from "@/components/ui/icon";
@@ -237,7 +239,7 @@ export function Comments({ entry, role, focusIds = [] }: { entry: FeedEntry; rol
   );
 }
 
-function ActivityMenu({ entry, role }: { entry: FeedEntry; role: Role }) {
+function ActivityMenu({ entry, role, onHide, onWhy }: { entry: FeedEntry; role: Role; onHide?: () => void; onWhy?: () => void }) {
   const ref = useRef<HTMLDetailsElement>(null);
   useDismissableDetails(ref, { closeOnAction: true });
   const router = useRouter();
@@ -265,6 +267,16 @@ function ActivityMenu({ entry, role }: { entry: FeedEntry; role: Role }) {
         <Button variant="text sm" icon="bookmark" onClick={save} aria-pressed={entry.viewer.saved}>
           {entry.viewer.saved ? "Unsave" : "Save"}
         </Button>
+        {!own && onHide && (
+          <Button variant="text sm" icon="eyeOff" onClick={onHide}>
+            Not interested
+          </Button>
+        )}
+        {onWhy && (
+          <Button variant="text sm" icon="help" onClick={onWhy}>
+            Why am I seeing this?
+          </Button>
+        )}
         {own && (
           <>
             <Button variant="text sm" icon="edit" onClick={edit}>
@@ -315,6 +327,16 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
   const like = useFeedInteraction(entry, role, "liked");
   const repost = useFeedInteraction(entry, role, "reposted");
   const ref = useImpression<HTMLElement>(() => {if(noTracking)return;if(entry.analyticsContext)track("recommendation_exposed",entry.analyticsContext);else track("feed_item_impression", { itemId: entry.id, itemType: entry.type, surface, position });},entry.analyticsContext?.requestId);
+  // Watch history (views, reading time, clicks) personalises "For you"; only contract surfaces are sent.
+  const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLElement>(noTracking ? null : { kind: entry.type, id: entry.id }, { surface: (INTERACTION_SURFACES as string[]).includes(surface) ? surface : undefined, position, requestId: entry.analyticsContext?.requestId });
+  const setRef = (el: HTMLElement | null) => { ref.current = el; watchRef.current = el; };
+  const [hidden, setHidden] = useState(false);
+  const [why, setWhy] = useState(false);
+  const hide = async (value: boolean) => {
+    // Only the jobs rail refreshes: the feed keeps this card so the hide can be undone in place.
+    const done = await run((s) => s.feed.setHidden(role, entry.id, entry.type, value), { invalidate: ["recommendations"] });
+    if (done !== undefined) setHidden(value);
+  };
   const job = entry.type === "job";
   const p = job ? entry.company! : entry.author!;
   const href = job ? organizationProfileHref(role, entry.company?.confidential ? undefined : entry.company?.slug) : authorHref(role, entry);
@@ -350,9 +372,25 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
   const followerText = followers == null ? "" : formatFollowers(followers);
   const reposterLink = reposter ? (repost.enabled ? (role === "recruiter" ? "/recruiter/profile" : "/app/profile") : personHref(role, reposter)) : undefined;
 
+  if (hidden) {
+    return (
+      <article className="card feed-post feed-hidden" id={"feed-" + entry.id} aria-live="polite">
+        <p>Hidden. You&apos;ll see fewer {job ? "jobs" : "posts"} like this.</p>
+        <Button variant="text sm" icon="restore" onClick={() => void hide(false)}>Undo</Button>
+      </article>
+    );
+  }
   return (
-    <article ref={ref} className={"card feed-post" + (job ? " feed-job-post" : "") + (highlighted ? " is-highlighted" : "")} id={"feed-" + entry.id} data-post-id={entry.id}>
-      {entry.recommendationReason&&<p className="small muted" style={{padding:"12px 20px 0"}}>{entry.recommendationReason}</p>}
+    <article ref={setRef} className={"card feed-post" + (job ? " feed-job-post" : "") + (highlighted ? " is-highlighted" : "")} id={"feed-" + entry.id} data-post-id={entry.id}>
+      {entry.recommendationReason && <p className="small muted feed-why">{entry.recommendationReason}</p>}
+      {why && entry.recommendationReason && (
+        <p className="feed-why-detail" role="note">
+          {role === "recruiter"
+            ? "Your feed is personalised from the skills your organization hires for, the people and companies you follow, and what you read and search."
+            : "Your feed is personalised from your skills, the people and companies you follow, and what you read, save and search."}{" "}
+          Choose &ldquo;Not interested&rdquo; to see less of something.
+        </p>
+      )}
       <div className="feed-post-context">
         {reposter ? (
           <>
@@ -406,7 +444,7 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
               {entry.viewer.following ? "Following" : "Follow"}
             </Button>
           )}
-          {!noTracking && <ActivityMenu entry={entry} role={role} />}
+          {!noTracking && <ActivityMenu entry={entry} role={role} onHide={() => void hide(true)} onWhy={entry.recommendationReason ? () => setWhy((open) => !open) : undefined} />}
         </div>
       </header>
       <div className="feed-post-body">
@@ -417,7 +455,7 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
             {long && (
               <>
                 …{" "}
-                <button type="button" className="feed-read-more" onClick={() => toggleFeedList("expanded", entry.id)}>
+                <button type="button" className="feed-read-more" onClick={() => { watchClick(); toggleFeedList("expanded", entry.id); }}>
                   see more
                 </button>
               </>
@@ -474,7 +512,7 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
                   View applications
                 </LinkButton>
               ) : (
-                <Button variant={entry.job!.applied ? "" : "primary"} icon="arrowUp" onClick={() => {if(!noTracking&&entry.analyticsContext)track("recommendation_clicked",entry.analyticsContext);jobs.view(entry.id, surface);}}>
+                <Button variant={entry.job!.applied ? "" : "primary"} icon="arrowUp" onClick={() => {if(!noTracking&&entry.analyticsContext)track("recommendation_clicked",entry.analyticsContext);watchClick();jobs.view(entry.id, surface);}}>
                   {role === "recruiter" ? "View job post" : entry.job!.applied ? "Application saved" : "View opportunity"}
                 </Button>
               )}

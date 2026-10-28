@@ -24,6 +24,8 @@
     "GBP"
   ],
   "recommendationLimit": 20,
+  "candidateLimit": 200,
+  "strategyVersion": "rules-1",
   "education": [
     "Any graduate",
     "Any qualification",

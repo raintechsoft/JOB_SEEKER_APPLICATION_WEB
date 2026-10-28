@@ -120,6 +120,8 @@ export interface FeedService {
   toggleLike(role: Role, id: Id, enabled?: boolean): Promise<boolean>;
   setReposted(role: Role, id: Id, enabled: boolean): Promise<boolean>;
   toggleSave(role: Role, id: Id): Promise<{ saved: boolean; persisted: boolean }>;
+  /** "Not interested": hide a job, post or update from recommendations and the main feeds, or undo it. */
+  setHidden(role: Role, id: Id, type: FeedEntry["type"], hidden: boolean): Promise<boolean>;
   toggleFollow(role: Role, personId: Id, enabled?: boolean): Promise<boolean>;
   toggleFollowCompany(role: Role, companyId: Id): Promise<boolean>;
   addComment(role: Role, postId: Id, text: string, parentId?: Id): Promise<void>;

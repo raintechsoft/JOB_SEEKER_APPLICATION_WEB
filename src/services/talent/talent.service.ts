@@ -17,6 +17,12 @@ export interface TalentFilters {
 export interface TalentCardData extends PublicProfessional {
   analyticsContext?:{requestId:string;itemId:string;position:number};
   recommendationReason?:string;
+  /** How the person fits the recruiter's best-matching open job (recommended talent only). */
+  match?: import("@/components/jobs/match-badge").MatchBadgeData | null;
+  /** Talent search inside an organization (U10): which of the skills it hires for this person has. */
+  hiringMatch?: { skills: string[]; reason: string };
+  /** Talent pool (E8.f1): the topic this person shares with one of the organization's open jobs. */
+  pool?: { topic: number; name: string };
   featuredProject?: ProjectSummary;
   saved: boolean;
   recentDays: number[];
@@ -40,6 +46,8 @@ export interface TalentSuggestion {
   reason?: string;
   recommendationReason?: string;
   analyticsContext?: { requestId: string; itemId: string; position: number };
+  /** How the person fits the recruiter's best-matching open job (recommended talent only). */
+  match?: import("@/components/jobs/match-badge").MatchBadgeData | null;
 }
 
 export type DiscoverySectionKey = "jobMatches" | "peopleYouMayKnow" | "interests" | "suggestions" | "skills";
@@ -85,7 +93,8 @@ export interface RecruiterOverview {
 export interface TalentService {
   shareShortlist?(id:Id,input:{visibility:"private"|"organization";version?:number}):Promise<void>;
   search(filters: TalentFilters): Promise<TalentCardData[]>;
-  getFilterOptions(): Promise<{ locations: string[]; skills: string[] }>;
+  /** `hiringSkills`: what the recruiter's organization hires for, strongest first ("Candidates with X", U10). */
+  getFilterOptions(): Promise<{ locations: string[]; skills: string[]; hiringSkills?: string[] }>;
   getCandidate(id: Id): Promise<CandidateView | null>;
   getCandidateBySlug(slug: string): Promise<CandidateView | null>;
   listShortlists(): Promise<ShortlistView[]>;
