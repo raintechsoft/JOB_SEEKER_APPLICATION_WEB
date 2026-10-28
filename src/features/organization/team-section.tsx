@@ -70,10 +70,10 @@ function InviteForm({ organizationName }: { organizationName: string }) {
       }}
     >
       <p className="org-help">Invite a teammate to {organizationName}.{devCopy(" This creates a local invitation record; no email is sent.", "")}</p>
-      <TextField label="Full name (optional)" name="fullName" error={errors.fullName} maxLength={100} />
+      <TextField label="Full name" name="fullName" error={errors.fullName} maxLength={100} />
       <TextField label="Work email" name="email" error={errors.email} type="email" required maxLength={150} />
-      <SelectField label="Organization role" name="role" error={errors.role} defaultValue="Recruiter" options={[...ORGANIZATION_ROLES]} />
-      <TextField label="Hiring department (optional)" name="department" error={errors.department} maxLength={100} />
+      <SelectField required label="Organization role" name="role" error={errors.role} defaultValue="Recruiter" options={[...ORGANIZATION_ROLES]} />
+      <TextField label="Hiring department" name="department" error={errors.department} maxLength={100} />
       <div id="org-invite-error" className="org-field-error" role="alert">
         {error}
       </div>
@@ -147,8 +147,8 @@ function ManageMember({ member, own }: { member: RecruiterMember; own: boolean }
           <p className="org-help">{member.workEmail}</p>
         </div>
       </div>
-      <SelectField label="Organization role" name="role" error={errors.role} defaultValue={member.role} options={[...ORGANIZATION_ROLES]} disabled={own} />
-      <SelectField label="Account status" name="accountStatus" error={errors.accountStatus} defaultValue={member.accountStatus} options={["Active", "Inactive"]} disabled={own} />
+      <SelectField required label="Organization role" name="role" error={errors.role} defaultValue={member.role} options={[...ORGANIZATION_ROLES]} disabled={own} />
+      <SelectField required label="Account status" name="accountStatus" error={errors.accountStatus} defaultValue={member.accountStatus} options={["Active", "Inactive"]} disabled={own} />
       {own ? <p className="org-section-note">Your current admin access cannot be removed from this view.</p> : <p className="org-help">Inactive members are hidden from public recruiter pages.{devCopy(" This is a prototype permission setting.", "")}</p>}
       <div id="org-member-error" className="org-field-error" role="alert">
         {error}

@@ -94,7 +94,7 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
       {errors._form && <p role="alert">{errors._form}</p>}
       <TextField label="Name" name="name" defaultValue={me.name} required error={errors.name} maxLength={150} />
       <TextField label="Email" name="email" type="email" defaultValue={me.email} required error={errors.email} maxLength={254} />
-      <TextAreaField label="A short introduction (optional)" name="note" maxLength={1500} error={errors.note} />
+      <TextAreaField label="A short introduction" name="note" maxLength={1500} error={errors.note} />
       {(job.screeningQuestions || []).map((q) =>
         q.type === "yesno" ? (
           <SelectField
@@ -117,11 +117,11 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
       {job.applicationInstructions && <p className="notice">{job.applicationInstructions}</p>}
       {Object.entries(errors).filter(([key])=>key.startsWith("recruitmentDetails.")||key==="portfolio").map(([key,error])=><p key={key} role="alert">{key.replace("recruitmentDetails.","")}: {error}</p>)}
       <details className="application-shared-details">
-        <summary>Recruiting details for this application (optional)</summary>
+        <summary>Recruiting details for this application</summary>
         <p className="small muted">Only details entered here are shared with this application. Private profile salary, notice, phone, and address are not copied.</p>
         <div className="grid cols2">
           <TextField label="Location / city" name="appLocation" defaultValue={me.location} />
-          <TextField label="Locality (optional)" name="appLocality" />
+          <TextField label="Locality" name="appLocality" />
           <TextField label="Expected annual salary (INR LPA)" name="appSalary" type="number" min={0} step={0.1} />
           <TextField label="Notice period (days)" name="appNotice" type="number" min={0} max={365} />
           <TextField label="Available to join in (days)" name="appJoining" type="number" min={0} max={365} />
@@ -135,6 +135,7 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
       <label className="check-row">
         <input name="portfolio" type="checkbox" defaultChecked={isPrototype} required={job.requirePortfolio} />
         {devCopy("Include my current portfolio in this demo application", "Include my current portfolio in this application")}
+        {job.requirePortfolio && <span aria-hidden="true">*</span>}
       </label>
       <DevOnly>
         <InfoBadge label="Application sharing information">This fictional application is saved only in your browser. No CV, profile, or message is sent to an employer.</InfoBadge>

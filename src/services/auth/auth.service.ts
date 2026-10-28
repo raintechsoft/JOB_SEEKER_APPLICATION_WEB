@@ -25,7 +25,7 @@ export interface AuthService {
   selectWorkspace(id: string): Promise<AuthSession>;
   startEmployer(input: { country: string; mobile: string }): Promise<{ intent_id: string; challenge: Challenge }>;
   employerDetails(intent: string, input: EmployerDetails): Promise<Challenge>;
-  employerResend(intent: string, kind: "sms" | "email"): Promise<Challenge>;
+  employerResend(intent: string, kind: "whatsapp" | "email"): Promise<Challenge>;
   employerVerify(intent: string, input: { challenge_id: string; code: string }): Promise<void>;
   employerFinalize(intent: string, input: EmployerCompany): Promise<AuthSession>;
   acceptInvitation(token: string): Promise<AuthSession>;

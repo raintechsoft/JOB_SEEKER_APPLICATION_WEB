@@ -1,3 +1,4 @@
+import {mediaRules} from "./profile";
 import { z } from "zod";
 import contract from "../../../contracts/validation/organization.json";
 import { validateOrganization } from "@/lib/domain/organization";
@@ -33,8 +34,8 @@ export const organizationSchema = z.custom<Organization>((v) => strings(v, [...O
   for (const key of contract.lists) list((organization as unknown as Record<string, unknown>)[key], key, issue);
   for (const key of contract.flags) if (typeof (organization as unknown as Record<string, unknown>)[key] !== "boolean") issue(key, "Choose a valid boolean value.");
   for (const key of ["logoUrl", "coverImageUrl"] as const) if (!managed(organization[key])) issue(key, "Upload a managed image first.");
-  if (organization.workplaceImages.length > 4 || organization.workplaceImages.reduce((n, v) => n + v.bytes, 0) > 1572864) issue("workplaceImages", "Use up to four workplace images totaling 1.5 MB.");
-  for (const image of organization.workplaceImages) if (!z.uuid().safeParse(image.id).success || !managed(image.url) || [...image.alt].length > 200 || !Number.isInteger(image.bytes) || image.bytes < 1 || image.bytes > 512000) issue("workplaceImages", "Use uploaded images within 500 KB and alt text up to 200 characters.");
+  if (organization.workplaceImages.length > 4 || organization.workplaceImages.reduce((n, v) => n + v.bytes, 0) > mediaRules.gallery.max * 4) issue("workplaceImages", "Use up to four workplace images within the upload budget.");
+  for (const image of organization.workplaceImages) if (!z.uuid().safeParse(image.id).success || !managed(image.url) || [...image.alt].length > 200 || !Number.isInteger(image.bytes) || image.bytes < 1 || image.bytes > mediaRules.gallery.max) issue("workplaceImages", "Use uploaded images within the size limit and alt text up to 200 characters.");
   if (new Set(organization.workplaceImages.map((image) => image.id)).size !== organization.workplaceImages.length) issue("workplaceImages", "Use each image only once.");
   validateFields(organization.socialLinks, { linkedin: "url", other: "url" }, (key, message) => issue("socialLinks." + key, message));
 });

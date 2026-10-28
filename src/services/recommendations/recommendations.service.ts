@@ -25,6 +25,7 @@ export interface RecommendedJob {
   createdAt: IsoDateTime;
   isNew: boolean;
   saved: boolean;
+  closed?: boolean;
   /** Names of the viewer's alerts that matched; empty means "based on your role & skills". */
   matchedAlerts: string[];
   /** How the viewer fits the job (skills, experience); absent in demo mode. */

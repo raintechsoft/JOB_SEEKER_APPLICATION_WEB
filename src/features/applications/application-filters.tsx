@@ -47,14 +47,20 @@ function StageDropdown({ label, count, active, value, options, onSelect }: {
     document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
   }, [open]);
-  return <div className="application-stage-dropdown" ref={root} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+  return <div className="application-stage-dropdown" ref={root} onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <button ref={trigger} type="button" className="application-filter-pill" aria-label={`${label} filter, ${countLabel(count)}`} data-active={active} aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(current => !current)}>
       {label}<span aria-hidden="true"> · </span>{count ?? "—"}<Icon name="chevron" />
     </button>
     {open && <fieldset id={id} className="application-stage-options">
       <legend className="sr-only">{label} stages</legend>
       <p>Select a stage</p>
-      {options.map(option => <label key={option.value}>
+      {options.map(option => <label key={option.value} onPointerDown={event => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        onSelect(option.value);
+        setOpen(false);
+        trigger.current?.focus();
+      }}>
         <span>{option.label}<small>{option.count ?? "—"}</small></span>
         <input type="radio" aria-label={`${option.label}, ${countLabel(option.count)}`} name={id} value={option.value} checked={value === option.value} onChange={() => { onSelect(option.value); setOpen(false); trigger.current?.focus(); }} />
       </label>)}

@@ -109,7 +109,7 @@ export interface Company {
 // ---------------------------------------------------------------------------------------------
 
 export interface MediaItem {
-  type: "image" | "video";
+  type: "image" | "video" | "document";
   src: string;
   alt: string;
   name: string;
@@ -235,7 +235,7 @@ export interface SeekerApplication {
   version?: number;
   employerStage?: HiringStage;
   trackingStatus?: TrackingStatus;
-  statusSource?: "tracking" | "employer" | "withdrawn";
+  statusSource?: "submitted" | "employer" | "withdrawn";
   withdrawnAt?: string | null;
   id: Id;
   job: Id;
@@ -683,6 +683,8 @@ export interface PostDraft {
   project: Id | "";
   media: MediaItem[];
   videoUrl: string;
+  /** Links whose preview the author removed in this draft (comparison keys). */
+  previewDismissedUrls?: string[];
   step: number;
   reached: number;
 }

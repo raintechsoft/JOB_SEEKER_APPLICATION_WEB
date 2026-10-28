@@ -1,0 +1,17 @@
+{
+  "urlMax": 2048,
+  "titleMax": 300,
+  "descriptionMax": 500,
+  "siteNameMax": 200,
+  "domainMax": 253,
+  "imageUrlMax": 2048,
+  "dismissedMax": 10,
+  "debounceMs": 450,
+  "maxRedirects": 3,
+  "maxBytes": 524288,
+  "timeoutSeconds": 5,
+  "connectTimeoutSeconds": 3,
+  "positiveCacheSeconds": 86400,
+  "negativeCacheSeconds": 900,
+  "requestsPerMinute": 30
+}

@@ -81,6 +81,9 @@ body .profile-skill-sort select:focus-visible {
   body .floating-field.is-select > select {
     padding-right: 15px;
   }
+  body .floating-field.is-compact.is-select > select {
+    padding-right: 15px;
+  }
 
   select:not([multiple]):not([size]) option {
     display: flex;

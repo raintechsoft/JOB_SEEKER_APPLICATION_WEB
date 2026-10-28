@@ -29,10 +29,10 @@ type Query = Record<string, string | number | boolean | string[] | undefined>;
 export interface HttpClient {
   setUserContext(userId: string | null): void;
   get<T>(path: string, query?: Query, options?: { signal?: AbortSignal }): Promise<T>;
-  post<T>(path: string, body?: unknown): Promise<T>;
+  post<T>(path: string, body?: unknown, options?: { signal?: AbortSignal }): Promise<T>;
   patch<T>(path: string, body?: unknown): Promise<T>;
   delete<T>(path: string, body?: unknown): Promise<T>;
-  upload<T>(path: string, file: File): Promise<T>;
+  upload<T>(path: string, file: File, options?: { signal?: AbortSignal; onProgress?: (fraction: number) => void }): Promise<T>;
   blob(path: string): Promise<Blob>;
   /** Fire-and-forget POST that survives the page closing. Returns false when it could not be sent. */
   beacon(path: string, body: unknown): boolean;
@@ -85,10 +85,31 @@ export function createHttpClient(baseUrl: string): HttpClient {
   return {
     setUserContext: setContext,
     get: (path, query, options) => request("GET", path, undefined, query, false, options?.signal),
-    post: (path, body) => request("POST", path, body),
+    post: (path, body, options) => request("POST", path, body, undefined, false, options?.signal),
     patch: (path, body) => request("PATCH", path, body),
     delete: (path, body) => request("DELETE", path, body),
-    upload: (path, file) => { const data = new FormData(); data.set("file", file); return request("POST", path, data); },
+    async upload<T>(path: string, file: File, options = {} as { signal?: AbortSignal; onProgress?: (fraction: number) => void }): Promise<T> {
+      if (!options.onProgress && !options.signal) { const data = new FormData(); data.set("file", file); return request("POST", path, data); }
+      const epoch = contextEpoch, owner = userContext, url = new URL(path, baseUrl.replace(/\/?$/, "/"));
+      const csrf = await fetch(new URL("/sanctum/csrf-cookie", url), { credentials: "include", signal: options.signal, headers: { Accept: "application/json" } });
+      if (!csrf.ok) throw new ApiError("Session initialization failed.", csrf.status);
+      if (epoch !== contextEpoch) throw new ApiError("Account context changed.", 412);
+      options.signal?.throwIfAborted();
+      return new Promise<T>((resolve, reject) => {
+        const xhr = new XMLHttpRequest(), abort = () => xhr.abort();
+        xhr.open("POST", url); xhr.withCredentials = true; xhr.timeout = 180000; xhr.setRequestHeader("Accept", "application/json");
+        if (owner) xhr.setRequestHeader("X-Skillora-User", owner);
+        const xsrf = document.cookie.split("; ").find(c => c.startsWith("XSRF-TOKEN="))?.slice(11);
+        if (xsrf) xhr.setRequestHeader("X-XSRF-TOKEN", decodeURIComponent(xsrf));
+        options.signal?.addEventListener("abort", abort, { once: true });
+        const done = () => options.signal?.removeEventListener("abort", abort);
+        xhr.upload.onprogress = e => { if (e.lengthComputable) options.onProgress?.(Math.min(1, e.loaded / e.total)); };
+        xhr.onload = () => { done(); let body; try { body = JSON.parse(xhr.responseText); } catch { body = undefined; } if (xhr.status >= 200 && xhr.status < 300) resolve(body as T); else reject(new ApiError("Upload failed.", xhr.status, body)); };
+        xhr.onerror = xhr.ontimeout = () => { done(); reject(new ApiError("The upload connection was interrupted.", 503)); };
+        xhr.onabort = () => { done(); reject(new DOMException("Upload cancelled.", "AbortError")); };
+        const data = new FormData(); data.set("file", file); xhr.send(data);
+      });
+    },
     blob: (path) => request<Blob>("GET", path, undefined, undefined, true),
     beacon: (path, body) => {
       // The page is closing: one keepalive request on the existing session, no CSRF prefetch, no retry, never throws.

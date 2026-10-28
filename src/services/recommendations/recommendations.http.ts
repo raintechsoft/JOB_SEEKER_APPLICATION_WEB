@@ -11,7 +11,7 @@ export function createHttpRecommendationsService(http:HttpClient,auth:AuthServic
     const query=recommendationQuerySchema.parse({identity:session.selected_identity_id,surface,limit});
     return (await http.get<{data:components["schemas"]["BaselineRecommendations"]}>(`me/recommendations/${query.identity}`,{surface,limit})).data;
   }
-  const toJob=({job,company,saved,reason,matchedAlerts,analyticsContext,match}:components["schemas"]["RecommendedJob"])=>({analyticsContext,match,id:job.id,title:job.title,companyId:company.id,company,location:job.location,arrangement:job.arrangement,employment:job.employment,salary:job.salary,createdAt:job.createdAt,isNew:Date.now()-Date.parse(job.createdAt)<7*86400000,saved,matchedAlerts,reason});
+  const toJob=({job,company,saved,reason,matchedAlerts,analyticsContext,match}:components["schemas"]["RecommendedJob"])=>({analyticsContext,match,id:job.id,title:job.title,companyId:company.id,company,location:job.location,arrangement:job.arrangement,employment:job.employment,salary:job.salary,createdAt:job.createdAt,isNew:Date.now()-Date.parse(job.createdAt)<7*86400000,saved,closed:job.closed,matchedAlerts,reason});
   async function similar(kind:"job"|"professional",id:string,limit:number){
     z.uuid().parse(id);
     const session=await auth.me();

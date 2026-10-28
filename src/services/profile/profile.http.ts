@@ -44,7 +44,7 @@ export function createHttpProfileService(http: HttpClient, media: MediaService, 
     useDefaultPhoto: (revision) => mutate("me/profile/assets/portrait", { asset_id: null }, false, revision),
     async uploadResume(file, revision) {
       const error = validateMedia(file, "resume"); if (error) return { ok: false, error };
-      const asset = await media.upload(file, "resume");
+      const asset = await media.upload(file, "resume", undefined, {manual:true});
       await mutate("me/profile/assets/resume", { asset_id: asset.id }, false, revision);
       return { ok: true };
     },
@@ -54,9 +54,7 @@ export function createHttpProfileService(http: HttpClient, media: MediaService, 
       return resume ? { name: resume.name, blob: await http.blob(`media/${resume.id}/download`) } : null;
     },
     async removeResume(revision) {
-      const old = (current ?? await getProfile()).details.resume;
       await mutate("me/profile/assets/resume", { asset_id: null }, false, revision);
-      if (old) await media.remove(old.id);
       return { ok: true };
     },
   };

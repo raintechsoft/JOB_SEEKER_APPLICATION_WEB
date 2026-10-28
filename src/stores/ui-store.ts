@@ -14,7 +14,7 @@ import type { SearchScope, SearchOptions } from "@/lib/search/scopes";
  * here is persisted; durable data lives behind the service layer.
  */
 interface UiState {
-  feed: { filter: FeedFilter; sort: FeedSort; query: string; searchScope: SearchScope; searchOptions: SearchOptions; visible: number; openComments: Id[]; expanded: Id[] };
+  feed: { filter: FeedFilter; sort: FeedSort; query: string; searchScope: SearchScope; searchOptions: SearchOptions; visible: number; openComments: Id[]; expanded: Id[]; editingComment: Id | null };
   jobsPanel: { view: "all" | "alerts"; mobileOpen: boolean };
   messaging: { query: string; filter: MessageFilter; mobileChat: boolean; conversation: Id | null };
   talent: TalentFilters;
@@ -40,7 +40,7 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  feed: { filter: "all", sort: "recommended", query: "", searchScope: "all", searchOptions: {}, visible: 12, openComments: [], expanded: [] },
+  feed: { filter: "all", sort: "recommended", query: "", searchScope: "all", searchOptions: {}, visible: 12, openComments: [], expanded: [], editingComment: null },
   jobsPanel: { view: "all", mobileOpen: false },
   messaging: { query: "", filter: "all", mobileChat: false, conversation: apiConfig.dataSource==="http"?null:"conv0" },
   talent: EMPTY_TALENT_FILTERS,

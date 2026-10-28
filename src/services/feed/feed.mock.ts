@@ -367,6 +367,11 @@ export const mockFeedService: FeedService = {
     return ok ? { id } : null;
   },
 
+  // The prototype data source never contacts external sites; links stay plain clickable text.
+  async getLinkPreview() {
+    return null;
+  },
+
   async updatePost(role, id, input) {
     let found = false;
     commit((db) => {

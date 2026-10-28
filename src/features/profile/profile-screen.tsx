@@ -484,7 +484,7 @@ function Profile({ view }: { view: ProfileView }) {
                 {resumeAction.pending ? "Saving…" : resume ? "Replace resume" : "Upload resume"}
               </label>
               </div>
-              <div className="resume-upload-footer" id="resume-file-guidance"><div className="resume-formats" aria-label="Accepted file formats"><span>PDF</span><span>DOC</span><span>DOCX</span><span>RTF</span><small>Up to 2 MB</small></div><DevOnly><span className="resume-storage"><Icon name="shield"/>Saved in this browser</span></DevOnly></div>
+              <div className="resume-upload-footer" id="resume-file-guidance"><div className="resume-formats" aria-label="Accepted file formats"><span>PDF</span><span>DOC</span><span>DOCX</span><span>RTF</span></div><DevOnly><span className="resume-storage"><Icon name="shield"/>Saved in this browser</span></DevOnly></div>
             </div>
             <p className="resume-status" id="profile-resume-status" aria-live="polite">{resumeStatus}</p>
           </Section>
@@ -643,7 +643,7 @@ function Profile({ view }: { view: ProfileView }) {
               </Button>
             }
           >
-            <Definitions obj={{ ...d.personal }} labels={{ gender: "Gender (optional)", dob: "Date of birth", marital: "Marital status", nationality: "Nationality / citizenship", permit: "Work authorization", address: "Address", city: "City", region: "State / region", country: "Country", postal: "Postal code", contact: "Preferred contact" }} />
+            <Definitions obj={{ ...d.personal }} labels={{ gender: "Gender", dob: "Date of birth", marital: "Marital status", nationality: "Nationality / citizenship", permit: "Work authorization", address: "Address", city: "City", region: "State / region", country: "Country", postal: "Postal code", contact: "Preferred contact" }} />
           </Section>
           <Section
             id="languages"

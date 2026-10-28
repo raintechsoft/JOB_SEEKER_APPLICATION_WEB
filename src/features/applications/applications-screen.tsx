@@ -11,7 +11,7 @@ import { validationFields } from "@/lib/validation/profile";
 import { useFormAction } from "@/hooks/use-form-action";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Id } from "@/types/domain";
-import { APPLICATION_STATUSES, type ApplicationCounts, type AlertRecord, type ApplicationRecord, type SavedJobRecord } from "@/services/applications/applications.service";
+import { type ApplicationCounts, type AlertRecord, type ApplicationRecord, type SavedJobRecord } from "@/services/applications/applications.service";
 import { formatLongDate } from "@/lib/utils/date";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
@@ -19,7 +19,7 @@ import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Button, EmptyState, LinkButton, PageHeading } from "@/components/ui/primitives";
-import { FloatingInput, SelectField, TextAreaField, TextField } from "@/components/ui/field";
+import { FloatingInput, TextAreaField, TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
@@ -32,11 +32,12 @@ import { ApplicationFilters, applicationFilter, type ApplicationFilter } from ".
 type Tab = "applied" | "saved" | "alerts";
 const TABS: Record<Tab, string> = { applied: "Applied jobs", saved: "Saved jobs", alerts: "Job alerts" };
 const demoDate = (v?: string) => (v ? formatLongDate(String(v).slice(0, 10)) : "Not set");
-const statusClass = (s: string) => (["Interview", "Offer", "Shortlisted", "Hired"].includes(s) ? "positive" : ["Rejected", "Withdrawn"].includes(s) ? "muted-status" : "pending");
+const statusClass = (s: string) => (["Interview", "Offer", "Shortlisted", "Hired"].includes(s) ? "positive" : s === "Rejected" ? "negative" : "pending");
 
 function TrackingForm({ a }: { a: ApplicationRecord }) {
   const [errors,setErrors]=useState<Record<string,string>>({});
   const {execute,pending}=useFormAction(setErrors);
+  const dialogs = useApplicationDialogs();
   return (
     <form
       id="application-tracking-form"
@@ -44,11 +45,11 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
       onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        const checked=trackingSchema.safeParse({ status: String(f.get("status")), followUp: String(f.get("followUp") || ""), trackingNote: String(f.get("trackingNote") || "").trim() });
+        const checked=trackingSchema.safeParse({ followUp: String(f.get("followUp") || ""), trackingNote: String(f.get("trackingNote") || "").trim() });
         if(!checked.success)return setErrors(validationFields(checked.error));
         if(!await execute((s)=>s.applications.updateTracking(a.id,{...checked.data,version:a.version})))return;
         modal.close();
-        toast("Application tracking saved.");
+        toast("Private application notes saved.");
       }}
     >
       <div>
@@ -58,14 +59,14 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
         </p>
       </div>
       {errors._form&&<p role="alert">{errors._form}</p>}
-      <SelectField label="Personal tracking stage" name="status" error={errors.status} defaultValue={a.trackingStatus ?? APPLICATION_STATUSES.find(stage => stage === a.status) ?? "Applied"} options={APPLICATION_STATUSES} />
-      <TextField label="Follow-up date (optional)" name="followUp" error={errors.followUp} type="date" defaultValue={a.followUp} />
+      <TextField label="Follow-up date" name="followUp" error={errors.followUp} type="date" defaultValue={a.followUp} />
       <TextAreaField label="Private tracking notes" name="trackingNote" error={errors.trackingNote} defaultValue={a.trackingNote} maxLength={2500} placeholder="People to contact, interview preparation, or your next step..." />
-      <p className="notice">{devCopy("This is your personal tracking record. Changing a status does not contact the employer or withdraw an application.","Recruiter decisions update your application status automatically. This tracking stage, notes and follow-up date are private. Selecting Withdrawn permanently withdraws your application.")}</p>
+
       <div className="modal-footer">
+        {!a.withdrawnAt && a.status !== "Withdrawn" && <Button variant="danger" disabled={pending} onClick={() => dialogs.withdraw(a)}>Withdraw application</Button>}
         <Button onClick={() => modal.close()}>Cancel</Button>
         <Button type="submit" variant="primary" icon="check" loading={pending} disabled={pending}>
-          Save tracking
+          Save notes
         </Button>
       </div>
     </form>
@@ -131,7 +132,7 @@ function Details({ id }: { id: Id }) {
           </Button>
         )}
         <Button variant="primary sm" icon="edit" onClick={() => dialogs.edit(a.id)}>
-          Update tracking
+          Edit notes
         </Button>
       </div>
     </div>
@@ -144,9 +145,13 @@ function useApplicationDialogs() {
   return {
     edit: async (id: Id) => {
       const a = await services.applications.getApplication(id);
-      if (a) modal.show("Keep your next step in sight.", <TrackingForm a={a} />);
+      if (a) modal.show("Private application notes", <TrackingForm a={a} />);
     },
     details: (id: Id) => modal.show("Your application, at a glance.", <Details id={id} />),
+    withdraw: (a: ApplicationRecord) => confirmAction("Withdraw this application?", "The employer will see that you withdrew. This cannot be undone; your private notes will be kept.", async () => {
+      if (!await run(async s => {await s.applications.withdraw(a.id,a.version);return true;})) return;
+      modal.close();toast("Application withdrawn.");
+    }, "Withdraw application", {icon:"close"}),
     remove: (id: Id) =>
       confirmAction("Remove this tracking record?", devCopy("This deletes the application and its notes from this browser. It does not withdraw an application from an employer.", "This deletes the application and its notes from your tracker. It does not withdraw an application from an employer."), async () => {
         if(!await run(async(s)=>{await s.applications.remove(id);return true;}))return;
@@ -267,7 +272,7 @@ export function ApplicationsScreen() {
           <section className="application-record-list" aria-label={TABS[tab]}>
             <QueryFeedback data={list} error={isError} retry={refetch} label="Loading your applications" />
             {list && list.length
-              ? tab === "saved" ? <SavedOpportunities key={q + savedView} items={list as SavedJobRecord[]} view={savedView} onApplication={applicationDialogs.details} /> : tab === "applied" ? <AppliedOpportunities items={list as ApplicationRecord[]} onDetails={applicationDialogs.details} onEdit={applicationDialogs.edit} /> : <JobAlertsList items={list as AlertRecord[]} />
+              ? tab === "saved" ? <SavedOpportunities key={q + savedView} items={list as SavedJobRecord[]} view={savedView} /> : tab === "applied" ? <AppliedOpportunities items={list as ApplicationRecord[]} onEdit={applicationDialogs.edit} /> : <JobAlertsList items={list as AlertRecord[]} />
               : list && (
                   <EmptyState
                     title={filtered ? "No matching records." : tab === "saved" && savedView === "archived" ? "No archived opportunities." : EMPTY[tab][0]}

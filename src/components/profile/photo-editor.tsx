@@ -73,6 +73,8 @@ export function PhotoEditor(props: PhotoEditorProps) {
     heading.current?.focus();
   }, [view, labels]);
   const changeView = (next: View) => { setError(""); setView(next); };
+  const modalVersion=useRef(useModalStore.getState().version);
+  const closeCurrent=()=>{if(mounted.current&&modalVersion.current===useModalStore.getState().version){useModalStore.getState().setDirty(false);modal.close();}};
   const run = async (work: () => Promise<void>, blockClose = false) => {
     if (locked.current) return;
     locked.current = true; setBusy(true); setError("");
@@ -171,8 +173,8 @@ export function PhotoEditor(props: PhotoEditorProps) {
         <Button variant="primary" loading={busy} disabled={busy} onClick={() => run(async () => {
           const file = await exportProfilePhoto(source.image, transform, rule.max, frame, labels.filename);
           const invalid = validateMedia(file, purpose); if (invalid) throw new Error(invalid);
-          await onSave(file); useModalStore.getState().setDirty(false); modal.close(); toast(savedMessage);
-        }, true)}>{labels.saveLabel}</Button>
+          await onSave(file); closeCurrent(); toast(savedMessage);
+        })}>{labels.saveLabel}</Button>
       </div>
     </>}
     {view === "remove" && <>

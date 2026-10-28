@@ -62,7 +62,7 @@ export function createHttpJourneyService(
       });
     },
     async upload(file) {
-      const asset = await media.upload(file, "career_memory");
+      const asset = await media.upload(file, "career_memory", undefined, {manual:true});
       return { ...asset, alt: "" };
     },
     discardPhoto: (id) => media.remove(id),

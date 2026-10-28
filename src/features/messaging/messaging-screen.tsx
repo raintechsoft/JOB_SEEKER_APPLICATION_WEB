@@ -57,8 +57,8 @@ function ReportForm({ role, c }: { role: Role; c: ConversationView }) {
     >
       <h3>{c.contact.name}</h3>
       {errors._form&&<p role="alert" className="error">{errors._form}</p>}
-      <SelectField label="Reason" name="reason" defaultValue="Spam or unwanted messages" options={["Spam or unwanted messages", "Harassment", "Misleading job or identity", "Other"]} error={errors.reason} disabled={pending}/>
-      <TextAreaField label="Additional details (optional)" name="details" maxLength={1500} error={errors.details} disabled={pending}/>
+      <SelectField required label="Reason" name="reason" defaultValue="Spam or unwanted messages" options={["Spam or unwanted messages", "Harassment", "Misleading job or identity", "Other"]} error={errors.reason} disabled={pending}/>
+      <TextAreaField label="Additional details" name="details" maxLength={1500} error={errors.details} disabled={pending}/>
       <p className="notice">{devCopy("Reports are recorded only in this browser demo. Blocking prevents you from sending messages in this conversation until you unblock it.", "Blocking prevents you from sending messages in this conversation until you unblock it.")}</p>
       <div className="modal-footer">
         <Button
@@ -219,7 +219,7 @@ export function MessagingScreen({ role }: { role: Role }) {
     const key = draftKey;
     patchDraft(key, { busy: true });
     try {
-      const asset=real?await services.media.upload(file,"message_attachment"):null;
+      const asset=real?await services.media.upload(file,"message_attachment",undefined,{manual:true}):null;
       const attachment = { id: asset?.id??uid(), name: file.name, type: file.type, size: file.size, data: asset?.url??await readAsDataUrl(file), image };
       patchDraft(key, { files: [...(useDrafts.getState().drafts[key]?.files ?? []), attachment] });
     } catch {

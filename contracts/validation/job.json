@@ -101,8 +101,8 @@
   "annualSalaryMax": 1000000000000,
   "expiryMaxDays": 730,
   "filesMax": 3,
-  "fileMaxBytes": 1048576,
-  "filesTotalBytes": 1572864,
+  "fileMaxBytes": 536870912,
+  "filesTotalBytes": 1073741824,
   "attachmentTypes": [
     "image/jpeg",
     "image/png",

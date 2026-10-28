@@ -4,6 +4,7 @@
  * lower priority than the (unlayered) prototype stylesheets.
  */
 @layer theme, base, components, utilities;
+@import "../styles/upload-tray.css";
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "../styles/tokens.css";
@@ -14,9 +15,11 @@
 @import "../styles/comment-actions.css";
 @import "../styles/people-search.css";
 @import "../styles/post-share.css";
+@import "../styles/link-preview.css";
 @import "../styles/job-details-sheet.css";
 @import "../styles/suggestion-card.css";
 @import "../styles/saved-opportunities.css";
 @import "../styles/explore-jobs.css";
 @import "../styles/match-badge.css";
 @import "../styles/personal-search.css";
+@import "../styles/notifications-inbox.css";

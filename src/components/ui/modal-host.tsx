@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { useModalStore } from "@/stores/modal-store";
 import { cn } from "@/lib/utils/text";
 import { Button, IconButton } from "./primitives";
+import {UploadTray} from "@/features/workspace/upload-tray";
 
 /**
  * The single application dialog (`<dialog id="modal">`), rendered with the native modal element so
@@ -86,6 +87,7 @@ export function ModalHost() {
               </div>
             )}
             {content}
+            <UploadTray insideModal />
           </div>
         </>
       )}

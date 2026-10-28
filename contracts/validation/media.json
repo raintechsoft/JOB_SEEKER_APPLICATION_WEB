@@ -1,0 +1,235 @@
+{
+  "fileConcurrency": 3,
+  "partConcurrency": 3,
+  "chunkBytes": 8388608,
+  "multipartThreshold": 16777216,
+  "retries": 4,
+  "postMaxItems": 200,
+  "postTotalBytes": 2147483648,
+  "quotaBytes": 5368709120,
+  "rules": {
+    "career_memory": [
+      1048576,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    ],
+    "message_attachment": [
+      2097152,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp",
+        "gif",
+        "pdf",
+        "doc",
+        "docx",
+        "rtf",
+        "txt"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/rtf",
+        "text/rtf",
+        "text/plain"
+      ]
+    ],
+    "post_image": [
+      536870912,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp",
+        "gif",
+        "pdf",
+        "doc",
+        "docx",
+        "rtf",
+        "txt",
+        "mp4",
+        "webm"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/rtf",
+        "text/rtf",
+        "text/plain",
+        "video/mp4",
+        "application/mp4",
+        "video/webm",
+        "application/webm"
+      ]
+    ],
+    "job_thumbnail": [
+      10485760,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    ],
+    "job_attachment": [
+      536870912,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp",
+        "pdf",
+        "mp4",
+        "webm"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "application/pdf",
+        "video/mp4",
+        "video/webm"
+      ]
+    ],
+    "project_cover": [
+      10485760,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    ],
+    "portrait": [
+      5242880,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    ],
+    "resume": [
+      20971520,
+      [
+        "pdf",
+        "doc",
+        "docx",
+        "rtf"
+      ],
+      [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/rtf",
+        "text/rtf"
+      ]
+    ],
+    "logo": [
+      5242880,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    ],
+    "cover": [
+      10485760,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    ],
+    "gallery": [
+      10485760,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    ],
+    "recruiter_photo": [
+      5242880,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    ],
+    "business_document": [
+      20971520,
+      [
+        "pdf",
+        "png",
+        "jpg",
+        "jpeg"
+      ],
+      [
+        "application/pdf",
+        "image/png",
+        "image/jpeg"
+      ]
+    ]
+  },
+  "jobTotalBytes": 1073741824
+}

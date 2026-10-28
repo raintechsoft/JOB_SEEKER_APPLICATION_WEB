@@ -29,13 +29,14 @@ body .floating-field.is-disabled>:is(input,textarea,select) {background:#F4F6F8;
 body .floating-field>:is(input,textarea,select):user-invalid {border-color:#D92D20;}
 .floating-field:has(>:user-invalid)>.floating-label {color:#D92D20;}
 .field:has(>.floating-field) {gap:8px;min-width:0;padding-top:7px;}
-body .floating-field.is-compact>input,body.professional-theme .floating-field.is-compact>input {min-height:46px;padding:11px 14px;}
+body .floating-field.is-compact>input,body .floating-field.is-compact>select,body.professional-theme .floating-field.is-compact>input,body.professional-theme .floating-field.is-compact>select {min-height:46px;padding:11px 14px;}
+body .floating-field.is-compact>select,body.professional-theme .floating-field.is-compact>select {padding-right:32px;}
 .floating-field.is-compact>.floating-label {top:23px;}
-.floating-field.is-compact:focus-within>.floating-label,.floating-field.is-compact.has-value>.floating-label {top:0;font-size:12px;}
-body :is(.professional-search,.application-search,.search-box,.search-mini):has(.floating-field) {position:relative;padding:0;border:0;background:transparent;box-shadow:none;overflow:visible;}
-body :is(.professional-search,.application-search,.search-box,.search-mini):has(.floating-field)>.icon {position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;pointer-events:none;color:#626B76;}
-body :is(.professional-search,.application-search,.search-box,.search-mini)>.floating-field>input {padding-left:39px;}
-body :is(.professional-search,.application-search,.search-box,.search-mini) .floating-label {left:35px;max-width:calc(100% - 56px);}
+.floating-field.is-compact:focus-within>.floating-label,.floating-field.is-compact.has-value>.floating-label,.floating-field.is-compact.is-select>.floating-label {top:0;font-size:12px;}
+body :is(.professional-search,.application-search,.search-box,.search-mini,.projects-search):has(.floating-field) {position:relative;padding:0;border:0;background:transparent;box-shadow:none;overflow:visible;}
+body :is(.professional-search,.application-search,.search-box,.search-mini,.projects-search):has(.floating-field)>.icon {position:absolute;left:14px;top:50%;transform:translateY(-50%);z-index:2;pointer-events:none;color:#626B76;}
+body :is(.professional-search,.application-search,.search-box,.search-mini,.projects-search)>.floating-field>input {padding-left:39px;}
+body :is(.professional-search,.application-search,.search-box,.search-mini,.projects-search) .floating-label {left:35px;max-width:calc(100% - 56px);}
 body .professional-search:has(.floating-field) kbd {position:absolute;right:12px;pointer-events:none;color:#626B76;}
 body .professional-search>.floating-field>input {padding-right:48px;}
 body .filters>.floating-field {min-width:140px;width:auto;}
