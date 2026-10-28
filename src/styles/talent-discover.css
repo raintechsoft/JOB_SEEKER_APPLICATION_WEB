@@ -1,0 +1,53 @@
+/* Recruiter talent discovery: filters in a left sidebar as wide as the feed's left column.
+   The page uses the feed container (is-feed), so the sidebar starts where the feed's left panel starts. */
+.talent-discover-layout {
+  display: grid;
+  grid-template-columns: var(--feed-side-width, 305px) minmax(0, 1fr);
+  gap: var(--feed-column-gap, 24px);
+  align-items: start;
+}
+.talent-discover-main { min-width: 0; }
+
+/* Job seekers have no sidebar: keep the recruiter results column width and centre it. */
+.talent-discover-centered {
+  max-width: calc(100% - var(--feed-side-width, 305px) - var(--feed-column-gap, 24px));
+  margin: 0 auto;
+}
+@media (max-width: 680px) {
+  .talent-discover-centered { max-width: none; }
+}
+.talent-discover-main > #active-filters:empty { display: none; }
+
+.filters.talent-filter-sidebar {
+  position: sticky;
+  top: 108px;
+  max-height: calc(100vh - 128px);
+  overflow-y: auto;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 14px;
+  margin-bottom: 0;
+  padding: 18px;
+}
+.talent-filter-title { margin: 0; font-size: 16px; font-weight: 650; color: #202a36; }
+.filters.talent-filter-sidebar .search-box { flex: none; min-width: 0; margin: 0 0 14px; }
+/* Space between each row's heading and its cards. */
+.talent-discover-main .talent-discovery-row > header { margin-bottom: 20px; }
+/* Field wrappers grow with flex: 1 elsewhere; in a column that would stretch them vertically. */
+.talent-filter-sidebar .floating-field { flex: none; width: 100%; max-width: none; }
+.talent-filter-sidebar .floating-field > select {
+  width: 100%;
+  min-height: 44px;
+  height: 44px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.talent-filter-sidebar .search-box .control { width: 100%; max-width: none; }
+.talent-filter-sidebar .check-row { margin: 0; }
+.talent-filter-sidebar > .btn { align-self: flex-start; }
+
+@media (max-width: 680px) {
+  .talent-discover-layout { grid-template-columns: minmax(0, 1fr); }
+  .filters.talent-filter-sidebar { position: static; max-height: none; overflow: visible; }
+}

@@ -1,0 +1,10 @@
+{
+  "sections": ["jobMatches", "peopleYouMayKnow", "interests", "suggestions"],
+  "peopleSections": ["peopleYouMayKnow", "skills", "suggestions"],
+  "rowLimit": 8,
+  "seeAllLimit": 48,
+  "matchJobs": 2,
+  "activityDays": 90,
+  "interestSkillsMax": 10,
+  "skillLength": 100
+}

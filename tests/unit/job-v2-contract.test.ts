@@ -3,7 +3,7 @@ import examples from "../../../../contracts/examples/job-module-v2.json";
 import rules from "../../../../contracts/validation/job-v2.json";
 import oldRules from "../../../../contracts/validation/job.json";
 import spec from "../../../../contracts/openapi/job-module-v2.json";
-import {compensationV2Schema, jobV2DraftSchema, jobV2Errors, jobV2StageAdvanceSchema, jobV2PublishRequestSchema, moneyMinor, publicCompensationV2, type JobValuesV2} from "@/lib/validation/job-v2";
+import {EMPTY_NOTICE, compensationV2Schema, jobV2DraftSchema, jobV2Errors, jobV2StageAdvanceSchema, jobV2PublishRequestSchema, moneyMinor, publicCompensationV2, type JobValuesV2} from "@/lib/validation/job-v2";
 import {jobValuesToLegacy, jobValuesToV2} from "@/lib/domain/job-v2-compatibility";
 import {jobV2FormToApi} from "@/lib/domain/job-v2-form";
 import {importCancelSchema, importDraftSelectionSchema, importFileSchema, importMappingSchema, importPositionReviewSchema, importSplitsSchema, importStartSchema} from "@/lib/validation/job-import";
@@ -22,6 +22,23 @@ describe("shared J1 examples",()=>{
     const mode = test.mode === "stage" ? test.stage! : test.mode as "draft"|"publish";
     expect(Object.keys(jobV2Errors(value,mode)).length === 0).toBe(test.valid);
   });
+});
+it("uses the server timezone allowlist and accepts date-only deadlines on a skipped midnight",()=>{
+  const deadline = (date: string, timezone: string, time: string | null = null) => jobV2Errors({...base(), deadline: {date, time, timezone, offset: null}}, "draft");
+  expect(deadline("2027-01-15", "Asia/Kolkata")).toEqual({});
+  for (const alias of ["Asia/Calcutta", "US/Eastern", "asia/kolkata"]) expect(deadline("2027-01-15", alias)).toHaveProperty(["deadline"]);
+  expect(deadline("2027-09-05", "America/Santiago")).toEqual({});
+  expect(deadline("2027-09-05", "America/Santiago", "00:30")).toHaveProperty(["deadline"]);
+});
+it("validates optional recruitment notice details and fills them for older drafts",()=>{
+  const {notice: _omitted, ...older} = base();
+  expect(jobV2DraftSchema.parse(older).notice).toEqual(EMPTY_NOTICE);
+  const withNotice = (patch: Partial<JobValuesV2["notice"]>, deadline: JobValuesV2["deadline"] = null) => jobV2Errors({...base(), deadline, notice: {...EMPTY_NOTICE, ...patch}}, "draft");
+  expect(withNotice({ageLimit: "18–32 years", noticeUrl: "https://example.gov.in/notice.pdf", opensOn: "2026-11-01"})).toEqual({});
+  expect(withNotice({noticeUrl: "javascript:alert(1)"})).toHaveProperty(["notice.noticeUrl"]);
+  expect(withNotice({opensOn: "2026-02-30"})).toHaveProperty(["notice.opensOn"]);
+  expect(withNotice({opensOn: "2026-12-02"}, {date: "2026-12-01", time: null, timezone: "Asia/Kolkata", offset: null})).toHaveProperty(["notice.opensOn"]);
+  expect(()=>jobValuesToLegacy({...base(), notice: {...EMPTY_NOTICE, ageLimit: "21–30"}},"legacy-draft")).toThrow();
 });
 it("converts INR LPA exactly once, leaves stored annual units unchanged and round trips",()=>{
   const legacy=structuredClone(examples.legacy) as JobWizardValues, before=structuredClone(legacy);

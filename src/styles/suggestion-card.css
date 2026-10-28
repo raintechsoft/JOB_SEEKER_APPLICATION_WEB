@@ -13,8 +13,10 @@
   background: #fff;
   border: 1px solid #e4e9ef;
   border-radius: 12px;
-  overflow: hidden;
 }
+
+/* The corner menu must escape the card; the cover keeps the rounded clipping instead. */
+.suggestion-card:has(.suggestion-card-menu-list) { z-index: 5; }
 
 .suggestion-card .suggestion-card-dismiss {
   position: absolute;
@@ -57,6 +59,7 @@
   z-index: 0;
   display: block;
   height: 72px;
+  border-radius: 11px 11px 0 0;
   overflow: hidden;
   pointer-events: none;
 }
@@ -207,6 +210,96 @@
 
 .feed-network-card .suggestion-card-grid { margin-top: 18px; }
 
+.suggestion-card-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 0 14px;
+  color: #626b76;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.suggestion-card-meta .icon { width: 13px; height: 13px; flex-shrink: 0; }
+.suggestion-card-meta > span[title] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Talent results reuse the suggestion card; the wrapper only carries impression tracking. */
+.talent-suggestion { display: flex; min-width: 0; }
+.talent-suggestion > .suggestion-card { flex: 1; }
+.talent-availability { display: inline-flex; align-items: center; gap: 5px; }
+.talent-availability::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #8a93a0; }
+.talent-availability.is-open { color: #1f7a4d; }
+.talent-availability.is-open::before { background: #22a565; }
+.talent-reason {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.suggestion-card-menu { position: absolute; top: 8px; right: 8px; z-index: 3; }
+.suggestion-card-menu-trigger {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 42%);
+  color: #fff;
+  cursor: pointer;
+}
+.suggestion-card-menu-trigger:hover { background: rgb(0 0 0 / 58%); }
+.suggestion-card-menu-trigger:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.suggestion-card-menu-trigger .icon { width: 18px; height: 18px; stroke-width: 3; }
+.suggestion-card-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid #e4e9ef;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgb(32 42 54 / 16%);
+}
+.suggestion-card-menu-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #202a36;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.suggestion-card-menu-list button:hover,
+.suggestion-card-menu-list button:focus-visible { background: #f2f5f9; outline: none; }
+.suggestion-card-menu-list .icon { width: 16px; height: 16px; color: #626b76; }.talent-discovery-row { margin-bottom: 30px; }
+.talent-discovery-row > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.talent-discovery-row h2 { margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.2px; color: #202a36; }
+.talent-discovery-row header p { margin: 3px 0 0; color: #626b76; font-size: 13px; }
+.talent-discovery-empty { padding: 18px; border: 1px dashed #d9dfe7; border-radius: 12px; color: #626b76; font-size: 13px; background: #fff; }
+.talent-discovery-empty .btn { margin-top: 10px; }
+
+/* Skeleton cards reuse the real card box; only the content is placeholder. */
+.suggestion-card.is-skeleton .suggestion-card-main { padding-bottom: 0; }
+.suggestion-card.is-skeleton .suggestion-card-cover { border-radius: 11px 11px 0 0; }
+.suggestion-skeleton-photo { display: block; width: 80px; height: 80px; border: 3px solid #fff; border-radius: 50%; }
+.suggestion-skeleton-line { display: block; width: 55%; height: 12px; margin-top: 8px; border-radius: 6px; }
+.suggestion-skeleton-line.is-name { width: 65%; height: 14px; margin-top: 4px; }
+.suggestion-skeleton-action { display: block; align-self: center; width: 84px; height: 20px; margin: 18px auto 20px; border-radius: 999px; }
+.suggestion-skeleton-heading { display: grid; gap: 8px; margin-bottom: 20px; }
 @media (max-width: 680px) {
   .suggestion-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 }

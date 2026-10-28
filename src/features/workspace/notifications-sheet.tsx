@@ -12,6 +12,7 @@ import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
 import type { NotificationRecord } from "@/services/notifications/notifications.service";
 import { modal } from "@/stores/modal-store";
 import { timeAgo } from "@/lib/utils/date";
+import { useLiveInterval } from "@/features/messaging/realtime-bridge";
 
 type Category = NotificationRecord["category"];
 const CATEGORIES: Record<Category, { label: string; icon: IconName; action: string }> = {
@@ -53,7 +54,7 @@ export function RealNotificationsSheet() {
   const [filter, setFilter] = useState<Filter>("all");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { execute, pending } = useFormAction(setErrors);
-  const notifications = useServiceQuery(["notifications"], service => service.notifications.list(), { refetchInterval: 10000 });
+  const notifications = useServiceQuery(["notifications"], service => service.notifications.list(), { refetchInterval: useLiveInterval(10000) });
   useEffect(() => {
     const snapshot = notifications.data;
     if (!snapshot?.newCount || acknowledged.current === snapshot.seenToken) return;

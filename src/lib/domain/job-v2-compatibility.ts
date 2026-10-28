@@ -36,7 +36,8 @@ export function jobValuesToV2(input: JobWizardValues | JobValuesV2, representati
 /** Compatibility is deliberately lossless or refused; monthly/case pay never enters an annual v1 payload. */
 export function jobValuesToLegacy(input: JobValuesV2, representation: Exclude<JobValueRepresentation, "v2">): JobWizardValues {
   z.enum(["legacy-draft", "legacy-stored"]).parse(representation);
-  const { schemaVersion: _schemaVersion, compensation: c, deadline, ...rest } = jobV2DraftSchema.parse(input);
+  const { schemaVersion: _schemaVersion, compensation: c, deadline, notice, ...rest } = jobV2DraftSchema.parse(input);
+  if (Object.values(notice).some(value => value !== "" && value !== null)) throw new Error("This job's recruitment notice details cannot be represented by the v1 contract.");
   if (c.kind !== "salary" || !["fixed", "range", "unspecified"].includes(c.format) || (c.period !== null && c.period !== "year") || c.notes || c.allowances.length || c.schedule.length || !c.currency || (deadline && (deadline.time !== null || deadline.timezone !== "UTC")) || (rest.vacancies !== null && rest.vacancies > 999) || !["", ...legacyRules.employment].includes(rest.employment) || rest.education.some(q => !legacyRules.education.includes(q))) throw new Error("This job cannot be represented by the annual v1 contract without losing information.");
   const divisor = representation === "legacy-draft" && c.currency === "INR" ? BigInt(rules.compatibility.legacyInrDraftMultiplier) : 1n;
   const convert = (v: string | null) => { if (v === null) return ""; const minor = moneyMinor(v); if (minor % divisor !== 0n) throw new Error("The legacy LPA field cannot represent this amount exactly."); return moneyString(minor / divisor); };

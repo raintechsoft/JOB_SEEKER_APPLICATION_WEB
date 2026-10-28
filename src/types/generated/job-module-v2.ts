@@ -248,6 +248,15 @@ export interface components {
             timezone: string;
             offset: string | null;
         } | null;
+        /** @description Optional recruitment-notice details shown to candidates. Display text only; never an automatic eligibility rule. noticeUrl is empty or an http(s) URL; opensOn is on or before the closing date. */
+        NoticeDetailsV2: {
+            ageLimit: string;
+            selectionProcess: string;
+            documents: string;
+            applicationFee: string;
+            noticeUrl: string;
+            opensOn: string | null;
+        };
         PublicCompensationV2: {
             /** @enum {string} */
             disclosure: "undisclosed" | "unspecified";
@@ -308,6 +317,7 @@ export interface components {
             schemaVersion: 2;
             compensation: components["schemas"]["CompensationV2"];
             deadline: components["schemas"]["DeadlineV2"];
+            notice?: components["schemas"]["NoticeDetailsV2"];
         };
         /** @description Also requires complete compensation, questions, conditional thumbnail alt and current server availability/source review. Business relationships are checked independently by both implementations. */
         JobPublishValuesV2: components["schemas"]["JobDraftValuesV2"] & {
@@ -427,6 +437,7 @@ export interface components {
             schemaVersion: 2;
             compensation: components["schemas"]["PublicCompensationV2"];
             deadline: components["schemas"]["DeadlineV2"];
+            notice: components["schemas"]["NoticeDetailsV2"];
             closesAt: string | null;
             experienceMin: number;
             experienceMax: number | null;
@@ -473,6 +484,7 @@ export interface components {
             schemaVersion: 2;
             compensation: components["schemas"]["CompensationV2"];
             deadline: components["schemas"]["DeadlineV2"];
+            notice: components["schemas"]["NoticeDetailsV2"];
             closesAt: string | null;
             experienceMin: number;
             experienceMax: number | null;

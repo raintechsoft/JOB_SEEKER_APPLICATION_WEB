@@ -5,10 +5,11 @@ import { Icon } from "@/components/ui/icon";
 import { useServiceQuery } from "@/hooks/use-services";
 import { apiConfig } from "@/services/api/config";
 import { workspaceDialogs } from "./dialogs";
+import { useLiveInterval } from "@/features/messaging/realtime-bridge";
 
 export function NotificationBell({ role }: { role: "professional" | "recruiter" }) {
   const description = useId();
-  const counts = useServiceQuery(["notification-counts", role], service => service.notifications.counts(), { enabled: apiConfig.dataSource === "http", refetchInterval: 10000, refetchOnWindowFocus: "always" });
+  const counts = useServiceQuery(["notification-counts", role], service => service.notifications.counts(), { enabled: apiConfig.dataSource === "http", refetchInterval: useLiveInterval(10000), refetchOnWindowFocus: "always" });
   const count = counts.data?.newCount ?? 0;
   return <button type="button" className="iconbtn notification-bell" aria-label="Notifications" aria-describedby={count ? description : undefined} onClick={workspaceDialogs.notifications}>
     <Icon name="bell" />

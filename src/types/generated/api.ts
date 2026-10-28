@@ -1580,6 +1580,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizations/{organization}/hiring/talent-discovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Rows for the recruiter's recent job posts, people similar to recent shortlists/conversations/applicants, chosen interest skills and baseline suggestions. section returns one row in full; jobMatches also requires job. */
+        get: operations["talent_discovery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/people-discovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Job seeker people discovery: people you may know (second-degree follows, past co-workers, same city), people with your skills and recent profiles. Excludes you and people you follow. */
+        get: operations["people_discovery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{organization}/hiring/talent-interests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["talent_interests_save"];
+        trace?: never;
+    };
     "/me/social/{identity}/search": {
         parameters: {
             query?: never;
@@ -2974,6 +3024,8 @@ export interface components {
             interests: string;
             email: string;
             avatar: number;
+            /** @description Profile cover image URL; empty when the default banner is shown. Directory and owner views only. */
+            cover?: string;
         };
         ProfileDetails: {
             /** @constant */
@@ -3315,6 +3367,8 @@ export interface components {
                         phone?: string;
                     };
                 };
+                /** @description Profile cover image URL; empty when the default banner is shown. Directory and owner views only. */
+                cover?: string;
             };
             projects: components["schemas"]["WorkProject"][];
             updates: components["schemas"]["WorkUpdate"][];
@@ -4497,6 +4551,7 @@ export interface components {
             recentDays: number[];
             /** @description Profile cover image URL; empty when the default banner is shown. Directory and owner views only. */
             cover?: string;
+            following?: boolean;
             analyticsContext?: components["schemas"]["AnalyticsContext"];
         };
         ShortlistView: {
@@ -4608,6 +4663,46 @@ export interface components {
             acceptingApplications: boolean;
             application: components["schemas"]["PersonalApplication"] | null;
         };
+        TalentSuggestion: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            name: string;
+            headline: string;
+            location: string;
+            years: number;
+            available: boolean;
+            color: string;
+            picture: string;
+            cover: string;
+            saved: boolean;
+            following: boolean;
+            reason: string;
+            analyticsContext?: {
+                requestId: string;
+                itemId: string;
+                position: number;
+            };
+        };
+        TalentInterests: {
+            skills: string[];
+            version: number;
+        };
+        TalentDiscovery: {
+            sections: {
+                /** @enum {string} */
+                key: "jobMatches" | "peopleYouMayKnow" | "interests" | "suggestions" | "skills";
+                title: string;
+                subtitle: string;
+                job: {
+                    /** Format: uuid */
+                    id: string;
+                    title: string;
+                } | null;
+                items: components["schemas"]["TalentSuggestion"][];
+            }[];
+            interests: components["schemas"]["TalentInterests"];
+        };
         SocialPerson: {
             /** Format: uuid */
             id: string;
@@ -4618,6 +4713,8 @@ export interface components {
             slug?: string;
             recruiter?: boolean;
             followerCount?: number;
+            /** @description Profile cover image URL; empty when the default banner is shown. Directory and owner views only. */
+            cover?: string;
         };
         SocialMedia: {
             /** @enum {string} */
@@ -4753,6 +4850,8 @@ export interface components {
                 slug?: string;
                 recruiter?: boolean;
                 followerCount?: number;
+                /** @description Profile cover image URL; empty when the default banner is shown. Directory and owner views only. */
+                cover?: string;
                 following: boolean;
             }[];
             followers: {
@@ -4765,6 +4864,8 @@ export interface components {
                 slug?: string;
                 recruiter?: boolean;
                 followerCount?: number;
+                /** @description Profile cover image URL; empty when the default banner is shown. Directory and owner views only. */
+                cover?: string;
                 following: boolean;
             }[];
             companies: components["schemas"]["HiringCompany"][];
@@ -8647,6 +8748,95 @@ export interface operations {
                     };
                 };
             };
+            default: components["responses"]["Error"];
+        };
+    };
+    talent_discovery: {
+        parameters: {
+            query?: {
+                section?: "jobMatches" | "peopleYouMayKnow" | "interests" | "suggestions";
+                job?: string;
+            };
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                organization: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TalentDiscovery"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    people_discovery: {
+        parameters: {
+            query?: {
+                section?: "peopleYouMayKnow" | "skills" | "suggestions";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TalentDiscovery"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    talent_interests_save: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                organization: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TalentInterests"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["TalentInterests"];
+                    };
+                };
+            };
+            409: components["responses"]["Error"];
             default: components["responses"]["Error"];
         };
     };

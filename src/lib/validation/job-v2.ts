@@ -62,13 +62,15 @@ export function compensationErrors(c: CompensationV2, publish: boolean): Record<
   return e;
 }
 
-export const deadlineV2Schema = z.strictObject({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).nullable(), timezone: text(rules.timezoneMax).min(1), offset: z.string().regex(new RegExp(rules.deadlineOffsetPattern)).nullable() }).nullable();
+const TIMEZONES = new Set<string>(rules.timezones);
+export const deadlineV2Schema =z.strictObject({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/).nullable(), timezone: text(rules.timezoneMax).min(1), offset: z.string().regex(new RegExp(rules.deadlineOffsetPattern)).nullable() }).nullable();
 export type DeadlineV2 = z.infer<typeof deadlineV2Schema>;
 /** Returns all actual instants for a wall time; gaps/ambiguities never silently normalize. */
 export function deadlineInstants(d: NonNullable<DeadlineV2>): number[] {
   const parsed = Date.parse(`${d.date}T${d.time ?? "00:00"}:00Z`);
   if (!Number.isFinite(parsed) || new Date(parsed).toISOString().slice(0, 10) !== d.date) throw new Error("Enter a real calendar date.");
-  if (!(d.timezone === "UTC" || /^[A-Za-z_]+(?:\/[A-Za-z0-9_+.-]+)+$/.test(d.timezone))) throw new Error("Choose an IANA timezone.");
+  // Same allowlist as Laravel and PostgreSQL; Intl alone also accepts legacy aliases such as Asia/Calcutta.
+  if (!TIMEZONES.has(d.timezone)) throw new Error("Choose an IANA timezone.");
   const f = new Intl.DateTimeFormat("en-CA", { timeZone: d.timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "longOffset" });
   const offsets = new Set<number>();
   for (let hours = -48; hours <= 48; hours += 6) {
@@ -88,15 +90,28 @@ export function deadlineInstants(d: NonNullable<DeadlineV2>): number[] {
 export function deadlineError(d: DeadlineV2): string | null {
   if (d === null) return null;
   if (d.time === null && d.offset !== null) return "An offset requires an exact closing time.";
-  try { if (deadlineInstants(d).length !== 1) return "Resolve the nonexistent or ambiguous closing time and timezone offset."; } catch { return "Enter a valid date and IANA timezone."; }
+  // A date-only deadline closes at the start of the next local day; only exact times must resolve once.
+  try { const instants = deadlineInstants(d); if (d.time !== null && instants.length !== 1) return "Resolve the nonexistent or ambiguous closing time and timezone offset."; } catch { return "Enter a valid date and IANA timezone."; }
   return null;
 }
+
+/** Optional recruitment-notice details. Display text only; never an automatic eligibility rule. */
+export const EMPTY_NOTICE = { ageLimit: "", selectionProcess: "", documents: "", applicationFee: "", noticeUrl: "", opensOn: null } as const;
+const httpUrl = (v: string) => { if (!v) return true; try { const u = new URL(v); return (u.protocol === "https:" || u.protocol === "http:") && !!u.hostname; } catch { return false; } };
+export const noticeV2Schema = z.strictObject({
+  ageLimit: text(rules.notice.ageLimit), selectionProcess: text(rules.notice.selectionProcess), documents: text(rules.notice.documents), applicationFee: text(rules.notice.applicationFee),
+  noticeUrl: text(rules.notice.noticeUrl).refine(httpUrl, "Enter a complete http(s) link."),
+  opensOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date.").refine(v => { const t = Date.parse(`${v}T00:00:00Z`); return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === v; }, "Enter a real calendar date.").nullable(),
+});
+export type NoticeV2 = z.infer<typeof noticeV2Schema>;
 
 const { shape } = jobDraftValuesSchema;
 const replaced = ["experienceMin", "experienceMax", "vacancies", "employment", "education", "currency", "salaryMin", "salaryMax", "hideSalary", "variableEnabled", "variablePercent", "expiresAt"] as const;
 const unchanged = Object.fromEntries(Object.entries(shape).filter(([key]) => !(replaced as readonly string[]).includes(key))) as Omit<typeof shape, (typeof replaced)[number]>;
 export const jobV2ShapeSchema = z.strictObject({ ...unchanged,
   schemaVersion: z.literal(2), compensation: compensationV2Schema, deadline: deadlineV2Schema,
+  // Drafts saved before these fields existed omit them.
+  notice: noticeV2Schema.default({ ...EMPTY_NOTICE }),
   experienceMin: z.number().int().min(0).max(rules.experienceMax).nullable(), experienceMax: z.number().int().min(0).max(rules.experienceMax).nullable(),
   vacancies: z.number().int().min(1).max(rules.vacanciesMax).nullable(), employment: z.union([z.literal(""), z.enum(rules.employment as [string, ...string[]])]),
   education: z.array(z.enum(rules.education as [string, ...string[]])).max(legacyRules.lists.education),
@@ -111,6 +126,7 @@ export function jobV2Errors(value: unknown, mode: "draft" | "publish" | number =
   Object.assign(errors, Object.fromEntries(Object.entries(compensationErrors(v.compensation, stage >= 0)).map(([k, m]) => [`compensation.${k}`, m])));
   if (v.experienceMin !== null && v.experienceMax !== null && v.experienceMin > v.experienceMax) errors.experienceMax = "Maximum must be at least the minimum.";
   const dateError = deadlineError(v.deadline); if (dateError) errors.deadline = dateError;
+  if (v.notice.opensOn && v.deadline && v.notice.opensOn > v.deadline.date) errors["notice.opensOn"] = "The opening date must be on or before the closing date.";
   const values = v as Record<string, unknown>;
   for (let s = 0; s <= stage; s++) for (const key of rules.requiredStages[s]) {
     const val = values[key]; if (val === null || val === "" || val === undefined || (Array.isArray(val) && !val.length)) errors[key] = "This field is required.";

@@ -9,16 +9,14 @@ import { useRouter } from "next/navigation";
 import type { PersonSummary } from "@/types/api";
 import type { Role } from "@/types/domain";
 import type { FeedFilter } from "@/services/feed/feed.service";
-import { track } from "@/lib/analytics";
-import { formatFollowers } from "@/lib/utils/text";
 import { apiConfig } from "@/services/api/config";
-import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
+import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
-import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, LinkButton } from "@/components/ui/primitives";
 import { MediaImage } from "@/components/ui/media-image";
-import { SuggestionCard, SuggestionCardGrid } from "@/components/suggestions/suggestion-card";
+import { SuggestionCardGrid } from "@/components/suggestions/suggestion-card";
+import { TalentCard } from "@/components/talent/talent-card";
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingSelect } from "@/components/ui/field";
 import { ActivityHeatmap } from "./activity-heatmap";
@@ -162,7 +160,6 @@ export function useCompose(role: Role) {
 }
 
 export function NetworkPrompt({ people }: { people: PersonSummary[] }) {
-  const run = useServiceAction();
   const network = useNetworkSheet();
   if (!people.length) return null;
   return (
@@ -174,23 +171,10 @@ export function NetworkPrompt({ people }: { people: PersonSummary[] }) {
         </div>
         <Icon name="users" />
       </div>
+      {/* The shared people card: cover, name, designation, Follow and a corner menu. Suggestions are never already followed. */}
       <SuggestionCardGrid>
         {people.map((p) => (
-          <SuggestionCard
-            key={p.id}
-            href={"/app/professionals/" + encodeURIComponent(p.slug ?? "")}
-            label={"View " + p.name + " profile"}
-            name={p.name}
-            headline={p.headline}
-            person={p}
-            meta={p.followerCount != null ? formatFollowers(p.followerCount) : undefined}
-            onFollow={async () => {
-              const following = await run((s) => s.feed.toggleFollow("professional", p.id));
-              if (following === undefined) return;
-              track("person_followed", { personId: p.id, following });
-              toast("Following updated.");
-            }}
-          />
+          <TalentCard key={p.id} role="professional" person={{ id: p.id, slug: p.slug ?? "", name: p.name, headline: p.headline ?? "", picture: p.picture, cover: p.cover, color: p.color ?? "", location: "", years: 0, available: false, saved: false, following: false }} />
         ))}
       </SuggestionCardGrid>
       <button type="button" className="feed-network-all" onClick={() => network.open("professional")}>

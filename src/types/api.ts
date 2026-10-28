@@ -41,6 +41,8 @@ export interface PersonSummary {
   color?: string;
   slug?: string;
   followerCount?: number;
+  /** Profile cover image; present only for professionals in the public directory. */
+  cover?: string;
 }
 
 /** Company as displayed on jobs (may be confidential). */

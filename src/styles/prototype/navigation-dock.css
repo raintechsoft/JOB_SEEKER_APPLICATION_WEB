@@ -1,7 +1,7 @@
 /* /navigation-dock.css */
 /* Dock motion is applied only to icons, preserving every navigation label and hit area. */
 .professional-nav .nav-dock-icon {position:relative;display:grid;place-items:center;width:20px;height:20px;flex:0 0 20px;transform:scale(var(--dock-scale,1));transform-origin:center;isolation:isolate;pointer-events:none;}
-.professional-nav .nav-dock-icon::before {content:'';position:absolute;inset:-3px;border-radius:50%;background:#3B4E68;opacity:var(--dock-emphasis,0);z-index:-1;}
+.professional-nav .nav-dock-icon::before {content:'';position:absolute;inset:-3px;border-radius:50%;background:var(--color-navy);opacity:var(--dock-emphasis,0);z-index:-1;}
 body.professional-theme .professional-nav .nav-dock-icon>.icon {width:20px;height:20px;stroke-width:1.7;flex-shrink:0;}
 .professional-nav>a {isolation:isolate;}
 .professional-nav>a:focus-visible {outline:2px solid #A9C7EE;outline-offset:-4px;border-radius:8px;}

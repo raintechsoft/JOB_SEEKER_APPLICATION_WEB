@@ -6,7 +6,7 @@ import { DAY_MS, today } from "@/lib/utils/date";
 import { uid } from "@/lib/utils/id";
 import { buildPulse } from "@/services/work/work.mock";
 import { publicProjects, toPublicProfessional } from "./public-profile";
-import type { CandidateView, TalentCardData, TalentService } from "./talent.service";
+import type { CandidateView, DiscoverySection, TalentCardData, TalentInterests, TalentService, TalentSuggestion } from "./talent.service";
 
 const isSaved = (db: DemoDatabase, id: Id) => db.shortlists.some((s) => s.candidates.includes(id));
 
@@ -27,7 +27,39 @@ function candidate(db: DemoDatabase, p: Professional): CandidateView {
   };
 }
 
+/** Demo-only recruiter interests; kept in memory for the browser session. */
+let demoInterests: TalentInterests = { skills: [], version: 0 };
+const suggestion = (db: DemoDatabase, p: Professional, reason: string): TalentSuggestion => ({ id: p.id, slug: p.slug, name: p.name, headline: p.headline, location: p.location, years: p.years, available: p.available, color: p.color, picture: p.picture, cover: p.cover, saved: isSaved(db, p.id), reason });
+
 export const mockTalentService: TalentService = {
+  async getDiscovery(section, jobId) {
+    const db = getDb();
+    const people = db.professionals.filter((p) => p.public);
+    const limit = section ? 48 : 8;
+    const wanted = demoInterests.skills.map((s) => s.toLowerCase());
+    const all: DiscoverySection[] = [
+      { key: "jobMatches", title: "Matches for your job posts", subtitle: "Publish a job to see profiles that match it.", job: null, items: [] },
+      { key: "peopleYouMayKnow", title: "People you may know", subtitle: "Based on candidates you recently shortlisted, messaged or received applications from.", job: null, items: people.filter((p) => isSaved(db, p.id)).slice(0, limit).map((p) => suggestion(db, p, "Similar to people you recently shortlisted")) },
+      { key: "interests", title: "Skilled people for your interests", subtitle: wanted.length ? "People with the skills you chose." : "Choose the skills you hire for to see matching people.", job: null, items: people.filter((p) => p.skills.some((s) => wanted.includes(s.toLowerCase()))).slice(0, limit).map((p) => suggestion(db, p, "Skilled in " + p.skills.filter((s) => wanted.includes(s.toLowerCase())).slice(0, 3).join(", "))) },
+      { key: "suggestions", title: "Suggestions for you", subtitle: "Recommended from your open roles and recently updated profiles.", job: null, items: [...people].sort((a, b) => b.lastActive.localeCompare(a.lastActive)).slice(0, limit).map((p) => suggestion(db, p, "Recently updated public profile")) },
+    ];
+    return { sections: section ? all.filter((s) => s.key === section && (!jobId || s.job?.id === jobId)) : all, interests: demoInterests };
+  },
+  async getPeopleDiscovery(section) {
+    const db = getDb();
+    const people = db.professionals.filter((p) => p.public && p.id !== db.professionals[0].id);
+    const limit = section ? 48 : 8;
+    const all: DiscoverySection[] = [
+      { key: "suggestions", title: "Suggestions for you", subtitle: "Recently active professionals on Skillora.", job: null, items: [...people].sort((a, b) => b.lastActive.localeCompare(a.lastActive)).slice(0, limit).map((p) => suggestion(db, p, "Recently updated public profile")) },
+    ];
+    return { sections: section ? all.filter((s) => s.key === section) : all, interests: { skills: [], version: 0 } };
+  },
+  async saveInterests(skills, version) {
+    if (version !== demoInterests.version) throw new Error("Your interests changed in another tab. Reload and try again.");
+    demoInterests = { skills, version: version + 1 };
+    return demoInterests;
+  },
+
   async search(f) {
     const db = getDb();
     const query = f.q.toLowerCase().trim();

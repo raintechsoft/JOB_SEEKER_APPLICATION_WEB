@@ -24,6 +24,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/recruiter\/activity$/, "My Activity"],
   [/^\/recruiter\/overview$/, "Overview"],
   [/^\/recruiter\/discover$/, "Discover Talent"],
+  [/^\/app\/discover$/, "Discover People"],
   [/^\/recruiter\/shortlists$/, "Shortlists"],
   [/^\/recruiter\/compare$/, "Compare Candidates"],
   [/^\/recruiter\/(company|organization)(\/preview)?$/, "Organization Profile"],

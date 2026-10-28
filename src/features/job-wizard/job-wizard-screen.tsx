@@ -2,8 +2,9 @@
 
 import { JOB_V2_RULES } from "@/lib/validation/job-v2";
 import { jobEditorErrors } from "@/lib/domain/job-editor";
-import { CompensationFields, DeadlineFields } from "./job-value-fields";
+import { CompensationFields, DeadlineFields, NoticeFields } from "./job-value-fields";
 import { JobValueSummary } from "@/components/jobs/job-value-summary";
+import { JobNoticeDetails } from "@/components/jobs/job-notice-details";
 import { InfoBadge } from "@/components/ui/info-badge";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -23,7 +24,7 @@ import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
 import { Button, EmptyState, IconButton, LinkButton } from "@/components/ui/primitives";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
-import { ScreenFallback } from "@/components/ui/feedback";
+import { JobWizardSkeleton } from "./job-wizard-skeleton";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
 import { isPrototype } from "@/lib/env/app-env";
@@ -433,7 +434,8 @@ export function Wizard({ ctx }: { ctx: JobDraftContext }) {
           <div className="grid cols2">
             {dropdown("Department", "department", DEPARTMENTS, { required: true })}
             {input("Role", "role", { required: true, maxLength: 100 })}
-            {dropdown("Employment type", "employment", JOB_V2_RULES.employment, { required: true })}
+            {/* New drafts start without an employment type; an explicit empty choice shows that nothing is selected yet. */}
+            <SelectField label="Employment type" name="employment" error={errors.employment} value={v.employment ?? ""} onChange={(e) => set({ employment: e.target.value } as Partial<JobWizardValues>)} options={[{ value: "", label: "Choose an employment type" }, ...JOB_V2_RULES.employment]} required />
           </div>
         </div>
         <div className="wizard-section">
@@ -572,6 +574,7 @@ export function Wizard({ ctx }: { ctx: JobDraftContext }) {
         {check("Require candidates to include their portfolio", "requirePortfolio")}
         {check(devCopy("Keep response notifications enabled in this demo", "Keep response notifications enabled"), "notifyResponses")}
         {area("Application instructions", "applicationInstructions", { maxLength: 1500 })}
+        {v.schemaVersion===2&&<NoticeFields value={v.notice} onChange={notice=>set({notice},{debounce:true})} errors={errors}/>}
         <DevOnly>
           <InfoBadge label="Publishing information">Applications and notification preferences are simulated in this browser. No emails are sent.</InfoBadge>
         </DevOnly>
@@ -789,6 +792,7 @@ export function Wizard({ ctx }: { ctx: JobDraftContext }) {
                   )}
                 </p>
                 {v.applicationInstructions && <p>{v.applicationInstructions}</p>}
+                <JobNoticeDetails notice={v.notice} />
                 {v.benefits && (
                   <>
                     <h3>Benefits</h3>
@@ -820,7 +824,7 @@ export function Wizard({ ctx }: { ctx: JobDraftContext }) {
         <>
           {artwork}
           <JobValueSummary compensation={v.compensation} deadline={v.deadline}/>
-          {sections.map(([title, copy], i) => reviewSection(title, i, <p>{copy}</p>))}
+          {sections.map(([title, copy], i) => reviewSection(title, i, <><p>{copy}</p>{i === 4 && <JobNoticeDetails notice={v.notice} />}</>))}
           <DevOnly>
             <InfoBadge label="Publishing information">Publishing saves this demo job in your local feed. It does not publish to an external job board or send notifications.</InfoBadge>
           </DevOnly>
@@ -934,8 +938,8 @@ export function JobWizardScreen() {
   const [entryKey]=useState(()=>crypto.randomUUID());
   const { data, isPending,isError,isPlaceholderData,refetch } = useServiceQuery(["job-draft", id ?? "new",entryKey], (s) => s.jobPosts.openJobDraft(id,entryKey));
   if(isError)return <EmptyState title="The job draft could not be loaded" description="Check your organization access and retry. Your saved draft is retained." action={<Button onClick={()=>void refetch()}>Retry</Button>}/>;
-  if (isPending) return <ScreenFallback layout="form" />;
-  if(isPlaceholderData&&(!id||data?.draft.id!==id))return <ScreenFallback layout="form"/>;
+  if (isPending) return <JobWizardSkeleton />;
+  if(isPlaceholderData&&(!id||data?.draft.id!==id))return <JobWizardSkeleton />;
   if (data === null)
     return (
       <EmptyState
@@ -949,5 +953,5 @@ export function JobWizardScreen() {
       />
     );
   // Keyed by draft so the wizard seeds its local state once per job.
-  return data ? <Wizard key={data.key} ctx={data} /> : <ScreenFallback layout="form" />;
+  return data ? <Wizard key={data.key} ctx={data} /> : <JobWizardSkeleton />;
 }

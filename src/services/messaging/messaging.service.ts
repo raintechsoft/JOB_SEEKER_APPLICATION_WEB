@@ -48,4 +48,6 @@ export interface MessagingService {
    * `anyCompany` reuses an existing thread with the candidate regardless of company ("Contact").
    */
   start(role: Role, targetId: Id, options?: { anyCompany?: boolean }): Promise<Id | null>;
+  /** Signs a real-time subscription to the selected identity's private channel (HTTP mode only). */
+  authorizeRealtime?(socketId: string, channel: string): Promise<string>;
 }

@@ -22,6 +22,7 @@ export function jobV2FormToApi(input: unknown, mode: "draft" | "publish" = "draf
   c.schedule = z.array(z.unknown()).parse(c.schedule).map(item => { const s = record(item); return {...s, amount: amount(s.amount), startMonth: integer(s.startMonth), endMonth: integer(s.endMonth), period: blank(s.period)}; });
   v.compensation = c;
   if (v.deadline !== null) { const d = record(v.deadline); for (const key of ["time", "offset"]) d[key] = blank(d[key]); v.deadline = d; }
+  if (v.notice !== undefined && v.notice !== null) { const n = record(v.notice); n.opensOn = blank(n.opensOn); v.notice = n; }
   const aliases = rules.educationAliases as Record<string, string>;
   if (Array.isArray(v.education)) v.education = v.education.map(item => typeof item === "string" ? aliases[item] ?? item : item);
   return (mode === "publish" ? jobV2PublishSchema : jobV2DraftSchema).parse(v);

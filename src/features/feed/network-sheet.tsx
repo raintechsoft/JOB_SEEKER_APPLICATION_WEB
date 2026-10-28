@@ -110,7 +110,7 @@ function NetworkPanel({ role }: { role: Role }) {
         )}
       </section>
       <footer className="network-footer">
-        <LinkButton href={role === "recruiter" ? "/recruiter/discover" : "/app/dashboard"} variant="text sm" icon="search">
+        <LinkButton href={role === "recruiter" ? "/recruiter/discover" : "/app/discover"} variant="text sm" icon="search" onClick={() => modal.close()}>
           Discover people
         </LinkButton>
         <DevOnly>

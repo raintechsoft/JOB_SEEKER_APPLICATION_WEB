@@ -152,3 +152,20 @@ body.professional-theme .job-ai-questions p {flex:1;font-size:14px;line-height:1
 .job-ai-options>summary>span {font-size:11px;font-weight:400;color:#7B8491;margin-left:7px;}
 .job-ai-options-fields {display:flex;flex-direction:column;gap:20px;padding-top:23px;}
 @media(max-width:680px){.job-ai-options-fields>.grid{grid-template-columns:1fr;gap:20px;}}
+
+/* Loading skeleton: same grid, stepper rows (56px) and field heights (54px) as the real editor. */
+.job-wizard-skeleton .skeleton { display: block; }
+.job-wizard-skeleton-title { display: grid; gap: 10px; }
+.job-wizard-skeleton .job-wizard-stepper { display: grid; gap: 18px; }
+.job-wizard-skeleton-steps { display: flex; flex-direction: column; gap: 8px; }
+.job-wizard-skeleton-step { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 13px 10px; }
+.job-wizard-skeleton-dot { flex-shrink: 0; width: 31px; height: 31px; border-radius: 50%; }
+.job-wizard-skeleton-heading { display: grid; gap: 10px; }
+.job-wizard-skeleton .wizard-section { display: grid; gap: 16px; }
+.job-wizard-skeleton-field { height: 54px; border-radius: 8px; }
+@media (max-width: 680px) {
+  .job-wizard-skeleton .job-wizard-stepper { display: block; }
+  .job-wizard-skeleton-stepper-title, .job-wizard-skeleton-note { display: none !important; }
+  .job-wizard-skeleton-steps { flex-direction: row; overflow: hidden; }
+  .job-wizard-skeleton-step { min-width: 135px; min-height: 55px; padding: 9px; }
+}

@@ -4,10 +4,24 @@ const api=JSON.parse(readFileSync(new URL("contracts/openapi/phase-4.json",root)
 const s=api.components.schemas,str={type:"string"},uuid={...str,format:"uuid"},int={type:"integer"},bool={type:"boolean"},ref=(n)=>({$ref:`#/components/schemas/${n}`}),arr=(items,maxItems)=>({type:"array",items,...(maxItems?{maxItems}:{})}),obj=(properties,required=Object.keys(properties))=>({type:"object",properties,required,additionalProperties:false}),nullable=(v)=>({anyOf:[v,{type:"null"}]}),rev={...int,minimum:1};
 // Preserve the existing additive profile-cover contract when regenerating cumulative APIs.
 const profileCover={type:"string",description:"Profile cover image URL; empty when the default banner is shown. Directory and owner views only."};
-for(const person of [s.Person,s.TalentCard,s.ProfileDetails?.properties?.person])if(person?.properties)person.properties.cover??=structuredClone(profileCover);
+for(const person of [s.Person,s.ProfilePerson,s.TalentCard,s.ProfileDetails?.properties?.person,s.PublicProfessional?.properties?.person])if(person?.properties)person.properties.cover??=structuredClone(profileCover);
+// Recruiter directory results report whether the recruiter follows each person; public results omit it.
+s.TalentCard.properties.following??={type:"boolean"};
+// Recruiter talent discovery rows and the recruiter's private interest skills.
+const discovery=JSON.parse(readFileSync(new URL("contracts/validation/talent-discovery.json",root),"utf8"));
+s.TalentSuggestion=obj({id:uuid,slug:str,name:str,headline:str,location:str,years:int,available:bool,color:str,picture:str,cover:str,saved:bool,following:bool,reason:str,analyticsContext:obj({requestId:str,itemId:str,position:int})},["id","slug","name","headline","location","years","available","color","picture","cover","saved","following","reason"]);
+s.TalentInterests=obj({skills:arr({...str,minLength:1,maxLength:discovery.skillLength},discovery.interestSkillsMax),version:{...int,minimum:0}});
+s.TalentDiscovery=obj({sections:arr(obj({key:{type:"string",enum:[...new Set([...discovery.sections,...discovery.peopleSections])]},title:str,subtitle:str,job:nullable(obj({id:uuid,title:str})),items:arr(ref("TalentSuggestion"),discovery.seeAllLimit)})),interests:ref("TalentInterests")});
+const hiringData=(name)=>({200:{description:"Success",content:{"application/json":{schema:obj({data:ref(name)})}}},default:{$ref:"#/components/responses/Error"}});
+const orgParam={name:"organization",in:"path",required:true,schema:{type:"string"}};
+api.paths["/organizations/{organization}/hiring/talent-discovery"]={get:{operationId:"talent_discovery",description:"Rows for the recruiter's recent job posts, people similar to recent shortlists/conversations/applicants, chosen interest skills and baseline suggestions. section returns one row in full; jobMatches also requires job.",parameters:[orgParam,{$ref:"#/components/parameters/ActorContext"},{name:"section",in:"query",required:false,schema:{type:"string",enum:discovery.sections}},{name:"job",in:"query",required:false,schema:uuid}],responses:hiringData("TalentDiscovery")}};
+api.paths["/me/people-discovery"]={get:{operationId:"people_discovery",description:"Job seeker people discovery: people you may know (second-degree follows, past co-workers, same city), people with your skills and recent profiles. Excludes you and people you follow.",parameters:[{name:"section",in:"query",required:false,schema:{type:"string",enum:discovery.peopleSections}}],responses:hiringData("TalentDiscovery")}};
+api.paths["/organizations/{organization}/hiring/talent-interests"]={patch:{operationId:"talent_interests_save",parameters:[orgParam,{$ref:"#/components/parameters/ActorContext"}],requestBody:{required:true,content:{"application/json":{schema:ref("TalentInterests")}}},responses:{...hiringData("TalentInterests"),409:{$ref:"#/components/responses/Error"}}}};
 const mediaPurposes=s.MediaInit?.properties?.purpose?.enum;
 if(mediaPurposes&&!mediaPurposes.includes("profile_cover"))mediaPurposes.splice(1,0,"profile_cover");
 s.SocialPerson=obj({id:uuid,name:str,headline:str,picture:str,color:str,slug:str,recruiter:bool,followerCount:{...int,minimum:0}},["id","name","headline","picture","color"]);
+// Optional: present only for professionals listed in the public directory.
+s.SocialPerson.properties.cover=structuredClone(profileCover);
 s.SocialMedia=obj({type:{enum:["image","video","document"],type:"string"},src:str,alt:{...str,maxLength:300},name:{...str,maxLength:180},bytes:{...int,minimum:1,maximum:5497558138880}},["type","src","alt","name"]);
 const values={title:{...str,maxLength:150},body:{...str,maxLength:3000},project:{anyOf:[uuid,{const:""}]},media:arr(ref("SocialMedia"),32768),videoUrl:{...str,maxLength:2048},step:{...int,minimum:0,maximum:2},reached:{...int,minimum:0,maximum:2}};
 s.PostDraft=obj({id:uuid,version:rev,...values});

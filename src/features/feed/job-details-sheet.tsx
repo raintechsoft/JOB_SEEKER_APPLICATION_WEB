@@ -2,6 +2,7 @@
 
 import { InfoBadge } from "@/components/ui/info-badge";
 import { JobValueSummary } from "@/components/jobs/job-value-summary";
+import { JobNoticeDetails } from "@/components/jobs/job-notice-details";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -292,6 +293,7 @@ function JobDescription({ job, hideCompanyCopy }: { job: Job; hideCompanyCopy: b
         </section>
       )}
       <DescriptionBlock title="Benefits & perks">{job.benefits ?? ""}</DescriptionBlock>
+      <JobNoticeDetails notice={job.notice} />
       <DescriptionBlock title="Application instructions">{job.applicationInstructions ?? ""}</DescriptionBlock>
     </div>
   );
