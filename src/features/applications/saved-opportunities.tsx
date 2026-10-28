@@ -8,13 +8,16 @@ import { useFormAction } from "@/hooks/use-form-action";
 import { Button } from "@/components/ui/primitives";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
 import { useJobActions } from "@/features/feed/job-dialogs";
+import { useServiceQuery } from "@/hooks/use-services";
 import { postedAgo } from "@/lib/utils/date";
 import { toast } from "@/stores/toast-store";
 import { track } from "@/lib/analytics";
 import { modal } from "@/stores/modal-store";
 
-export function SavedOpportunities({ items, onApplication, view = "active" }: { items: SavedJobRecord[]; onApplication: (id: string) => void; view?: "active" | "archived" }) {
+export function SavedOpportunities({ items, view = "active" }: { items: SavedJobRecord[]; view?: "active" | "archived" }) {
   const jobs = useJobActions();
+  const applications = useServiceQuery(["applications", "saved-applied"], (s) => s.applications.listApplications({ q: "", status: "" }));
+  const appliedIds = new Set((applications.data ?? []).map((row) => row.job));
   const [selected, setSelected] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string,string>>({});
   const { execute, pending } = useFormAction(setErrors);
@@ -49,7 +52,7 @@ export function SavedOpportunities({ items, onApplication, view = "active" }: { 
       </tr></thead>
       <tbody>{items.map(item => {
         const age = item.postedAt && Number.isFinite(Date.parse(item.postedAt)) ? postedAgo(item.postedAt) : null;
-        const application = item.application;
+        const applied = Boolean(item.application) || appliedIds.has(item.id);
         const closed = item.acceptingApplications === false;
         return <tr key={item.id} data-saved-job={item.id} data-selected={selected.includes(item.id)}>
           <td className="saved-opportunity-select"><input type="checkbox" aria-label={`Select ${item.title}`} checked={selected.includes(item.id)} disabled={pending} onChange={() => {
@@ -64,7 +67,11 @@ export function SavedOpportunities({ items, onApplication, view = "active" }: { 
               {age && <time dateTime={item.postedAt!}>{age === "Just posted" ? age : `Posted ${age}`}</time>}
             </div>
           </div></td>
-          <td className="saved-opportunity-action"><Button unstyled className="saved-opportunity-apply" icon={application ? "file" : "arrowUp"} disabled={!application && closed} aria-label={application ? `View application for ${item.title}` : closed ? `${item.title} is closed` : `Apply for ${item.title}`} onClick={() => application ? onApplication(application.id) : jobs.apply(item.id)}>{application ? "View application" : closed ? "Closed" : "Apply"}</Button></td>
+          <td className="saved-opportunity-action">{applied ? (
+            <span className="saved-opportunity-applied">Applied</span>
+          ) : (
+            <Button unstyled className="saved-opportunity-apply" icon="arrowUp" disabled={closed} aria-label={closed ? `${item.title} is closed` : `Apply for ${item.title}`} onClick={() => jobs.apply(item.id)}>{closed ? "Closed" : "Apply"}</Button>
+          )}</td>
         </tr>;
       })}</tbody>
     </table>

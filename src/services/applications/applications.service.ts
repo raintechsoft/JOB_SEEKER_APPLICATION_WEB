@@ -59,7 +59,8 @@ export interface ApplicationsService {
   archiveSavedJobs(ids: Id[], action: SavedJobAction): Promise<void>;
   listAlerts(query: { q: string }): Promise<AlertRecord[]>;
   getApplication(id: Id): Promise<ApplicationRecord | null>;
-  updateTracking(id: Id, input: { status: TrackingStatus; followUp: IsoDate | ""; trackingNote: string; version?:number }): Promise<void>;
+  updateTracking(id: Id, input: { followUp: IsoDate | ""; trackingNote: string; version?:number }): Promise<void>;
+  withdraw(id: Id, version?:number): Promise<void>;
   remove(id: Id): Promise<void>;
 }
 

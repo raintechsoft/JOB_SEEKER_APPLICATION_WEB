@@ -3,6 +3,7 @@
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import Link from "next/link";
+import { useEffect, useId, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Discipline, Visibility } from "@/types/domain";
 import { track } from "@/lib/analytics";
@@ -10,13 +11,65 @@ import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Button, EmptyState, LinkButton, PageHeading } from "@/components/ui/primitives";
-import { FloatingInput, SelectField } from "@/components/ui/field";
+import { FloatingInput } from "@/components/ui/field";
 import { ProjectCard } from "@/components/work/project-card";
 import { PulseCard, UpdateItem } from "@/components/work/pulse";
 import { useProjectDialogs, useUpdateDialogs } from "./dialogs";
 
 const CATEGORIES: Discipline[] = ["Design", "Engineering", "Data", "Business"];
 const CATEGORY_ICONS: Record<string, IconName> = { "": "folder", Design: "edit", Engineering: "monitor", Data: "grid", Business: "briefcase" };
+const VISIBILITY_OPTIONS = [
+  { value: "", label: "All visibility" },
+  { value: "Public", label: "Public" },
+  { value: "Private", label: "Private" },
+] as const;
+
+function VisibilityDropdown({ value }: { value: string }) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(value);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const id = useId();
+  const label = VISIBILITY_OPTIONS.find((option) => option.value === selected)?.label ?? "All visibility";
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setOpen(false); trigger.current?.focus(); } };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
+  }, [open]);
+  return (
+    <div className="application-stage-dropdown" ref={root} onBlur={(event) => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+      <input type="hidden" name="visibility" value={selected} />
+      <button ref={trigger} type="button" className="application-filter-pill" aria-label="Visibility filter" data-active={!!selected} aria-expanded={open} aria-controls={open ? id : undefined} aria-haspopup="listbox" onClick={() => setOpen((current) => !current)}>
+        {label}
+        <Icon name="chevron" />
+      </button>
+      {open && (
+        <fieldset id={id} className="application-stage-options">
+          <legend className="sr-only">Visibility</legend>
+          <p>Select visibility</p>
+          {VISIBILITY_OPTIONS.map((option) => (
+            <label
+              key={option.label}
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                setSelected(option.value);
+                setOpen(false);
+                trigger.current?.focus();
+              }}
+            >
+              <span>{option.label}</span>
+              <input type="radio" name={id} value={option.value} checked={selected === option.value} onChange={() => { setSelected(option.value); setOpen(false); trigger.current?.focus(); }} />
+            </label>
+          ))}
+        </fieldset>
+      )}
+    </div>
+  );
+}
 
 export function ProjectsScreen() {
   const params = useSearchParams();
@@ -40,7 +93,7 @@ export function ProjectsScreen() {
     <div className="projects-workspace">
       <PageHeading
         title="Projects"
-        subtitle="A home for the projects that show what you can do."
+        subtitle=""
         actions={
           <Button variant="primary" icon="plus" onClick={dialogs.create}>
             Add project
@@ -89,9 +142,9 @@ export function ProjectsScreen() {
             <input type="hidden" name="category" value={category} />
             <label className="projects-search">
               <Icon name="search" />
-              <FloatingInput label="Search your projects" type="search" name="q" maxLength={200} defaultValue={q} placeholder="Search projects or skills..." aria-label="Search your projects" />
+              <FloatingInput compact label="Search your projects" type="search" name="q" maxLength={200} defaultValue={q} placeholder="Search projects or skills..." aria-label="Search your projects" />
             </label>
-            <SelectField label="Visibility" name="visibility" defaultValue={visibility} options={[{ value: "", label: "All visibility" }, "Public", "Private"]} />
+            <VisibilityDropdown value={visibility} />
             <button type="submit" className="btn sm search-button">
               <Icon name="search" />
               Search

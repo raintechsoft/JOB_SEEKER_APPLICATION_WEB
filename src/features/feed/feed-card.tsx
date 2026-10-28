@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Id, Role } from "@/types/domain";
 import type { PersonSummary } from "@/types/api";
@@ -19,7 +19,7 @@ import { useUiStore } from "@/stores/ui-store";
 import { FeedActionIcon, Icon } from "@/components/ui/icon";
 import { Avatar, Badge, Button, IconButton, LinkButton, Tags } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
-import { FloatingInput } from "@/components/ui/field";
+import { FloatingInput, FloatingTextArea } from "@/components/ui/field";
 import { useShareSheet } from "./share-sheet";
 import { CompanyAvatar, JobArtwork, JobMediaExtras } from "@/components/jobs/job-visuals";
 import { FeedArtwork } from "@/components/feed/feed-artwork";
@@ -32,6 +32,8 @@ import { apiConfig } from "@/services/api/config";
 import { useFeedInteraction } from "./use-feed-interaction";
 import { INITIAL_VISIBLE_REPLIES, nextReplyReveal } from "./reply-reveal";
 import { CommentMenu } from "./comment-menu";
+import { LinkifiedText, LinkPreviewCard } from "@/components/feed/link-preview-card";
+import { linkSafeCut } from "@/lib/validation/link-preview";
 
 const JOB_HEADLINES: Record<string, [string, string]> = {
   northstar: ["Design", "what’s next."],
@@ -89,39 +91,74 @@ function CommentComposer({ entryId, role, identity, parentId, fieldId, placehold
   );
 }
 
-function CommentThread({ comment, replies, entry, role, identity }: { comment: FeedComment; replies: FeedComment[]; entry: FeedEntry; role: Role; identity?: PersonSummary }) {
+function CommentEditor({ entry, comment, onCancel }: { entry: FeedEntry; comment: FeedComment; onCancel: () => void }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { execute, pending } = useFormAction(setErrors);
+  return (
+    <form
+      className="feed-comment-edit"
+      noValidate
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const parsed = commentSchema.safeParse(String(new FormData(e.currentTarget).get("text") || "").trim());
+        if (!parsed.success) { setErrors({ text: parsed.error.issues[0].message }); return; }
+        if (!(await execute((s) => s.feed.editComment(entry.id, comment.id, parsed.data, comment.version), { invalidate: ["feed", "feed-entry", "feed-comments", "activity"] }))) return;
+        toast("Changes saved.");
+        onCancel();
+      }}
+    >
+      <FloatingTextArea label="Edit comment" name="text" defaultValue={comment.text} required maxLength={1000} disabled={pending} autoFocus rows={3} />
+      {errors.text && <p className="error" role="alert">{errors.text}</p>}
+      {errors._form && <p className="error" role="alert">{errors._form}</p>}
+      <div className="feed-comment-edit-actions">
+        <Button type="button" onClick={onCancel} disabled={pending}>Cancel</Button>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending}>Save</Button>
+      </div>
+    </form>
+  );
+}
+
+function CommentThread({ comment, replies, entry, role, identity, focusIds }: { comment: FeedComment; replies: FeedComment[]; entry: FeedEntry; role: Role; identity?: PersonSummary; focusIds: string[] }) {
   const [replying, setReplying] = useState(false);
+  const editingId = useUiStore((s) => s.feed.editingComment);
+  const setFeed = useUiStore((s) => s.setFeed);
+  const editing = editingId === comment.id;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_REPLIES);
   const href = personHref(role, comment.author);
   const headline = comment.author.headline?.trim();
   const isAuthor = comment.author.id === entry.ownerId || comment.author.id === entry.author?.id;
   const threadId = comment.parentId ?? comment.id;
   const avatar = href ? <Link href={href}><Avatar person={comment.author} /></Link> : <Avatar person={comment.author} />;
-  const focused = useSearchParams()?.get("comment");
-  const shown = Math.min(Math.max(visibleCount, replies.findIndex(reply => reply.id === focused) + 1), replies.length);
+  const focusIndex = Math.max(-1, ...replies.map((reply, i) => (focusIds.includes(reply.id) ? i : -1)));
+  const shown = Math.min(Math.max(visibleCount, focusIndex + 1), replies.length);
   const hidden = replies.length - shown;
   const repliesId = "comment-replies-" + comment.id;
+  const highlighted = focusIds.includes(comment.id);
   return (
-    <article id={"comment-" + comment.id} className={"feed-comment" + (comment.parentId ? " is-reply" : "")}>
+    <article id={"comment-" + comment.id} className={"feed-comment" + (comment.parentId ? " is-reply" : "") + (highlighted ? " is-highlighted" : "")} aria-current={highlighted ? "true" : undefined}>
       {avatar}
       <div className="feed-comment-main">
         <div className="feed-comment-head">
-          <strong>
-            {href ? <Link href={href}>{comment.author.name}</Link> : comment.author.name}
-            {isAuthor && <span className="feed-comment-author-badge">Author</span>}
-          </strong>
-          <div className="feed-comment-meta"><time dateTime={comment.createdAt}>{timeAgo(comment.createdAt) + devCopy(" · Demo comment", "")}</time><CommentMenu role={role} entry={entry} comment={comment} /></div>
+          <div className="feed-comment-identity">
+            <strong>
+              {href ? <Link href={href}>{comment.author.name}</Link> : comment.author.name}
+              {isAuthor && <span className="feed-comment-author-badge">Author</span>}
+            </strong>
+            {headline ? <p className="feed-comment-byline" title={headline}>{headline}</p> : null}
+          </div>
+          <div className="feed-comment-meta"><time dateTime={comment.createdAt}>{timeAgo(comment.createdAt) + devCopy(" · Demo comment", "")}</time><CommentMenu role={role} entry={entry} comment={comment} onEdit={comment.own ? () => { setFeed({ editingComment: comment.id }); setReplying(false); } : undefined} /></div>
         </div>
-        {headline ? <p className="feed-comment-byline" title={headline}>{headline}</p> : null}
         {comment.pinned && <span className="feed-comment-pinned"><Icon name="pin" /> Pinned by author</span>}
-        <p className="feed-comment-text">{comment.text}</p>
+        {editing ? <CommentEditor entry={entry} comment={comment} onCancel={() => setFeed({ editingComment: null })} /> : <p className="feed-comment-text">{comment.text}</p>}
+        {!editing && (
         <div className="feed-comment-actions">
           <button type="button" onClick={() => setReplying((open) => !open)} aria-expanded={replying}>
             <Icon name="message" />
             Reply
           </button>
         </div>
-        {replying && (
+        )}
+        {replying && !editing && (
           <CommentComposer
             entryId={entry.id}
             role={role}
@@ -139,7 +176,7 @@ function CommentThread({ comment, replies, entry, role, identity }: { comment: F
           <>
             <div className="feed-comment-replies" id={repliesId}>
               {replies.slice(0, shown).map((reply) => (
-                <CommentThread key={reply.id} comment={reply} replies={[]} entry={entry} role={role} identity={identity} />
+                <CommentThread key={reply.id} comment={reply} replies={[]} entry={entry} role={role} identity={identity} focusIds={focusIds} />
               ))}
             </div>
             {hidden > 0 && (
@@ -167,8 +204,10 @@ function CommentThread({ comment, replies, entry, role, identity }: { comment: F
   );
 }
 
-export function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
-  const focus = useSearchParams()?.get("comment") ?? undefined;
+export function Comments({ entry, role, focusIds = [] }: { entry: FeedEntry; role: Role; focusIds?: string[] }) {
+  const permalink = useSearchParams()?.get("comment") ?? undefined;
+  const ids = focusIds.length ? focusIds : permalink ? [permalink] : [];
+  const focus = ids[0];
   const [commentLimit, setCommentLimit] = useState(50);
   const page = useServiceQuery(["feed-comments", role, entry.id, commentLimit, focus], (s) => s.feed.getComments!(role, entry.id, commentLimit, focus), { enabled: apiConfig.dataSource === "http", keepPreviousData: false });
   const comments = useMemo(() => page.isError ? [] : page.data?.items ?? entry.comments, [page.isError, page.data, entry.comments]);
@@ -185,7 +224,7 @@ export function Comments({ entry, role }: { entry: FeedEntry; role: Role }) {
     <section className="feed-comments" aria-label="Comments">
       <div className="feed-comment-list">
         {roots.map((comment) => (
-          <CommentThread key={comment.id} comment={comment} replies={repliesFor(comment.id)} entry={entry} role={role} identity={identity} />
+          <CommentThread key={comment.id} comment={comment} replies={repliesFor(comment.id)} entry={entry} role={role} identity={identity} focusIds={ids} />
         ))}
       </div>
       {page.isError && <p role="alert">Comments could not be loaded. <Button onClick={() => void page.refetch()}>Try again</Button></p>}
@@ -250,16 +289,23 @@ export interface FeedCardProps {
   surface?: string;
   position?: number;
   highlighted?: boolean;
+  /** Open the comment thread and highlight these comments (activity, permalinks). */
+  focusComments?: Id[];
   /** Live previews (post editor) do not report impressions. */
   noTracking?: boolean;
+  localPreview?: boolean;
 }
 
 /** One feed item: post, work update or job (prototype `feedCard`). */
-export function FeedCard({ entry, role, surface = "feed", position = 0, highlighted = false, noTracking = false }: FeedCardProps) {
-  const focusedComment = useSearchParams()?.get("comment");
-  useEffect(() => {
-    if (highlighted && focusedComment && !useUiStore.getState().feed.openComments.includes(entry.id)) useUiStore.getState().toggleFeedList("openComments", entry.id);
-  }, [highlighted, focusedComment, entry.id]);
+export function FeedCard({ entry, role, surface = "feed", position = 0, highlighted = false, focusComments, noTracking = false, localPreview = false }: FeedCardProps) {
+  const permalinkComment = useSearchParams()?.get("comment");
+  const highlightIds = useMemo(() => focusComments?.length ? focusComments : permalinkComment && highlighted ? [permalinkComment] : [], [focusComments, permalinkComment, highlighted]);
+  const autoOpened = useRef(false);
+  useLayoutEffect(() => {
+    if (!highlightIds.length || autoOpened.current) return;
+    autoOpened.current = true;
+    if (!useUiStore.getState().feed.openComments.includes(entry.id)) useUiStore.getState().toggleFeedList("openComments", entry.id);
+  }, [highlightIds, entry.id]);
   const run = useServiceAction();
   const projects = useProjectDialogs();
   const jobs = useJobActions();
@@ -275,7 +321,8 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
   const open = openComments.includes(entry.id);
   const isExpanded = expanded.includes(entry.id);
   const long = entry.body?.length > 420 && !isExpanded;
-  const text = long ? entry.body.slice(0, 420) : entry.body;
+  // A truncated body never splits a URL into a broken link.
+  const text = long ? entry.body.slice(0, linkSafeCut(entry.body, 420)) : entry.body;
   const likes = entry.likes + Number(like.enabled);
   const commentCount = entry.commentCount;
   const canRepost = entry.viewer.canRepost ?? (!job && (entry.viewer.own || entry.visibility !== "Private"));
@@ -366,7 +413,7 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
         {!job && entry.title.trim() ? <h3>{entry.title}</h3> : null}
         {text ? (
           <p>
-            {text}
+            {job ? text : <LinkifiedText text={text} />}
             {long && (
               <>
                 …{" "}
@@ -435,7 +482,10 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
           </div>
         </>
       ) : (
-        <FeedArtwork entry={entry} onViewProject={(id) => projects.view(id)} />
+        <>
+          {entry.linkPreview && <LinkPreviewCard preview={entry.linkPreview} />}
+          <FeedArtwork entry={entry} onViewProject={(id) => projects.view(id)} localPreview={localPreview} />
+        </>
       )}
       {linked && !job && (
         <button type="button" className="feed-linked-project" onClick={() => projects.view(linked.id)}>
@@ -479,7 +529,7 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
         </button>
         {repostUnavailable && <span id={repostReasonId} className="sr-only">{repostUnavailableReason}</span>}
       </div>
-      {open && <Comments entry={entry} role={role} />}
+      {open && <Comments entry={entry} role={role} focusIds={highlightIds} />}
     </article>
   );
 }

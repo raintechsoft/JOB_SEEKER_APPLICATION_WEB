@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { GlobalShortcuts } from "@/components/layout/global-shortcuts";
 import { apiConfig } from "@/services/api/config";
 import { RecoveryNavigation } from "@/features/auth/recovery-navigation";
+import { UploadTray } from "@/features/workspace/upload-tray";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [services] = useState(createServices);
@@ -33,6 +34,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <GlobalShortcuts />
         <ModalHost />
         <Toaster />
+        <UploadTray />
       </QueryClientProvider>
     </ServicesContext.Provider>
   );

@@ -1,3 +1,4 @@
+import { MediaVideo } from "@/components/ui/media-video";
 import { MediaImage } from "@/components/ui/media-image";
 import type { CompanySummary } from "@/types/api";
 import type { JobMedia, JobThumbnail } from "@/types/domain";
@@ -74,10 +75,10 @@ export function JobMediaExtras({ job }: { job: JobVisualData }) {
   if (!video && !files.length) return null;
   return (
     <div className="job-media-extras">
-      {video && <video className="job-media-video" src={video} controls playsInline preload="metadata" aria-label={"Video about " + job.title} />}
+      {video && <MediaVideo className="job-media-video" src={video} controls playsInline preload="metadata" aria-label={"Video about " + job.title} />}
       {files.map((f) =>
         f.type?.startsWith("video/") ? (
-          <video key={f.id} className="job-media-video" src={f.data} controls playsInline preload="metadata" aria-label={f.name} />
+          <MediaVideo key={f.id} className="job-media-video" src={f.data} controls playsInline preload="metadata" aria-label={f.name} />
         ) : (
           <a key={f.id} className="job-media-file" href={f.data} download={f.name}>
             <Icon name={f.type?.startsWith("image/") ? "image" : "file"} />

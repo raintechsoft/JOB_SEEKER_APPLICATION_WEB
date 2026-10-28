@@ -7,6 +7,7 @@ import type { FeedEntry, FeedService } from "./feed.service";
 import type { ActivityData, ActivityService } from "../activity/activity.service";
 import { commentSchema, peopleSearchSchema, postDraftValuesSchema, postPublishSchema, postTextSchema, socialFeedSchema, socialRoleSchema } from "@/lib/validation/social";
 import { reportSchema } from "@/lib/validation/communication";
+import { linkPreviewRequestSchema, linkPreviewSchema, previewUrlInBody } from "@/lib/validation/link-preview";
 import { communicationPath } from "../messaging/messaging.http";
 
 type Page = components["schemas"]["SocialFeedPage"];
@@ -120,7 +121,18 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
       const result = (await http.post<{ data: { id: string } }>(`${path}/posts`, { ...values, creationKey, ...(input.draftId ? { draftId: input.draftId, draftVersion: lease!.version } : {}) })).data;
       attempts.delete(signature); return result;
     },
-    async updatePost(role, id, input) { socialRoleSchema.parse(role); z.uuid().parse(id); const values = postTextSchema.parse(input), version = rev(input.version ?? postVersions.get(id)); await http.patch(`${await base(role)}/posts/${id}`, { ...values, version }); return true; },
+    async updatePost(role, id, input) {
+      socialRoleSchema.parse(role); z.uuid().parse(id); const values = postTextSchema.parse(input), version = rev(input.version ?? postVersions.get(id));
+      if (input.previewUrl !== undefined && !previewUrlInBody(z.string().parse(input.previewUrl), values.body)) throw new Error("The previewed link must appear in your story.");
+      await http.patch(`${await base(role)}/posts/${id}`, { ...values, version, ...(input.previewUrl !== undefined ? { previewUrl: input.previewUrl } : {}) }); return true;
+    },
+    async getLinkPreview(role, url, signal) {
+      socialRoleSchema.parse(role); const value = linkPreviewRequestSchema.parse(url);
+      const data = (await http.post<{ data: unknown }>(`${await base(role)}/link-previews`, { url: value }, { signal })).data;
+      // Metadata is untrusted remote content: anything outside the contract is treated as no preview.
+      const parsed = data === null ? null : linkPreviewSchema.safeParse(data);
+      return parsed?.success ? parsed.data : null;
+    },
     async deletePost(role, id, version) { socialRoleSchema.parse(role); z.uuid().parse(id); const revision = rev(version ?? postVersions.get(id)); await http.delete(`${await base(role)}/posts/${id}`, { version: revision }); },
   };
   async function activity(role: Role) {

@@ -1,17 +1,17 @@
 {
   "fields": {
-    "name": "text:200!",
+    "name": "text:150!",
     "slug": "slug!",
-    "tagline": "text:200",
+    "tagline": "text:150",
     "industry": "text:100!",
-    "organizationType": "text:100",
-    "companySize": "text:100",
+    "organizationType": "enum:Privately held|Public company|Nonprofit|Government|Partnership|Self-employed|Other",
+    "companySize": "enum:1–10 employees|11–50 employees|51–200 employees|201–500 employees|501–1,000 employees|1,001–5,000 employees|5,001+ employees",
     "foundingYear": "year",
     "headquartersCountry": "text:100",
     "headquartersCity": "text:100",
     "websiteUrl": "url",
     "description": "text:2500",
-    "overview": "text:2500",
+    "overview": "text:5000",
     "mission": "text:2500",
     "vision": "text:2500",
     "productsAndServices": "text:2500",
@@ -19,7 +19,7 @@
     "candidateExpectations": "text:2500",
     "workEnvironment": "text:2500",
     "cultureHighlights": "text:2500",
-    "hiringStatus": "text:100",
+    "hiringStatus": "enum:Actively hiring|Open to future talent|Not currently hiring",
     "careersUrl": "url",
     "applicationContact": "email",
     "publicContactEmail": "email",
@@ -44,19 +44,20 @@
     "weeklyDigest"
   ],
   "recruiter": {
-    "fullName": "text:200!",
-    "jobTitle": "text:200",
+    "fullName": "text:100!",
+    "jobTitle": "text:100!",
     "professionalBio": "text:2500",
     "workEmail": "email!",
+    "privateMobile": "phone",
     "profileVisibility": "enum:Public|Hidden",
-    "communicationPreference": "text:200"
+    "communicationPreference": "text:100"
   },
   "verification": {
-    "registrationName": "text:200",
-    "registrationNumber": "text:200",
-    "jurisdiction": "text:200",
-    "representative": "text:200",
-    "representativeTitle": "text:200",
+    "registrationName": "text:150",
+    "registrationNumber": "text:150",
+    "jurisdiction": "text:150",
+    "representative": "text:150",
+    "representativeTitle": "text:150",
     "businessEmail": "email",
     "website": "url"
   }

@@ -1,3 +1,7 @@
+.feed-comment-head { align-items: flex-start; }
+.feed-comment-identity { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 0; }
+.feed-comment-head strong { line-height: 1.2; }
+.feed-comment-byline { margin-top: 0; line-height: 1.2; max-width: 100%; }
 .feed-comment-head .feed-comment-meta { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 0; }
 .feed-comment-menu { flex-shrink: 0; position: relative; }
 .feed-post:has(.feed-comment-menu[open]) { overflow: visible; position: relative; z-index: 6; }
@@ -9,4 +13,8 @@ body.professional-theme .feed-comment-menu[data-side="up"] .activity-post-menu-i
 .feed-comment-menu .activity-post-menu-items .button-label { overflow-wrap: anywhere; }
 .feed-comment-pinned { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--accent); margin: 3px 0 6px; }
 .feed-comment-pinned .icon { width: 13px; height: 13px; }
-.feed-comment:target { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 6px; scroll-margin-top: 140px; }
+.feed-comment:target,
+.feed-comment.is-highlighted { outline: none; background: #EAF0FF; border-radius: 8px; padding: 8px 10px; margin: 0 -10px; scroll-margin-top: 140px; }
+.feed-comment-edit { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.feed-comment-edit .floating-field { width: 100%; }
+.feed-comment-edit-actions { display: flex; justify-content: flex-end; gap: 8px; }

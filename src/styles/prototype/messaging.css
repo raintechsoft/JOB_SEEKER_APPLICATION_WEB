@@ -111,9 +111,19 @@ body.messaging-page .direct-message-head p {font-size:12px;line-height:1.5;}
 .message-options>summary:focus-visible {outline:2px solid #315EF4;outline-offset:2px;}
 .message-options>summary>.icon {width:19px;height:19px;}
 .message-options-list {position:absolute;top:41px;right:0;z-index:30;min-width:220px;max-height:min(340px,calc(100dvh - 270px));overflow-y:auto;background:#fff;padding:6px;border:1px solid #E4E9EF;border-radius:9px;box-shadow:0 8px 24px #202a3626;}
-body.professional-theme .message-options-list>.btn {display:flex;justify-content:flex-start;width:100%;padding:10px 12px;min-height:38px;font-size:14px;color:#202A36;border:0;border-radius:5px;gap:10px;}
-body.professional-theme .message-options-list>.btn:hover {background:#F0F4FA;}
-body.professional-theme .message-options-list>.btn:last-child {color:#D92D20;border-top:1px solid #E4E9EF;border-radius:0;margin-top:4px;}
+body.professional-theme .message-options-list>.btn.text {display:flex;justify-content:flex-start;width:100%;padding:10px 12px;min-height:38px;font-size:14px;font-weight:400;color:#626B76;border:0;border-radius:5px;gap:10px;}
+body.professional-theme .message-options-list>.btn.text .icon,
+body.professional-theme .message-options-list>.btn.text .button-label {color:#626B76;font-weight:400;}
+body.professional-theme .message-options-list>.btn.text:hover {background:#F0F4FA;color:#202A36;}
+body.professional-theme .message-options-list>.btn.text:hover .icon,
+body.professional-theme .message-options-list>.btn.text:hover .button-label {color:#202A36;}
+body.professional-theme .message-options-list>.btn.text:last-child {border-top:1px solid #E4E9EF;border-radius:0;margin-top:4px;}
+body.professional-theme .message-options-list>.btn.text:last-child,
+body.professional-theme .message-options-list>.btn.text:last-child .icon,
+body.professional-theme .message-options-list>.btn.text:last-child .button-label {color:#D92D20;}
+body.professional-theme .message-options-list>.btn.text:last-child:hover,
+body.professional-theme .message-options-list>.btn.text:last-child:hover .icon,
+body.professional-theme .message-options-list>.btn.text:last-child:hover .button-label {color:#B42318;}
 body.professional-theme .message-options-list .icon {width:16px;height:16px;}
 body.messaging-page .message-entry {width:fit-content;max-width:88%;margin-bottom:20px;}
 body.messaging-page .message-entry-body {padding:11px 14px;border-radius:0 10px 10px 10px;background:#F6F8FA;}

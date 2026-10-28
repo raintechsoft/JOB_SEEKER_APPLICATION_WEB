@@ -33,7 +33,7 @@ function InviteMemberForm({ organization }: { organization: string }) {
     <h2>Invite a team member</h2>
     <TextField label="Work email" type="email" required {...props("email")} />
     <AuthError name="email" message={errors.email?.message} />
-    <SelectField label="Invitation role" options={roleOptions} {...register("role")} error={errors.role?.message} />
+    <SelectField required label="Invitation role" options={roleOptions} {...register("role")} error={errors.role?.message} />
     <AuthError name="invite-root" message={errors.root?.message} />
     <Button type="submit" variant="primary" loading={isSubmitting} loadingLabel="Sending invitation">Invite member</Button>
     {sent && <p role="status">Invitation queued for delivery.</p>}
@@ -50,8 +50,8 @@ function MemberAccessForm({ organization, member }: { organization: string; memb
     setSaved(true); await cache.invalidateQueries({ queryKey: ["auth"] });
   })}>
     <h3>{member.name}</h3><p>{member.email}</p>
-    <SelectField label={`Role for ${member.name}`} options={roleOptions} {...register("role")} error={errors.role?.message} />
-    <SelectField label={`Status for ${member.name}`} options={[{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }]} {...register("status")} error={errors.status?.message} />
+    <SelectField required label={`Role for ${member.name}`} options={roleOptions} {...register("role")} error={errors.role?.message} />
+    <SelectField required label={`Status for ${member.name}`} options={[{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }]} {...register("status")} error={errors.status?.message} />
     <AuthError name={`member-root-${member.id}`} message={errors.root?.message} />
     <Button type="submit" loading={isSubmitting} loadingLabel="Saving access">Save access</Button>
     {saved && <p role="status">Access updated.</p>}

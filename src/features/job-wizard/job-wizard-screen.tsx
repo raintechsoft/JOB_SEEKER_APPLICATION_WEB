@@ -109,7 +109,7 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
         <TextField label="Minimum experience (years)" name="experienceMin" type="number" defaultValue={String(values.experienceMin)} required min={0} max={50} step={1} />
         <TextField label="Maximum experience (years)" name="experienceMax" type="number" defaultValue={String(values.experienceMax)} required min={0} max={50} step={1} />
       </div>
-      <SelectField label="Salary currency" name="currency" value={currency} onChange={(e) => setCurrency(e.target.value as JobWizardValues["currency"])} options={["INR", "USD", "EUR", "GBP"]} />
+      <SelectField required label="Salary currency" name="currency" value={currency} onChange={(e) => setCurrency(e.target.value as JobWizardValues["currency"])} options={["INR", "USD", "EUR", "GBP"]} />
       <div className="grid cols2">
         <TextField label="Minimum annual salary" name="salaryMin" type="number" defaultValue={values.salaryMin} required min={0} step={0.1} />
         <TextField label="Maximum annual salary" name="salaryMax" type="number" defaultValue={values.salaryMax} required min={0} step={0.1} />
@@ -124,17 +124,17 @@ function AiForm({ values, replace, onGenerate }: { values: JobWizardValues; repl
         </summary>
         <div className="job-ai-options-fields">
           <div className="grid cols2">
-            <SelectField label="Work mode" name="arrangement" defaultValue={values.arrangement} options={["On-site", "Hybrid", "Remote"]} />
-            <SelectField label="Employment type" name="employment" defaultValue={values.employment} options={["Full-time", "Part-time", "Contract", "Internship"]} />
+            <SelectField required label="Work mode" name="arrangement" defaultValue={values.arrangement} options={["On-site", "Hybrid", "Remote"]} />
+            <SelectField required label="Employment type" name="employment" defaultValue={values.employment} options={["Full-time", "Part-time", "Contract", "Internship"]} />
           </div>
-          <TextField label="Key skills (optional, comma separated)" name="skills" maxLength={400} />
+          <TextField label="Key skills (comma separated)" name="skills" maxLength={400} />
         </div>
       </details>
       <p className="small muted">Your role, experience, and salary limits are kept exactly as entered. Location and work mode are used in the draft. You can edit or remove every suggestion.</p>
       {replace && (
         <label className="wizard-check">
           <input type="checkbox" name="replace" required />
-          Replace this draft’s job text, skills, and screening questions. Keep existing media and posting settings.
+          Replace this draft’s job text, skills, and screening questions. Keep existing media and posting settings. <span aria-hidden="true">*</span>
         </label>
       )}
       <div id="job-ai-error" role="alert">
@@ -155,6 +155,8 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
   const cache=useQueryClient();
   const router = useRouter();
   const [d, setD] = useState<JobDraft>(ctx.draft);
+  const latestDraft = useRef(d);
+  useEffect(() => { latestDraft.current = d; }, [d]);
   const [errors, setErrors] = useState<Errors>({});
   const { execute, pending } = useFormAction(setErrors);
   const [uploadBusy, setUploadBusy] = useState(false);
@@ -189,7 +191,9 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
   };
   /** Updates values; any edit invalidates a generated draft's verification, as in the prototype. */
   const set = (patch: Partial<JobWizardValues>, opts: { debounce?: boolean; keepVerification?: boolean } = {}) => {
-    const next = { ...d, values: { ...d.values, ...patch, ...(d.generated && !opts.keepVerification && !("aiVerified" in patch) ? { aiVerified: false } : {}) } };
+    const current = latestDraft.current;
+    const next = { ...current, values: { ...current.values, ...patch, ...(current.generated && !opts.keepVerification && !("aiVerified" in patch) ? { aiVerified: false } : {}) } };
+    latestDraft.current = next;
     setD(next);
     setSavedNote("Saving your changes…");
     if (timer.current) clearTimeout(timer.current);
@@ -233,17 +237,18 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
     const invalid = validateJobFiles(files, v.jobMedia.files, thumbnail);
     if (invalid) return toast(invalid);
     const allowed = thumbnail ? IMAGE_TYPES : [...IMAGE_TYPES, "application/pdf", "video/mp4", "video/webm"];
-    if (files.some((f) => !allowed.includes(f.type) || f.size > MB)) return toast("Choose supported files up to 1 MB each.");
-    if (!thumbnail && (v.jobMedia.files.length + files.length > 3 || v.jobMedia.files.reduce((n, f) => n + f.size, 0) + files.reduce((n, f) => n + f.size, 0) > 1.5 * MB)) return toast("Use up to three supporting files, totaling 1.5 MB or less.");
+    if (isPrototype && files.some((f) => !allowed.includes(f.type) || f.size > MB)) return toast("Choose supported files up to 1 MB each.");
+    if (isPrototype && !thumbnail && (v.jobMedia.files.length + files.length > 3 || v.jobMedia.files.reduce((n, f) => n + f.size, 0) + files.reduce((n, f) => n + f.size, 0) > 1.5 * MB)) return toast("Use up to three supporting files, totaling 1.5 MB or less.");
     setUploadBusy(true);
     try {
       const added = await Promise.all(files.map(async (f) => {
         if (isPrototype) return { id: uid(), name: f.name, type: f.type, size: f.size, data: await readAsDataUrl(f) };
-        const asset = await services.media.upload(f, thumbnail ? "job_thumbnail" : "job_attachment", ctx.companyId);
+        const asset = await services.media.upload(f, thumbnail ? "job_thumbnail" : "job_attachment", ctx.companyId, {manual:true});
         return { id: asset.id, name: f.name, type: f.type, size: f.size, data: asset.url };
       }));
-      if (thumbnail) set({ thumbnail: { ...v.thumbnail, image: added[0].data, alt: v.thumbnail.alt || v.title + " hiring announcement" } });
-      else set({ jobMedia: { ...v.jobMedia, files: [...v.jobMedia.files, ...added] } });
+      const current = latestDraft.current.values;
+      if (thumbnail) set({ thumbnail: { ...current.thumbnail, image: added[0].data, alt: current.thumbnail.alt || current.title + " hiring announcement" } });
+      else set({ jobMedia: { ...current.jobMedia, files: [...current.jobMedia.files, ...added] } });
     } catch {
       toast("That file could not be read. Please try again.");
     } finally {
@@ -430,7 +435,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
           </div>
           {err("experience")}
           <div className="wizard-salary-row">
-            {dropdown("Currency", "currency", ["INR", "USD", "EUR", "GBP"])}
+            {dropdown("Currency", "currency", ["INR", "USD", "EUR", "GBP"], { required: true })}
             {input(v.currency === "INR" ? "Minimum annual salary (LPA)" : "Minimum annual salary", "salaryMin", { type: "number", required: true, min: 0, step: 0.1 })}
             {input(v.currency === "INR" ? "Maximum annual salary (LPA)" : "Maximum annual salary", "salaryMax", { type: "number", required: true, min: 0, step: 0.1 })}
           </div>
@@ -438,13 +443,13 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
           <Button variant="text sm" icon={v.variableEnabled ? "close" : "plus"} onClick={() => set({ variableEnabled: !v.variableEnabled })}>
             {v.variableEnabled ? "Remove variable component" : "Add variable component"}
           </Button>
-          {v.variableEnabled && input("Variable component (%)", "variablePercent", { type: "number", min: 0, max: 100, step: 0.1 })}
+          {v.variableEnabled && input("Variable component (%)", "variablePercent", { type: "number", required: true, min: 0, max: 100, step: 0.1 })}
           {check("Hide salary details from candidates", "hideSalary")}
         </div>
         <div className="wizard-section">
           <h2>Where & how you’ll work</h2>
           <fieldset className="wizard-mode">
-            <legend>Work mode</legend>
+            <legend>Work mode <span aria-hidden="true">*</span></legend>
             {["On-site", "Hybrid", "Remote"].map((mode) => (
               <label key={mode}>
                 <input type="radio" name="arrangement" value={mode} checked={v.arrangement === mode} onChange={() => set({ arrangement: mode })} />
@@ -459,7 +464,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
           {err("locations")}
           {check("Include candidates ready to relocate to these locations", "relocate")}
           <div className="wizard-vacancies">
-            <h3>Number of vacancies</h3>
+            <h3>Number of vacancies <span aria-hidden="true">*</span></h3>
             <Button variant="sm" onClick={() => set({ vacancies: Math.max(1, Math.min(999, Number(v.vacancies || 1) - 1)) })}>
               −
             </Button>
@@ -479,19 +484,19 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
       return (
         <>
           <div className="wizard-section">
-            <h2>Skills that matter</h2>
+            <h2>Skills that matter <span aria-hidden="true">*</span></h2>
             <p className="wizard-help">Add skills, then use the star to mark the essentials. Add at least one skill.</p>
             {chips("skills", { stars: true, suggestions })}
             {err("skills")}
           </div>
           <div className="wizard-section">
-            <h2>Educational qualification</h2>
+            <h2>Educational qualification <span aria-hidden="true">*</span></h2>
             {chips("education", { suggestions: EDUCATION })}
             {err("education")}
           </div>
           <div className="wizard-section">
             <h2>
-              Preferred industries <span className="wizard-optional">Optional</span>
+              Preferred industries
             </h2>
             <p className="wizard-help">Add industries relevant to the role.</p>
             {chips("industries", { suggestions: ["Software & technology", "Retail", "Financial services", "Design services"] })}
@@ -505,7 +510,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
         {area("Job description", "description", { required: true, maxLength: 5000 })}
         {area("Responsibilities (one per line)", "responsibilities", { required: true, maxLength: 3000 })}
         {area("Requirements", "requirements", { required: true, maxLength: 3000 })}
-        {area("Benefits & perks (optional)", "benefits", { maxLength: 2000 })}
+        {area("Benefits & perks", "benefits", { maxLength: 2000 })}
         <p className="wizard-help">Describe the work clearly, include the essentials, and help candidates understand your team.</p>
       </div>
     ),
@@ -523,7 +528,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
                   <IconButton icon="trash" label={"Remove question " + (i + 1)} onClick={() => set({ questions: v.questions.filter((_, n) => n !== i) })} />
                 </div>
                 <TextField label="Question" name={"qtext-" + i} value={q.text} onChange={(e) => patch({ text: e.target.value })} required maxLength={240} />
-                <SelectField
+                <SelectField required
                   label="Answer format"
                   name={"qtype-" + i}
                   value={q.type}
@@ -538,7 +543,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
                   <input type="checkbox" checked={q.required} onChange={(e) => patch({ required: e.target.checked })} />
                   Answer is required
                 </label>
-                <TextField label="Ideal answer (optional, for recruiters only)" name={"qideal-" + i} value={q.ideal || ""} onChange={(e) => patch({ ideal: e.target.value })} maxLength={200} />
+                <TextField label="Ideal answer (for recruiters only)" name={"qideal-" + i} value={q.ideal || ""} onChange={(e) => patch({ ideal: e.target.value })} maxLength={200} />
               </section>
             );
           })
@@ -557,14 +562,14 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
       <div className="wizard-section">
         <h2>Posting preferences</h2>
         <div className="grid cols2">
-          {input("Closing date (optional)", "expiresAt", { type: "date", min: today() })}
-          {input("Reference code (optional)", "reference", { maxLength: 40 })}
+          {input("Closing date", "expiresAt", { type: "date", min: today() })}
+          {input("Reference code", "reference", { maxLength: 40 })}
           {input("Recruiter email", "contactEmail", { type: "email", required: true, maxLength: 150 })}
         </div>
         <p className="wizard-help">Recruiter contact details are kept out of the public feed.</p>
         {check("Require candidates to include their portfolio", "requirePortfolio")}
         {check(devCopy("Keep response notifications enabled in this demo", "Keep response notifications enabled"), "notifyResponses")}
-        {area("Application instructions (optional)", "applicationInstructions", { maxLength: 1500 })}
+        {area("Application instructions", "applicationInstructions", { maxLength: 1500 })}
         <DevOnly>
           <InfoBadge label="Publishing information">Applications and notification preferences are simulated in this browser. No emails are sent.</InfoBadge>
         </DevOnly>
@@ -612,8 +617,8 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               </Button>
             )}
           </div>
-          <p className="wizard-help">PNG, JPEG, or WebP, up to 1 MB. A landscape image works best.</p>
-          <TextField label="Thumbnail headline (optional)" name="thumbnailHeadline" value={v.thumbnail.headline} onChange={(e) => set({ thumbnail: { ...v.thumbnail, headline: e.target.value } }, { debounce: true })} maxLength={100} />
+          <p className="wizard-help">PNG, JPEG, or WebP. A landscape image works best.</p>
+          <TextField label="Thumbnail headline" name="thumbnailHeadline" value={v.thumbnail.headline} onChange={(e) => set({ thumbnail: { ...v.thumbnail, headline: e.target.value } }, { debounce: true })} maxLength={100} />
           <TextField label="Image description" name="imageAlt" value={v.thumbnail.alt} onChange={(e) => set({ thumbnail: { ...v.thumbnail, alt: e.target.value } }, { debounce: true })} required={!!v.thumbnail.image} maxLength={220} />
           <div className="wizard-media-preview" aria-label="Thumbnail preview">
             {v.thumbnail.template === "none" && !v.thumbnail.image ? <div className="wizard-empty-inline">No thumbnail selected.</div> : <JobArtwork job={visual(v)} />}
@@ -621,7 +626,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
         </div>
         <div className="wizard-section">
           <h2>
-            Supporting media <span className="wizard-optional">Optional</span>
+            Supporting media
           </h2>
           <TextField label="Video URL (direct MP4 or WebM)" name="video" type="url" value={v.jobMedia.video} onChange={(e) => set({ jobMedia: { ...v.jobMedia, video: e.target.value } }, { debounce: true })} placeholder="https://example.com/team.mp4" />
           {err("video")}
@@ -639,7 +644,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
               }}
             />
           </label>
-          <p className="wizard-help">Images, PDFs, MP4, or WebM. Up to three files, 1 MB per file and 1.5 MB in total.{devCopy(" Files stay in this browser.", "")}</p>
+          <p className="wizard-help">Images, PDFs, MP4, or WebM. Up to three files within your upload allowance.{devCopy(" Files stay in this browser.", "")}</p>
           <div className="wizard-supporting-files">
             {v.jobMedia.files.map((f, i) => (
               <div key={f.id}>
@@ -740,7 +745,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
             <section className="wizard-review-section">
               <div className="row between">
                 <h2>
-                  Screening questions <span className="wizard-optional">Optional</span>
+                  Screening questions
                 </h2>
                 <Button variant="text sm" icon="edit" onClick={() => move(3)}>
                   Edit questions
@@ -752,7 +757,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
                     <div key={q.id}>
                       <p>
                         {q.text}
-                        {q.required ? " (required)" : ""}
+                        {q.required && <span aria-hidden="true"> *</span>}
                       </p>
                       <IconButton icon="trash" label={"Remove question " + (i + 1)} onClick={() => set({ questions: v.questions.filter((_, n) => n !== i) })} />
                     </div>
@@ -793,7 +798,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
             {reviewSection("Media & thumbnail", 5, artwork)}
             <label className="wizard-check job-ai-verification">
               <input type="checkbox" name="aiVerified" required checked={!!v.aiVerified} onChange={(e) => set({ aiVerified: e.target.checked })} />
-              I’ve checked the job details and removed anything unnecessary.
+              I’ve checked the job details and removed anything unnecessary. <span aria-hidden="true">*</span>
             </label>
             <DevOnly>
               <InfoBadge label="Publishing information">This demo uses role-based templates rather than a connected AI service. Publishing saves the job in this browser’s demo feed.</InfoBadge>
@@ -823,7 +828,7 @@ function Wizard({ ctx }: { ctx: JobDraftContext }) {
 
   return (
     <div className="job-wizard-workspace">
-      {!!ctx.latestJobVersion&&d.jobVersion!==ctx.latestJobVersion&&<section className="card stack" style={{padding:24,marginBottom:24}}><h2>The current job changed</h2><p>Your private draft is retained. Compare it with the latest job before continuing. Keeping your entire draft does not publish it; publishing later replaces the current job details.</p><details><summary>Compare current job and your draft</summary><div style={{overflowX:"auto"}}><table><thead><tr><th>Field</th><th>Current job</th><th>Your draft</th></tr></thead><tbody>{(Object.keys(v) as (keyof JobWizardValues)[]).filter((key)=>key!=="aiVerified"&&JSON.stringify(v[key])!==JSON.stringify(ctx.latestJob?.wizardValues?.[key])).map((key)=><tr key={key}><th>{key.replace(/([A-Z])/g," $1")}</th><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,ctx.latestJob?.wizardValues??{})}</td><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,v)}</td></tr>)}</tbody></table></div></details><form onSubmit={async(e)=>{e.preventDefault();if(!new FormData(e.currentTarget).has("confirmed"))return setErrors({_form:"Confirm that you reviewed the comparison."});const invalid=jobErrors(v,"draft");if(Object.keys(invalid).length)return setErrors(invalid);if(timer.current)clearTimeout(timer.current);if(!await execute(async(s)=>{if(!s.jobPosts.rebaseJobDraft)throw new Error("Draft recovery is unavailable.");const next=await s.jobPosts.rebaseJobDraft(ctx.key,d,ctx.latestJobVersion!);setD(next);return store(next);},{invalidate:[]}))return;toast("Your private draft can be edited again. Review it before publishing.");}}><label className="check-row"><input name="confirmed" type="checkbox" required/>I compared the job and draft and will reconcile changes before publishing.</label><Button type="submit" loading={pending} disabled={pending} variant="primary">Keep my private draft</Button></form></section>}
+      {!!ctx.latestJobVersion&&d.jobVersion!==ctx.latestJobVersion&&<section className="card stack" style={{padding:24,marginBottom:24}}><h2>The current job changed</h2><p>Your private draft is retained. Compare it with the latest job before continuing. Keeping your entire draft does not publish it; publishing later replaces the current job details.</p><details><summary>Compare current job and your draft</summary><div style={{overflowX:"auto"}}><table><thead><tr><th>Field</th><th>Current job</th><th>Your draft</th></tr></thead><tbody>{(Object.keys(v) as (keyof JobWizardValues)[]).filter((key)=>key!=="aiVerified"&&JSON.stringify(v[key])!==JSON.stringify(ctx.latestJob?.wizardValues?.[key])).map((key)=><tr key={key}><th>{key.replace(/([A-Z])/g," $1")}</th><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,ctx.latestJob?.wizardValues??{})}</td><td style={{whiteSpace:"pre-wrap"}}>{compareValue(key,v)}</td></tr>)}</tbody></table></div></details><form onSubmit={async(e)=>{e.preventDefault();if(!new FormData(e.currentTarget).has("confirmed"))return setErrors({_form:"Confirm that you reviewed the comparison."});const invalid=jobErrors(v,"draft");if(Object.keys(invalid).length)return setErrors(invalid);if(timer.current)clearTimeout(timer.current);if(!await execute(async(s)=>{if(!s.jobPosts.rebaseJobDraft)throw new Error("Draft recovery is unavailable.");const next=await s.jobPosts.rebaseJobDraft(ctx.key,d,ctx.latestJobVersion!);setD(next);return store(next);},{invalidate:[]}))return;toast("Your private draft can be edited again. Review it before publishing.");}}><label className="check-row"><input name="confirmed" type="checkbox" required/>I compared the job and draft and will reconcile changes before publishing. <span aria-hidden="true">*</span></label><Button type="submit" loading={pending} disabled={pending} variant="primary">Keep my private draft</Button></form></section>}
       <div className="job-wizard-top">
         <div>
           <span className="eyebrow">YOUR NEXT TEAMMATE STARTS HERE</span>

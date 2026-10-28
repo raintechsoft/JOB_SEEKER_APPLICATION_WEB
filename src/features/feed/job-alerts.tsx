@@ -46,10 +46,10 @@ function AlertEditor({ alert }: { alert: JobAlert | null }) {
       <TextField label="Alert name" name="name" defaultValue={alert?.name ?? ""} required maxLength={70} placeholder="e.g. Product design roles" />
       <TextField label="Job title or skills" name="keywords" defaultValue={alert?.keywords ?? ""} required maxLength={120} placeholder="e.g. Product Designer or React" />
       <p className="small muted">A role must match all entered keywords in its title or skills.</p>
-      <TextField label="Location (optional)" name="location" defaultValue={alert?.location ?? ""} maxLength={100} placeholder="e.g. Bengaluru or India" />
+      <TextField label="Location" name="location" defaultValue={alert?.location ?? ""} maxLength={100} placeholder="e.g. Bengaluru or India" />
       <div className="grid cols2">
-        <SelectField label="Work arrangement" name="arrangement" defaultValue={alert?.arrangement ?? "Any"} options={["Any", "Remote", "Hybrid", "On-site"]} />
-        <SelectField
+        <SelectField required label="Work arrangement" name="arrangement" defaultValue={alert?.arrangement ?? "Any"} options={["Any", "Remote", "Hybrid", "On-site"]} />
+        <SelectField required
           label="Posted within"
           name="days"
           defaultValue={String(alert?.days || 7)}

@@ -12,7 +12,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/app\/portfolio$/, "Portfolio"],
   [/^\/app\/portfolio\/preview$/, "Portfolio preview"],
   [/^\/(app|recruiter)\/messages$/, "Messages"],
-  [/^\/app\/settings$/, "Settings"],
+  [/^\/(app|recruiter)\/settings$/, "Settings"],
   [/^\/(app|recruiter)\/posts\/new$/, "Create a post"],
   [/^\/organizations\//, "Organization Profile"],
   [/^\/(app|recruiter)\/organizations\//, "Organization Profile"],

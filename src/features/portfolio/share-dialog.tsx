@@ -145,7 +145,7 @@ function RealShareBody() {
     <p>Create a share link to your saved portfolio. Creating another link replaces the previous link.</p>
     <label className="check-row"><input name="public" type="checkbox" defaultChecked={view.config.public} disabled={action.pending} />Also publish my portfolio at its public address</label>
     <p className="small muted">A public portfolio remains available at its public address after a share link expires or is revoked.</p>
-    <TextField name="expiry" label="Share link expiry (optional, UTC)" type="date" min={today()} defaultValue={view.config.expiry} error={errors.expiry} disabled={action.pending} />
+    <TextField name="expiry" label="Share link expiry (UTC)" type="date" min={today()} defaultValue={view.config.expiry} error={errors.expiry} disabled={action.pending} />
     {errors._form && <p role="alert" className="error">{errors._form}</p>}
     {link && <div className="stack"><TextField name="link" label="Your share link" value={link.url} readOnly /><div className="row gap8"><Button onClick={async () => { try { await navigator.clipboard.writeText(link.url); toast("Share link copied."); } catch { modal.show("Your share link", <CopyFallback url={link.url} />); } }}>Copy link</Button><a className="btn" href={link.url} target="_blank" rel="noopener">Open link</a></div></div>}
     {activeId && <Button variant="danger" disabled={action.pending} onClick={async () => {

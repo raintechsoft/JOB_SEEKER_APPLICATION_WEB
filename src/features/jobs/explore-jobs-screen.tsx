@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import type { CompanySummary } from "@/types/api";
 import type { IsoDateTime } from "@/types/domain";
 import { QueryFeedback } from "@/components/ui/query-view";
+import { Button } from "@/components/ui/primitives";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
 import { ProfileColumn } from "@/features/feed/feed-parts";
 import { useJobActions } from "@/features/feed/job-dialogs";
@@ -17,6 +18,8 @@ type ExploreJob = {
   title: string;
   createdAt: IsoDateTime;
   company: CompanySummary;
+  applied: boolean;
+  closed?: boolean;
 };
 
 function sectionId(title: string) {
@@ -28,7 +31,7 @@ function jobLine(company: CompanySummary) {
   return searchMetaLine([company.confidential ? "Confidential company" : company.name, company.confidential ? "" : company.industry, followers]);
 }
 
-function ExploreJobCard({ job, onView }: { job: ExploreJob; onView: (id: string) => void }) {
+function ExploreJobCard({ job, onView, onApply }: { job: ExploreJob; onView: (id: string) => void; onApply: (id: string) => void }) {
   const posted = job.createdAt;
   const line = jobLine(job.company);
   const open = (event: MouseEvent) => {
@@ -38,19 +41,28 @@ function ExploreJobCard({ job, onView }: { job: ExploreJob; onView: (id: string)
   };
   return (
     <li>
-      <button type="button" className="explore-job-card" onClick={open} aria-label={"View " + job.title + " job"}>
-        <CompanyAvatar company={job.company} />
-        <span className="explore-job-copy">
-          <strong>{job.title}</strong>
-          {line ? <span className="explore-job-meta">{line}</span> : null}
-          {posted ? <time dateTime={posted}>Posted {formatDay(posted)}</time> : null}
-        </span>
-      </button>
+      <div className="explore-job-card">
+        <button type="button" className="explore-job-main" onClick={open} aria-label={"View " + job.title + " job"}>
+          <CompanyAvatar company={job.company} />
+          <span className="explore-job-copy">
+            <strong>{job.title}</strong>
+            {line ? <span className="explore-job-meta">{line}</span> : null}
+            {posted ? <time dateTime={posted}>Posted {formatDay(posted)}</time> : null}
+          </span>
+        </button>
+        {job.applied ? (
+          <span className="explore-job-applied">Applied</span>
+        ) : (
+          <Button unstyled className="explore-job-apply" icon="arrowUp" disabled={job.closed} aria-label={job.closed ? job.title + " is closed" : "Apply for " + job.title} onClick={() => onApply(job.id)}>
+            {job.closed ? "Closed" : "Apply"}
+          </Button>
+        )}
+      </div>
     </li>
   );
 }
 
-function JobSection({ title, description, jobs, empty, loading, error, retry, onView }: {
+function JobSection({ title, description, jobs, empty, loading, error, retry, onView, onApply }: {
   title: string;
   description?: string;
   jobs: ExploreJob[];
@@ -59,6 +71,7 @@ function JobSection({ title, description, jobs, empty, loading, error, retry, on
   error: boolean;
   retry: () => void;
   onView: (id: string) => void;
+  onApply: (id: string) => void;
 }) {
   const headingId = sectionId(title);
   return (
@@ -70,7 +83,7 @@ function JobSection({ title, description, jobs, empty, loading, error, retry, on
       {(loading || error) && !jobs.length ? (
         <QueryFeedback data={undefined} error={error} retry={retry} label={"Loading " + title.toLowerCase()} />
       ) : jobs.length ? (
-        <ul className="explore-job-list">{jobs.map((job) => <ExploreJobCard key={job.id} job={job} onView={onView} />)}</ul>
+        <ul className="explore-job-list">{jobs.map((job) => <ExploreJobCard key={job.id} job={job} onView={onView} onApply={onApply} />)}</ul>
       ) : (
         <p className="explore-jobs-empty">{empty}</p>
       )}
@@ -82,11 +95,15 @@ export function ExploreJobsScreen() {
   const jobs = useJobActions();
   const matched = useServiceQuery(["recommendations", "jobs"], (s) => s.recommendations.getJobsForYou());
   const more = useServiceQuery(["job-opportunities", "explore"], (s) => s.jobs.listOpportunities({ q: "", page: 1, pageSize: 40 }));
+  const applications = useServiceQuery(["applications", "explore"], (s) => s.applications.listApplications({ q: "", status: "" }));
+  const appliedIds = new Set((applications.data ?? []).map((row) => row.job));
   const matchedJobs: ExploreJob[] = (matched.data?.forYou ?? []).flatMap((job) => job?.id && job.company ? [{
     id: job.id,
     title: job.title,
     createdAt: job.createdAt,
     company: job.company,
+    applied: appliedIds.has(job.id),
+    closed: !!job.closed,
   }] : []);
   const matchedIds = new Set(matchedJobs.map((job) => job.id));
   const moreJobs: ExploreJob[] = matched.isPending
@@ -94,9 +111,10 @@ export function ExploreJobsScreen() {
     : (more.data?.items ?? []).flatMap((row) => {
         const job = row?.job;
         if (!job?.id || !row.company || matchedIds.has(job.id)) return [];
-        return [{ id: job.id, title: job.title, createdAt: job.publishedAt || job.createdAt, company: row.company }];
+        return [{ id: job.id, title: job.title, createdAt: job.publishedAt || job.createdAt, company: row.company, applied: appliedIds.has(job.id), closed: job.closed }];
       });
   const openJob = (id: string) => jobs.view(id, "explore-jobs");
+  const applyJob = (id: string) => jobs.apply(id);
 
   return (
     <div className="explore-jobs-layout">
@@ -112,6 +130,7 @@ export function ExploreJobsScreen() {
           error={matched.isError}
           retry={() => void matched.refetch()}
           onView={openJob}
+          onApply={applyJob}
         />
         <JobSection
           title="More jobs for you"
@@ -121,6 +140,7 @@ export function ExploreJobsScreen() {
           error={more.isError}
           retry={() => void more.refetch()}
           onView={openJob}
+          onApply={applyJob}
         />
       </div>
     </div>

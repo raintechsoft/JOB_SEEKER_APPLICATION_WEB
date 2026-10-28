@@ -5,7 +5,7 @@ import { matchesAlert } from "@/lib/domain/jobs";
 import rules from "../../../../../contracts/validation/application.json";
 import { APPLICATION_STATUSES } from "./applications.service";
 import type { ApplicationRecord, ApplicationsService, JobRef } from "./applications.service";
-import { applicationFiltersSchema, savedJobSelectionSchema, savedJobStateSchema, savedJobActionSchema } from "@/lib/validation/application";
+import { trackingSchema, applicationFiltersSchema, savedJobSelectionSchema, savedJobStateSchema, savedJobActionSchema } from "@/lib/validation/application";
 import { jobCompany } from "@/mocks/store/presenters";
 
 export function companyName(db: DemoDatabase, j: Job | undefined) {
@@ -32,8 +32,8 @@ function record(db: DemoDatabase, a: DemoDatabase["social"]["applications"][numb
   const trackingStatus=APPLICATION_STATUSES.find(stage => stage === a.status) ?? "Applied";
   const employer=db.recruiter.tracking[a.id];
   const stage=employer?.status ?? "New";
-  const source=a.withdrawnAt || trackingStatus === "Withdrawn" ? "withdrawn" : stage !== "New" || employer?.stageUpdated ? "employer" : "tracking";
-  const status=source === "withdrawn" ? "Withdrawn" : source === "employer" ? rules.employerStatusMap[stage] as ApplicationRecord["status"] : trackingStatus;
+  const source=a.withdrawnAt ? "withdrawn" : stage !== "New" || employer?.stageUpdated ? "employer" : "submitted";
+  const status=source === "withdrawn" ? "Withdrawn" : rules.employerStatusMap[stage] as ApplicationRecord["status"];
   return { ...a, status,trackingStatus,statusSource:source,employerStage:stage, jobRef: j ? ref(db, j) : null };
 }
 
@@ -46,7 +46,7 @@ export const mockApplicationsService: ApplicationsService = {
 
   async getOverview() {
     const db = getDb();
-    return { counts: { applied: db.social.applications.length, saved: db.social.jobs.filter((j) => db.social.saved.includes(j.id)).length, activeAlerts: db.social.jobAlerts.filter((a) => a.enabled).length } };
+    return { counts: { applied: db.social.applications.length, saved: db.social.jobs.filter((j) => db.social.saved.includes(j.id) && !db.social.archivedSavedJobs?.[j.id]).length, activeAlerts: db.social.jobAlerts.filter((a) => a.enabled).length } };
   },
 
   async listApplications({ q, status }) {
@@ -99,11 +99,17 @@ export const mockApplicationsService: ApplicationsService = {
   },
 
   async updateTracking(id, input) {
+    const {version:_version,...fields}=input;
+    const values=trackingSchema.parse(fields);
     commit((db) => {
       const a = db.social.applications.find((x) => x.id === id);
       if (!a) return;
-      Object.assign(a, input, { updatedAt: new Date().toISOString() });
+      Object.assign(a, values, { updatedAt: new Date().toISOString() });
     });
+  },
+
+  async withdraw(id) {
+    commit(db => {const application=db.social.applications.find(item => item.id === id);if(application && !application.withdrawnAt){application.withdrawnAt=new Date().toISOString();application.updatedAt=application.withdrawnAt;}});
   },
 
   async remove(id) {

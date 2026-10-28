@@ -1,6 +1,7 @@
 import type { CompanySummary, Paginated, PersonSummary } from "@/types/api";
 import type { Id, IsoDateTime, JobMedia, JobThumbnail, MediaItem, Role, Visibility } from "@/types/domain";
 import type { ProjectSummary } from "@/mocks/store/presenters";
+import type { LinkPreview } from "@/lib/validation/link-preview";
 
 export type FeedFilter = "all" | "following" | "jobs" | "saved" | "reposts";
 export type FeedSort = "recent" | "popular" | "recommended";
@@ -77,6 +78,8 @@ export interface FeedEntry {
   commentCount: number;
   comments: FeedComment[];
   repost?: { author: PersonSummary; createdAt: IsoDateTime } | null;
+  /** Stored server metadata for a link in the body; absent for legacy or dismissed previews. */
+  linkPreview?: LinkPreview;
   viewer: { liked: boolean; saved: boolean; following: boolean; own: boolean; reposted?: boolean; canRepost?: boolean };
 }
 
@@ -104,6 +107,8 @@ export interface NewPostInput {
   body: string;
   project: Id | "";
   attachments: MediaItem[];
+  /** Raw link from the body whose server preview should be shown; empty for none. */
+  previewUrl?: string;
 }
 
 export interface FeedService {
@@ -126,6 +131,8 @@ export interface FeedService {
   unblock(role: Role, identityId: Id): Promise<void>;
   getNetwork(role: Role): Promise<Network>;
   createPost(role: Role, input: NewPostInput): Promise<{ id: Id } | null>;
-  updatePost(role: Role, id: Id, input: { title: string; body: string; version?: number }): Promise<boolean>;
+  updatePost(role: Role, id: Id, input: { title: string; body: string; version?: number; previewUrl?: string }): Promise<boolean>;
+  /** Server-fetched metadata for a public link, or null when the page offers none. */
+  getLinkPreview(role: Role, url: string, signal?: AbortSignal): Promise<LinkPreview | null>;
   deletePost(role: Role, id: Id, version?: number): Promise<void>;
 }

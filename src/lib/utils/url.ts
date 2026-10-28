@@ -23,4 +23,6 @@ export function safeVideoUrl(value: string | null | undefined) {
 export const isValidEmail = (value: string) => /^\S+@\S+\.\S+$/.test(value);
 
 /** Only inline images produced by the browser's FileReader are trusted as image sources. */
-export const isInlineImage = (value: string | undefined) => !!value && /^data:image\/(png|jpeg|webp);base64,/i.test(value);
+export const isInlineImage = (value: string | undefined) => !!value && /^data:image\/(png|jpeg|webp|gif);base64,/i.test(value);
+export const isManagedMediaUrl = (value: string | undefined) => !!value && /^https?:\/\/[^?#]+\/api\/v1\/media\/[0-9a-f-]{36}\/download$/i.test(value);
+export const isSafeMediaSrc = (value: string | undefined) => !!value && (/^https?:\/\//i.test(value) || /^data:(image|video|application|text)\//i.test(value) || value.startsWith("blob:"));

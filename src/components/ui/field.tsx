@@ -197,6 +197,7 @@ export function CheckRow({ children, className, style, ...props }: Omit<Componen
     <label className={cn("check-row", className)} style={style}>
       <input type="checkbox" {...props} />
       {children}
+      {props.required && <span aria-hidden="true">*</span>}
     </label>
   );
 }
@@ -205,7 +206,7 @@ export function CheckRow({ children, className, style, ...props }: Omit<Componen
 export function FileField({ label, hint, ...props }: Omit<ComponentProps<"input">, "type"> & { label: string; hint?: ReactNode }) {
   return (
     <label className="field">
-      {label}
+      <span>{label}{props.required && <span aria-hidden="true">*</span>}</span>
       <input type="file" {...props} />
       {hint && <small>{hint}</small>}
     </label>

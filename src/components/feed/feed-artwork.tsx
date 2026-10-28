@@ -1,5 +1,6 @@
 "use client";
 
+import { MediaVideo } from "@/components/ui/media-video";
 import { MediaImage } from "@/components/ui/media-image";
 
 import type { CSSProperties } from "react";
@@ -94,13 +95,13 @@ function CodeArt() {
 }
 
 /** Media for posts and updates (prototype `feedArtwork`). */
-export function FeedArtwork({ entry, onViewProject }: { entry: FeedEntry; onViewProject: (id: string) => void }) {
-  if (entry.attachments?.length) return <PostCarousel items={entry.attachments} id={entry.id} />;
+export function FeedArtwork({ entry, onViewProject, localPreview = false }: { entry: FeedEntry; onViewProject: (id: string) => void; localPreview?:boolean }) {
+  if (entry.attachments?.length) return <PostCarousel items={entry.attachments} id={entry.id} localPreview={localPreview} />;
   if (entry.video) {
     const url = safeUrl(entry.video);
     return url ? (
       <figure className="feed-video">
-        <video controls playsInline preload="metadata" aria-label={entry.title} src={url} />
+        <MediaVideo controls playsInline preload="metadata" aria-label={entry.title} src={url} />
       </figure>
     ) : null;
   }

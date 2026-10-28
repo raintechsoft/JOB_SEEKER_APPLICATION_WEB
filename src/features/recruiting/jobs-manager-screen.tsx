@@ -165,7 +165,7 @@ function Collaborate({ jobs }: { jobs: ManagedJob[] }) {
       {Object.entries(errors).map(([key,error])=><p role="alert" key={key}>{key}: {error}</p>)}
       <p className="small muted">Choose existing active team members to grant review access. Team invitations are managed separately.</p>
       <TextField label="Collaborator emails (comma separated)" name="emails" defaultValue={emails.join(", ")} placeholder="colleague@example.com" />
-      <TextAreaField label="Team handoff note (optional)" name="note" defaultValue={jobs.length === 1 ? jobs[0].collaborationNote || "" : ""} maxLength={1500} />
+      <TextAreaField label="Team handoff note" name="note" defaultValue={jobs.length === 1 ? jobs[0].collaborationNote || "" : ""} maxLength={1500} />
       <DevOnly>
         <InfoBadge label="Collaboration information">These are local demo collaboration settings. No invitations or emails are sent.</InfoBadge>
       </DevOnly>

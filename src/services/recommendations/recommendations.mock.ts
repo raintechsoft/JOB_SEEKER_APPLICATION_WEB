@@ -52,6 +52,7 @@ export const mockRecommendationsService: RecommendationsService = {
           createdAt: job.createdAt,
           isNew: isNew(db, job),
           saved: db.social.saved.includes(job.id),
+          closed: job.closed,
           matchedAlerts: matched.map((a) => a.name),
         }),
       );
