@@ -2,6 +2,7 @@ import type { Paginated, PersonSummary } from "@/types/api";
 import type { HiringStage, Id, IsoDateTime, Job, ReceivedApplication } from "@/types/domain";
 import type { JobStatus } from "@/lib/domain/jobs";
 import type {PortfolioView} from "../portfolio/portfolio.service";
+import type { components } from "@/types/generated/api";
 
 export const HIRING_STAGES: HiringStage[] = ["New", "Reviewing", "Shortlisted", "Interview", "Hired", "Rejected"];
 
@@ -84,12 +85,16 @@ export interface ApplicantProfile extends PersonSummary {
 }
 
 export interface ResponseItem {
+  sharing?: import("@/types/generated/application-wizard-v2").components["schemas"]["ApplicationSharing"];
   portfolio?:PortfolioView|null;
   application: ReceivedApplication;
   profile: ApplicantProfile;
   jobTitle: string;
   fit: { score: number; matched: string[] };
   distance: { km: number; estimated: boolean } | null;
+  /** Best match (R14b): why this applicant fits the job, by structured skills, experience and location. */
+  ranking?: components["schemas"]["ResponseItem"]["ranking"];
+  analyticsContext?: components["schemas"]["AnalyticsContext"];
 }
 
 export interface ResponsesPage extends Paginated<ResponseItem> {

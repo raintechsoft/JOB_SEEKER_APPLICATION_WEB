@@ -1,7 +1,16 @@
 {
-  "answerLength": 1000,
-  "noteLength": 2500,
-  "bulkMax": 100,
-  "shortlistNameLength": 100,
-  "compareMax": 4
+  "fields":{"name":"text:150!","email":"email!","note":"text:1500"},
+  "recruitmentDetails":{"location":"text:200","locality":"text:200","expectedSalaryLpa":"number:0:10000000","noticeDays":"integer:0:365","joiningDays":"integer:0:365","industry":"text:100","designation":"text:200","department":"text:100","preferredLocations":"text:500","phone":"phone"},
+  "answerLength":1000,
+  "trackingStatuses":["Applied","In review","Interview","Offer","Rejected","Withdrawn"],
+  "displayStatuses":["Applied","In review","Shortlisted","Interview","Offer","Hired","Rejected","Withdrawn"],
+  "employerStatusMap":{"New":"Applied","Reviewing":"In review","Shortlisted":"Shortlisted","Interview":"Interview","Hired":"Hired","Rejected":"Rejected"},
+  "filterGroups":{"in-progress":["In review","Shortlisted","Interview"],"other":["Hired","Rejected","Withdrawn"]},
+  "hiringStages":["New","Reviewing","Shortlisted","Interview","Hired","Rejected"],
+  "noteLength":5000,
+  "bulkMax":100,
+  "savedJobStates":["active","archived","all"],
+  "savedJobActions":["archive","restore"],
+  "shortlistNameLength":100,
+  "compareMax":4
 }

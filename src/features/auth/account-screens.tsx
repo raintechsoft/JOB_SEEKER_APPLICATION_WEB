@@ -14,6 +14,8 @@ import { AuthHeader, AuthStory } from "@/components/layout/auth-chrome";
 import { useAuthForm } from "./use-auth-form";
 import { AuthError, AuthField } from "./auth-errors";
 import { authDestination } from "./auth-navigation";
+import {applicationSignInReturn} from "@/features/applications/application-wizard-policy";
+import {navigateToApplication} from "@/features/applications/application-signin-return";
 import { ApiError, errorMessage, fieldErrors } from "@/services/api/client";
 import { toast } from "@/stores/toast-store";
 import type { Challenge } from "@/services/auth/auth.service";
@@ -261,7 +263,10 @@ export function VerifyEmailScreen() {
     try {
       const result = await auth.verifyEmail({ challenge_id: activeChallenge.id, code: checked.data.code });
       cache.clear();
-      router.push(authDestination(result));
+      const next=applicationSignInReturn(new URLSearchParams(window.location.search).get("next"));
+      const professional=result.workspaces.some(workspace=>workspace.id===result.selected_identity_id&&workspace.kind==="professional");
+      if(professional&&next){navigateToApplication(next);return;}
+      router.push(professional&&next?next:authDestination(result));
     } catch (error) {
       const fields = fieldErrors(error);
       toast(fields.code?.[0] || errorMessage(error), "error");

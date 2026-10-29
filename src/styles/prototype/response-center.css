@@ -56,6 +56,8 @@ body.professional-theme .response-candidate {display:grid;grid-template-columns:
 .response-candidate-heading>button {padding:0;text-align:left;}
 body.professional-theme .response-candidate-heading h2 {font-size:17px;line-height:1.5;}
 .response-fit-badge,.response-portfolio-badge {padding:3px 8px;background:#DDF2EA;color:#0F766E;font-size:10px;font-weight:550;border-radius:7px;}
+/* Best match (U9): why this applicant fits, under the name. */
+.response-match-reason {margin:4px 0 0;font-size:12px;color:var(--color-muted);}
 .response-status {margin-left:auto;color:#626B76;font-size:10px;border:1px solid #DDE2E9;border-radius:5px;padding:3px 7px;}
 .response-facts {display:flex;flex-wrap:wrap;gap:8px 12px;color:#626B76;font-size:12px;margin-bottom:20px;padding-left:25px;line-height:1.6;}
 .response-facts>span {display:flex;gap:5px;align-items:center;}

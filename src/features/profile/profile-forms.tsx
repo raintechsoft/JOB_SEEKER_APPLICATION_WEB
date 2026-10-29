@@ -263,6 +263,17 @@ export function PhotoForm({ person, revision }: { person: Professional; revision
   }} onRemove={async () => { await services.profile.useDefaultPhoto(revision); await refresh(); }} />;
 }
 
+export function CoverForm({ person, revision }: { person: Professional; revision?: number }) {
+  const services = useServices(), cache = useQueryClient();
+  // The home feed's profile card shows the cover too.
+  const refresh = () => Promise.all([cache.invalidateQueries({ queryKey: ["profile"] }), cache.invalidateQueries({ queryKey: ["feed", "summary"] })]);
+  return <PhotoEditor purpose="profile_cover" sources="computer" imageUrl={person.cover ?? ""} savedMessage="Cover image updated." removedMessage="Cover image removed." onSave={async file => {
+    const result = await services.profile.setCover(file, revision);
+    if (!result.ok) throw new Error(result.error);
+    await refresh();
+  }} onRemove={async () => { await services.profile.removeCover(revision); await refresh(); }} />;
+}
+
 export function CompletionChecklist({ percent, items }: { percent: number; items: { label: string; weight: number; done: boolean; section: string }[] }) {
   return (
     <>

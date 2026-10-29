@@ -12,6 +12,7 @@ import { useServiceQuery } from "@/hooks/use-services";
 import { formatFollowers } from "@/lib/utils/text";
 import { formatDay } from "@/lib/utils/date";
 import { searchMetaLine } from "@/lib/search/result-copy";
+import { MatchBadge, type MatchBadgeData } from "@/components/jobs/match-badge";
 
 type ExploreJob = {
   id: string;
@@ -20,6 +21,7 @@ type ExploreJob = {
   company: CompanySummary;
   applied: boolean;
   closed?: boolean;
+  match?: MatchBadgeData | null;
 };
 
 function sectionId(title: string) {
@@ -58,6 +60,8 @@ function ExploreJobCard({ job, onView, onApply }: { job: ExploreJob; onView: (id
           </Button>
         )}
       </div>
+      {/* Outside the card buttons: the badge has its own "why" button. */}
+      {job.match ? <div className="explore-job-match"><MatchBadge match={job.match} /></div> : null}
     </li>
   );
 }
@@ -104,6 +108,7 @@ export function ExploreJobsScreen() {
     company: job.company,
     applied: appliedIds.has(job.id),
     closed: !!job.closed,
+    match: job.match,
   }] : []);
   const matchedIds = new Set(matchedJobs.map((job) => job.id));
   const moreJobs: ExploreJob[] = matched.isPending
@@ -111,7 +116,7 @@ export function ExploreJobsScreen() {
     : (more.data?.items ?? []).flatMap((row) => {
         const job = row?.job;
         if (!job?.id || !row.company || matchedIds.has(job.id)) return [];
-        return [{ id: job.id, title: job.title, createdAt: job.publishedAt || job.createdAt, company: row.company, applied: appliedIds.has(job.id), closed: job.closed }];
+        return [{ id: job.id, title: job.title, createdAt: job.publishedAt || job.createdAt, company: row.company, applied: appliedIds.has(job.id), closed: job.closed, match: row.match }];
       });
   const openJob = (id: string) => jobs.view(id, "explore-jobs");
   const applyJob = (id: string) => jobs.apply(id);

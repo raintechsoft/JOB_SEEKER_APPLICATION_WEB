@@ -95,3 +95,15 @@ body.professional-theme .saved-opportunities-toolbar .btn.text:disabled { color:
   .opportunity-row-actions > div { justify-content:flex-start; }
   .opportunity-alert-icon { width:40px; height:40px; flex-basis:40px; }
 }
+
+/* Draft applications reuse the saved opportunities table. */
+.application-draft-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+.application-drafts a.saved-opportunity-title { text-decoration: none; }
+.application-draft-pages { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 12px; color: #626b76; font-size: 13px; }
+
+/* Row delete actions in the Job Tracker share one icon button; hover turns it solid red with a white icon. */
+.iconbtn.row-delete { transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
+.iconbtn.row-delete:hover:not(:disabled), .iconbtn.row-delete:focus-visible { background: #d92d20; border-color: #d92d20; color: #fff; }
+.iconbtn.row-delete:hover:not(:disabled) .icon, .iconbtn.row-delete:focus-visible .icon { color: #fff; }
+/* Link version of the pill (draft Continue) matches the button version. */
+a.saved-opportunity-apply, a.saved-opportunity-apply:hover { text-decoration: none; }

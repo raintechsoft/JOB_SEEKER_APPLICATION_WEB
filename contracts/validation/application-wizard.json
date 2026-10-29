@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 2,
+  "activationPhase": "A6",
+  "route": "/app/jobs/{jobId}/apply",
+  "steps": [
+    "contact",
+    "documents",
+    "details",
+    "questions",
+    "review"
+  ],
+  "labels": [
+    "Contact details",
+    "Resume & portfolio",
+    "Application details",
+    "Screening questions",
+    "Review & submit"
+  ],
+  "defaults": {
+    "requireResume": false,
+    "requirePhone": false,
+    "requirePortfolio": false
+  },
+  "limits": {
+    "name": 150,
+    "email": 254,
+    "introduction": 1500,
+    "location": 200,
+    "locality": 200,
+    "industry": 100,
+    "designation": 200,
+    "department": 100,
+    "preferredLocation": 200,
+    "preferredLocations": 10,
+    "noticeDays": 365,
+    "joiningDays": 365,
+    "answers": 6,
+    "answer": 1000,
+    "question": 240,
+    "numericAnswer": 1000000000000,
+    "portfolioDescriptionMin": 20,
+    "pageSize": 20,
+    "draftBytes": 32768
+  },
+  "contact": {
+    "purpose": "application_contact",
+    "phoneChannel": "whatsapp",
+    "codeLength": 6,
+    "ttlSeconds": 300,
+    "resendSeconds": 60,
+    "maxAttempts": 5,
+    "issuesPerHour": 6,
+    "userIssuesPerHour": 12,
+    "ipIssuesPerHour": 30,
+    "verifyPerMinute": 10
+  },
+  "retention": {
+    "draftDays": 30,
+    "challengeDays": 1
+  },
+  "rates": {
+    "draftCreatesPerMinute": 5,
+    "draftSavesPerMinute": 30,
+    "submissionsPerMinute": 5,
+    "submissionsPerHour": 30,
+    "uploadsPerMinute": 10,
+    "documentDownloadsPerMinute": 30
+  },
+  "acknowledgementVersion": "application-review-2",
+  "resumePolicySource": "contracts/validation/media.json#rules/resume",
+  "compensationPolicySource": "contracts/validation/job-v2.json",
+  "returnPaths": [
+    "/app/dashboard",
+    "/app/jobs",
+    "/app/search",
+    "/app/applications"
+  ],
+  "returnPathPatterns": [
+    "^/(app/)?organizations/[a-z0-9]+(?:-[a-z0-9]+)*$",
+    "^/jobs/[0-9a-fA-F-]{36}$"
+  ],
+  "errors": [
+    "unauthenticated",
+    "forbidden",
+    "not_found",
+    "session_expired",
+    "request_failed",
+    "validation_failed",
+    "application_draft_conflict",
+    "application_requirements_changed",
+    "job_closed",
+    "application_already_submitted",
+    "application_contact_unverified",
+    "application_challenge_expired",
+    "application_upload_pending",
+    "application_upload_rejected",
+    "application_client_upgrade_required",
+    "application_delivery_unavailable",
+    "rate_limited",
+    "application_draft_expired",
+    "application_contact_changed"
+  ],
+  "compatibility": {
+    "legacySchemaVersion": 1,
+    "header": "X-Skillora-Application-Schema",
+    "existingSnapshots": "immutable",
+    "historicalContactProof": "not_recorded",
+    "legacyExpectedPayCurrency": "INR",
+    "legacyExpectedPayPeriod": "year",
+    "legacyExpectedPayMultiplier": 100000
+  },
+  "normalization": {
+    "email": "trim and lowercase ASCII addresses; no provider-specific dot/plus rewriting",
+    "phone": "ISO region plus national digits; server derives E.164",
+    "strings": "trim; bound Unicode code points; reject NUL",
+    "money": "exact nonnegative decimal string; at most two decimal places; no annualization",
+    "missing": "empty string or explicit null by field; never manufacture zero"
+  },
+  "emailPattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+}

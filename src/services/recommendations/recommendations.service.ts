@@ -1,5 +1,6 @@
 import type { CompanySummary } from "@/types/api";
 import type { Id, IsoDateTime, JobAlert } from "@/types/domain";
+import type { MatchBadgeData } from "@/components/jobs/match-badge";
 
 /**
  * Recommendation boundary.
@@ -27,6 +28,8 @@ export interface RecommendedJob {
   closed?: boolean;
   /** Names of the viewer's alerts that matched; empty means "based on your role & skills". */
   matchedAlerts: string[];
+  /** How the viewer fits the job (skills, experience); absent in demo mode. */
+  match?: MatchBadgeData | null;
 }
 
 export interface JobRecommendations {
@@ -37,6 +40,20 @@ export interface JobRecommendations {
   alerts?: JobAlert[];
 }
 
+/** A candidate similar to the one being viewed (recruiters). */
+export interface SimilarPerson {
+  id: Id;
+  name: string;
+  headline: string;
+  picture?: string;
+  color?: string;
+  reason: string;
+}
+
 export interface RecommendationsService {
   getJobsForYou(): Promise<JobRecommendations>;
+  /** Jobs close in meaning to this one (or sharing the most skills), never the job itself. */
+  similarJobs(jobId: Id, limit?: number): Promise<RecommendedJob[]>;
+  /** Candidates similar to this professional; recruiters only. */
+  similarPeople(professionalId: Id, limit?: number): Promise<SimilarPerson[]>;
 }

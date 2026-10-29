@@ -21,6 +21,7 @@ import { devCopy } from "@/lib/env/app-env";
 import { resetOrganizationDrafts } from "@/features/organization/draft-store";
 import {AnalyticsPreference} from "./analytics-preference";
 import {NotificationPreferences} from "./notification-preferences";
+import {PersonalizationPreference} from "./personalization-preference";
 
 export function SettingsScreen() {
   const run = useServiceAction();
@@ -116,7 +117,7 @@ export function SettingsScreen() {
           </Button>
         </div>
       </section>
-      {apiConfig.dataSource==="http"&&<><NotificationPreferences/><AnalyticsPreference/></>}
+      {apiConfig.dataSource==="http"&&<><PersonalizationPreference/><NotificationPreferences/><AnalyticsPreference/></>}
     </>
   );
 }

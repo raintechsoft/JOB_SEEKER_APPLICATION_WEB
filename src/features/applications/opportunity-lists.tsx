@@ -68,7 +68,7 @@ export function JobAlertsList({ items }: { items: AlertRecord[] }) {
       <div>
         <Button unstyled className="saved-opportunity-apply" icon={alert.enabled ? "bell" : "check"} aria-label={`${alert.enabled ? "Pause" : "Resume"} ${alert.name}`} onClick={() => alerts.toggle(alert.id)}>{alert.enabled ? "Pause" : "Resume"}</Button>
         <Button unstyled className="saved-opportunity-apply" icon="edit" aria-label={`Edit ${alert.name}`} onClick={() => alerts.edit(alert.id)}>Edit</Button>
-        <IconButton icon="trash" label={`Delete ${alert.name} alert`} onClick={() => alerts.remove(alert.id)} />
+        <IconButton icon="trash" extra="row-delete" label={`Delete ${alert.name} alert`} onClick={() => alerts.remove(alert.id)} />
       </div>
     </div></td>
   </tr>)}</OpportunityList>;

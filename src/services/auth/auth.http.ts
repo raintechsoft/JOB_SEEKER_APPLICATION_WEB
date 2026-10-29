@@ -14,7 +14,7 @@ export function createHttpAuthService(http: HttpClient, onSessionChange: () => v
   const authenticate=async(action:()=>Promise<AuthSession>)=>{resetReads();const result=await action();resetReads();onSessionChange();observed=null;return bind(result);};
   const signOut=async(action:()=>Promise<unknown>)=>{resetReads();await action();resetReads();http.setUserContext(null);observed=null;onSessionChange();};
   return {
-    login: (input, portal = "professional") => authenticate(()=>post<AuthSession>(`auth/${portal}/login`, input)),
+    login: (input, portal = "professional") => authenticate(()=>post<AuthSession>(portal === "admin" ? "auth/login" : `auth/${portal}/login`, input)),
     register: (input) => authenticate(()=>post<AuthSession>("auth/register", input)),
     me: () => {
       if(pendingSession)return pendingSession;
@@ -37,6 +37,7 @@ export function createHttpAuthService(http: HttpClient, onSessionChange: () => v
     employerResend: (id, kind) => post(`registration-intents/${encodeURIComponent(id)}/challenge`, { kind }),
     employerVerify: (id, input) => http.post(`registration-intents/${encodeURIComponent(id)}/verify`, input),
     employerFinalize: (id, input) => authenticate(()=>post<AuthSession>(`registration-intents/${encodeURIComponent(id)}/finalize`, input)),
+    completeExternalSignIn: () => authenticate(()=>get<AuthSession>("auth/me")),
     acceptInvitation: (token) => post("invitations/accept", { token }),
     organization: (id) => get(`organizations/${encodeURIComponent(id)}`),
     invite: async (id, input) => { await http.post(`organizations/${encodeURIComponent(id)}/invitations`, input); },

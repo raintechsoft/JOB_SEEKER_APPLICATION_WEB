@@ -16,13 +16,18 @@ import { useJobActions } from "./job-dialogs";
 import { useJobAlertDialogs } from "./job-alerts";
 import {useImpression} from "@/hooks/use-impression";
 import {track} from "@/lib/analytics";
+import { MatchBadge } from "@/components/jobs/match-badge";
+import { useInteractionTracking } from "@/hooks/use-interaction-tracking";
 
-function RailJob({ item }: { item: RecommendedJob }) {
+function RailJob({ item, position }: { item: RecommendedJob; position: number }) {
   const jobs = useJobActions();
   const ref=useImpression<HTMLElement>(()=>{if(item.analyticsContext)track("recommendation_exposed",item.analyticsContext);},item.analyticsContext?.requestId);
-  const open=()=>{if(item.analyticsContext)track("recommendation_clicked",item.analyticsContext);jobs.view(item.id,"jobs-rail");};
+  // Watch history (views, reading time, clicks) personalises later recommendations.
+  const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLElement>({ kind: "job", id: item.id }, { surface: "jobs-rail", position, requestId: item.analyticsContext?.requestId });
+  const setRef = (el: HTMLElement | null) => { ref.current = el; watchRef.current = el; };
+  const open=()=>{if(item.analyticsContext)track("recommendation_clicked",item.analyticsContext);watchClick();jobs.view(item.id,"jobs-rail");};
   return (
-    <article ref={ref} className="rail-job" data-relevant-job={item.id}>
+    <article ref={setRef} className="rail-job" data-relevant-job={item.id}>
       <div className="rail-job-company">
         {apiConfig.dataSource==="http"?<CompanyAvatar company={item.company}/>:<span className={"rail-company-logo " + item.companyId}>{item.companyId === "c0" ? <Icon name="spark" /> : item.companyId === "c1" ? "m." : "f."}</span>}
         <div>
@@ -46,6 +51,7 @@ function RailJob({ item }: { item: RecommendedJob }) {
         <Icon name={item.matchedAlerts.length ? "bell" : "user"} />
         <span>{item.matchedAlerts.length ? "Matches " + item.matchedAlerts.join(", ") : item.reason ?? "Based on your role & skills"}</span>
       </div>
+      <MatchBadge match={item.match} />
       <div className="rail-job-actions">
         <button type="button" onClick={open}>
           View opportunity <Icon name="arrow" />
@@ -98,7 +104,7 @@ export function JobsPanel() {
           <div className="rail-job-list">
             <QueryFeedback data={data} error={isError} retry={refetch} label="Loading recommended jobs" />
             {list.length ? (
-              list.map((item) => <RailJob key={item.id} item={item} />)
+              list.map((item, i) => <RailJob key={item.id} item={item} position={i} />)
             ) : data ? (
               <div className="rail-jobs-empty">
                 <Icon name="search" />

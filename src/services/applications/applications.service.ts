@@ -17,6 +17,7 @@ export interface JobRef {
 }
 
 export interface ApplicationRecord extends SeekerApplication {
+  sharing?: import("@/types/generated/application-wizard-v2").components["schemas"]["ApplicationSharing"];
   job: Id;
   jobRef: JobRef | null;
 }

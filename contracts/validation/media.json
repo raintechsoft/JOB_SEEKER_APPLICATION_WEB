@@ -144,6 +144,20 @@
         "image/webp"
       ]
     ],
+    "profile_cover": [
+      5242880,
+      [
+        "png",
+        "jpg",
+        "jpeg",
+        "webp"
+      ],
+      [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]
+    ],
     "resume": [
       20971520,
       [

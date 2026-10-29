@@ -1,0 +1,20 @@
+{
+  "batchMax": 20,
+  "bodyBytesMax": 16384,
+  "maxAgeHours": 24,
+  "dwellMsMax": 3600000,
+  "positionMax": 199,
+  "clientActions": ["view", "dwell", "click"],
+  "serverActions": ["like", "save", "apply", "follow", "hide"],
+  "itemKinds": ["job", "post", "update", "professional", "organization"],
+  "actionKinds": {
+    "view": ["job", "post", "update", "professional", "organization"],
+    "click": ["job", "post", "update", "professional", "organization"],
+    "dwell": ["job", "post", "update"],
+    "like": ["job", "post", "update"],
+    "save": ["job", "post", "update"],
+    "hide": ["job", "post", "update"],
+    "apply": ["job"],
+    "follow": ["professional", "organization"]
+  }
+}

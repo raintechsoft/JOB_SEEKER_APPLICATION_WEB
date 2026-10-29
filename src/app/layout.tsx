@@ -9,6 +9,7 @@ import "@/styles/dropdowns.css";
 import { AppProviders } from "@/providers/app-providers";
 import { BodyClassSync } from "@/components/layout/body-class-sync";
 import { bodyClassScript } from "@/lib/routing/body-classes";
+import {applicationHistoryScript} from "@/features/applications/application-history-bootstrap";
 import { devCopy } from "@/lib/env/app-env";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       {/* Route classes are applied by the inline script before paint; React does not own them. */}
       <body suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: bodyClassScript }} />
+        <script dangerouslySetInnerHTML={{ __html: applicationHistoryScript }} />
         <a className="skip" href="#main">
           Skip to content
         </a>

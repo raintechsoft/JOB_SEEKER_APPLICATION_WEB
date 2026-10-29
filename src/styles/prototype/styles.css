@@ -4,3 +4,5 @@
 
 /* Keep intrinsic calendar widths inside scrolling panels on smaller screens. */
 .stack,.dashboard-grid>*,.split-section>*,.builder>*,.profile-content>*,.hero>*{min-width:0}
+/* Link and label buttons share the 7px radius <button> gets above; low specificity keeps page-specific shapes (pills, circles) intact. */
+:where(a, label, span).btn{border-radius:7px}

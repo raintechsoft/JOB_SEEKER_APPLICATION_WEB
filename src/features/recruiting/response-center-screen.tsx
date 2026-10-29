@@ -1,6 +1,7 @@
 "use client";
 
 import { InfoBadge } from "@/components/ui/info-badge";
+import {ApplicationSharingDetails,sharedPayLabel} from "@/features/applications/application-sharing-details";
 
 import { QueryFeedback } from "@/components/ui/query-view";
 
@@ -27,6 +28,9 @@ import { Avatar, Button, EmptyState, IconButton, LinkButton, PageHeading } from 
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingInput, FloatingSelect, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { useContactCandidate } from "@/features/talent/dialogs";
+import { MatchBadge } from "@/components/jobs/match-badge";
+import { useImpression } from "@/hooks/use-impression";
+import { useInteractionTracking } from "@/hooks/use-interaction-tracking";
 import { openReview } from "./review-dialog";
 import {ExportRequest,OutreachDeliveryReview} from "./delivery-dialogs";
 
@@ -364,17 +368,24 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
   const { application: a, profile: p, fit, distance } = item;
   const canMove=(stage:HiringStage)=>isPrototype||!a.withdrawnAt&&(a.status===stage||(RECRUITING_RULES.transitions[a.status] as string[]).includes(stage));
   const fitOn = q.fit === "1";
+  // A best-match list is a recommendation list (U9): exposure, and opening an applicant, teach the ranking.
+  const context = item.analyticsContext;
+  const seenRef = useImpression<HTMLElement>(() => { if (context) track("recommendation_exposed", context); }, context?.requestId);
+  const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLElement>(item.ranking ? { kind: "professional", id: a.candidate } : null, { surface: "applicants", position: context?.position, requestId: context?.requestId });
+  const setRef = (el: HTMLElement | null) => { seenRef.current = el; watchRef.current = el; };
+  const open = () => { if (context) track("recommendation_clicked", context); watchClick(); actions.view(a.id); };
   return (
-    <article className={"card response-candidate" + (q.rows === "compact" ? " is-compact" : "")} data-response-id={a.id}>
+    <article ref={setRef} className={"card response-candidate" + (q.rows === "compact" ? " is-compact" : "")} data-response-id={a.id}>
       <div className="response-candidate-main">
         <div className="response-candidate-heading">
           <input type="checkbox" checked={selected} onChange={(e) => onSelect(e.target.checked)} aria-label={"Select " + p.name} />
-          <button type="button" onClick={() => actions.view(a.id)}>
+          <button type="button" onClick={open}>
             <h2>{p.name}</h2>
           </button>
-          {fitOn ? <span className="response-fit-badge">{fit.score}% keyword match</span> : a.portfolio ? <span className="response-portfolio-badge">Portfolio included</span> : null}
+          {item.ranking?.match ? <MatchBadge match={item.ranking.match} /> : fitOn ? <span className="response-fit-badge">{fit.score}% keyword match</span> : a.portfolio ? <span className="response-portfolio-badge">Portfolio included</span> : null}
           <span className="response-status">{a.withdrawnAt?"Withdrawn · Previously "+a.status:a.status}</span>
         </div>
+        {item.ranking && <p className="response-match-reason">{item.ranking.reason}</p>}
         <div className="response-facts">
           <span>
             <Icon name="briefcase" />
@@ -382,7 +393,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
           </span>
           <span>
             <Icon name="file" />
-            {p.expectedSalary == null ? "Salary not provided" : "₹" + p.expectedSalary + " LPA expected"}
+            {item.sharing ? sharedPayLabel(item.sharing.expectedCompensation) : p.expectedSalary == null ? "Salary not provided" : "₹" + p.expectedSalary + " LPA expected"}
           </span>
           <span>
             <Icon name="clock" />
@@ -486,7 +497,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
 
 function SubmittedProfile({item}:{item:ResponseItem}){
   const {profile:p,application:a,portfolio}=item;
-  return <div className="stack"><div className="row"><Avatar person={p} size="lg"/><div><h2>{p.name}</h2><p>{p.headline}</p></div></div><InfoBadge label="Submitted application information">Submitted with this application on {formatLongDate(a.createdAt.slice(0,10))}. This copy retains what the applicant shared at submission.</InfoBadge><p>{p.location} · {p.years} years of experience</p><p style={{whiteSpace:"pre-line"}}>{p.summary}</p><p>{p.skills.join(" · ")}</p><h3>Experience</h3><p style={{whiteSpace:"pre-line"}}>{p.experience||"Not provided"}</p><h3>Education</h3><p style={{whiteSpace:"pre-line"}}>{p.educationText||"Not provided"}</p><h3>Shared contact and recruitment details</h3><p>{p.email}{p.phone?" · "+p.phone:""}</p><p>Expected salary: {p.expectedSalary===null?"Not shared":p.expectedSalary+" LPA"} · Notice: {p.notice===null?"Not shared":p.notice+" days"}</p>{portfolio&&<><h3>Included portfolio</h3>{portfolio.person.summary&&<p>{portfolio.person.summary}</p>}{portfolio.projects.map((project)=><section className="card stack" style={{padding:16}} key={project.id}>{project.cover&&<Image src={project.cover} width={400} height={240} unoptimized alt={project.title} style={{maxWidth:"100%",height:"auto"}}/>}<h4>{project.title}</h4><p>{project.description}</p><p>{project.contribution}</p><p>{project.skills.join(" · ")}</p></section>)}{portfolio.updates.map((update)=><section key={update.id}><h4>{update.title}</h4><p>{update.description}</p></section>)}</>}<div className="modal-footer"><Button onClick={()=>modal.close()}>Close</Button><Button variant="primary" onClick={()=>openReview(a.id)}>Review application</Button></div></div>;
+  return <div className="stack"><div className="row"><Avatar person={p} size="lg"/><div><h2>{p.name}</h2><p>{p.headline}</p></div></div><InfoBadge label="Submitted application information">Submitted with this application on {formatLongDate(a.createdAt.slice(0,10))}. This copy retains what the applicant shared at submission.</InfoBadge><p>{p.location} · {p.years} years of experience</p><p style={{whiteSpace:"pre-line"}}>{p.summary}</p><p>{p.skills.join(" · ")}</p><h3>Experience</h3><p style={{whiteSpace:"pre-line"}}>{p.experience||"Not provided"}</p><h3>Education</h3><p style={{whiteSpace:"pre-line"}}>{p.educationText||"Not provided"}</p><h3>Shared contact and recruitment details</h3><p>{p.email}{p.phone?" · "+p.phone:""}</p>{!item.sharing&&<p>Expected salary: {p.expectedSalary===null?"Not shared":p.expectedSalary+" LPA"}</p>}<p>Notice: {p.notice===null?"Not shared":p.notice+" days"}</p>{item.sharing&&<ApplicationSharingDetails sharing={item.sharing} applicationId={a.id} reviewer/>}{portfolio&&<><h3>Included portfolio</h3>{portfolio.person.summary&&<p>{portfolio.person.summary}</p>}{portfolio.projects.map((project)=><section className="card stack" style={{padding:16}} key={project.id}>{project.cover&&<Image src={project.cover} width={400} height={240} unoptimized alt={project.title} style={{maxWidth:"100%",height:"auto"}}/>}<h4>{project.title}</h4><p>{project.description}</p><p>{project.contribution}</p><p>{project.skills.join(" · ")}</p></section>)}{portfolio.updates.map((update)=><section key={update.id}><h4>{update.title}</h4><p>{update.description}</p></section>)}</>}<div className="modal-footer"><Button onClick={()=>modal.close()}>Close</Button><Button variant="primary" onClick={()=>openReview(a.id)}>Review application</Button></div></div>;
 }
 
 const validBulkSelection=(ids:Id[])=>{if(!ids.length||ids.length>100||new Set(ids).size!==ids.length){toast("Choose 1–100 distinct records for this action.");return false;}return true;};
@@ -668,7 +679,7 @@ export function ResponseCenterScreen() {
                 options={[
                   { value: "newest", label: "Newest first" },
                   { value: "oldest", label: "Oldest first" },
-                  { value: "relevance", label: "Keyword relevance" },
+                  { value: "relevance", label: "Best match" },
                   { value: "experience", label: "Experience" },
                 ]}
               />

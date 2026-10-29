@@ -1,0 +1,44 @@
+/* Job-seeker profile cover: an uploaded banner replaces the default "WORK SPEAKS." banner. */
+.profile-cover > img,
+.profile-cover .media-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-cover.has-image::after { display: none; }
+
+/* Owner view: the banner sits directly on top of the summary card. */
+.profile-cover-owner { height: 160px; }
+.profile-cover-owner + .professional-profile-summary {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.profile-cover-edit {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid #ffffffb3;
+  border-radius: 999px;
+  background: #ffffffe6;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.profile-cover-edit:hover { background: #fff; }
+.profile-cover-edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.profile-cover-edit .icon { width: 14px; height: 14px; }
+
+@media (max-width: 680px) {
+  .profile-cover-owner { height: 110px; }
+  .profile-cover-edit { right: 10px; bottom: 10px; padding: 6px 10px; font-size: 12px; }
+}

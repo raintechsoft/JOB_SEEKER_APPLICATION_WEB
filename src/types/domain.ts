@@ -47,6 +47,8 @@ export interface Professional {
   lastActive: IsoDate;
   /** Uploaded portrait (data URL). */
   picture?: string;
+  /** Landscape profile banner; empty or absent shows the default banner. */
+  cover?: string;
   professionalDetails?: ProfessionalDetails;
   locality?: string;
   industry?: string;
@@ -174,6 +176,12 @@ export interface JobMedia {
 }
 
 export interface Job {
+  schemaVersion?: 2;
+  compensation?: import("@/lib/validation/job-v2").CompensationV2 | import("@/lib/validation/job-v2").PublicCompensationV2;
+  deadline?: import("@/lib/validation/job-v2").DeadlineV2;
+  /** Recruitment-notice details (version 2 jobs). */
+  notice?: import("@/lib/validation/job-v2").NoticeV2;
+  closesAt?: string | null;
   version?: number;
   questionsVersion?: number;
   id: Id;
@@ -264,6 +272,8 @@ export interface JobAlert {
 
 export interface SocialGraph {
   blocked?: Id[];
+  /** "Not interested" items (demo mode). */
+  hidden?: Id[];
   commentReports?: {commentId:Id;reason:string;details:string;createdAt:string}[];
   repostDates?: Record<Id, IsoDateTime>;
   following: Id[];
@@ -688,6 +698,10 @@ export interface PostDraft {
 }
 
 export interface JobWizardValues {
+  schemaVersion?: 2;
+  compensation?: import("@/lib/validation/job-v2").CompensationV2;
+  deadline?: import("@/lib/validation/job-v2").DeadlineV2;
+  notice?: import("@/lib/validation/job-v2").NoticeV2;
   companyName: string;
   hideCompany: boolean;
   title: string;

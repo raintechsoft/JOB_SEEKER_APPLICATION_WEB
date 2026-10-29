@@ -78,6 +78,15 @@ body .profile-skill-sort select:focus-visible {
     rotate: 225deg;
     color: #5476d7;
   }
+  /* A customizable select centres its value and arrow only as a flex row. Some field styles force
+     display:block, which pinned the text to the top while the arrow stayed centred. */
+  body select:not([multiple]):not([size]) {
+    align-items: center;
+  }
+  body .floating-field > select:not([multiple]):not([size]),
+  body .journey-editor select:not([multiple]):not([size]) {
+    display: flex;
+  }
   body .floating-field.is-select > select {
     padding-right: 15px;
   }

@@ -3,6 +3,7 @@ import { authDestination } from "@/features/auth/auth-navigation";
 import type { AuthSession, RecoveryStatus } from "@/services/auth/auth.service";
 import { RECOVERY_EXPIRED_PATH } from "@/features/auth/recovery-expiry";
 import { recordRecoveryNavigation } from "@/services/auth/recovery-navigation.server";
+import {applicationSignInReturn,isApplicationWizardRoute} from "@/features/applications/application-wizard-policy";
 
 /** Navigation only: Laravel authorizes every read and mutation independently. */
 export async function proxy(request: NextRequest) {
@@ -57,9 +58,11 @@ export async function proxy(request: NextRequest) {
     if (!session?.user || !Array.isArray(session.workspaces)) return unavailable();
     // Account-entry forms are for guests. Visiting one never discards a valid
     // session or changes the selected professional/employer workspace.
-    if (accountEntry) return redirect(authDestination(session));
-    if (!session.user.email_verified && path !== "/verify-email") return redirect("/verify-email");
-    if (session.user.email_verified && path === "/verify-email") return redirect(authDestination(session));
+    const applicationReturn=applicationSignInReturn(request.nextUrl.searchParams.get("next"));
+    const professional=session.workspaces.some(workspace=>workspace.id===session.selected_identity_id&&workspace.kind==="professional");
+    if (accountEntry) return redirect(professional&&session.user.email_verified&&applicationReturn?applicationReturn:authDestination(session));
+    if (!session.user.email_verified && path !== "/verify-email") return redirect("/verify-email"+(isApplicationWizardRoute(path)?"?next="+encodeURIComponent(path+request.nextUrl.search):""));
+    if (session.user.email_verified && path === "/verify-email") return redirect(professional&&applicationReturn?applicationReturn:authDestination(session));
     if (path.startsWith("/recruiter/") && !session.workspaces.some((workspace) => workspace.kind === "recruiter")) return forbidden();
     if (path === "/admin" || path.startsWith("/admin/")) {
       const permission = await fetch(`${base.replace(/\/$/, "")}/admin/session`, {

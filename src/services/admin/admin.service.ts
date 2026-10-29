@@ -20,6 +20,8 @@ export interface AdminService {
   reviewReport?(id:string,input:components["schemas"]["ReportDecision"]):Promise<void>;
   deliveries?():Promise<components["schemas"]["DeliveryStatus"][]>;
   retryDelivery?(id:string,expectedAttempts:number,reason:string):Promise<void>;
+  /** Live recommendation quality per surface and strategy (platform administrators). */
+  recommendationQuality?(days: number): Promise<components["schemas"]["RecommendationQuality"]>;
   getOverview(): Promise<AdminOverview>;
   listProfessionals(): Promise<Pick<Professional, "id" | "name" | "headline" | "public">[]>;
   toggleProfessionalVisibility(id: Id): Promise<boolean>;

@@ -8,7 +8,7 @@ import { apiConfig } from "@/services/api/config";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { ComparisonPerson } from "@/services/talent/talent.service";
 import { formatShortDate } from "@/lib/utils/date";
 import { devCopy } from "@/lib/env/app-env";
@@ -42,6 +42,10 @@ export function OverviewScreen() {
   const directory = useServiceQuery(["talent", "public-people"], s => s.talent.listPublicPeople());
   const shortlists = useServiceQuery(["shortlists"], s => s.talent.listShortlists());
   const suggestions = useServiceQuery(["recommendations", "talent"], s => s.talent.getRecommendedTalent());
+  // Talent pools (E8.f1): topics shared with the organization's open jobs; a chip narrows the suggestions to one.
+  const [pool, setPool] = useState<number | null>(null);
+  const pools = [...new Map((suggestions.data ?? []).filter(p => p.pool).map(p => [p.pool!.topic, p.pool!.name])).entries()];
+  const shown = (suggestions.data ?? []).filter(p => pool === null || p.pool?.topic === pool);
   const messages = useServiceQuery(["talent", "overview", "inbox"], s => s.messaging.getInbox("recruiter", { q: "", filter: "all", selectedId: null }));
   const savedCount = shortlists.data ? apiConfig.dataSource === "mock" ? shortlists.data.reduce((sum, list) => sum + list.candidates.length, 0) : new Set(shortlists.data.flatMap(list => list.candidates)).size : undefined;
   const value = (count: number | undefined, failed: boolean) => count ?? (failed ? "—" : <Skeleton style={{ width: 64, height: 36 }} />);
@@ -87,10 +91,18 @@ export function OverviewScreen() {
               View all talent
             </LinkButton>
           </div>
+          {pools.length > 0 && (
+            <div className="row wrap talent-pools" aria-label="Talent pools from your open jobs">
+              <button type="button" className={"tag" + (pool === null ? " purple" : "")} aria-pressed={pool === null} onClick={() => setPool(null)}>All suggestions</button>
+              {pools.map(([topic, name]) => (
+                <button type="button" key={topic} className={"tag" + (pool === topic ? " purple" : "")} aria-pressed={pool === topic} onClick={() => setPool(pool === topic ? null : topic)}>{name} pool</button>
+              ))}
+            </div>
+          )}
           <div className="grid cols3">
             <QueryFeedback data={suggestions.data} error={suggestions.isError} retry={suggestions.refetch} layout="cards" label="Loading suggested professionals" />
             {suggestions.data?.length === 0 && <p>No suggestions yet. Explore the talent directory to find people.</p>}
-            {suggestions.data?.map((p) => (
+            {shown.map((p) => (
               <TalentCard key={p.id} person={p} />
             ))}
           </div>

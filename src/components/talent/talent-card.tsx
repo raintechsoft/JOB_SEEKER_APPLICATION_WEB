@@ -1,57 +1,57 @@
 "use client";
 
-import Link from "next/link";
-import type { TalentCardData } from "@/services/talent/talent.service";
-import { Icon } from "@/components/ui/icon";
-import { Avatar, Badge, IconButton, LinkButton, Tags } from "@/components/ui/primitives";
-import { ProjectArt } from "@/components/work/project-art";
-import { MiniPulse } from "@/components/work/pulse";
-import { useProjectDialogs } from "@/features/work/dialogs";
+import { useRouter } from "next/navigation";
+import type { TalentSuggestion } from "@/services/talent/talent.service";
+import { SuggestionCard } from "@/components/suggestions/suggestion-card";
+import type { SuggestionCardAction } from "@/components/suggestions/suggestion-card-menu";
+import { QuickMessage } from "@/components/talent/quick-message";
 import { useShortlistDialogs } from "@/features/talent/dialogs";
+import { useServiceAction } from "@/hooks/use-services";
+import { modal } from "@/stores/modal-store";
+import { toast } from "@/stores/toast-store";
 import {useImpression} from "@/hooks/use-impression";
 import {track} from "@/lib/analytics";
+import { MatchBadge } from "@/components/jobs/match-badge";
+import { useInteractionTracking } from "@/hooks/use-interaction-tracking";
 
-export function TalentCard({ person: p, publicMode = false }: { person: TalentCardData; publicMode?: boolean }) {
-  const projects = useProjectDialogs();
+/**
+ * Person result in the shared suggestion-card style: name and designation only; Follow below and a
+ * corner menu (recruiters: Save to shortlist and Message; job seekers: Message and View profile).
+ */
+export function TalentCard({ person: p, publicMode = false, role = "recruiter" }: { person: TalentSuggestion; publicMode?: boolean; role?: "recruiter" | "professional" }) {
   const shortlists = useShortlistDialogs();
-  const target = publicMode ? "/professionals/" + p.slug : "/recruiter/talent/" + p.id;
-  const proj = p.featuredProject;
-  const ref=useImpression<HTMLElement>(()=>{if(p.analyticsContext)track("recommendation_exposed",p.analyticsContext);},p.analyticsContext?.requestId);
+  const router = useRouter();
+  const run = useServiceAction();
+  const target = publicMode ? "/professionals/" + p.slug : role === "professional" ? "/app/professionals/" + encodeURIComponent(p.slug) : "/recruiter/talent/" + p.id;
+  const ref=useImpression<HTMLDivElement>(()=>{if(p.analyticsContext)track("recommendation_exposed",p.analyticsContext);},p.analyticsContext?.requestId);
+  // Watch history: opening a suggested person is the talent surface's "open" outcome (M2).
+  const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLDivElement>(publicMode ? null : { kind: "professional", id: p.id }, { surface: "talent", position: p.analyticsContext?.position, requestId: p.analyticsContext?.requestId });
+  const setRef = (el: HTMLDivElement | null) => { ref.current = el; watchRef.current = el; };
+  // Follow only where the list reports the current state, so the button never shows a guess.
+  const follow = !publicMode && p.following !== undefined ? async () => {
+    const next = await run((s) => s.feed.toggleFollow(role, p.id), { invalidate: ["talent", "network", "feed"] });
+    if (next === undefined) return;
+    track("person_followed", { personId: p.id, following: next });
+    toast(next ? "You’re now following " + p.name + "." : "Unfollowed " + p.name + ".");
+  } : undefined;
+  const message: SuggestionCardAction = { label: "Send a message", icon: "message", onSelect: () => modal.show("Start a conversation", <QuickMessage candidateId={p.id} name={p.name} role={role} />) };
+  const menu: SuggestionCardAction[] | undefined = publicMode ? undefined : role === "professional"
+    ? [message, { label: "View profile", icon: "user", onSelect: () => router.push(target) }]
+    : [{ label: p.saved ? "Manage saved lists" : "Save to shortlist", icon: "bookmark", onSelect: () => shortlists.choose(p.id) }, message];
   return (
-    <article ref={ref} className="card talent-card" onClickCapture={(e)=>{if(p.analyticsContext&&(e.target as HTMLElement).closest("a"))track("recommendation_clicked",p.analyticsContext);}}>
-      <div className="row between">
-        <Link href={target} className="talent-avatar-link" aria-label={"View " + p.name + " profile"}>
-          <Avatar person={p} size="lg" />
-        </Link>
-        <IconButton icon="bookmark" label={p.saved ? "Manage saved candidate" : "Save to shortlist"} extra={p.saved ? "saved" : ""} onClick={() => shortlists.choose(p.id)} />
-      </div>
-      <h3 className="talent-name">
-        <Link href={target}>{p.name}</Link>
-      </h3>
-      <p className="headline">{p.headline}</p>
-      {p.recommendationReason&&<p className="small muted">{p.recommendationReason}</p>}
-      <div className="meta">
-        <span>
-          <Icon name="location" /> {p.location}
-        </span>
-        <span>{p.years} years experience</span>
-      </div>
-      <Tags items={p.skills.slice(0, 3)} />
-      <p className="summary">{p.summary}</p>
-      {proj && (
-        <button type="button" className="work-proof" style={{ width: "100%", textAlign: "left" }} onClick={() => projects.view(proj.id)}>
-          <ProjectArt project={proj} />
-          <span>{proj.title}</span>
-          <Icon name="arrowUp" />
-        </button>
-      )}
-      <MiniPulse recentDays={p.recentDays} />
-      <div className="row between" style={{ borderTop: "1px solid var(--line)", paddingTop: 15 }}>
-        <Badge tone={p.available ? "green" : "purple"}>{p.available ? "Open to opportunities" : "Open to connections"}</Badge>
-        <LinkButton href={target} variant="text sm" icon="arrow">
-          View profile
-        </LinkButton>
-      </div>
-    </article>
+    <div ref={setRef} className="talent-suggestion" onClickCapture={(e)=>{if((e.target as HTMLElement).closest("a")){if(p.analyticsContext)track("recommendation_clicked",p.analyticsContext);watchClick();}}}>
+      <SuggestionCard
+        href={target}
+        name={p.name}
+        headline={p.headline}
+        person={p}
+        coverUrl={p.cover || undefined}
+        label={"View " + p.name + " profile"}
+        following={!!p.following}
+        onFollow={follow}
+        menu={menu}
+      />
+      <MatchBadge match={p.match} showJob />
+    </div>
   );
 }

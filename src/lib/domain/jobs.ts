@@ -1,5 +1,6 @@
 import type { Company, Job, JobAlert, JobWizardValues } from "@/types/domain";
 import { DAY_MS, today } from "@/lib/utils/date";
+import { formatCompensation } from "./job-compensation";
 
 export const JOB_THUMBNAIL_TEMPLATES = [
   { id: "cobalt", name: "Cobalt studio", description: "A bold blue hiring announcement." },
@@ -10,9 +11,9 @@ export const JOB_THUMBNAIL_TEMPLATES = [
 
 export type JobStatus = "Draft" | "Closed" | "Expired" | "Active";
 
-export const jobStatus = (j: Job): JobStatus => (j.draft ? "Draft" : j.closed ? "Closed" : j.expiresAt && j.expiresAt < today() ? "Expired" : "Active");
+export const jobStatus = (j: Job): JobStatus => (j.draft ? "Draft" : j.closed ? "Closed" : (j.closesAt ? Date.parse(j.closesAt)<=Date.now() : j.expiresAt && j.expiresAt < today()) ? "Expired" : "Active");
 
-export const isOpenJob = (j: Job) => !j.closed && !j.draft && (!j.expiresAt || j.expiresAt >= today());
+export const isOpenJob = (j: Pick<Job,"closed"|"draft"|"closesAt"|"expiresAt">) => !j.closed && !j.draft && (j.closesAt ? Date.parse(j.closesAt)>Date.now() : !j.expiresAt || j.expiresAt >= today());
 
 /** Company as candidates see it on a job, honouring "hide company". */
 export function displayJobCompany(job: Pick<Job, "hideCompany" | "companyDisplayName">, company: Company) {
@@ -32,7 +33,7 @@ export const normalizeKeywords = (v: string | undefined) =>
     .trim();
 
 export function matchesAlert(job: Job, alert: JobAlert) {
-  if (!alert.enabled || job.closed || job.draft || (job.expiresAt && job.expiresAt < today())) return false;
+  if (!alert.enabled || !isOpenJob(job)) return false;
   const text = normalizeKeywords([job.title, ...job.skills].join(" "));
   return (
     normalizeKeywords(alert.keywords)
@@ -47,7 +48,8 @@ export function matchesAlert(job: Job, alert: JobAlert) {
 
 const CURRENCY_SYMBOLS: Record<string, string> = { INR: "₹", USD: "$", EUR: "€", GBP: "£" };
 
-export function formatSalary(v: Pick<JobWizardValues, "hideSalary" | "currency" | "salaryMin" | "salaryMax" | "variableEnabled" | "variablePercent">) {
+export function formatSalary(v: Pick<JobWizardValues, "hideSalary" | "currency" | "salaryMin" | "salaryMax" | "variableEnabled" | "variablePercent" | "compensation">) {
+  if (v.compensation) return formatCompensation(v.compensation);
   if (v.hideSalary) return "Salary not disclosed";
   const symbol = CURRENCY_SYMBOLS[v.currency] || v.currency;
   return `${symbol}${v.salaryMin}–${v.salaryMax}${v.currency === "INR" ? " LPA" : " per year"}${v.variableEnabled && v.variablePercent ? " + " + v.variablePercent + "% variable" : ""}`;

@@ -1,0 +1,38 @@
+import {expect,it,vi} from "vitest";
+import {createHttpClient,ApiError} from "@/services/api/client";
+import {createHttpJobPostsService} from "@/services/job-posts/job-posts.http";
+import {createHttpJobsService} from "@/services/jobs/jobs.http";
+import {createHttpRecruitingService} from "@/services/recruiting/recruiting.http";
+import type {AuthService} from "@/services/auth/auth.service";
+import {validJob} from "../fixtures/job";
+import type {JobDraft} from "@/types/domain";
+import {jobEditorValues} from "@/lib/domain/job-editor";
+import {jobValuesToV2} from "@/lib/domain/job-v2-compatibility";
+const id="00000000-0000-4000-8000-000000000001",key="00000000-0000-4000-8000-000000000002";
+const auth=()=>({me:vi.fn().mockResolvedValue({selected_identity_id:"workspace",workspaces:[{id:"workspace",kind:"recruiter",organization:{id}}]})}) as unknown as AuthService;
+const draft=():JobDraft=>({id,existingId:"",step:0,reached:0,values:structuredClone(validJob),version:1,jobVersion:1,savedAt:""});
+it("invalid drafts, publishing, bulk operations and outreach never invoke mutation transport",async()=>{
+  const client=createHttpClient("http://localhost:8000/api/v1"),post=vi.spyOn(client,"post"),patch=vi.spyOn(client,"patch"),session=auth();
+  const jobPosts=createHttpJobPostsService(client,session),jobs=createHttpJobsService(client),recruiting=createHttpRecruitingService(client,session);
+  await expect(jobPosts.storeJobDraft(key,{...draft(),values:{...validJob,experienceMin:"Infinity"}})).rejects.toThrow();
+  await expect(jobPosts.publishJob(key,{...draft(),values:{...validJob,description:""}})).rejects.toThrow();
+  const v2=jobValuesToV2(validJob,"legacy-draft");v2.compensation.minAmount="-1";
+  await expect(jobPosts.storeJobDraft(key,{...draft(),values:jobEditorValues(v2)})).rejects.toThrow();
+  await expect(jobs.saveAlert({name:"",keywords:"PHP",location:"",arrangement:"Any",days:7,enabled:true})).rejects.toThrow();
+  await expect(recruiting.closeJobs(Array.from({length:101},()=>id))).rejects.toThrow();
+  await expect(recruiting.saveOutreach([id],"","Message")).rejects.toThrow();
+  expect(post).not.toHaveBeenCalled();expect(patch).not.toHaveBeenCalled();expect(session.me).not.toHaveBeenCalled();
+});
+it("serializes autosaves from one editor while retaining another editor's stale revision",async()=>{
+  const client=createHttpClient("http://localhost:8000/api/v1"),session=auth();
+  const ctx={key,draft:draft(),editingPublished:false,companyName:"Test",companyId:id};
+  const post=vi.spyOn(client,"post").mockResolvedValueOnce({data:structuredClone(ctx)}).mockResolvedValueOnce({data:structuredClone(ctx)});
+  const patch=vi.spyOn(client,"patch").mockResolvedValueOnce({data:{...draft(),version:2}}).mockResolvedValueOnce({data:{...draft(),version:3}});
+  const service=createHttpJobPostsService(client,session),one=(await service.openJobDraft(id))!,two=(await service.openJobDraft(id))!;
+  const d1={...one.draft,values:{...one.draft.values,title:"First edit"}},d2={...one.draft,values:{...one.draft.values,title:"Second edit"}};
+  await Promise.all([service.storeJobDraft(key,d1),service.storeJobDraft(key,d2)]);
+  expect(patch.mock.calls.map((call)=>(call[1] as {version:number}).version)).toEqual([1,2]);
+  patch.mockRejectedValueOnce(new ApiError("stale",409));
+  await expect(service.storeJobDraft(key,{...two.draft,values:{...two.draft.values,title:"Stale edit"}})).rejects.toMatchObject({status:409});
+  expect(patch.mock.calls.at(-1)![1]).toMatchObject({version:1});expect(post).toHaveBeenCalledTimes(2);
+});

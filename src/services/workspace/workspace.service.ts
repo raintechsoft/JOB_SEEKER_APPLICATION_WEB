@@ -16,7 +16,7 @@ export interface RecruiterShellData {
 }
 
 export interface ProfessionalSummary {
-  person: PersonSummary & { location: string; complete: number };
+  person: PersonSummary & { location: string; complete: number; cover?: string };
   pulseDays?: number;
   followingCount?: number;
   savedCount?: number;

@@ -2,7 +2,10 @@
 
 import { QueryFeedback } from "@/components/ui/query-view";
 
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { discoverySectionSchema, peopleSectionSchema } from "@/lib/validation/talent-discovery";
+import { TalentDiscoveryRows, TalentDiscoverySection } from "./talent-discovery";
 import type { TalentFilters } from "@/services/talent/talent.service";
 import { EMPTY_TALENT_FILTERS } from "@/services/talent/talent.service";
 import { track } from "@/lib/analytics";
@@ -13,8 +16,9 @@ import { Icon } from "@/components/ui/icon";
 import { FloatingInput, FloatingSelect } from "@/components/ui/field";
 import { Button, EmptyState, PageHeading } from "@/components/ui/primitives";
 import { TalentCard } from "@/components/talent/talent-card";
+import { SuggestionCardGrid, SuggestionCardsSkeleton } from "@/components/suggestions/suggestion-card";
 
-function TalentResults({ publicMode }: { publicMode: boolean }) {
+function TalentResults({ publicMode, role = "recruiter" }: { publicMode: boolean; role?: "recruiter" | "professional" }) {
   const filters = useUiStore((s) => s.talent);
   const setTalent = useUiStore((s) => s.setTalent);
   const { data: list,isError,refetch } = useServiceQuery(["talent", "search", filters], (s) => s.talent.search(filters),{keepPreviousData:false});
@@ -27,7 +31,8 @@ function TalentResults({ publicMode }: { publicMode: boolean }) {
   }, [filters, list]);
   return (
     <>
-      <div className="row between wrap" style={{ marginBottom: 20 }}>
+      {/* The recruiter layout drops the count and sort row; the public directory keeps it. */}
+      {publicMode && <div className="row between wrap" style={{ marginBottom: 20 }}>
         <p className="small muted">
           <strong style={{ color: "var(--ink)" }}>{list?.length ?? "—"}</strong> professionals to explore{" "}
           <DevOnly>
@@ -52,12 +57,13 @@ function TalentResults({ publicMode }: { publicMode: boolean }) {
             ]}
           />
         </div>
-      </div>
-      <div className="grid cols3 talent-grid">
-        <QueryFeedback data={list} error={isError} retry={refetch} layout="cards" label="Loading professionals" />
-        {list && list.length ? (
-          list.map((p) => <TalentCard key={p.id} person={p} publicMode={publicMode} />)
-        ) : list ? (
+      </div>}
+      {list === undefined && (isError ? <QueryFeedback data={list} error={isError} retry={refetch} layout="cards" label="Loading professionals" /> : <SuggestionCardsSkeleton label="Loading professionals" />)}
+      {list && list.length ? (
+        <SuggestionCardGrid>
+          {list.map((p) => <TalentCard key={p.id} person={p} publicMode={publicMode} role={role} />)}
+        </SuggestionCardGrid>
+      ) : list ? (
           <EmptyState
             title="A little room to broaden your search."
             description="Try a different skill, name, or project keyword."
@@ -67,26 +73,32 @@ function TalentResults({ publicMode }: { publicMode: boolean }) {
               </Button>
             }
           />
-        ) : null}
-      </div>
+      ) : null}
     </>
   );
 }
 
 const CHIP_KEYS = ["category", "skill", "location", "years", "availability"] as const;
 
-/** Talent discovery (public `/talent` and recruiter `/recruiter/discover`). */
-export function DiscoverScreen({ publicMode = false }: { publicMode?: boolean }) {
+/** Talent discovery (public `/talent`, recruiter `/recruiter/discover` and job seeker `/app/discover`). */
+export function DiscoverScreen({ publicMode = false, role = "recruiter" }: { publicMode?: boolean; role?: "recruiter" | "professional" }) {
   const filters = useUiStore((s) => s.talent);
   const setTalent = useUiStore((s) => s.setTalent);
   const { data: options, isPending: optionsPending, isError: optionsError, refetch: retryOptions } = useServiceQuery(["talent", "filter-options"], (s) => s.talent.getFilterOptions());
   const select = (key: keyof TalentFilters, label: string, opts: { value: string; label: string }[]) => (
     <FloatingSelect label={label} className="control" aria-label={label} loading={(key === "location" || key === "skill") && optionsPending} disabled={(key === "location" || key === "skill") && optionsError && !options} value={String(filters[key])} onChange={(e) => setTalent({ [key]: e.target.value } as Partial<TalentFilters>)} options={opts} />
   );
+  const sidebar = !publicMode && role === "recruiter";
+  // Job seekers have no filter sidebar, so never leave them on results filtered elsewhere.
+  useEffect(() => {
+    if (role === "professional") setTalent(EMPTY_TALENT_FILTERS);
+  }, [role, setTalent]);
   return (
-    <>
-      <PageHeading title="" subtitle="" />
-      <div className="filters">
+    <div className={sidebar ? "talent-discover-layout" : role === "professional" && !publicMode ? "talent-discover-centered" : undefined}>
+      {/* The recruiter layout starts directly with the sidebar and rows; the empty heading only added space. */}
+      {publicMode && <PageHeading title="" subtitle="" />}
+      {(publicMode || sidebar) && <aside className={"filters" + (sidebar ? " card talent-filter-sidebar" : "")} aria-label="Filter talent">
+        {sidebar && <h2 className="talent-filter-title">Filters</h2>}
         <div className="search-box">
           <Icon name="search" />
           <FloatingInput
@@ -127,8 +139,18 @@ export function DiscoverScreen({ publicMode = false }: { publicMode?: boolean })
         <Button variant="text sm" icon="close" onClick={() => setTalent(EMPTY_TALENT_FILTERS)}>
           Clear all
         </Button>
-      </div>
-      {optionsError && <p role="alert" className="small muted">Location and skill options could not be loaded. <Button variant="text sm" onClick={() => retryOptions()}>Try again</Button></p>}
+        {optionsError && <p role="alert" className="small muted">Location and skill options could not be loaded. <Button variant="text sm" onClick={() => retryOptions()}>Try again</Button></p>}
+      </aside>}
+      <div className="talent-discover-main">
+      {!publicMode && !!options?.hiringSkills?.length && (
+        <div className="row wrap talent-hiring-skills" aria-label="Candidates with the skills you hire for">
+          {options.hiringSkills.map((skill) => (
+            <button type="button" key={skill} className={"tag" + (filters.skill === skill ? " purple" : "")} aria-pressed={filters.skill === skill} onClick={() => setTalent({ skill: filters.skill === skill ? "" : skill })}>
+              Candidates with {skill}
+            </button>
+          ))}
+        </div>
+      )}
       <div id="active-filters" className="row wrap" style={{ marginBottom: 15 }}>
         {CHIP_KEYS.filter((k) => filters[k]).map((k) => (
           <button type="button" key={k} className="tag purple" onClick={() => setTalent({ [k]: "" } as Partial<TalentFilters>)}>
@@ -137,8 +159,37 @@ export function DiscoverScreen({ publicMode = false }: { publicMode?: boolean })
         ))}
       </div>
       <div id="talent-results">
-        <TalentResults publicMode={publicMode} />
+        {publicMode ? (
+          <TalentResults publicMode />
+        ) : (
+          <Suspense fallback={null}>
+            <WorkspaceResults role={role} filtering={sidebar && !!(filters.q || CHIP_KEYS.some((k) => filters[k]) || filters.completeness || filters.recent)} />
+          </Suspense>
+        )}
       </div>
+      </div>
+    </div>
+  );
+}
+
+/** Workspace users see discovery rows until they search or filter; `?section=` opens one row in full. */
+function WorkspaceResults({ filtering, role }: { filtering: boolean; role: "recruiter" | "professional" }) {
+  const params = useSearchParams();
+  const section = (role === "recruiter" ? discoverySectionSchema : peopleSectionSchema).safeParse(params.get("section")).data;
+  if (filtering) return <TalentResults publicMode={false} role={role} />;
+  if (section) return <TalentDiscoverySection role={role} section={section} job={params.get("job") ?? undefined} />;
+  return (
+    <>
+      <TalentDiscoveryRows role={role} />
+      <section className="talent-discovery-row" aria-labelledby="row-all">
+        <header>
+          <div>
+            <h2 id="row-all">All professionals</h2>
+            <p>Browse the full directory, or search and filter above.</p>
+          </div>
+        </header>
+        <TalentResults publicMode={false} role={role} />
+      </section>
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Role } from "@/types/domain";
 import { useAuthForm } from "./use-auth-form";
 import { AuthError, AuthField } from "./auth-errors";
@@ -21,25 +21,9 @@ import { TextField } from "@/components/ui/field";
 import { AuthHeader, AuthStory } from "@/components/layout/auth-chrome";
 import { EmployerRegistrationScreen } from "./employer-registration";
 import { clearIdentityState } from "./clear-identity-state";
-
-function GoogleSignInButton() {
-  return (
-    <div className="auth-google-login">
-      <div className="auth-method-divider">
-        <span>or</span>
-      </div>
-      <button type="button" className="auth-google-button" onClick={() => toast(devCopy("Google sign-in is not connected yet. Please use email or a demo login.", "Google sign-in is not available yet. Please use your email address."))}>
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-          <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.36Z" />
-          <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.41l-3.24-2.51c-.9.6-2.05.96-3.38.96-2.61 0-4.83-1.76-5.62-4.12H3.03v2.59A10 10 0 0 0 12 22Z" />
-          <path fill="#FBBC05" d="M6.38 13.92a6.01 6.01 0 0 1 0-3.84V7.49H3.03a10 10 0 0 0 0 9.02l3.35-2.59Z" />
-          <path fill="#EA4335" d="M12 5.96c1.47 0 2.79.51 3.82 1.51l2.86-2.86A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.97 5.49l3.35 2.59C7.17 7.72 9.39 5.96 12 5.96Z" />
-        </svg>
-        <span>Continue with Google</span>
-      </button>
-    </div>
-  );
-}
+import { GoogleReturnNotice, GoogleSignInButton } from "./google-sign-in";
+import {applicationSignInReturn} from "@/features/applications/application-wizard-policy";
+import {navigateToApplication} from "@/features/applications/application-signin-return";
 
 export function SignInForm({ role }: { role: Role }) {
   const router = useRouter();
@@ -53,10 +37,15 @@ export function SignInForm({ role }: { role: Role }) {
       noValidate
       onSubmit={submit(async (values) => {
         if (apiConfig.dataSource === "http") {
-          const session = await services.auth.login(values, role === "recruiter" ? "employer" : "professional");
-          clearIdentityState(); cache.clear();
           const next = new URLSearchParams(window.location.search).get("next");
-          router.push(session.user.email_verified && next?.startsWith("/accept-invitation?") ? next : authDestination(session, role));
+          // Sent here by an admin page: sign in without entering a workspace (an admin may have none), then go back.
+          const admin = !!next && /^\/admin\/[a-z-]+$/.test(next);
+          const session = await services.auth.login(values, admin ? "admin" : role === "recruiter" ? "employer" : "professional");
+          clearIdentityState(); cache.clear();
+          if(admin){router.push(next);return;}
+          const application=role==="professional"?applicationSignInReturn(next):null;
+          if(application&&session.user.email_verified){navigateToApplication(application);return;}
+          router.push(session.user.email_verified ? next?.startsWith("/accept-invitation?")?next:application??authDestination(session,role) : application?"/verify-email?next="+encodeURIComponent(application):authDestination(session,role));
           return;
         }
         await services.workspace.signIn(role);
@@ -94,7 +83,9 @@ export function SignUpForm({ role }: { role: Role }) {
         if (apiConfig.dataSource === "http") {
           const session = await services.auth.register(v);
           clearIdentityState(); cache.clear();
-          router.push(authDestination(session));
+          const next=role==="professional"?applicationSignInReturn(new URLSearchParams(window.location.search).get("next")):null;
+          if(next&&session.user.email_verified){navigateToApplication(next);return;}
+          router.push(next?(session.user.email_verified?next:"/verify-email?next="+encodeURIComponent(next)):authDestination(session));
           return;
         }
         await services.workspace.signUp(role, v.name.trim());
@@ -132,6 +123,8 @@ export function AuthScreen({ signup = false, roleParam, employer = false }: { si
 }
 
 function AuthLayout({ signup, role }: { signup: boolean; role: Role }) {
+  const params=useSearchParams();
+  const application=role==="professional"?applicationSignInReturn(params.get("next")):null;
   const run = useServiceAction();
   const router = useRouter();
   const recruiter = role === "recruiter";
@@ -156,13 +149,15 @@ function AuthLayout({ signup, role }: { signup: boolean; role: Role }) {
               <SignUpForm role={role} />
             ) : (
               <div className="auth-methods">
+                {!recruiter && <GoogleReturnNotice />}
                 <SignInForm role={role} />
-                <GoogleSignInButton />
+                {/* Google sign-in is for job seekers; employer accounts use their verified email. */}
+                {!recruiter && <GoogleSignInButton />}
               </div>
             )}
             {!(recruiter && !signup) && (
               <p className="auth-switch-link">
-                {signup ? "Already Registered?" : "New around here?"} <Link href={(signup ? "/login" : "/signup") + "?role=" + role}>{signup ? "Login" : "Create a profile"}</Link>
+                {signup ? "Already Registered?" : "New around here?"} <Link href={(signup ? "/login" : "/signup") + "?role=" + role+(application?"&next="+encodeURIComponent(application):"")}>{signup ? "Login" : "Create a profile"}</Link>
               </p>
             )}
             {recruiter && !signup ? (

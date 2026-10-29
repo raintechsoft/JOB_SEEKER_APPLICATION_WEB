@@ -3,11 +3,12 @@ import { paginate } from "@/types/api";
 import type { DemoDatabase, Id, Job, Post, Role, SocialGraph, WorkUpdate } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
 import { companySummary, feedPerson, jobCompany, personSummary, projectSummary } from "@/mocks/store/presenters";
-import { currentRecruiter, homeCompany, isJobOpen, ME_ID, person, RECRUITER_ID, socialFor } from "@/mocks/store/selectors";
+import { currentRecruiter, homeCompany, isJobOpen, me, ME_ID, person, RECRUITER_ID, socialFor } from "@/mocks/store/selectors";
 import { uid } from "@/lib/utils/id";
 import type { FeedEntry, FeedQuery, FeedService, Network } from "./feed.service";
 import { reportSchema } from "@/lib/validation/communication";
 import { peopleSearchSchema } from "@/lib/validation/social";
+import { activityCalendarContract, activityLevel, currentPeriod, daysInMonth, isoDate, periodKey, type ActivityType } from "@/lib/activity/activity-calendar";
 
 type RawItem = (Post & { type: "post" }) | (Job & { type: "job"; owner?: undefined }) | (WorkUpdate & { type: "update"; body: string; createdAt: string; likes: number; kind: string; media: ""; image: "" });
 
@@ -132,6 +133,20 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
   };
 }
 
+/** Demo "For you": skills the viewer has (or, for a recruiter, hires for) first, then people and companies followed. */
+function recommendation(db: DemoDatabase, role: Role) {
+  const s = socialFor(db, role);
+  const skills = new Set((role === "professional" ? me(db).skills : db.social.jobs.filter((j) => j.company === homeCompany(db).id).flatMap((j) => j.skills)).map((k) => k.toLowerCase()));
+  return (item: RawItem) => {
+    const followed = item.type === "job" ? s.followingCompanies.includes(item.company) : s.following.includes(item.owner);
+    const shared = skillsOf(item).filter((k) => skills.has(k.toLowerCase()));
+    const reason = shared.length
+      ? (role === "recruiter" ? "Skills you hire for: " : "Matches your skills: ") + shared.slice(0, 2).join(", ")
+      : followed ? (item.type === "job" ? "From a company you follow" : "From someone you follow") : "Recent in your network";
+    return { score: 2 * Math.min(3, shared.length) + 3 * Number(followed), reason };
+  };
+}
+
 function filterItems(db: DemoDatabase, query: FeedQuery) {
   const s = socialFor(db, query.role);
   let list: RawItem[];
@@ -150,12 +165,15 @@ function filterItems(db: DemoDatabase, query: FeedQuery) {
   if (query.filter === "saved") list = list.filter((p) => s.saved.includes(p.id));
   const q = query.q.trim().toLowerCase();
   if (q) list = list.filter((p) => searchText(db, query.role, p).includes(q));
+  // "Not interested" items leave the main feeds; saved, reposts and searches still show them.
+  else if (["all", "jobs", "following"].includes(query.filter)) list = list.filter((p) => !s.hidden?.includes(p.id));
   const score = (p: RawItem) => (p.likes || 0) + Number(s.liked.includes(p.id));
+  const time = (item: RawItem) => [item.createdAt, networkRepost(db, query.role, item.id, false)?.createdAt ?? ""].sort().at(-1)!;
   if (query.sort === "popular") list.sort((a, b) => score(b) - score(a));
-  else {
-    const time = (item: RawItem) => [item.createdAt, networkRepost(db, query.role, item.id, false)?.createdAt ?? ""].sort().at(-1)!;
-    list.sort((a, b) => time(b).localeCompare(time(a)) || b.id.localeCompare(a.id));
-  }
+  else if (query.sort === "recommended") {
+    const rank = recommendation(db, query.role);
+    list.sort((a, b) => rank(b).score - rank(a).score || time(b).localeCompare(time(a)) || b.id.localeCompare(a.id));
+  } else list.sort((a, b) => time(b).localeCompare(time(a)) || b.id.localeCompare(a.id));
   return list;
 }
 
@@ -180,7 +198,8 @@ export const mockFeedService: FeedService = {
   async getFeed(query) {
     const db = getDb();
     const list = filterItems(db, query);
-    const page = paginate(list.map((item) => toFeedEntry(db, query.role, item)), 1, query.limit);
+    const rank = recommendation(db, query.role);
+    const page = paginate(list.map((item) => ({ ...toFeedEntry(db, query.role, item), ...(query.sort === "recommended" ? { recommendationReason: rank(item).reason } : {}) })), 1, query.limit);
     const s = socialFor(db, query.role);
     const suggestions = query.role === "professional" ? db.professionals.filter((p) => p.id !== ME_ID && p.public && !blockedInMock(db, query.role, p.id) && !s.following.includes(p.id)).slice(0, 3).map(p => personSummary(p, db)) : [];
     return { ...page, suggestions };
@@ -214,6 +233,15 @@ export const mockFeedService: FeedService = {
     }, { rollbackOnFailure: true });
     if (!persisted) throw new Error("Your repost could not be saved. Please try again.");
     return enabled;
+  },
+
+  async setHidden(role, id, _type, hidden) {
+    const persisted = commit((db) => {
+      const list = graph(db, role).hidden ??= [];
+      if (hidden !== list.includes(id)) toggleIn(list, id);
+    }, { rollbackOnFailure: true });
+    if (!persisted) throw new Error("This change could not be saved. Please try again.");
+    return hidden;
   },
 
   async toggleSave(role, id) {
@@ -338,6 +366,27 @@ export const mockFeedService: FeedService = {
       { rollbackOnFailure: true },
     );
     return ok ? { id } : null;
+  },
+
+  // Prototype data: the same aggregation policy applied to the in-browser demo posts and work updates.
+  async getActivityCalendar(role, year, month) {
+    const db = getDb();
+    const owner = identityId(role);
+    const zoneDate = new Intl.DateTimeFormat("en-CA", { timeZone: activityCalendarContract.timezone, year: "numeric", month: "2-digit", day: "2-digit" });
+    const events: [string, ActivityType][] = [
+      ...db.social.posts.filter((p) => p.owner === owner).map((p): [string, ActivityType] => [zoneDate.format(new Date(p.createdAt)), "post_published"]),
+      ...(role === "professional" ? db.updates.filter((u) => u.owner === owner).map((u): [string, ActivityType] => [u.date.slice(0, 10), "work_update_recorded"]) : []),
+    ];
+    const days = Array.from({ length: daysInMonth(year, month) }, (_, i) => {
+      const date = isoDate(year, month, i + 1);
+      const activities = (Object.keys(activityCalendarContract.labels) as ActivityType[])
+        .map((type) => ({ type, label: activityCalendarContract.labels[type], count: events.filter(([d, t]) => d === date && t === type).length }))
+        .filter((a) => a.count);
+      const count = activities.reduce((n, a) => n + a.count, 0);
+      return { date, count, level: activityLevel(count), activities };
+    });
+    const latest = currentPeriod();
+    return { year, month, timezone: activityCalendarContract.timezone, total: days.reduce((n, d) => n + d.count, 0), days, range: { earliest: `${latest.year - 1}-01`, latest: periodKey(latest) } };
   },
 
   // The prototype data source never contacts external sites; links stay plain clickable text.

@@ -40,7 +40,12 @@ export function ProfessionalFeedScreen() {
 
   const setFilter = (filter: FeedFilter) => {
     setFeed({ filter, visible: 12 });
-    router.replace(filter === "reposts" ? pathname + "?view=reposts" : pathname, { scroll: false });
+    // Only the feed's own parameters change; others (such as the activity month) are kept.
+    const next = new URLSearchParams(window.location.search);
+    for (const key of ["view", "post", "comment", "q"]) next.delete(key);
+    if (filter === "reposts") next.set("view", "reposts");
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
   return (

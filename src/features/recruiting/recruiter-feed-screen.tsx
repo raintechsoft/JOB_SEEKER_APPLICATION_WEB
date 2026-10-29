@@ -132,6 +132,9 @@ function ProfileRail() {
   );
 }
 
+/** The rail is a glance, not a list: longer lists continue on their own pages. */
+const RAIL_LIMIT = 3;
+
 function HiringRail() {
   const router = useRouter();
   const { data, isError, refetch } = useServiceQuery(["hiring-summary"], (s) => s.recruiting.getHiringSummary());
@@ -142,7 +145,7 @@ function HiringRail() {
         <h2>Applications to review</h2>
         <p>Keep your next connection in sight.</p>
         {!data ? <QueryFeedback data={data} error={isError} retry={refetch} label="Loading applications" /> : data.newApplications.length ? (
-          data.newApplications.map((a) => (
+          data.newApplications.slice(0, RAIL_LIMIT).map((a) => (
             <button type="button" className="recruiter-mini-app" key={a.id} onClick={() => openReview(a.id)}>
               <Avatar person={a.person} />
               <span>
@@ -167,17 +170,22 @@ function HiringRail() {
         </div>
         <QueryFeedback data={data} error={isError} retry={refetch} label="Loading job posts" />
         {data?.jobs.length === 0 && <p>Your job posts will appear here.</p>}
-        {data?.jobs.map((j) => (
+        {data?.jobs.slice(0, RAIL_LIMIT).map((j) => (
           <div className="recruiter-rail-job" key={j.id}>
             <strong>{j.title}</strong>
             <p>
               {j.location} · {j.arrangement}
             </p>
             <Link href={"/recruiter/applications?job=" + j.id}>
-              {j.applications} applications <Icon name="arrowUp" />
+              {j.applications} {j.applications === 1 ? "application" : "applications"} <Icon name="arrowUp" />
             </Link>
           </div>
         ))}
+        {(data?.jobs.length ?? 0) > RAIL_LIMIT && (
+          <LinkButton href="/recruiter/jobs" variant="text sm" icon="arrow">
+            View all job posts
+          </LinkButton>
+        )}
         <Button variant="primary sm" icon="plus" onClick={() => router.push("/recruiter/jobs/new")}>
           Post a job
         </Button>

@@ -1,12 +1,15 @@
 "use client";
 
 import type { Role } from "@/types/domain";
+import { useState } from "react";
 import { useServiceQuery } from "@/hooks/use-services";
 import { apiConfig } from "@/services/api/config";
 import { Icon } from "@/components/ui/icon";
 import { Dropdown, type DropdownOption } from "@/components/ui/dropdown";
 import { scopesFor, searchLabels, filterLabels, searchSettings, type SearchFilters, type SearchOptions, type SearchScope } from "@/lib/search/scopes";
 import { filterLayouts, controlKeys, controlLabel, type FilterControl } from "@/lib/search/capabilities";
+import { CompensationFilter, withoutCompensation } from "./compensation-filter";
+import { compensationQueryErrors } from "@/lib/validation/job-discovery";
 
 type Props = { role: Role; scope: SearchScope; query: string; options: SearchOptions; pending?: boolean; onCategory: (scope: SearchScope) => void; onApply: (options: SearchOptions) => boolean };
 const isSet = (value: unknown) => value !== undefined && value !== "";
@@ -35,6 +38,7 @@ function withChoice(value: string, label: string, options: DropdownOption[]) {
 }
 
 function controlValue(control: FilterControl, options: SearchOptions) {
+  if (control === "compensation") return "";
   if (control === "experience") {
     if (options.experienceMin === undefined && options.experienceMax === undefined) return "";
     return `${options.experienceMin ?? 0}-${options.experienceMax ?? 60}`;
@@ -62,6 +66,7 @@ function optionsFor(control: FilterControl, role: Role, scope: SearchScope, opti
   const current = controlValue(control, options);
   if (control === "arrangement") return { choices: withChoice(current, current, [ANY, ...searchSettings.arrangements.map(value => ({ value, label: value }))]), allowCustom: false };
   if (control === "employment") return { choices: withChoice(current, current, [ANY, ...searchSettings.employment.map(value => ({ value, label: value }))]), allowCustom: false };
+  if (control === "education") return { choices: withChoice(current, current, [ANY, ...searchSettings.education.map(value => ({ value, label: value }))]), allowCustom: false };
   if (control === "discipline") return { choices: withChoice(current, current, [ANY, ...searchSettings.disciplines.map(value => ({ value, label: value }))]), allowCustom: false };
   if (control === "days") return { choices: withChoice(current, `Past ${current} days`, DAY_OPTIONS), allowCustom: false };
   if (control === "experience") return { choices: withChoice(current, `${current} years`, EXPERIENCE_OPTIONS), allowCustom: false };
@@ -91,6 +96,12 @@ export function SearchFilterBar({ role, scope, pending = false, onCategory, sele
 }
 
 export function SearchSubFilterBar({ role, scope, options, pending = false, onApply }: Omit<Props, "onCategory" | "query">) {
+  const [filterError,setFilterError]=useState("");
+  const apply=(next:SearchOptions)=>{
+    const messages=Object.values(compensationQueryErrors(next));
+    if(messages.length){setFilterError(messages[0]);return false;}
+    const accepted=onApply(next);setFilterError(accepted?"":"Check the selected filters before searching.");return accepted;
+  };
   const layout = filterLayouts[scope];
   const session = useServiceQuery(["auth", "session"], service => service.auth.me(), { enabled: apiConfig.dataSource === "http" });
   const identity = session.data?.selected_identity_id;
@@ -105,10 +116,11 @@ export function SearchSubFilterBar({ role, scope, options, pending = false, onAp
         aria-label="Sort by"
         disabled={pending}
         value={options.sort ?? "relevance"}
-        options={[{ value: "relevance", label: "Relevance" }, { value: "recent", label: "Latest" }]}
-        onChange={value => onApply({ ...options, sort: value as "relevance" | "recent" })}
+        options={[{ value: "relevance", label: "Relevance" }, { value: "recent", label: "Latest" },...(scope==="jobs"?[{value:"salary_asc",label:"Compensation: low to high"},{value:"salary_desc",label:"Compensation: high to low"}]:[])]}
+        onChange={value => apply({ ...options, sort: value as SearchOptions["sort"] })}
       />
       {controls.map(control => {
+        if(control==="compensation")return <CompensationFilter key={control} options={options} disabled={pending} onApply={apply}/>;
         const { choices, allowCustom } = optionsFor(control, role, scope, options, identity);
         return <Dropdown
           key={control}
@@ -119,13 +131,14 @@ export function SearchSubFilterBar({ role, scope, options, pending = false, onAp
           options={choices}
           allowCustom={allowCustom}
           placeholder={controlLabel(control, scope)}
-          onChange={value => onApply(applyControl(control, value, options))}
+          onChange={value => apply(applyControl(control, value, options))}
         />;
       })}
     </div>
+    {filterError&&<p role="alert" className="small">{filterError}</p>}
     {!!fieldKeys.length && <div className="search-active-filters" role="group" aria-label="Active filters">
-      {fieldKeys.map(key => <button className="search-active-filter" type="button" key={key} aria-label={`Remove ${labelFor(key,scope)} filter`} disabled={pending} onClick={() => onApply(Object.fromEntries(Object.entries(options).filter(([name]) => name !== key)))}>{labelFor(key,scope)}: {describe(key,options[key])}<Icon name="close" /></button>)}
-      <button type="button" className="search-clear-filters" disabled={pending} onClick={() => onApply({...(options.sort ? {sort:options.sort} : {}),...(options.selected ? {selected:options.selected} : {})})}>Clear all filters</button>
+      {fieldKeys.map(key => <button className="search-active-filter" type="button" key={key} aria-label={`Remove ${labelFor(key,scope)} filter`} disabled={pending} onClick={() => apply(key==="currency"||key==="compensationPeriod"?withoutCompensation(options):Object.fromEntries(Object.entries(options).filter(([name]) => name !== key)))}>{labelFor(key,scope)}: {describe(key,options[key])}<Icon name="close" /></button>)}
+      <button type="button" className="search-clear-filters" disabled={pending} onClick={() => apply({...(options.sort && !["salary_asc","salary_desc"].includes(options.sort) ? {sort:options.sort} : {}),...(options.selected ? {selected:options.selected} : {})})}>Clear all filters</button>
     </div>}
   </div>;
 }

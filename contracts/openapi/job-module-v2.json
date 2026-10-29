@@ -1,0 +1,4085 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Skillora job module version 2 contracts",
+    "version": "2.0.0-j3",
+    "description": "J3 editor/publication contracts; imports remain planned. Job schema version 2 is separate from the /api/v1 URL. Legacy clients remain supported for legacy jobs; upgrades are explicit."
+  },
+  "x-activation": "J3 editor connected; J4 discovery integration pending; Excel import disabled",
+  "paths": {
+    "/api/v1/organizations/{organization}/hiring/imports": {
+      "post": {
+        "operationId": "jobV2_post__imports",
+        "x-implementation-phase": "J5",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportBatch"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      },
+      "get": {
+        "operationId": "jobV2_get__imports",
+        "x-implementation-phase": "J5",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportBatchPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/imports/{batch}": {
+      "get": {
+        "operationId": "jobV2_get__imports__batch_",
+        "x-implementation-phase": "J5",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportBatch"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/imports/{batch}/mapping": {
+      "put": {
+        "operationId": "jobV2_put__imports__batch__mapping",
+        "x-implementation-phase": "J5",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMapping"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportBatch"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/imports/{batch}/positions": {
+      "get": {
+        "operationId": "jobV2_get__imports__batch__positions",
+        "x-implementation-phase": "J6",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportPositionsPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/imports/{batch}/positions/{position}": {
+      "patch": {
+        "operationId": "jobV2_patch__imports__batch__positions__position_",
+        "x-implementation-phase": "J6",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportPositionReview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportPosition"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/imports/{batch}/splits": {
+      "post": {
+        "operationId": "jobV2_post__imports__batch__splits",
+        "x-implementation-phase": "J6",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportSplits"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportBatch"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/imports/{batch}/drafts": {
+      "post": {
+        "operationId": "jobV2_post__imports__batch__drafts",
+        "x-implementation-phase": "J7",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Skillora-Job-Schema",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "const": 2
+            },
+            "description": "J3 payload negotiation. Header and body schemaVersion must agree. Old clients cannot submit non-annual v2 values as v1."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportDraftSelection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportOperation"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/imports/{batch}/operations/{operation}": {
+      "get": {
+        "operationId": "jobV2_get__imports__batch__operations__operation_",
+        "x-implementation-phase": "J7",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "operation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportOperation"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/imports/{batch}/cancel": {
+      "post": {
+        "operationId": "jobV2_post__imports__batch__cancel",
+        "x-implementation-phase": "J7",
+        "x-implemented": false,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCancel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ImportBatch"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/drafts": {
+      "post": {
+        "operationId": "jobV2_post__drafts",
+        "x-implementation-phase": "J3",
+        "x-implemented": true,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Skillora-Job-Schema",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "const": 2
+            },
+            "description": "J3 payload negotiation. Header and body schemaVersion must agree. Old clients cannot submit non-annual v2 values as v1."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobDraftOpenV2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JobDraftContextV2"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/drafts/{draft}": {
+      "patch": {
+        "operationId": "jobV2_patch__drafts__draft_",
+        "x-implementation-phase": "J3",
+        "x-implemented": true,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Skillora-Job-Schema",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "const": 2
+            },
+            "description": "J3 payload negotiation. Header and body schemaVersion must agree. Old clients cannot submit non-annual v2 values as v1."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobStageAdvanceV2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JobDraftV2"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/drafts/{draft}/publish": {
+      "post": {
+        "operationId": "jobV2_post__drafts__draft__publish",
+        "x-implementation-phase": "J3",
+        "x-implemented": true,
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Skillora-Job-Schema",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "const": 2
+            },
+            "description": "J3 payload negotiation. Header and body schemaVersion must agree. Old clients cannot submit non-annual v2 values as v1."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobPublishRequestV2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validated versioned result; import endpoints remain planned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JobDraftV2"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied by current membership/resource policy"
+          },
+          "409": {
+            "description": "Revision, duplicate-key or business-state conflict"
+          },
+          "422": {
+            "description": "Field validation errors"
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After"
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job}": {
+      "get": {
+        "operationId": "jobV2_publicDetail",
+        "x-implementation-phase": "J3",
+        "x-implemented": true,
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Skillora-Job-Schema",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "const": 2
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Safe public v2 job projection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JobDetailV2"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sanctum": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "configured-session-cookie"
+      }
+    },
+    "schemas": {
+      "MoneyV2": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]{0,12})(\\.[0-9]{1,2})?$",
+        "maxLength": 16,
+        "description": "Decimal currency units, at most 1000000000000.00; never an IEEE-754 number."
+      },
+      "CompensationStageV2": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "startMonth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "endMonth": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                  "month",
+                  "year",
+                  "case",
+                  "duty",
+                  "engagement"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "label",
+          "startMonth",
+          "endMonth",
+          "amount",
+          "period"
+        ],
+        "additionalProperties": false
+      },
+      "CompensationAllowanceV2": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "label",
+          "amount",
+          "percent"
+        ],
+        "additionalProperties": false
+      },
+      "CompensationV2": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "salary",
+                  "stipend",
+                  "honorarium"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "range",
+              "up_to",
+              "pay_scale",
+              "schedule",
+              "unspecified"
+            ]
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "INR",
+                  "USD",
+                  "EUR",
+                  "GBP"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                  "month",
+                  "year",
+                  "case",
+                  "duty",
+                  "engagement"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "minAmount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxAmount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "variableEnabled": {
+            "type": "boolean"
+          },
+          "variablePercent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scaleLabel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "allowances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompensationAllowanceV2"
+            },
+            "maxItems": 10
+          },
+          "schedule": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompensationStageV2"
+            },
+            "maxItems": 10
+          }
+        },
+        "required": [
+          "kind",
+          "format",
+          "currency",
+          "period",
+          "minAmount",
+          "maxAmount",
+          "hidden",
+          "variableEnabled",
+          "variablePercent",
+          "scaleLabel",
+          "notes",
+          "allowances",
+          "schedule"
+        ],
+        "additionalProperties": false
+      },
+      "DeadlineV2": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              "time": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "timezone": {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              "offset": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[+-](?:0[0-9]|1[0-4]):[0-5][0-9]$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "date",
+              "time",
+              "timezone",
+              "offset"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "NoticeDetailsV2": {
+        "type": "object",
+        "properties": {
+          "ageLimit": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "selectionProcess": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "documents": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "applicationFee": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "noticeUrl": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "opensOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ageLimit",
+          "selectionProcess",
+          "documents",
+          "applicationFee",
+          "noticeUrl",
+          "opensOn"
+        ],
+        "additionalProperties": false,
+        "description": "Optional recruitment-notice details shown to candidates. Display text only; never an automatic eligibility rule. noticeUrl is empty or an http(s) URL; opensOn is on or before the closing date."
+      },
+      "PublicCompensationV2": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "disclosure": {
+                "type": "string",
+                "enum": [
+                  "undisclosed",
+                  "unspecified"
+                ]
+              }
+            },
+            "required": [
+              "disclosure"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "salary",
+                      "stipend",
+                      "honorarium"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "fixed",
+                  "range",
+                  "up_to",
+                  "pay_scale",
+                  "schedule"
+                ]
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "INR",
+                      "USD",
+                      "EUR",
+                      "GBP"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "period": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "hour",
+                      "day",
+                      "week",
+                      "month",
+                      "year",
+                      "case",
+                      "duty",
+                      "engagement"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "minAmount": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MoneyV2"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxAmount": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MoneyV2"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hidden": {
+                "const": false
+              },
+              "variableEnabled": {
+                "type": "boolean"
+              },
+              "variablePercent": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MoneyV2"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "scaleLabel": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "notes": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "allowances": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CompensationAllowanceV2"
+                },
+                "maxItems": 10
+              },
+              "schedule": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CompensationStageV2"
+                },
+                "maxItems": 10
+              },
+              "disclosure": {
+                "type": "string",
+                "enum": [
+                  "specified"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "format",
+              "currency",
+              "period",
+              "minAmount",
+              "maxAmount",
+              "hidden",
+              "variableEnabled",
+              "variablePercent",
+              "scaleLabel",
+              "notes",
+              "allowances",
+              "schedule",
+              "disclosure"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "JobDraftValuesV2": {
+        "type": "object",
+        "properties": {
+          "companyName": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "role": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "responsibilities": {
+            "type": "string",
+            "maxLength": 3000
+          },
+          "requirements": {
+            "type": "string",
+            "maxLength": 3000
+          },
+          "benefits": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "applicationInstructions": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "hideCompany": {
+            "type": "boolean"
+          },
+          "relocate": {
+            "type": "boolean"
+          },
+          "requirePortfolio": {
+            "type": "boolean"
+          },
+          "notifyResponses": {
+            "type": "boolean"
+          },
+          "department": {
+            "type": "string",
+            "enum": [
+              "",
+              "Design",
+              "Engineering",
+              "Product",
+              "Data & analytics",
+              "Sales & retail",
+              "Marketing",
+              "Operations",
+              "Human resources",
+              "Finance",
+              "Other"
+            ]
+          },
+          "employment": {
+            "type": "string",
+            "enum": [
+              "",
+              "Full-time",
+              "Part-time",
+              "Contract",
+              "Internship",
+              "Apprenticeship",
+              "Consultancy",
+              "Deputation",
+              "Empanelment"
+            ]
+          },
+          "arrangement": {
+            "type": "string",
+            "enum": [
+              "",
+              "On-site",
+              "Hybrid",
+              "Remote"
+            ]
+          },
+          "experienceMin": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 50
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "experienceMax": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 50
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vacancies": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactEmail": {
+            "type": "string"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20
+          },
+          "essentialSkills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20
+          },
+          "education": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "Any graduate",
+                "Any qualification",
+                "Undergraduate",
+                "Diploma",
+                "Bachelor’s degree",
+                "Master’s degree",
+                "Doctorate",
+                "Class 8",
+                "Class 10 / SSLC",
+                "Class 12 / HSC",
+                "ITI",
+                "CA",
+                "CMA",
+                "CS",
+                "Professional qualification"
+              ]
+            },
+            "maxItems": 7,
+            "uniqueItems": true
+          },
+          "industries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScreeningQuestion"
+            },
+            "maxItems": 6
+          },
+          "thumbnail": {
+            "$ref": "#/components/schemas/JobThumbnail"
+          },
+          "jobMedia": {
+            "$ref": "#/components/schemas/JobMedia"
+          },
+          "aiVerified": {
+            "type": "boolean"
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "const": 2
+          },
+          "compensation": {
+            "$ref": "#/components/schemas/CompensationV2"
+          },
+          "deadline": {
+            "$ref": "#/components/schemas/DeadlineV2"
+          },
+          "notice": {
+            "$ref": "#/components/schemas/NoticeDetailsV2"
+          }
+        },
+        "required": [
+          "companyName",
+          "title",
+          "role",
+          "description",
+          "responsibilities",
+          "requirements",
+          "benefits",
+          "reference",
+          "applicationInstructions",
+          "hideCompany",
+          "relocate",
+          "requirePortfolio",
+          "notifyResponses",
+          "department",
+          "employment",
+          "arrangement",
+          "experienceMin",
+          "experienceMax",
+          "vacancies",
+          "contactEmail",
+          "locations",
+          "skills",
+          "essentialSkills",
+          "education",
+          "industries",
+          "questions",
+          "thumbnail",
+          "jobMedia",
+          "schemaVersion",
+          "compensation",
+          "deadline"
+        ],
+        "additionalProperties": false,
+        "description": "Version 2 job payload accepted by the negotiated J3 editor endpoints. Cross-field rules and semantic examples accompany this schema; JSON Schema alone cannot compare sibling amounts or resolve timezone transitions."
+      },
+      "JobPublishValuesV2": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/JobDraftValuesV2"
+          },
+          {
+            "properties": {
+              "companyName": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "department": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "role": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "employment": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "experienceMin": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 50
+              },
+              "arrangement": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "locations": {
+                "minItems": 1
+              },
+              "skills": {
+                "minItems": 1
+              },
+              "education": {
+                "minItems": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "responsibilities": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "requirements": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "contactEmail": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          }
+        ],
+        "description": "Also requires complete compensation, questions, conditional thumbnail alt and current server availability/source review. Business relationships are checked independently by both implementations."
+      },
+      "JobStageAdvanceV2": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "$ref": "#/components/schemas/JobDraftValuesV2"
+          },
+          "step": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "reached": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "jobVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "generated": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "template-demo"
+                    ]
+                  },
+                  "role": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "role",
+                  "at"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "values",
+          "step",
+          "reached",
+          "version",
+          "jobVersion"
+        ],
+        "additionalProperties": false
+      },
+      "JobPublishRequestV2": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "$ref": "#/components/schemas/JobPublishValuesV2"
+          },
+          "step": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "reached": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "jobVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "generated": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "template-demo"
+                    ]
+                  },
+                  "role": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "role",
+                  "at"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "values",
+          "step",
+          "reached",
+          "version",
+          "jobVersion"
+        ],
+        "additionalProperties": false
+      },
+      "JobDraftV2": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "existingId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "jobVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "step": {
+            "type": "integer"
+          },
+          "reached": {
+            "type": "integer"
+          },
+          "values": {
+            "$ref": "#/components/schemas/JobDraftValuesV2"
+          },
+          "savedAt": {
+            "type": "string"
+          },
+          "generated": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "const": "template-demo"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "at": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "role",
+                  "at"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "const": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "existingId",
+          "version",
+          "jobVersion",
+          "step",
+          "reached",
+          "values",
+          "savedAt"
+        ],
+        "additionalProperties": false
+      },
+      "JobDraftContextV2": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/JobDraftV2"
+          },
+          "editingPublished": {
+            "type": "boolean"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "latestJobVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "latestJob": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HiringJobPrivateV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "draft",
+          "editingPublished",
+          "companyName",
+          "companyId"
+        ],
+        "additionalProperties": false
+      },
+      "HiringJobV2": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "company": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "companyDisplayName": {
+            "type": "string"
+          },
+          "hideCompany": {
+            "type": "boolean"
+          },
+          "hideSalary": {
+            "type": "boolean"
+          },
+          "department": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "arrangement": {
+            "type": "string"
+          },
+          "employment": {
+            "type": "string"
+          },
+          "salary": {
+            "type": "string"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "responsibilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requirements": {
+            "type": "string"
+          },
+          "benefits": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "likes": {
+            "type": "integer"
+          },
+          "art": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "boolean"
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "screeningQuestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScreeningQuestion"
+            }
+          },
+          "questionsVersion": {
+            "type": "integer"
+          },
+          "requirePortfolio": {
+            "type": "boolean"
+          },
+          "applicationInstructions": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "thumbnail": {
+            "$ref": "#/components/schemas/JobThumbnail"
+          },
+          "jobMedia": {
+            "$ref": "#/components/schemas/JobMedia"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "wizardValues": {
+            "type": "object",
+            "properties": {
+              "education": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "Any graduate",
+                    "Any qualification",
+                    "Undergraduate",
+                    "Diploma",
+                    "Bachelor’s degree",
+                    "Master’s degree",
+                    "Doctorate",
+                    "Class 8",
+                    "Class 10 / SSLC",
+                    "Class 12 / HSC",
+                    "ITI",
+                    "CA",
+                    "CMA",
+                    "CS",
+                    "Professional qualification"
+                  ]
+                },
+                "maxItems": 7
+              },
+              "experienceMin": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 50
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "experienceMax": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 50
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "vacancies": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "education",
+              "experienceMin",
+              "experienceMax",
+              "vacancies"
+            ],
+            "additionalProperties": false
+          },
+          "workflowStep": {
+            "type": "integer"
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "const": 2
+          },
+          "compensation": {
+            "$ref": "#/components/schemas/PublicCompensationV2"
+          },
+          "deadline": {
+            "$ref": "#/components/schemas/DeadlineV2"
+          },
+          "notice": {
+            "$ref": "#/components/schemas/NoticeDetailsV2"
+          },
+          "closesAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "experienceMin": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "experienceMax": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 50
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vacancies": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "education": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "Any graduate",
+                "Any qualification",
+                "Undergraduate",
+                "Diploma",
+                "Bachelor’s degree",
+                "Master’s degree",
+                "Doctorate",
+                "Class 8",
+                "Class 10 / SSLC",
+                "Class 12 / HSC",
+                "ITI",
+                "CA",
+                "CMA",
+                "CS",
+                "Professional qualification"
+              ]
+            },
+            "maxItems": 7
+          }
+        },
+        "required": [
+          "id",
+          "company",
+          "title",
+          "companyDisplayName",
+          "hideCompany",
+          "hideSalary",
+          "department",
+          "role",
+          "location",
+          "arrangement",
+          "employment",
+          "salary",
+          "skills",
+          "description",
+          "responsibilities",
+          "requirements",
+          "benefits",
+          "createdAt",
+          "publishedAt",
+          "likes",
+          "art",
+          "draft",
+          "closed",
+          "screeningQuestions",
+          "questionsVersion",
+          "requirePortfolio",
+          "applicationInstructions",
+          "expiresAt",
+          "thumbnail",
+          "jobMedia",
+          "version",
+          "wizardValues",
+          "schemaVersion",
+          "compensation",
+          "deadline",
+          "notice",
+          "closesAt",
+          "experienceMin",
+          "experienceMax",
+          "vacancies",
+          "education"
+        ],
+        "additionalProperties": false,
+        "description": "Public view only: no editable wizard values, recruiter contact, source-review evidence or confidential pay. The legacy salary string remains a display label with the real period; it is not a numeric annual fallback."
+      },
+      "HiringJobPrivateV2": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "company": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "companyDisplayName": {
+            "type": "string"
+          },
+          "hideCompany": {
+            "type": "boolean"
+          },
+          "hideSalary": {
+            "type": "boolean"
+          },
+          "department": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "arrangement": {
+            "type": "string"
+          },
+          "employment": {
+            "type": "string"
+          },
+          "salary": {
+            "type": "string"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          },
+          "responsibilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requirements": {
+            "type": "string"
+          },
+          "benefits": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "likes": {
+            "type": "integer"
+          },
+          "art": {
+            "type": "string"
+          },
+          "draft": {
+            "type": "boolean"
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "screeningQuestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScreeningQuestion"
+            }
+          },
+          "questionsVersion": {
+            "type": "integer"
+          },
+          "requirePortfolio": {
+            "type": "boolean"
+          },
+          "applicationInstructions": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "thumbnail": {
+            "$ref": "#/components/schemas/JobThumbnail"
+          },
+          "jobMedia": {
+            "$ref": "#/components/schemas/JobMedia"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "wizardValues": {
+            "$ref": "#/components/schemas/JobDraftValuesV2"
+          },
+          "workflowStep": {
+            "type": "integer"
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "const": 2
+          },
+          "compensation": {
+            "$ref": "#/components/schemas/CompensationV2"
+          },
+          "deadline": {
+            "$ref": "#/components/schemas/DeadlineV2"
+          },
+          "notice": {
+            "$ref": "#/components/schemas/NoticeDetailsV2"
+          },
+          "closesAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "experienceMin": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "experienceMax": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 50
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vacancies": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "education": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "Any graduate",
+                "Any qualification",
+                "Undergraduate",
+                "Diploma",
+                "Bachelor’s degree",
+                "Master’s degree",
+                "Doctorate",
+                "Class 8",
+                "Class 10 / SSLC",
+                "Class 12 / HSC",
+                "ITI",
+                "CA",
+                "CMA",
+                "CS",
+                "Professional qualification"
+              ]
+            },
+            "maxItems": 7
+          },
+          "reference": {
+            "type": "string"
+          },
+          "postedBy": {
+            "type": "string"
+          },
+          "collaborationNote": {
+            "type": "string"
+          },
+          "collaborators": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "company",
+          "title",
+          "companyDisplayName",
+          "hideCompany",
+          "hideSalary",
+          "department",
+          "role",
+          "location",
+          "arrangement",
+          "employment",
+          "salary",
+          "skills",
+          "description",
+          "responsibilities",
+          "requirements",
+          "benefits",
+          "createdAt",
+          "publishedAt",
+          "likes",
+          "art",
+          "draft",
+          "closed",
+          "screeningQuestions",
+          "questionsVersion",
+          "requirePortfolio",
+          "applicationInstructions",
+          "expiresAt",
+          "thumbnail",
+          "jobMedia",
+          "version",
+          "wizardValues",
+          "schemaVersion",
+          "compensation",
+          "deadline",
+          "notice",
+          "closesAt",
+          "experienceMin",
+          "experienceMax",
+          "vacancies",
+          "education"
+        ],
+        "additionalProperties": false,
+        "description": "Public view only: no editable wizard values, recruiter contact, source-review evidence or confidential pay. The legacy salary string remains a display label with the real period; it is not a numeric annual fallback."
+      },
+      "JobDetailV2": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/HiringJobV2"
+          },
+          "company": {
+            "$ref": "#/components/schemas/HiringCompany"
+          },
+          "saved": {
+            "type": "boolean"
+          },
+          "application": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonalApplication"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ownedByViewer": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "job",
+          "company",
+          "saved",
+          "application",
+          "ownedByViewer"
+        ],
+        "additionalProperties": false
+      },
+      "ImportStart": {
+        "type": "object",
+        "properties": {
+          "sourceAssetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "sourceAssetId",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      },
+      "ImportFile": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 180,
+            "minLength": 1,
+            "pattern": "^[^/\\\\\\x00]+\\.[xX][lL][sS][xX]$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10485760
+          }
+        },
+        "required": [
+          "name",
+          "bytes"
+        ],
+        "additionalProperties": false
+      },
+      "ImportMapping": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sheet": {
+            "type": "string",
+            "maxLength": 31,
+            "minLength": 1
+          },
+          "headerRow": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "skillora",
+              "tn-government-research"
+            ]
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "columns": {
+            "type": "object",
+            "properties": {
+              "sourceId": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "employer": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "title": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "vacancies": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "location": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "sourceStatus": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "date": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "dateCaution": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "eligibility": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "age": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "compensation": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "sourceApplicationMethod": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "sourceFee": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "sourceUrl": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "noticeUrl": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "additionalUrls": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "verification": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "secondaryUrl": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "selection": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "documents": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "version",
+          "sheet",
+          "headerRow",
+          "preset",
+          "timezone",
+          "columns"
+        ],
+        "additionalProperties": false
+      },
+      "ImportResolution": {
+        "type": "object",
+        "properties": {
+          "issue": {
+            "type": "string",
+            "enum": [
+              "missing_fields",
+              "unconfirmed",
+              "expired",
+              "not_open",
+              "ambiguous_deadline",
+              "conflicting_location",
+              "combined_positions",
+              "ambiguous_compensation",
+              "possible_duplicate",
+              "invalid_values"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "corrected",
+              "not_applicable",
+              "skip"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 10,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "issue",
+          "kind",
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "ImportPositionReview": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "values": {
+            "$ref": "#/components/schemas/JobDraftValuesV2"
+          },
+          "resolutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportResolution"
+            },
+            "maxItems": 10
+          }
+        },
+        "required": [
+          "version",
+          "values",
+          "resolutions"
+        ],
+        "additionalProperties": false
+      },
+      "ImportSplits": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "rowId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sourcePositionKey": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "minLength": 1
+                },
+                "values": {
+                  "$ref": "#/components/schemas/JobDraftValuesV2"
+                }
+              },
+              "required": [
+                "sourcePositionKey",
+                "values"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 100,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "version",
+          "rowId",
+          "positions"
+        ],
+        "additionalProperties": false
+      },
+      "ImportDraftSelection": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 100,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "version",
+          "idempotencyKey",
+          "positions"
+        ],
+        "additionalProperties": false
+      },
+      "ImportCancel": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "ImportOperation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "processed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "positionId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "created",
+                    "already_created",
+                    "skipped",
+                    "conflict",
+                    "failed"
+                  ]
+                },
+                "jobId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "draftKey": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "errorCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "positionId",
+                "status",
+                "jobId",
+                "draftKey",
+                "errorCode"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "total",
+          "processed",
+          "results"
+        ],
+        "additionalProperties": false
+      },
+      "ImportBatch": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "inspecting",
+              "awaiting_mapping",
+              "parsing",
+              "review",
+              "creating_drafts",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "sourceRows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "positions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "sourceSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "sheets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 31
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "state",
+          "sourceRows",
+          "positions",
+          "sourceSha256",
+          "sheets"
+        ],
+        "additionalProperties": false
+      },
+      "ImportPosition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sourceRow": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sourcePositionKey": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "needs_review",
+              "ready_for_draft",
+              "draft_created",
+              "skipped",
+              "failed"
+            ]
+          },
+          "values": {
+            "$ref": "#/components/schemas/JobDraftValuesV2"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "missing_fields",
+                "unconfirmed",
+                "expired",
+                "not_open",
+                "ambiguous_deadline",
+                "conflicting_location",
+                "combined_positions",
+                "ambiguous_compensation",
+                "possible_duplicate",
+                "invalid_values"
+              ]
+            },
+            "maxItems": 10
+          },
+          "canCreateDraft": {
+            "type": "boolean"
+          },
+          "canPublish": {
+            "type": "boolean"
+          },
+          "jobId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draftKey": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "sourceRow",
+          "sourcePositionKey",
+          "state",
+          "values",
+          "issues",
+          "canCreateDraft",
+          "canPublish",
+          "jobId",
+          "draftKey"
+        ],
+        "additionalProperties": false
+      },
+      "ImportBatchPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportBatch"
+            },
+            "maxItems": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "additionalProperties": false
+      },
+      "ImportPositionsPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportPosition"
+            },
+            "maxItems": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "additionalProperties": false
+      },
+      "ScreeningQuestion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "yesno",
+              "number"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "ideal": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "type",
+          "required",
+          "ideal"
+        ],
+        "additionalProperties": false
+      },
+      "JobThumbnail": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": "string",
+            "enum": [
+              "cobalt",
+              "sage",
+              "graphite",
+              "lavender",
+              "none"
+            ]
+          },
+          "image": {
+            "type": "string"
+          },
+          "alt": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "headline": {
+            "type": "string",
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "template",
+          "image",
+          "alt",
+          "headline"
+        ],
+        "additionalProperties": false
+      },
+      "JobMedia": {
+        "type": "object",
+        "properties": {
+          "video": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobMediaFile"
+            },
+            "maxItems": 3
+          }
+        },
+        "required": [
+          "video",
+          "files"
+        ],
+        "additionalProperties": false
+      },
+      "HiringCompany": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "industry": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "confidential": {
+            "type": "boolean"
+          },
+          "followerCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "PersonalApplication": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "job": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "portfolio": {
+            "type": "boolean"
+          },
+          "recruitmentDetails": {
+            "$ref": "#/components/schemas/RecruitmentDetails"
+          },
+          "screeningAnswers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "question": {
+                  "type": "string"
+                },
+                "answer": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "question",
+                "answer"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Applied",
+              "In review",
+              "Shortlisted",
+              "Interview",
+              "Offer",
+              "Hired",
+              "Rejected",
+              "Withdrawn"
+            ]
+          },
+          "trackingStatus": {
+            "type": "string",
+            "enum": [
+              "Applied",
+              "In review",
+              "Interview",
+              "Offer",
+              "Rejected",
+              "Withdrawn"
+            ]
+          },
+          "statusSource": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "employer",
+              "withdrawn"
+            ]
+          },
+          "trackingNote": {
+            "type": "string"
+          },
+          "followUp": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "jobRef": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "employerStage": {
+            "type": "string",
+            "enum": [
+              "New",
+              "Reviewing",
+              "Shortlisted",
+              "Interview",
+              "Hired",
+              "Rejected"
+            ]
+          },
+          "withdrawnAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sharing": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "integer",
+                "const": 2
+              },
+              "expectedCompensation": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "currency": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "INR",
+                              "USD",
+                              "EUR",
+                              "GBP"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "period": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "hour",
+                              "day",
+                              "week",
+                              "month",
+                              "year",
+                              "case",
+                              "duty",
+                              "engagement"
+                            ]
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "amount": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]{0,12})(\\.[0-9]{1,2})?$",
+                            "description": "Exact units, at most 1000000000000.00; no implicit conversion."
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "currency",
+                      "period",
+                      "amount"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "verification": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "verifiedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "account",
+                              "application"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "verifiedAt",
+                          "source"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phone": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "verifiedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "account",
+                              "application"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "verifiedAt",
+                          "source"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "email",
+                  "phone"
+                ],
+                "additionalProperties": false
+              },
+              "attachments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 180,
+                      "pattern": "^[^\\x00]*$"
+                    },
+                    "mime": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "pattern": "^[^\\x00]*$"
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "resume"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "mime",
+                    "bytes",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 1
+              },
+              "portfolio": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^[^\\x00]*$"
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "project",
+                                "work_sample",
+                                "work_update"
+                              ]
+                            },
+                            "title": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "pattern": "^[^\\x00]*$"
+                            },
+                            "description": {
+                              "type": "string",
+                              "maxLength": 5000,
+                              "pattern": "^[^\\x00]*$"
+                            },
+                            "url": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "kind",
+                            "title",
+                            "description",
+                            "url"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "maxItems": 100
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "items"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "expectedCompensation",
+              "verification",
+              "attachments",
+              "portfolio"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "job",
+          "name",
+          "email",
+          "note",
+          "portfolio",
+          "recruitmentDetails",
+          "screeningAnswers",
+          "createdAt",
+          "status",
+          "trackingStatus",
+          "statusSource",
+          "trackingNote",
+          "followUp",
+          "updatedAt",
+          "jobRef",
+          "version",
+          "employerStage",
+          "withdrawnAt"
+        ],
+        "additionalProperties": false
+      },
+      "JobMediaFile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "application/pdf",
+              "video/mp4",
+              "video/webm"
+            ]
+          },
+          "size": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "size",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "RecruitmentDetails": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "locality": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "expectedSalaryLpa": {
+            "type": "string"
+          },
+          "noticeDays": {
+            "type": "string"
+          },
+          "joiningDays": {
+            "type": "string"
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "designation": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "department": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "preferredLocations": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "phone": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "JobRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "arrangement": {
+            "type": "string"
+          },
+          "employment": {
+            "type": "string"
+          },
+          "salary": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "companyId",
+          "companyName",
+          "location",
+          "arrangement",
+          "employment",
+          "salary",
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "JobDraftOpenV2": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "creation_key": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  }
+}

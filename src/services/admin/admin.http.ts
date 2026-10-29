@@ -9,6 +9,7 @@ export function createHttpAdminService(http:HttpClient):AdminService{return {
  async downloadEvidence(id){z.uuid().parse(id);return http.blob(`media/${id}/download`);},
  session:async()=>(await http.get<{data:{id:string;name:string}}>("admin/session")).data,
  getOverview:async()=>(await http.get<{data:components["schemas"]["AdminOverview"]}>("admin/overview")).data,
+ recommendationQuality:async(days)=>(await http.get<{data:components["schemas"]["RecommendationQuality"]}>("admin/recommendation-quality",{days:z.number().int().min(1).max(90).parse(days)})).data,
  getProfessionals:async()=>(await http.get<{data:components["schemas"]["AdminProfessional"][]}>("admin/professionals")).data,
  listProfessionals:async()=>(await http.get<{data:components["schemas"]["AdminProfessional"][]}>("admin/professionals")).data,
  async profileAction(id,input){const v=administrativeActionSchema.parse({id,...input});const {id:target,...body}=v;await http.patch(`admin/professionals/${target}`,body);},

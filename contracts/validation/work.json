@@ -1,5 +1,5 @@
 {
-  "minimumDate": "1800-01-01",
-  "skillLength": 100,
-  "skillsMax": 30
+  "project": {"title":"text:120!","category":"enum:Design|Engineering|Data|Business!","description":"text:2000!","contribution":"text:1200!","start":"date!","date":"date!","url":"url","repository":"url","visibility":"enum:Public|Private!"},
+  "update": {"title":"text:150!","description":"text:2000!","category":"enum:Design|Development|Research|Learning|Marketing|Collaboration!","date":"date!","visibility":"enum:Public|Private!"},
+  "skillsMax": 30, "skillLength": 100, "minimumDate": "1800-01-01", "timezone": "UTC"
 }

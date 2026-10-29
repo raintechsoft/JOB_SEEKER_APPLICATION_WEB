@@ -11,7 +11,7 @@ export function createHttpJobsService(http:HttpClient):JobsService & {reset():vo
   const jobs=new Map<string,JobDetail>();const attempts=new Map<string,{signature:string;key:string}>();
   const getJob=async(id:string)=>{z.uuid().parse(id);try{const row=(await http.get<{data:components["schemas"]["JobDetail"]}>(`jobs/${id}`)).data;jobs.set(id,row);return row;}catch(e){if(e instanceof ApiError&&e.status===404)return null;throw e;}};
   return {
-    async listOpportunities(query){const checked=jobSearchSchema.parse(query);const result=await http.get<{data:{job:components["schemas"]["HiringJob"];company:components["schemas"]["HiringCompany"];saved:boolean}[];meta:{total:number}}>("jobs",{...checked,pageSize:checked.pageSize??20});return {items:result.data,total:result.meta.total};},
+    async listOpportunities(query){const checked=jobSearchSchema.parse(query);const result=await http.get<{data:{job:components["schemas"]["HiringJob"];company:components["schemas"]["HiringCompany"];saved:boolean;match?:components["schemas"]["MatchBadge"]|null}[];meta:{total:number}}>("jobs",{...checked,pageSize:checked.pageSize??20});return {items:result.data,total:result.meta.total};},
     reset(){jobs.clear();attempts.clear();},getJob,
     async markSeen(id){return !!await getJob(id);},
     async apply(input){

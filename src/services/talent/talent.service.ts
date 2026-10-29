@@ -17,10 +17,51 @@ export interface TalentFilters {
 export interface TalentCardData extends PublicProfessional {
   analyticsContext?:{requestId:string;itemId:string;position:number};
   recommendationReason?:string;
+  /** How the person fits the recruiter's best-matching open job (recommended talent only). */
+  match?: import("@/components/jobs/match-badge").MatchBadgeData | null;
+  /** Talent search inside an organization (U10): which of the skills it hires for this person has. */
+  hiringMatch?: { skills: string[]; reason: string };
+  /** Talent pool (E8.f1): the topic this person shares with one of the organization's open jobs. */
+  pool?: { topic: number; name: string };
   featuredProject?: ProjectSummary;
   saved: boolean;
   recentDays: number[];
 }
+
+/** The fields a talent discovery card shows; the full public view stays on the profile page. */
+export interface TalentSuggestion {
+  id: Id;
+  slug: string;
+  name: string;
+  headline: string;
+  location: string;
+  years: number;
+  available: boolean;
+  color: string;
+  picture?: string;
+  cover?: string;
+  saved: boolean;
+  /** Whether the recruiter follows this person; absent where the list does not report it. */
+  following?: boolean;
+  reason?: string;
+  recommendationReason?: string;
+  analyticsContext?: { requestId: string; itemId: string; position: number };
+  /** How the person fits the recruiter's best-matching open job (recommended talent only). */
+  match?: import("@/components/jobs/match-badge").MatchBadgeData | null;
+}
+
+export type DiscoverySectionKey = "jobMatches" | "peopleYouMayKnow" | "interests" | "suggestions" | "skills";
+/** Job seeker people discovery rows. */
+export type PeopleSectionKey = "peopleYouMayKnow" | "skills" | "suggestions";
+export interface DiscoverySection {
+  key: DiscoverySectionKey;
+  title: string;
+  subtitle: string;
+  job: { id: Id; title: string } | null;
+  items: TalentSuggestion[];
+}
+export interface TalentInterests { skills: string[]; version: number }
+export interface TalentDiscovery { sections: DiscoverySection[]; interests: TalentInterests }
 
 export interface CandidateView {
   person: PublicProfessional;
@@ -52,7 +93,8 @@ export interface RecruiterOverview {
 export interface TalentService {
   shareShortlist?(id:Id,input:{visibility:"private"|"organization";version?:number}):Promise<void>;
   search(filters: TalentFilters): Promise<TalentCardData[]>;
-  getFilterOptions(): Promise<{ locations: string[]; skills: string[] }>;
+  /** `hiringSkills`: what the recruiter's organization hires for, strongest first ("Candidates with X", U10). */
+  getFilterOptions(): Promise<{ locations: string[]; skills: string[]; hiringSkills?: string[] }>;
   getCandidate(id: Id): Promise<CandidateView | null>;
   getCandidateBySlug(slug: string): Promise<CandidateView | null>;
   listShortlists(): Promise<ShortlistView[]>;
@@ -65,6 +107,11 @@ export interface TalentService {
   listPublicPeople(): Promise<PublicProfessional[]>;
   getRecommendedTalent(): Promise<TalentCardData[]>;
   getOverview(): Promise<RecruiterOverview>;
+  /** Recruiter discovery rows, or one full row for "See all" (job matches also need the job id). */
+  getDiscovery(section?: DiscoverySectionKey, jobId?: Id): Promise<TalentDiscovery>;
+  saveInterests(skills: string[], version: number): Promise<TalentInterests>;
+  /** Job seeker people discovery rows, or one full row for "See all". */
+  getPeopleDiscovery(section?: PeopleSectionKey): Promise<TalentDiscovery>;
 }
 
 export const EMPTY_TALENT_FILTERS: TalentFilters = { q: "", category: "", skill: "", location: "", years: "", availability: "", completeness: false, recent: false, sort: "relevance" };

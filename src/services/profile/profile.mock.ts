@@ -220,6 +220,18 @@ export const mockProfileService: ProfileService = {
     if (!persisted) throw new Error("Your photo could not be removed. Please try again.");
   },
 
+  async setCover(file) {
+    if (!file?.size || file.size > MB || !IMAGE_TYPES.includes(file.type)) return { ok: false, error: "Choose a PNG, JPEG, or WebP image smaller than 1 MB." };
+    const cover = await readAsDataUrl(file);
+    const ok = commit((db) => { db.professionals[0].cover = cover; syncProfile(db); }, { rollbackOnFailure: true });
+    return ok ? { ok: true } : { ok: false, error: "Browser storage is full. Try a smaller image." };
+  },
+
+  async removeCover() {
+    const persisted = commit((db) => { db.professionals[0].cover = ""; syncProfile(db); }, { rollbackOnFailure: true });
+    if (!persisted) throw new Error("Your cover image could not be removed. Please try again.");
+  },
+
   async uploadResume(file) {
     if (file.size > 2 * MB || !/^.+\.(pdf|docx?|rtf)$/i.test(file.name)) return { ok: false, error: "Choose a PDF, DOC, DOCX, or RTF file up to 2 MB." };
     const old = me(getDb()).professionalDetails?.resume;

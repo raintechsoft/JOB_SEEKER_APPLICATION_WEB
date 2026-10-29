@@ -9,6 +9,7 @@ export const PHOTO_FRAMES = {
   recruiter_photo: { width: PHOTO_SIZE, height: PHOTO_SIZE, outputWidth: PHOTO_OUTPUT_SIZE, outputHeight: PHOTO_OUTPUT_SIZE },
   logo: { width: PHOTO_SIZE, height: PHOTO_SIZE, outputWidth: PHOTO_OUTPUT_SIZE, outputHeight: PHOTO_OUTPUT_SIZE },
   cover: { width: 640, height: 160, outputWidth: 1600, outputHeight: 400 },
+  profile_cover: { width: 640, height: 160, outputWidth: 1600, outputHeight: 400 },
 } as const satisfies Record<string, PhotoFrame>;
 
 export function photoGeometry(width: number, height: number, transform: PhotoTransform, frame: PhotoFrame = PHOTO_FRAMES.portrait) {

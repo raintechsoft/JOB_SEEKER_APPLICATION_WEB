@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   JOURNEY_RULES,
@@ -80,10 +80,11 @@ describe("career memory validation", () => {
     expect(JOURNEY_RULES).toEqual(
       JSON.parse(
         readFileSync(
-          resolve(
-            process.cwd(),
-            "../JOB_SEEKER_APPLICATION_BACKEND/resources/contracts/career-journey.json",
-          ),
+          // The backend checkout sits beside this one: its standalone name, or `api` in the monorepo layout.
+          ["../JOB_SEEKER_APPLICATION_BACKEND", "../api"]
+            .map((dir) => resolve(process.cwd(), dir, "resources/contracts/career-journey.json"))
+            .find((file) => existsSync(file)) ??
+            resolve(process.cwd(), "../JOB_SEEKER_APPLICATION_BACKEND/resources/contracts/career-journey.json"),
           "utf8",
         ),
       ),

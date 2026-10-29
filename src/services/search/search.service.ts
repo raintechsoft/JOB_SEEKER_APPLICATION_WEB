@@ -18,9 +18,26 @@ export interface SearchResult {
   industry?: string;
   companyName?: string;
   followerCount?: number;
+  /** Why this result is shown to this person, e.g. "Hiring for React · You follow". */
+  reason?: string;
 }
 export interface SearchPage { items: SearchResult[]; total: number | null; nextCursor: string | null }
-export interface SearchService { query(input: SearchOptions & { role: Role; q: string; scope: SearchScope; mode?: "results" | "suggestions" | "related"; limit?: number; cursor?: string }, options?: { signal?: AbortSignal }): Promise<SearchPage> }
+/** What the search box offers before anything is typed. */
+export interface SearchSuggestionsData {
+  recent: { id: string; query: string; source: string; scope: string; createdAt: string }[];
+  skills: { name: string; reason: string }[];
+  companies: { id: string; name: string; slug: string; industry: string; picture: string; reason: string }[];
+  people: { id: string; name: string; headline: string; picture: string; color: string; slug?: string; recruiter?: boolean; reason: string }[];
+}
+export interface SearchService {
+  query(input: SearchOptions & { role: Role; q: string; scope: SearchScope; mode?: "results" | "suggestions" | "related"; limit?: number; cursor?: string }, options?: { signal?: AbortSignal }): Promise<SearchPage>;
+  suggestions(role: Role, options?: { signal?: AbortSignal }): Promise<SearchSuggestionsData>;
+  /** Server search history (F4b): remove one recent search (and its earlier repeats), or all of them. */
+  forgetSearch(role: Role, entryId: string): Promise<void>;
+  clearSearches(role: Role): Promise<void>;
+  /** Reports which result was opened from a search (F4b); best effort, never fails the navigation. */
+  resultOpened(role: Role, query: string, result: Pick<SearchResult, "kind" | "id">): Promise<void>;
+}
 export function searchResultHref(role: Role, result: SearchResult) {
   if (result.kind === "company") return organizationProfileHref(role, result.slug, result.companyAccess === "workspace") ?? `/organizations/${encodeURIComponent(result.slug ?? "")}`;
   if (result.kind === "person" || result.kind === "talent") return result.recruiter ? recruiterProfileHref(role, result.id) ?? `/recruiters/${result.id}` : role === "recruiter" ? `/recruiter/talent/${result.id}` : `/app/professionals/${encodeURIComponent(result.slug ?? "")}`;

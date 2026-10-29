@@ -1,0 +1,143 @@
+[
+  {
+    "name": "annual range",
+    "compensation": {
+      "kind": "salary",
+      "format": "range",
+      "currency": "INR",
+      "period": "year",
+      "minAmount": "1000000.00",
+      "maxAmount": "2000000.00",
+      "hidden": false,
+      "variableEnabled": false,
+      "variablePercent": null,
+      "scaleLabel": null,
+      "notes": "",
+      "allowances": [],
+      "schedule": []
+    },
+    "label": "INR 1000000.00–2000000.00 per year"
+  },
+  {
+    "name": "monthly stipend",
+    "compensation": {
+      "kind": "stipend",
+      "format": "fixed",
+      "currency": "INR",
+      "period": "month",
+      "minAmount": "18000.25",
+      "maxAmount": null,
+      "hidden": false,
+      "variableEnabled": false,
+      "variablePercent": null,
+      "scaleLabel": null,
+      "notes": "",
+      "allowances": [],
+      "schedule": []
+    },
+    "label": "Stipend: INR 18000.25 per month"
+  },
+  {
+    "name": "honorarium per case",
+    "compensation": {
+      "kind": "honorarium",
+      "format": "up_to",
+      "currency": "INR",
+      "period": "case",
+      "minAmount": null,
+      "maxAmount": "3000.50",
+      "hidden": false,
+      "variableEnabled": false,
+      "variablePercent": null,
+      "scaleLabel": null,
+      "notes": "",
+      "allowances": [],
+      "schedule": []
+    },
+    "label": "Honorarium: Up to INR 3000.50 per case"
+  },
+  {
+    "name": "scale",
+    "compensation": {
+      "kind": "salary",
+      "format": "pay_scale",
+      "currency": "INR",
+      "period": null,
+      "minAmount": null,
+      "maxAmount": null,
+      "hidden": false,
+      "variableEnabled": false,
+      "variablePercent": null,
+      "scaleLabel": "Level 6",
+      "notes": "",
+      "allowances": [],
+      "schedule": []
+    },
+    "label": "Level 6"
+  },
+  {
+    "name": "schedule",
+    "compensation": {
+      "kind": "stipend",
+      "format": "schedule",
+      "currency": "INR",
+      "period": null,
+      "minAmount": null,
+      "maxAmount": null,
+      "hidden": false,
+      "variableEnabled": false,
+      "variablePercent": null,
+      "scaleLabel": null,
+      "notes": "",
+      "allowances": [],
+      "schedule": [
+        {
+          "label": "Year 1",
+          "startMonth": 1,
+          "endMonth": 12,
+          "amount": "18000.00",
+          "period": "month"
+        }
+      ]
+    },
+    "label": "Stipend: Year 1: INR 18000.00 per month (months 1–12)"
+  },
+  {
+    "name": "hidden",
+    "compensation": {
+      "kind": "salary",
+      "format": "range",
+      "currency": "INR",
+      "period": "year",
+      "minAmount": "1000000.00",
+      "maxAmount": "2000000.00",
+      "hidden": true,
+      "variableEnabled": false,
+      "variablePercent": null,
+      "scaleLabel": null,
+      "notes": "private",
+      "allowances": [],
+      "schedule": []
+    },
+    "label": "Compensation not disclosed"
+  },
+  {
+    "name": "unknown",
+    "compensation": {
+      "kind": "salary",
+      "format": "unspecified",
+      "currency": "INR",
+      "period": null,
+      "minAmount": null,
+      "maxAmount": null,
+      "hidden": false,
+      "variableEnabled": false,
+      "variablePercent": null,
+      "scaleLabel": null,
+      "notes": "",
+      "allowances": [],
+      "schedule": []
+    },
+    "label": "Compensation not specified"
+  }
+]

@@ -148,7 +148,7 @@ const publicationSchema = (attachment: ReturnType<typeof mediaSchema>) =>
       if (!v.title && !v.body && v.attachments.length === 0 && !v.project)
         ctx.addIssue({
           code: "custom",
-          message: "Add a title, story, or media before publishing.",
+          message: "Add a caption or media before publishing.",
         });
       if (
         new Set(v.attachments.map((m) => m.src)).size !==

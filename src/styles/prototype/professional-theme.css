@@ -1179,7 +1179,7 @@ body.professional-theme .rail-job-tabs>button {font-size:14px;}
 
 /* Keep compact controls and legacy inline metadata readable. */
 body.professional-theme .professional-header-tools>.iconbtn {background:transparent;color:#fff;border-color:transparent;}
-body.professional-theme .professional-header-tools>.iconbtn:hover {background:#244A73;}
+body.professional-theme .professional-header-tools>.iconbtn:hover {background:var(--color-navy);}
 body.professional-theme .professional-header-tools {margin-left:auto;}
 body.professional-theme .feed-start-post {font-size:15px;color:var(--text-secondary);background:#F6F8FA;border-color:#E4E9EF;}
 body.professional-theme .feed-start-post:hover {background:#E4E9EF;border-color:#4169A1;}
@@ -1243,6 +1243,10 @@ body.professional-theme .application-record-bottom .btn {
 }
 body.professional-theme .professional-nav>a {color:#B8C0CC;}
 body.professional-theme .professional-nav>a.active,body.professional-theme .professional-nav>a:hover {color:#FFFFFF;background:transparent;border-bottom-color:transparent;}
+/* Hover changes the icon only (the dock magnification plus a brighter icon); the link keeps no hover background. */
+body.professional-theme .professional-nav>a:hover {background:transparent;}
+body.professional-theme .professional-nav>a .icon {transition:color .16s ease;}
+body.professional-theme .professional-nav>a:hover .icon,body.professional-theme .professional-nav>a:focus-visible .icon {color:#FFFFFF;}
 body.professional-theme .professional-account-menu :is(a,button) {color:var(--text-primary);}
 body.professional-theme .professional-account-menu :is(a,button):hover {color:#315EF4;}
 

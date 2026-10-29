@@ -25,6 +25,8 @@ import { Button, LinkButton } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { JobDetailsSideSheet } from "./job-details-sheet";
+import {applicationWizardPath} from "@/lib/domain/application-wizard";
+import {applicationWizardEnabled} from "@/features/applications/application-wizard-policy";
 
 function SavedApplication({ jobId }: { jobId: Id }) {
   const { data } = useServiceQuery(["job", jobId, "professional"], (s) => s.jobs.getJob(jobId, "professional"));
@@ -170,6 +172,14 @@ export function useJobActions() {
     }
   };
   const apply = (id: Id) => {
+    if (applicationWizardEnabled()) {
+      try {
+        const destination = applicationWizardPath(id, window.location.pathname + window.location.search);
+        modal.close();
+        router.push(destination);
+      } catch { toast("This job is unavailable.", "error"); }
+      return;
+    }
     const session = queryClient.getQueryData<AuthSession>(["auth", "session"]);
     if (session && !session.user.email_verified) {
       router.push("/verify-email");
@@ -208,7 +218,7 @@ export function useJobActions() {
   };
   const view = (id: Id, surface = "feed") => {
     track("job_viewed", { jobId: id, surface });
-    modal.show("Job details", <JobDetailsSideSheet id={id} role={role} onApply={() => apply(id)} onSave={() => void toggleSave("professional", id, "job")} />, "following");
+    modal.show("Job details", <JobDetailsSideSheet id={id} role={role} onApply={() => apply(id)} onSave={() => void toggleSave("professional", id, "job")} onOpenJob={(next) => view(next, "job-page")} />, "following");
     void queryClient.prefetchQuery({ queryKey: jobQueryKey(id), queryFn: () => services.jobs.getJob(id, role) });
     if (role === "professional") void queryClient.prefetchQuery({ queryKey: ["profile"], queryFn: () => services.profile.getProfile() });
     if (apiConfig.dataSource !== "http") void services.jobs.markSeen(id);

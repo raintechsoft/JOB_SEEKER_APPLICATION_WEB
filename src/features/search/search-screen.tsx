@@ -313,6 +313,8 @@ function SearchResultList({ items, query, role, options, ownSearch, followingPeo
   ownCompanyId?: string;
 }) {
   const jobs = useJobActions();
+  const services = useServices();
+  const opened = (item: SearchResult) => void services.search.resultOpened(role, query, item);
   const openJob = (id: string, event: MouseEvent<HTMLAnchorElement>) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
@@ -321,7 +323,7 @@ function SearchResultList({ items, query, role, options, ownSearch, followingPeo
   return <ul className="workspace-search-results">{items.map(item => {
     const resultItem = enrichOwnSearchResult(item, ownSearch);
     return <li key={`${item.kind}:${item.id}`} className={options.selected === `${item.kind}:${item.id}` ? "is-selected" : undefined}>
-      <Link href={searchResultHref(role, item)} aria-label={searchResultLabel(item)} onClick={item.kind === "job" ? (event) => openJob(item.id, event) : undefined}>
+      <Link href={searchResultHref(role, item)} aria-label={searchResultLabel(item)} onClick={(event) => { opened(item); if (item.kind === "job") openJob(item.id, event); }}>
         <SearchResultMark result={resultItem} />
         <span className="header-search-copy">
           <SearchResultCopy result={resultItem} query={query} detailed={false} surface="page" />

@@ -1,13 +1,16 @@
 "use client";
 
 import { InfoBadge } from "@/components/ui/info-badge";
+import { JobValueSummary } from "@/components/jobs/job-value-summary";
+import { JobNoticeDetails } from "@/components/jobs/job-notice-details";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CompanySummary } from "@/types/api";
 import type { Id, IsoDateTime, Job, Role } from "@/types/domain";
-import { isOpenJob, isSimilarJobAlert, similarJobAlertInput } from "@/lib/domain/jobs";
+import { isSimilarJobAlert, similarJobAlertInput } from "@/lib/domain/jobs";
+import { useOpenJob } from "@/hooks/use-open-job";
 import { splitJobAbout, toBulletItems } from "@/lib/domain/job-description";
 import { jobAlertSchema } from "@/services/jobs/jobs.http";
 import { track } from "@/lib/analytics";
@@ -17,6 +20,7 @@ import { devCopy } from "@/lib/env/app-env";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import { MatchBadge } from "@/components/jobs/match-badge";
 import { QueryFeedback } from "@/components/ui/query-view";
 import { Badge, Button, LinkButton, Tags } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
@@ -154,7 +158,7 @@ function JobMetadata({ job }: { job: Job }) {
   const experienceMax = job.wizardValues?.experienceMax;
   const experience = experienceMin != null && experienceMax != null && String(experienceMin) !== "" && String(experienceMax) !== ""
     ? `${experienceMin}–${experienceMax} years`
-    : "";
+    : experienceMin != null && String(experienceMin) !== "" ? `${experienceMin}+ years` : "";
   const parts = [job.location, postedLabel(posted), experience, job.hideSalary ? "" : job.salary].filter(Boolean);
   return <p className="job-sheet-meta">{parts.join(" · ")}</p>;
 }
@@ -198,8 +202,8 @@ function JobHeader({
   );
 }
 
-function ApplyButton({ job, applied, onApply }: { job: Job; applied: boolean; onApply: () => void }) {
-  const open = isOpenJob(job);
+export function ApplyButton({ job, applied, onApply }: { job: Job; applied: boolean; onApply: () => void }) {
+  const open = useOpenJob(job);
   return (
     <Button variant="primary" icon="arrow" disabled={!open && !applied} onClick={onApply}>
       {applied ? "View application" : open ? "Apply" : "Applications closed"}
@@ -278,6 +282,7 @@ function JobDescription({ job, hideCompanyCopy }: { job: Job; hideCompanyCopy: b
   return (
     <div className="job-sheet-about">
       <h3>About the job</h3>
+      <JobValueSummary compensation={job.compensation} deadline={job.deadline}/>
       {!hideCompanyCopy && <DescriptionBlock title="Company Description">{about.company}</DescriptionBlock>}
       <DescriptionBlock title="Role Description">{about.role}</DescriptionBlock>
       <ListBlock title="Responsibilities" items={job.responsibilities} />
@@ -289,6 +294,7 @@ function JobDescription({ job, hideCompanyCopy }: { job: Job; hideCompanyCopy: b
         </section>
       )}
       <DescriptionBlock title="Benefits & perks">{job.benefits ?? ""}</DescriptionBlock>
+      <JobNoticeDetails notice={job.notice} />
       <DescriptionBlock title="Application instructions">{job.applicationInstructions ?? ""}</DescriptionBlock>
     </div>
   );
@@ -511,7 +517,27 @@ function JobDetailsSkeleton({ role }: { role: Role }) {
 }
 
 /** LinkedIn-style job details drawer opened from View opportunity. */
-export function JobDetailsSideSheet({ id, role, onApply, onSave }: { id: Id; role: Role; onApply: () => void; onSave: () => void }) {
+/** Jobs close to this one (E6): nearest in meaning when embeddings are on, most shared skills otherwise. */
+function SimilarJobs({ jobId, onOpen }: { jobId: Id; onOpen: (id: Id) => void }) {
+  const { data } = useServiceQuery(["similar-jobs", jobId], (s) => s.recommendations.similarJobs(jobId, 4));
+  if (!data?.length) return null;
+  return (
+    <section className="job-sheet-section job-sheet-similar" aria-labelledby={`similar-jobs-${jobId}`}>
+      <h3 id={`similar-jobs-${jobId}`}>Similar jobs</h3>
+      <ul>
+        {data.map((item) => (
+          <li key={item.id}>
+            <button type="button" className="job-sheet-similar-title" onClick={() => onOpen(item.id)}>{item.title}</button>
+            <span className="job-sheet-similar-meta">{[item.company.name, item.location, item.arrangement].filter(Boolean).join(" · ")}</span>
+            {item.match ? <MatchBadge match={item.match} /> : item.reason ? <span className="search-result-reason">{item.reason}</span> : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export function JobDetailsSideSheet({ id, role, onApply, onSave, onOpenJob }: { id: Id; role: Role; onApply: () => void; onSave: () => void; onOpenJob?: (id: Id) => void }) {
   const { data, isError, refetch } = useServiceQuery(["job", id, role], (s) => s.jobs.getJob(id, role));
   if (!data) {
     if (isError) return <div className="job-details-sheet"><QueryFeedback data={data} error retry={refetch} label="Loading opportunity" /></div>;
@@ -523,6 +549,7 @@ export function JobDetailsSideSheet({ id, role, onApply, onSave }: { id: Id; rol
   return (
     <div className="job-details-sheet">
       <JobHeader job={job} company={company} role={role} saved={saved} ownedByViewer={ownedByViewer} onSave={onSave} />
+      {role === "professional" && data.match ? <div className="job-sheet-match"><MatchBadge match={data.match} /></div> : null}
       <JobActionBar
         job={job}
         role={role}
@@ -534,6 +561,7 @@ export function JobDetailsSideSheet({ id, role, onApply, onSave }: { id: Id; rol
       />
       <JobDescription job={job} hideCompanyCopy={!company.confidential && !!companyDescription} />
       {!company.confidential && <AboutCompany company={company} fallbackDescription={about.company} role={role} ownedByViewer={ownedByViewer} />}
+      {role === "professional" && onOpenJob && <SimilarJobs jobId={job.id} onOpen={onOpenJob} />}
       {role === "professional" && <SimilarJobsAlert job={job} />}
       {role === "professional" && (
         <DevOnly>

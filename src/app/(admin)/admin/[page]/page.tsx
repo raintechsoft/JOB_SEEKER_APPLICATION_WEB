@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { AdminScreen, type AdminPage } from "@/features/admin/admin-screen";
 
-const PAGES: AdminPage[] = ["dashboard", "users", "companies", "moderation"];
+const PAGES: AdminPage[] = ["dashboard", "users", "companies", "moderation", "quality"];
 
 export function generateStaticParams() {
   return PAGES.map((page) => ({ page }));

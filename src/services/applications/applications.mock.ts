@@ -2,7 +2,7 @@ import type { DemoDatabase, Job } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
 import { mockApplicationResults } from "@/lib/domain/applications";
 import { matchesAlert } from "@/lib/domain/jobs";
-import rules from "../../../../../contracts/validation/application.json";
+import rules from "../../../contracts/validation/application.json";
 import { APPLICATION_STATUSES } from "./applications.service";
 import type { ApplicationRecord, ApplicationsService, JobRef } from "./applications.service";
 import { trackingSchema, applicationFiltersSchema, savedJobSelectionSchema, savedJobStateSchema, savedJobActionSchema } from "@/lib/validation/application";

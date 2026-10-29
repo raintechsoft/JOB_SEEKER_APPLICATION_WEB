@@ -1,22 +1,4 @@
 {
-  "text": {
-    "keywords": 200,
-    "location": 200,
-    "locality": 200,
-    "education": 200,
-    "industry": 100,
-    "designation": 200,
-    "department": 100
-  },
-  "numbers": {
-    "distance": 10000,
-    "expMin": 60,
-    "expMax": 60,
-    "salaryMin": 10000000,
-    "salaryMax": 10000000,
-    "notice": 365,
-    "joining": 365
-  },
   "tabs": [
     "all",
     "New",
@@ -29,31 +11,98 @@
     "Rejected"
   ],
   "sorts": [
-    "recent",
+    "newest",
     "oldest",
     "experience",
+    "salary",
+    "fit",
     "relevance"
   ],
+  "text": {
+    "q": 200,
+    "keywords": 500,
+    "location": 200,
+    "locality": 200,
+    "education": 200,
+    "industry": 100,
+    "designation": 200,
+    "department": 100,
+    "fitTerms": 500
+  },
+  "numbers": {
+    "expMin": 50,
+    "expMax": 50,
+    "salaryMin": 10000000,
+    "salaryMax": 10000000,
+    "notice": 365,
+    "joining": 365,
+    "distance": 1000
+  },
   "transitions": {
     "New": [
       "Reviewing",
       "Shortlisted",
+      "Interview",
       "Rejected"
     ],
     "Reviewing": [
+      "New",
       "Shortlisted",
       "Interview",
       "Rejected"
     ],
     "Shortlisted": [
+      "Reviewing",
       "Interview",
       "Rejected"
     ],
     "Interview": [
+      "Reviewing",
+      "Shortlisted",
       "Hired",
       "Rejected"
     ],
     "Hired": [],
-    "Rejected": []
+    "Rejected": [
+      "Reviewing"
+    ]
+  },
+  "cityCentres": {
+    "bengaluru": [
+      12.9716,
+      77.5946
+    ],
+    "bangalore": [
+      12.9716,
+      77.5946
+    ],
+    "mumbai": [
+      19.076,
+      72.8777
+    ],
+    "pune": [
+      18.5204,
+      73.8567
+    ],
+    "london": [
+      51.5074,
+      -0.1278
+    ],
+    "singapore": [
+      1.3521,
+      103.8198
+    ],
+    "austin": [
+      30.2672,
+      -97.7431
+    ]
+  },
+  "queryRowLimit": 5000,
+  "educationPatterns": {
+    "bachelor": "bachelor|b\\.?\\s?(tech|sc|des|com|a\\b|e\\b)|graduate",
+    "master": "master|m\\.?\\s?(tech|sc|des|com|a\\b|ba|e\\b)",
+    "diploma": "diploma",
+    "doctorate": "doctor|ph\\.?d",
+    "school": "class|school|secondary|higher secondary"
   }
 }

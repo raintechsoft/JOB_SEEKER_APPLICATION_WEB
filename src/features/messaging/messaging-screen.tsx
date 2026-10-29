@@ -4,13 +4,14 @@ import { ContentSkeleton } from "@/components/ui/skeleton";
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import type { Role } from "@/types/domain";
+import type { Message, Role } from "@/types/domain";
 import type { ConversationFlag, ConversationView, MessageFilter } from "@/services/messaging/messaging.service";
 import { formatDay, formatTime } from "@/lib/utils/date";
 import { readAsDataUrl } from "@/lib/utils/files";
 import { uid } from "@/lib/utils/id";
 import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
@@ -27,6 +28,7 @@ import {useFormAction} from "@/hooks/use-form-action";
 import {useServices} from "@/hooks/use-services";
 import {usePathname,useRouter,useSearchParams} from "next/navigation";
 import {z} from "zod";
+import { useLiveInterval } from "./realtime-bridge";
 
 const EMOJIS = ["😀", "😊", "👋", "👍", "👏", "🎉", "❤️", "💡", "🚀", "🙏", "✅", "✨"];
 const FILTERS: [MessageFilter, string][] = [
@@ -143,13 +145,19 @@ export function MessagingScreen({ role }: { role: Role }) {
   const [historyLimit,setHistoryLimit]=useState(50);
   const readAcknowledged=useRef("");
   const [error,setError]=useState("");
+  const cache = useQueryClient();
+  // Messages shown immediately while their send request is in flight.
+  const [pending, setPending] = useState<(Message & { id: string; conversationId: string })[]>([]);
   const recruiter = role === "recruiter";
   const { query, filter, mobileChat, conversation } = useUiStore((s) => s.messaging);
+  // With a live socket these become a slow safety net; signals refresh them immediately.
+  const inboxInterval = useLiveInterval(10000), historyInterval = useLiveInterval(10000), longHistoryInterval = useLiveInterval(30000);
   const setMessaging = useUiStore((s) => s.setMessaging);
-  const { data,isError,refetch } = useServiceQuery(["messaging", role, query, filter, conversation], (s) => s.messaging.getInbox(role, { q: query, filter, selectedId: conversation }),{refetchInterval:real?10000:undefined,keepPreviousData:false});
+  const { data,isError,refetch } = useServiceQuery(["messaging", role, query, filter, conversation], (s) => s.messaging.getInbox(role, { q: query, filter, selectedId: conversation }),{refetchInterval:real?inboxInterval:undefined,keepPreviousData:false});
   const c = data?.selected ?? null;
-  const historyPage=useServiceQuery(["message-history",role,c?.id,historyLimit],(s)=>s.messaging.getHistory!(role,c!.id,historyLimit),{enabled:real&&!!c,refetchInterval:real?(historyLimit>50?30000:10000):undefined,keepPreviousData:false});
-  const messages=historyPage.isError?[]:historyPage.data?.messages??c?.messages??[];
+  const historyPage=useServiceQuery(["message-history",role,c?.id,historyLimit],(s)=>s.messaging.getHistory!(role,c!.id,historyLimit),{enabled:real&&!!c,refetchInterval:real?(historyLimit>50?longHistoryInterval:historyInterval):undefined,keepPreviousData:false});
+  const stored=historyPage.isError?[]:historyPage.data?.messages??c?.messages??[];
+  const messages:Message[]=[...stored,...pending.filter((m)=>m.conversationId===c?.id).map(({conversationId:_conversation,...m})=>({...m,sender:role,own:true}))];
   const readSequence=historyPage.data?.readSequence??c?.readSequence;
   useEffect(()=>{if(!real||!requested||!z.uuid().safeParse(requested).success)return;setMessaging({conversation:requested,mobileChat:true});router.replace(pathname,{scroll:false});},[real,requested,router,pathname,setMessaging]);
   useEffect(()=>{
@@ -233,17 +241,28 @@ export function MessagingScreen({ role }: { role: Role }) {
     const text = draft.text.trim();
     if(real){const parsed=messageSchema.safeParse({text,attachments:draft.files});if(!parsed.success){setError(parsed.error.issues[0].message);return;}}
     if (!text && !draft.files.length) {setError("Write a message or attach a file.");return;}
-    setError("");patchDraft(draftKey,{busy:true});
-    const ok = await run((s) => s.messaging.send(role, c.id, text, draft.files),{invalidate:["messaging","message-history","messaging-unread","notifications"]});
-    if (!ok) {
-      patchDraft(draftKey,{busy:false});setError("Your message could not be sent. Your draft is kept here; retry when ready.");
-      if (ok === false) toast("Browser storage is full. Remove an attachment or choose a smaller file. Your draft is kept.");
-      return;
-    }
+    setError("");
+    // Optimistic: show the message and clear the composer at once; the server call and refreshes run behind it.
+    const files = draft.files, pendingId = "pending-" + uid(), conversationId = c.id;
+    setPending((list) => [...list, { id: pendingId, conversationId, text, attachments: files, time: new Date().toISOString(), sender: role, own: true }]);
     clearDraft(draftKey);
     if (textRef.current) textRef.current.value = "";
     textRef.current?.focus();
-    toast(devCopy("Message saved locally. It has not been sent to a real person.", "Message sent."));
+    const ok = await run((s) => s.messaging.send(role, conversationId, text, files), { refresh: false });
+    if (!ok) {
+      setPending((list) => list.filter((m) => m.id !== pendingId));
+      // Nothing is lost: the text and files go back into the composer.
+      patchDraft(draftKey, { text, files, busy: false });
+      if (textRef.current) textRef.current.value = text;
+      setError("Your message could not be sent. Your draft is kept here; retry when ready.");
+      if (ok === false) toast("Browser storage is full. Remove an attachment or choose a smaller file. Your draft is kept.");
+      return;
+    }
+    // Swap the placeholder for the stored message once the thread has refetched; other views refresh in the background.
+    void cache.invalidateQueries({ predicate: (q) => ["messaging", "messaging-unread", "notifications"].includes(String(q.queryKey[0])) });
+    await cache.invalidateQueries({ queryKey: ["message-history"] });
+    setPending((list) => list.filter((m) => m.id !== pendingId));
+    if (!real) toast(devCopy("Message saved locally. It has not been sent to a real person.", "Message sent."));
   };
 
   const list = data?.threads ?? [];
@@ -372,12 +391,12 @@ export function MessagingScreen({ role }: { role: Role }) {
                           <span>{d}</span>
                         </div>
                       )}
-                      <article className={"message-entry" + (own ? " is-own" : "")}>
+                      <article className={"message-entry" + (own ? " is-own" : "") + (m.id?.startsWith("pending-") ? " is-sending" : "")} aria-busy={m.id?.startsWith("pending-") || undefined}>
                         <Avatar person={who} />
                         <div className="message-entry-body">
                           <div className="message-entry-meta">
                             <strong>{who.name}</strong>
-                            <time>{formatTime(m.time)}</time>
+                            {m.id?.startsWith("pending-") ? <span className="message-sending">Sending…</span> : <time>{formatTime(m.time)}</time>}
                           </div>
                           {m.text && <p>{m.text}</p>}
                           {(m.attachments || [])

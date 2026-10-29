@@ -16,6 +16,7 @@ const NAV: [string, string, IconName][] = [
   ["users", "Users", "users"],
   ["companies", "Companies", "building"],
   ["moderation", "Moderation", "shield"],
+  ["quality", "Recommendations", "spark"],
 ];
 
 const ADMIN = { name: "Admin Demo" };

@@ -2,7 +2,8 @@ import {z} from "zod";
 import type {components} from "@/types/generated/api";
 import type {HttpClient} from "../api/client";
 import type {AuthService} from "../auth/auth.service";
-import type {CandidateView,TalentService} from "./talent.service";
+import type {CandidateView,TalentDiscovery,TalentInterests,TalentService} from "./talent.service";
+import {discoveryRequestSchema,interestSkillsSchema,peopleSectionSchema} from "@/lib/validation/talent-discovery";
 import {hiringPath} from "../job-posts/job-posts.http";
 import {comparisonSchema,shortlistNameSchema,talentFiltersSchema} from "@/lib/validation/application";
 
@@ -16,8 +17,11 @@ export function createHttpTalentService(http:HttpClient,auth:AuthService,recomme
   return {
     reset(){lists.clear();},search,listShortlists,setCandidateShortlists,getRecommendedTalent:recommended,
     async shareShortlist(id,input){z.uuid().parse(id);z.enum(["private","organization"]).parse(input.visibility);const list=await known(id);await http.patch(`${await hiringPath(auth)}/shortlists/${id}`,{name:list.name,version:input.version??list.version,visibility:input.visibility});lists.delete(id);},
-    async getFilterOptions(){return (await http.get<{data:{locations:string[];skills:string[]}}>(`${await discoveryPath()}talent-options`)).data;},
+    async getFilterOptions(){return (await http.get<{data:{locations:string[];skills:string[];hiringSkills?:string[]}}>(`${await discoveryPath()}talent-options`)).data;},
     async getCandidate(id){z.uuid().parse(id);return (await http.get<{data:CandidateView}>(`${await hiringPath(auth)}/talent/${id}`)).data;},
+    async getDiscovery(section,jobId){const query=discoveryRequestSchema.parse({section,job:jobId});return (await http.get<{data:TalentDiscovery}>(`${await hiringPath(auth)}/talent-discovery`,query)).data;},
+    async getPeopleDiscovery(section){const query=section?{section:peopleSectionSchema.parse(section)}:{};return (await http.get<{data:TalentDiscovery}>("me/people-discovery",query)).data;},
+    async saveInterests(skills,version){const value=interestSkillsSchema.parse(skills);z.number().int().min(0).parse(version);return (await http.patch<{data:TalentInterests}>(`${await hiringPath(auth)}/talent-interests`,{skills:value,version})).data;},
     async getCandidateBySlug(slug){return (await http.get<{data:CandidateView}>(`professionals/${encodeURIComponent(slug)}`)).data;},
     async createShortlist(name){const value=shortlistNameSchema.parse(name);return (await http.post<{data:{id:string}}>(`${await hiringPath(auth)}/shortlists`,{name:value})).data.id;},
     async renameShortlist(id,name,version){const value=shortlistNameSchema.parse(name);const list=await known(id);await http.patch(`${await hiringPath(auth)}/shortlists/${id}`,{name:value,version:version??list.version});lists.delete(id);},

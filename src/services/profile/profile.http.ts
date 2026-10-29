@@ -42,6 +42,13 @@ export function createHttpProfileService(http: HttpClient, media: MediaService, 
       return { ok: true };
     },
     useDefaultPhoto: (revision) => mutate("me/profile/assets/portrait", { asset_id: null }, false, revision),
+    async setCover(file, revision) {
+      const error = validateMedia(file, "profile_cover"); if (error) return { ok: false, error };
+      const asset = await media.upload(file, "profile_cover");
+      await mutate("me/profile/assets/profile_cover", { asset_id: asset.id }, false, revision);
+      return { ok: true };
+    },
+    removeCover: (revision) => mutate("me/profile/assets/profile_cover", { asset_id: null }, false, revision),
     async uploadResume(file, revision) {
       const error = validateMedia(file, "resume"); if (error) return { ok: false, error };
       const asset = await media.upload(file, "resume", undefined, {manual:true});

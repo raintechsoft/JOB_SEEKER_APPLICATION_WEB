@@ -23,6 +23,7 @@ import type { ProfileService } from "./profile/profile.service";
 import { mockProfileService } from "./profile/profile.mock";
 import type { RecommendationsService } from "./recommendations/recommendations.service";
 import { mockRecommendationsService } from "./recommendations/recommendations.mock";
+import type { PersonalizationService } from "./personalization/personalization.service";
 import type { RecruitingService } from "./recruiting/recruiting.service";
 import { mockRecruitingService } from "./recruiting/recruiting.mock";
 import type { RegistrationService } from "./registration/registration.service";
@@ -44,6 +45,8 @@ import { mockJourneyService } from "./journey/journey.mock";
 
 /** Every data-access boundary the UI uses. */
 export interface Services {
+  applicationWizard: ReturnType<typeof import("./applications/application-wizard.http").createHttpApplicationDraftService>;
+  applicationDocuments: ReturnType<typeof import("./applications/application-documents.http").createApplicationDocumentService>;
   journey: JourneyService;
   search: SearchService;
   analytics:Pick<ReturnType<typeof import("./analytics/analytics.http").createHttpAnalyticsService>,"getSettings"|"setConsent">;
@@ -62,6 +65,7 @@ export interface Services {
   portfolio: PortfolioService;
   profile: ProfileService;
   recommendations: RecommendationsService;
+  personalization: PersonalizationService;
   recruiting: RecruitingService;
   registration: RegistrationService;
   talent: TalentService;
@@ -71,6 +75,8 @@ export interface Services {
 
 /** MOCK: browser-local implementations backed by `src/mocks`. */
 const mockServices: Services = {
+  applicationWizard: new Proxy({} as Services["applicationWizard"], {get: () => async () => {throw new Error("Application drafts require HTTP mode.");}}),
+  applicationDocuments: new Proxy({} as Services["applicationDocuments"], {get: () => async () => {throw new Error("Application documents require HTTP mode.");}}),
   journey: mockJourneyService,
   search: mockSearchService,
   analytics:{async getSettings(){return {available:false,granted:false,hasStoredConsent:false,policyVersion:"",retentionDays:0,version:0};},async setConsent(){throw new Error("Analytics consent requires HTTP mode.");}},
@@ -89,6 +95,8 @@ const mockServices: Services = {
   portfolio: mockPortfolioService,
   profile: mockProfileService,
   recommendations: mockRecommendationsService,
+  // Demo mode records no activity; the choices only live for this page.
+  personalization: (() => { let settings = { personalize: true, searchHistory: true }; return { async get() { return settings; }, async set(key: "personalize" | "searchHistory", value: boolean) { settings = { ...settings, [key]: value }; return settings; }, async clearHistory() {}, async exportData() { return { choices: settings, note: "Demo mode records no activity." }; } }; })(),
   recruiting: mockRecruitingService,
   registration: mockRegistrationService,
   talent: mockTalentService,

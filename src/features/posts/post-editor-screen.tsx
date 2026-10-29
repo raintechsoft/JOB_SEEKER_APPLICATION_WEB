@@ -28,7 +28,7 @@ import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
-import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
+import { SelectField, TextAreaField } from "@/components/ui/field";
 import { ScreenError, ScreenFallback } from "@/components/ui/feedback";
 import { FeedCard } from "@/features/feed/feed-card";
 import { MediaImage } from "@/components/ui/media-image";
@@ -54,10 +54,10 @@ function previewEntry(
     id: d.id,
     type: "post",
     ownerId: identity.id,
-    title: d.title.trim() || "Your post title",
+    title: "",
     body:
       d.body.trim() ||
-      "Your story will appear here as you write. Add media to see how your post will look in the feed.",
+      "Your caption will appear here as you write. Add media to see how your post will look in the feed.",
     kind: d.media.length
       ? "Media post"
       : d.project
@@ -112,8 +112,10 @@ function Editor({
   const services = useServices();
   const router = useRouter();
   const setFeed = useUiStore((s) => s.setFeed);
-  const [d, setD] = useState(initial);
-  const latestDraft = useRef(initial);
+  // Posts are caption-only; a title saved by an older editor is cleared rather than published unseen.
+  const [untitled] = useState(() => ({ ...initial, title: "" }));
+  const [d, setD] = useState(untitled);
+  const latestDraft = useRef(untitled);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const publishing = useRef(false);
@@ -364,7 +366,7 @@ function Editor({
     previewsTransferred.current = true;
     postPublications.start(
       d.id,
-      d.title.trim() || "Your post",
+      "Your post",
       async (groupId, signal, markPublishing) => {
         signal.throwIfAborted();
         if (real && !savedText) {
@@ -411,7 +413,8 @@ function Editor({
         signal.throwIfAborted();
         markPublishing();
         const result = await services.feed.createPost(role, {
-          title: values.title,
+          // Posts have no title field; a title left in an older draft is not published.
+          title: "",
           body: values.body,
           project: values.project,
           attachments: values.attachments,
@@ -534,16 +537,9 @@ function Editor({
                       <p className="small muted">{identity.headline}</p>
                     </div>
                   </div>
-                  <TextField
-                    label="Post title"
-                    name="title"
-                    value={d.title}
-                    onChange={(e) => update({ title: e.target.value })}
-                    maxLength={150}
-                  />
                   <TextAreaField
                     ref={bodyField}
-                    label="Your story"
+                    label="Caption"
                     name="body"
                     value={d.body}
                     onChange={(e) => update({ body: e.target.value })}
@@ -710,12 +706,11 @@ function Editor({
                     <div>
                       <Icon name="check" />
                       <div>
-                        <strong>Your story</strong>
-                        <p>{d.title.trim() || "No title"}</p>
+                        <strong>Caption</strong>
                         <span>
                           {d.body.trim()
                             ? `${d.body.length} / 3000 characters`
-                            : "No story"}
+                            : "No caption"}
                         </span>
                       </div>
                       <Button

@@ -18,10 +18,12 @@ import { NotificationBell } from "@/features/workspace/notification-bell";
 import { useNetworkSheet } from "@/features/feed/network-sheet";
 import { apiConfig } from "@/services/api/config";
 import { RealWorkspace } from "@/features/auth/real-workspace";
+import { RealtimeBridge, useLiveInterval } from "@/features/messaging/realtime-bridge";
 import { clearIdentityState } from "@/features/auth/clear-identity-state";
 import { WorkspaceAccessGate } from "@/features/auth/workspace-access-gate";
 import type { Workspace } from "@/services/auth/auth.service";
 import { HeaderSearch } from "@/features/search/header-search";
+import {isApplicationWizardRoute} from "@/features/applications/application-wizard-policy";
 export { HeaderSearch } from "@/features/search/header-search";
 
 interface NavItem {
@@ -135,7 +137,7 @@ function WorkspaceFrame({ recruiter, nav, navLabel, account, children }: { recru
   useServiceQuery(["media-policy"], service => service.media.policy!(), {enabled:apiConfig.dataSource==="http",staleTime:Infinity});
   const pathname = usePathname();
   const base = recruiter ? "/recruiter" : "/app";
-  const mainClass = pathname === base + "/dashboard" || pathname === "/app/jobs" ? "is-feed" : pathname === (recruiter ? "/recruiter/activity" : "/app/updates") ? "is-activity" : pathname === base + "/search" ? "is-search" : "";
+  const mainClass = pathname === base + "/dashboard" || pathname === "/app/jobs" || pathname === "/recruiter/discover" || pathname === "/app/discover" ? "is-feed" : pathname === (recruiter ? "/recruiter/activity" : "/app/updates") ? "is-activity" : pathname === base + "/search" ? "is-search" : "";
   return (
     <div className={`${recruiter ? "professional-app recruiter-app" : "professional-app"}${pathname === base + "/search" ? " is-search" : ""}`}>
       <header className="professional-header">
@@ -169,12 +171,12 @@ const PROFESSIONAL_NAV: [string, string, IconName][] = [
 function MockProfessionalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { data } = useServiceQuery(["shell", "professional"], (s) => s.workspace.getProfessionalShell());
-  const {data:unreadCount}=useServiceQuery(["messaging-unread","professional"],(s)=>s.messaging.getUnreadCount!("professional"),{enabled:apiConfig.dataSource==="http",refetchInterval:10000});
+  const {data:unreadCount}=useServiceQuery(["messaging-unread","professional"],(s)=>s.messaging.getUnreadCount!("professional"),{enabled:apiConfig.dataSource==="http",refetchInterval:useLiveInterval(10000)});
   const email = useAccountEmail(data?.person.email);
   const logout = useLogout();
   const network = useNetworkSheet();
   useWorkspaceRole("professional", pathname.startsWith("/app"));
-  const nav = PROFESSIONAL_NAV.map(([slug, label, icon]) => ({ href: "/app/" + slug, label, icon, active: pathname.startsWith("/app/" + slug), unread: slug === "messages" ? unreadCount??data?.unreadConversations : undefined }));
+  const nav = PROFESSIONAL_NAV.map(([slug, label, icon]) => ({ href: "/app/" + slug, label, icon, active: pathname.startsWith("/app/" + slug) || slug === "applications" && isApplicationWizardRoute(pathname), unread: slug === "messages" ? unreadCount??data?.unreadConversations : undefined }));
   return (
     <WorkspaceFrame
       recruiter={false}
@@ -187,6 +189,10 @@ function MockProfessionalShell({ children }: { children: ReactNode }) {
           <Link href="/app/profile">
             <Icon name="user" />
             Profile
+          </Link>
+          <Link href="/app/discover">
+            <Icon name="search" />
+            Discover people
           </Link>
           <Link href="/app/settings">
             <Icon name="settings" />
@@ -209,6 +215,7 @@ function MockProfessionalShell({ children }: { children: ReactNode }) {
         </AccountMenu>
       }
     >
+      <RealtimeBridge />
       {children}
     </WorkspaceFrame>
   );
@@ -236,7 +243,7 @@ const RECRUITER_MENU: [string, string, IconName][] = [
 function MockRecruiterShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { data } = useServiceQuery(["shell", "recruiter"], (s) => s.workspace.getRecruiterShell());
-  const {data:unreadCount}=useServiceQuery(["messaging-unread","recruiter"],(s)=>s.messaging.getUnreadCount!("recruiter"),{enabled:apiConfig.dataSource==="http",refetchInterval:10000});
+  const {data:unreadCount}=useServiceQuery(["messaging-unread","recruiter"],(s)=>s.messaging.getUnreadCount!("recruiter"),{enabled:apiConfig.dataSource==="http",refetchInterval:useLiveInterval(10000)});
   const email = useAccountEmail(data?.email);
   const logout = useLogout();
   const network = useNetworkSheet();
@@ -277,6 +284,7 @@ function MockRecruiterShell({ children }: { children: ReactNode }) {
         </AccountMenu>
       }
     >
+      <RealtimeBridge />
       {children}
     </WorkspaceFrame>
   );
@@ -285,7 +293,7 @@ function MockRecruiterShell({ children }: { children: ReactNode }) {
 export function ProfessionalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   if (!pathname.startsWith("/app/")) return <>{children}</>;
-  const connected = ["/app/search", "/app/messages", "/app/settings", "/app/dashboard", "/app/posts/new", "/app/updates", "/app/profile", "/app/projects", "/app/work-pulse", "/app/portfolio", "/app/portfolio/preview", "/app/applications", "/app/jobs"].includes(pathname) || pathname.startsWith("/app/professionals/") || pathname.startsWith("/app/organizations/") || pathname.startsWith("/app/recruiters/");
+  const connected = isApplicationWizardRoute(pathname) || ["/app/search", "/app/discover", "/app/messages", "/app/settings", "/app/dashboard", "/app/posts/new", "/app/updates", "/app/profile", "/app/projects", "/app/work-pulse", "/app/portfolio", "/app/portfolio/preview", "/app/applications", "/app/jobs"].includes(pathname) || pathname.startsWith("/app/professionals/") || pathname.startsWith("/app/organizations/") || pathname.startsWith("/app/recruiters/");
   if(apiConfig.dataSource === "http") return connected ? <WorkspaceAccessGate role="professional"><MockProfessionalShell>{children}</MockProfessionalShell></WorkspaceAccessGate> : <RealWorkspace role="professional"/>;
   return <MockProfessionalShell>{children}</MockProfessionalShell>;
 }
