@@ -84,6 +84,7 @@ export interface ApplicantProfile extends PersonSummary {
 }
 
 export interface ResponseItem {
+  sharing?: import("@/types/generated/application-wizard-v2").components["schemas"]["ApplicationSharing"];
   portfolio?:PortfolioView|null;
   application: ReceivedApplication;
   profile: ApplicantProfile;

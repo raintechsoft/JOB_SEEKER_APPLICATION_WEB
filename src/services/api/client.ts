@@ -46,7 +46,7 @@ export function createHttpClient(baseUrl: string): HttpClient {
   };
   async function request<T>(method: string, path: string, body?: unknown, query?: Query, binary = false, signal?: AbortSignal, headers?: Record<string,string>): Promise<T> {
     const mutation = method !== "GET";
-    const scoped = /^(?:me|organizations|admin)(?:\/|$)/.test(path) || binary || mutation && /^(?:(?:media|jobs)(?:\/|$)|auth\/(?:logout|password|email))/.test(path);
+    const scoped = /^(?:me|organizations|admin)(?:\/|$)/.test(path) || /^jobs\/[^/]+\/application-context$/.test(path) || binary || mutation && /^(?:(?:media|jobs)(?:\/|$)|auth\/(?:logout|password|email))/.test(path);
     // Establish the actor before loading an owned form, including a direct workspace navigation.
     if (scoped && userContext === null) {
       if (!contextReady) {

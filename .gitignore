@@ -42,6 +42,15 @@ tests/unit/*
 !tests/unit/job-editor-v2.test.ts
 !tests/unit/job-editor-v2-ui.test.tsx
 !tests/unit/job-j4-discovery.test.tsx
+!tests/unit/application-wizard-contract.test.ts
+!tests/unit/application-drafts-http.test.ts
+!tests/unit/application-contact.test.tsx
+!tests/unit/application-documents.test.tsx
+!tests/unit/application-page.test.tsx
+!tests/unit/application-entry.test.tsx
+!tests/unit/application-navigation.test.tsx
+!tests/unit/application-route-guard.test.ts
+!tests/unit/application-sharing.test.tsx
 !tests/unit/hiring-http.test.ts
 !tests/unit/auth-forms.test.tsx
 !tests/fixtures/

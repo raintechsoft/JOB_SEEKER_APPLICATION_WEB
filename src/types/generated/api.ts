@@ -4174,6 +4174,50 @@ export interface components {
             /** @enum {string} */
             employerStage: "New" | "Reviewing" | "Shortlisted" | "Interview" | "Hired" | "Rejected";
             withdrawnAt: string | null;
+            sharing?: {
+                /** @constant */
+                schemaVersion: 2;
+                expectedCompensation: {
+                    currency: ("INR" | "USD" | "EUR" | "GBP") | null;
+                    period: ("hour" | "day" | "week" | "month" | "year" | "case" | "duty" | "engagement") | null;
+                    amount: string | null;
+                } | null;
+                verification: {
+                    email: {
+                        /** Format: date-time */
+                        verifiedAt: string;
+                        /** @enum {string} */
+                        source: "account" | "application";
+                    } | null;
+                    phone: {
+                        /** Format: date-time */
+                        verifiedAt: string;
+                        /** @enum {string} */
+                        source: "account" | "application";
+                    } | null;
+                };
+                attachments: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    mime: string;
+                    bytes: number;
+                    /** @constant */
+                    kind: "resume";
+                }[];
+                portfolio: {
+                    title: string;
+                    items: {
+                        /** Format: uuid */
+                        id: string;
+                        /** @enum {string} */
+                        kind: "project" | "work_sample" | "work_update";
+                        title: string;
+                        description: string;
+                        url: string | null;
+                    }[];
+                } | null;
+            };
         };
         ReceivedApplication: {
             /** Format: uuid */
@@ -4307,6 +4351,50 @@ export interface components {
             portfolio: components["schemas"]["PortfolioView"] | null;
             /** @constant */
             strategy: "keyword-overlap-v1";
+            sharing?: {
+                /** @constant */
+                schemaVersion: 2;
+                expectedCompensation: {
+                    currency: ("INR" | "USD" | "EUR" | "GBP") | null;
+                    period: ("hour" | "day" | "week" | "month" | "year" | "case" | "duty" | "engagement") | null;
+                    amount: string | null;
+                } | null;
+                verification: {
+                    email: {
+                        /** Format: date-time */
+                        verifiedAt: string;
+                        /** @enum {string} */
+                        source: "account" | "application";
+                    } | null;
+                    phone: {
+                        /** Format: date-time */
+                        verifiedAt: string;
+                        /** @enum {string} */
+                        source: "account" | "application";
+                    } | null;
+                };
+                attachments: {
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                    mime: string;
+                    bytes: number;
+                    /** @constant */
+                    kind: "resume";
+                }[];
+                portfolio: {
+                    title: string;
+                    items: {
+                        /** Format: uuid */
+                        id: string;
+                        /** @enum {string} */
+                        kind: "project" | "work_sample" | "work_update";
+                        title: string;
+                        description: string;
+                        url: string | null;
+                    }[];
+                } | null;
+            };
         };
         ResponsesPage: {
             items: components["schemas"]["ResponseItem"][];

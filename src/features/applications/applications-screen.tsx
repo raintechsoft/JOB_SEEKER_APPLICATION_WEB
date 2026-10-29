@@ -1,6 +1,9 @@
 "use client";
 
 import { InfoBadge } from "@/components/ui/info-badge";
+import {ApplicationSharingDetails} from "./application-sharing-details";
+import {ApplicationDraftList, useApplicationDraftPage} from "./application-draft-list";
+import {applicationWizardEnabled} from "./application-wizard-policy";
 
 import { QueryFeedback } from "@/components/ui/query-view";
 
@@ -29,8 +32,8 @@ import { SavedOpportunities } from "./saved-opportunities";
 import { AppliedOpportunities, JobAlertsList } from "./opportunity-lists";
 import { ApplicationFilters, applicationFilter, type ApplicationFilter } from "./application-filters";
 
-type Tab = "applied" | "saved" | "alerts";
-const TABS: Record<Tab, string> = { applied: "Applied jobs", saved: "Saved jobs", alerts: "Job alerts" };
+type Tab = "applied" | "saved" | "alerts" | "drafts";
+const TABS: Record<Tab, string> = { applied: "Applied jobs", saved: "Saved jobs", alerts: "Job alerts", drafts: "Draft applications" };
 const demoDate = (v?: string) => (v ? formatLongDate(String(v).slice(0, 10)) : "Not set");
 const statusClass = (s: string) => (["Interview", "Offer", "Shortlisted", "Hired"].includes(s) ? "positive" : s === "Rejected" ? "negative" : "pending");
 
@@ -86,6 +89,7 @@ function Details({ id }: { id: Id }) {
           {a.jobRef?.companyName ?? "Company unavailable"} · {demoDate(a.createdAt)}
         </p>
       </div>
+      {a.sharing&&<ApplicationSharingDetails sharing={a.sharing} applicationId={a.id}/>}
       <span className={"application-status " + statusClass(a.status)} style={{ alignSelf: "flex-start" }}>
         {a.status}
       </span>
@@ -167,13 +171,18 @@ export function ApplicationsScreen() {
   const router = useRouter();
   const pathname = usePathname();
   const alerts = useJobAlertDialogs();
-  const tab: Tab = (Object.keys(TABS) as Tab[]).includes(params.get("tab") as Tab) ? (params.get("tab") as Tab) : "applied";
+  // Drafts exist only where the application wizard is enabled.
+  const drafts = applicationWizardEnabled();
+  const draftPage = useApplicationDraftPage(1, drafts);
+  const requested = params.get("tab") as Tab;
+  const tab: Tab = (Object.keys(TABS) as Tab[]).includes(requested) && (requested !== "drafts" || drafts) ? requested : "applied";
   const q = params.get("q") || "";
   const savedView = params.get("savedView") === "archived" ? "archived" : "active";
   const unfilteredUrl = "/app/applications?tab=" + tab + (tab === "saved" && savedView === "archived" ? "&savedView=archived" : "");
   const status = tab === "applied" ? applicationFilter(params.get("status")) : "";
   const { data: overview } = useServiceQuery(["applications", "overview"], (s) => s.applications.getOverview());
   const { data: results, isError, refetch } = useServiceQuery(["applications", tab, q, status, savedView], async (s): Promise<{items:(ApplicationRecord | SavedJobRecord | AlertRecord)[];counts?:ApplicationCounts}> => {
+    if (tab === "drafts") return {items:[]};
     if (tab === "applied") return s.applications.getApplicationResults({q,status});
     return {items:tab === "saved" ? await s.applications.listSavedJobs({q,state:savedView}) : await s.applications.listAlerts({q})};
   }, {keepPreviousData:false,refetchInterval:tab === "applied" ? 10_000 : undefined,refetchOnWindowFocus:"always",staleTime:0});
@@ -201,11 +210,13 @@ export function ApplicationsScreen() {
     applied: ["Your next chapter starts with a first step.", devCopy("Demo jobs you apply to appear here, ready for your notes and next steps.", "Jobs you apply to appear here, ready for your notes and next steps.")],
     saved: ["Keep promising opportunities close.", "Save jobs from the feed or jobs panel to revisit them here. Saved social posts stay in your feed."],
     alerts: ["Put your next role on your radar.", "Create an alert for the job titles, skills, and locations you’re interested in."],
+    drafts: ["No draft applications.", "Applications you start and save without submitting appear here, ready to finish."],
   };
   const sections: [Tab, string, number, IconName][] = [
     ["applied", "Your applications", overview?.counts.applied ?? 0, "briefcase"],
     ["saved", "Saved opportunities", overview?.counts.saved ?? 0, "bookmark"],
     ["alerts", "Active job alerts", overview?.counts.activeAlerts ?? 0, "bell"],
+    ...(drafts ? [["drafts", "Draft applications", draftPage.data?.total ?? 0, "file"] as [Tab, string, number, IconName]] : []),
   ];
 
   return (
@@ -240,9 +251,10 @@ export function ApplicationsScreen() {
           </nav>
         </aside>
         <div className="application-content">
-          <h2 className="application-content-title">{{ applied: "Your applications", saved: "Saved opportunities", alerts: "Job alerts" }[tab]}</h2>
+          <h2 className="application-content-title">{{ applied: "Your applications", saved: "Saved opportunities", alerts: "Job alerts", drafts: "Draft applications" }[tab]}</h2>
           {tab === "saved" && <nav className="saved-job-views" aria-label="Saved opportunity views">{(["active","archived"] as const).map(view => <Link key={view} href={"/app/applications?" + new URLSearchParams({tab:"saved",...(q ? {q} : {}),...(view === "archived" ? {savedView:"archived"} : {})})} aria-current={savedView === view ? "page" : undefined}>{view === "active" ? "Saved" : "Archived"}</Link>)}</nav>}
           {tab === "applied" && <ApplicationFilters counts={results?.counts} value={status} onSelect={selectStatus} />}
+          {tab === "drafts" ? <section className="application-record-list" aria-label={TABS.drafts}><ApplicationDraftList /></section> : <>
           <div className="application-toolbar">
             <form
               id="applications-search-form"
@@ -295,6 +307,7 @@ export function ApplicationsScreen() {
                   />
                 )}
           </section>
+          </>}
           <DevOnly>
             <div className="application-demo-note">
               <Icon name="shield" />

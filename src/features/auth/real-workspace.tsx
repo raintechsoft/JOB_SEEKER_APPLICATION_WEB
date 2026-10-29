@@ -16,6 +16,7 @@ import { useAuthForm } from "./use-auth-form";
 import { AuthError } from "./auth-errors";
 import { clearIdentityState } from "./clear-identity-state";
 import { authDestination } from "./auth-navigation";
+import {applicationSignInReturn,isApplicationWizardRoute} from "@/features/applications/application-wizard-policy";
 
 const roleOptions = [
   { value: "organization_admin", label: "Organization Admin" },
@@ -85,8 +86,9 @@ export function RealWorkspace({ role }: { role: "professional" | "recruiter" }) 
   const selected = available.find((w) => w.id === session?.selected_identity_id) ?? available[0];
   const home = session?.user.email_verified && available.length === 0 ? authDestination(session) : null;
   useEffect(() => {
-    if (query.error instanceof ApiError && query.error.status === 401) router.replace("/login");
-    if (session && !session.user.email_verified) router.replace("/verify-email");
+    const next=isApplicationWizardRoute(pathname)?applicationSignInReturn(window.location.pathname+window.location.search):null;
+    if (query.error instanceof ApiError && query.error.status === 401) router.replace("/login"+(next?"?next="+encodeURIComponent(next):""));
+    if (session && !session.user.email_verified) router.replace("/verify-email"+(next?"?next="+encodeURIComponent(next):""));
     if (home && pathname !== home) router.replace(home);
   }, [query.error, session, home, pathname, router]);
   if ((session && !session.user.email_verified) || (home && pathname !== home)) return null;

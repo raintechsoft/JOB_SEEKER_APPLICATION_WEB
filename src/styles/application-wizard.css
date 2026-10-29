@@ -1,0 +1,88 @@
+.application-wizard {min-width:0;padding-bottom:100px;}
+body:has(.application-wizard) .upload-tray {bottom:100px;}
+.application-wizard .job-wizard-top {align-items:flex-start;}
+.application-wizard .job-wizard-top h1 {overflow-wrap:anywhere;}
+.application-wizard .job-wizard-top p {margin-top:10px;color:#626b76;}
+.application-wizard .application-stage {min-width:0;padding:30px;}
+.application-wizard .application-fields {border:0;padding:0;margin:0;min-width:0;}
+.application-wizard .wizard-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;}
+.application-wizard .application-phone-grid {grid-template-columns:minmax(170px,.8fr) minmax(0,1.2fr);}
+.application-wizard .wizard-section {display:grid;gap:24px;}
+.application-wizard .wizard-save-note small {display:block;margin-top:6px;}
+.application-wizard .application-context-notice {display:grid;gap:12px;padding:16px;border:1px solid #d7dee8;border-radius:8px;margin-bottom:20px;}
+.application-wizard .application-review section {padding-bottom:20px;border-bottom:1px solid #e4e9ef;overflow-wrap:anywhere;}
+.application-wizard .application-review h3 {font-size:17px;margin-bottom:12px;}
+.application-wizard .application-review dl {display:grid;gap:12px;}
+.application-wizard .application-review dl>div {display:grid;grid-template-columns:minmax(100px,.7fr) minmax(0,1.3fr);gap:14px;}
+.application-wizard .application-review dd {margin:0;overflow-wrap:anywhere;}
+.application-wizard .application-review dt {color:#626b76;}
+.application-wizard .application-review button.link {color:#315ef4;margin-top:12px;}
+.application-wizard .application-preserve-text {white-space:pre-wrap;overflow-wrap:anywhere;}
+.application-wizard .application-stage iframe {max-width:100%;}
+.application-wizard .wizard-stage-heading>h2:focus {outline:none;}
+@media(max-width:760px) {
+ .application-wizard .job-wizard-top {flex-direction:column;gap:12px;}
+ .application-wizard .job-wizard-layout {grid-template-columns:minmax(0,1fr);gap:18px;}
+ .application-wizard .job-wizard-stepper {position:static!important;padding:16px!important;}
+ .application-wizard .job-wizard-stepper nav {display:flex;flex-direction:row;overflow-x:auto;gap:8px;padding-bottom:6px;scroll-snap-type:x proximity;}
+ .application-wizard .job-wizard-stepper nav>button {width:auto;min-width:170px;scroll-snap-align:start;flex-shrink:0;}
+ .application-wizard .job-wizard-stepper nav>button:after {display:none;}
+ .application-wizard .wizard-save-note {padding:12px 0 0;margin-top:12px;}
+ .application-wizard .application-stage {padding:20px;}
+ .application-wizard .wizard-grid,.application-wizard .application-phone-grid {grid-template-columns:minmax(0,1fr);}
+ .application-wizard .job-wizard-footer>div {gap:8px;flex-wrap:wrap;}
+ .application-wizard .job-wizard-footer .btn {min-height:40px;padding:9px 12px;font-size:12px;}
+ .application-wizard .wizard-footer-progress {font-size:12px;}
+}
+/* Review step: header, then Contact info, Resume, details and questions, each with an Edit action. */
+.application-wizard .application-review { display: grid; gap: 0; }
+.application-review-header { padding-bottom: 16px; border-bottom: 1px solid #e4e9ef; }
+.application-review-header h3 { margin: 0; font-size: 20px; font-weight: 650; color: #202a36; }
+.application-review-header p { margin: 4px 0 0; color: #626b76; font-size: 13px; }
+.application-review-header .application-review-status { margin-top: 8px; font-size: 12px; color: #7b8491; }
+.application-review-section { padding: 18px 0; border-bottom: 1px solid #e4e9ef; }
+.application-review-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.application-review-section-head h4 { margin: 0; font-size: 16px; font-weight: 650; color: #202a36; }
+.application-review-edit { padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: #315ef4; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.application-review-edit:hover:not(:disabled) { background: #edf3ff; }
+.application-review-edit:focus-visible { outline: 2px solid #315ef4; outline-offset: 2px; }
+.application-review-edit:disabled { color: #9aa4b2; cursor: not-allowed; }
+.application-review-person { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+.application-review-person .avatar { flex-shrink: 0; margin: 0; }
+/* Keeps a long bio from stretching across the whole review. */
+.application-review-person-copy { display: grid; gap: 1px; min-width: 0; max-width: 520px; }
+.application-review-person strong { display: block; color: #202a36; font-size: 16px; font-weight: 650; line-height: 1.35; }
+.application-review-person p { margin: 0; color: #3b4552; font-size: 13px; line-height: 1.4; }
+.application-review-person small { display: block; color: #7b8491; font-size: 12px; line-height: 1.4; }
+.application-review-fields { display: grid; gap: 12px; margin: 0; }
+.application-review-fields > div { display: grid; gap: 2px; }
+.application-review-fields dt { color: #626b76; font-size: 13px; }
+.application-review-fields dd { margin: 0; color: #202a36; font-size: 15px; }
+.application-review-resume { max-width: 360px; border: 0; padding: 0; }
+.application-review-note, .application-review-empty { margin: 10px 0 0; color: #626b76; font-size: 13px; }
+.application-review-person .application-review-bio { display: -webkit-box; overflow: hidden; color: #626b76; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.application-review > .wizard-check { margin-top: 12px; }
+.application-review > .application-review-section:first-of-type, .application-review .application-review > .application-review-section:first-of-type { padding-top: 0; }
+.application-review > .application-review-status { margin: 0 0 8px; padding: 10px 12px; border-radius: 8px; background: #fff7e6; color: #8a5a00; font-size: 13px; }
+.application-locations { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.application-locations > legend { margin-bottom: 10px; padding: 0; color: #202a36; font-size: 14px; font-weight: 550; }
+.application-location-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.application-location-option { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid #c9d6e7; border-radius: 18px; background: #fff; color: #3b4552; font: inherit; font-size: 13px; cursor: pointer; }
+.application-location-option:hover:not(:disabled) { border-color: #315ef4; color: #315ef4; }
+.application-location-option[aria-pressed="true"] { border-color: #315ef4; background: #edf3ff; color: #244a73; }
+.application-location-option .icon { width: 14px; height: 14px; color: #315ef4; }
+.application-location-option:disabled { opacity: .5; cursor: not-allowed; }
+.application-location-option:focus-visible { outline: 2px solid #315ef4; outline-offset: 2px; }
+.application-location-own { min-height: 52px; padding: 8px 10px; }
+/* Screening questions: full question text above a plain control, no nested card. */
+.application-questions { gap: 22px; }
+.application-question { display: grid; gap: 10px; }
+.application-question > fieldset { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.application-question-text { padding: 0; color: #202a36; font-size: 14px; font-weight: 550; line-height: 1.5; overflow-wrap: anywhere; }
+.application-question-required { color: #b42318; }
+.application-question-input { width: 100%; padding: 11px 14px; border: 1px solid #d7dee8; border-radius: 8px; background: #fff; color: #202a36; font: inherit; font-size: 14px; line-height: 1.5; resize: vertical; }
+.application-question-input:focus-visible { border-color: #315ef4; outline: 2px solid #bccbf8; outline-offset: 0; }
+.application-question-input[aria-invalid="true"] { border-color: #b42318; }
+.application-question-choices { display: flex; flex-wrap: wrap; gap: 24px; }
+.application-question-choice { display: inline-flex; align-items: center; gap: 8px; color: #3b4552; font-size: 14px; cursor: pointer; }
+.application-question-choice > input { width: 16px; height: 16px; margin: 0; accent-color: #315ef4; }

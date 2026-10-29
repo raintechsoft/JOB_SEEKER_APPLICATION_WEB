@@ -1,6 +1,7 @@
 "use client";
 
 import { InfoBadge } from "@/components/ui/info-badge";
+import {ApplicationSharingDetails,sharedPayLabel} from "@/features/applications/application-sharing-details";
 
 import { QueryFeedback } from "@/components/ui/query-view";
 
@@ -382,7 +383,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
           </span>
           <span>
             <Icon name="file" />
-            {p.expectedSalary == null ? "Salary not provided" : "₹" + p.expectedSalary + " LPA expected"}
+            {item.sharing ? sharedPayLabel(item.sharing.expectedCompensation) : p.expectedSalary == null ? "Salary not provided" : "₹" + p.expectedSalary + " LPA expected"}
           </span>
           <span>
             <Icon name="clock" />
@@ -486,7 +487,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
 
 function SubmittedProfile({item}:{item:ResponseItem}){
   const {profile:p,application:a,portfolio}=item;
-  return <div className="stack"><div className="row"><Avatar person={p} size="lg"/><div><h2>{p.name}</h2><p>{p.headline}</p></div></div><InfoBadge label="Submitted application information">Submitted with this application on {formatLongDate(a.createdAt.slice(0,10))}. This copy retains what the applicant shared at submission.</InfoBadge><p>{p.location} · {p.years} years of experience</p><p style={{whiteSpace:"pre-line"}}>{p.summary}</p><p>{p.skills.join(" · ")}</p><h3>Experience</h3><p style={{whiteSpace:"pre-line"}}>{p.experience||"Not provided"}</p><h3>Education</h3><p style={{whiteSpace:"pre-line"}}>{p.educationText||"Not provided"}</p><h3>Shared contact and recruitment details</h3><p>{p.email}{p.phone?" · "+p.phone:""}</p><p>Expected salary: {p.expectedSalary===null?"Not shared":p.expectedSalary+" LPA"} · Notice: {p.notice===null?"Not shared":p.notice+" days"}</p>{portfolio&&<><h3>Included portfolio</h3>{portfolio.person.summary&&<p>{portfolio.person.summary}</p>}{portfolio.projects.map((project)=><section className="card stack" style={{padding:16}} key={project.id}>{project.cover&&<Image src={project.cover} width={400} height={240} unoptimized alt={project.title} style={{maxWidth:"100%",height:"auto"}}/>}<h4>{project.title}</h4><p>{project.description}</p><p>{project.contribution}</p><p>{project.skills.join(" · ")}</p></section>)}{portfolio.updates.map((update)=><section key={update.id}><h4>{update.title}</h4><p>{update.description}</p></section>)}</>}<div className="modal-footer"><Button onClick={()=>modal.close()}>Close</Button><Button variant="primary" onClick={()=>openReview(a.id)}>Review application</Button></div></div>;
+  return <div className="stack"><div className="row"><Avatar person={p} size="lg"/><div><h2>{p.name}</h2><p>{p.headline}</p></div></div><InfoBadge label="Submitted application information">Submitted with this application on {formatLongDate(a.createdAt.slice(0,10))}. This copy retains what the applicant shared at submission.</InfoBadge><p>{p.location} · {p.years} years of experience</p><p style={{whiteSpace:"pre-line"}}>{p.summary}</p><p>{p.skills.join(" · ")}</p><h3>Experience</h3><p style={{whiteSpace:"pre-line"}}>{p.experience||"Not provided"}</p><h3>Education</h3><p style={{whiteSpace:"pre-line"}}>{p.educationText||"Not provided"}</p><h3>Shared contact and recruitment details</h3><p>{p.email}{p.phone?" · "+p.phone:""}</p>{!item.sharing&&<p>Expected salary: {p.expectedSalary===null?"Not shared":p.expectedSalary+" LPA"}</p>}<p>Notice: {p.notice===null?"Not shared":p.notice+" days"}</p>{item.sharing&&<ApplicationSharingDetails sharing={item.sharing} applicationId={a.id} reviewer/>}{portfolio&&<><h3>Included portfolio</h3>{portfolio.person.summary&&<p>{portfolio.person.summary}</p>}{portfolio.projects.map((project)=><section className="card stack" style={{padding:16}} key={project.id}>{project.cover&&<Image src={project.cover} width={400} height={240} unoptimized alt={project.title} style={{maxWidth:"100%",height:"auto"}}/>}<h4>{project.title}</h4><p>{project.description}</p><p>{project.contribution}</p><p>{project.skills.join(" · ")}</p></section>)}{portfolio.updates.map((update)=><section key={update.id}><h4>{update.title}</h4><p>{update.description}</p></section>)}</>}<div className="modal-footer"><Button onClick={()=>modal.close()}>Close</Button><Button variant="primary" onClick={()=>openReview(a.id)}>Review application</Button></div></div>;
 }
 
 const validBulkSelection=(ids:Id[])=>{if(!ids.length||ids.length>100||new Set(ids).size!==ids.length){toast("Choose 1–100 distinct records for this action.");return false;}return true;};

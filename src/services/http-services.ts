@@ -22,6 +22,8 @@ import { createHttpRecruitingService } from "./recruiting/recruiting.http";
 import { createHttpTalentService } from "./talent/talent.http";
 import { createHttpSearchService } from "./search/search.http";
 import { createHttpJourneyService } from "./journey/journey.http";
+import {createHttpApplicationDraftService} from "./applications/application-wizard.http";
+import {createApplicationDocumentService} from "./applications/application-documents.http";
 
 
 /** Enable completed real domains; unimplemented domains never fall back to fixtures. */
@@ -38,6 +40,8 @@ export function createHttpServices(baseUrl: string): Services {
   const analytics=createHttpAnalyticsService(http);
   const auth = createHttpAuthService(http, () => { uploadManager.clear(); profile.reset(); work.reset(); portfolio.reset(); jobPosts.reset(); jobs.reset(); applications.reset(); recruiting.reset(); talent.reset(); social.reset(); messaging.reset(); settings.reset();analytics.reset(); },session=>{void analytics.attach(session);});
   const media = createMediaService(http, () => auth.me());
+  const applicationWizard = createHttpApplicationDraftService(http,()=>{jobs.reset();applications.reset();recruiting.reset();});
+  const applicationDocuments = createApplicationDocumentService(http, media);
   const work = createHttpWorkService(http, media);
   const profile = createHttpProfileService(http, media, (id, offset) => work.moveProject(id, offset));
   const portfolio = createHttpPortfolioService(http);
@@ -68,7 +72,7 @@ export function createHttpServices(baseUrl: string): Services {
   const recommendations=createHttpRecommendationsService(http,auth);
   const talent = createHttpTalentService(http,auth,()=>recommendations.talent(),()=>messaging.getInbox("recruiter",{q:"",filter:"all",selectedId:null}));
   const search = createHttpSearchService(http, auth);
-  const enabled = { journey:createHttpJourneyService(http,media), search, analytics,auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
+  const enabled = { applicationWizard, applicationDocuments, journey:createHttpJourneyService(http,media), search, analytics,auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
   return new Proxy(enabled, {
     get: (target, property) => Object.hasOwn(target, property) ? Reflect.get(target, property) : unavailable,
   }) as unknown as Services;

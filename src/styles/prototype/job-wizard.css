@@ -22,7 +22,7 @@ body.professional-theme .job-wizard-stepper h2 {font-size:14px;color:#626B76;pad
 body.professional-theme .wizard-save-note>p {font-size:12px;line-height:1.7;margin:0;}
 body.professional-theme .job-wizard-content {padding:30px 32px;min-width:0;}
 .wizard-stage-heading {padding-bottom:24px;border-bottom:1px solid #E4E9EF;margin-bottom:26px;}
-.wizard-stage-heading>span {font-size:10px;letter-spacing:1.2px;color:#626B76;font-weight:600;}
+.wizard-stage-heading>span,.wizard-stage-heading>.wizard-stage-step>span {font-size:10px;letter-spacing:1.2px;color:#626B76;font-weight:600;}
 body.professional-theme .wizard-stage-heading h2 {font-size:24px;line-height:1.5;margin:9px 0 5px;letter-spacing:-.5px;}
 body.professional-theme .wizard-stage-heading p {font-size:14px;color:#626B76;margin:0;}
 .wizard-section {display:flex;flex-direction:column;gap:19px;}
@@ -169,3 +169,5 @@ body.professional-theme .job-ai-questions p {flex:1;font-size:14px;line-height:1
   .job-wizard-skeleton-steps { flex-direction: row; overflow: hidden; }
   .job-wizard-skeleton-step { min-width: 135px; min-height: 55px; padding: 9px; }
 }
+/* Step label with the info badge beside it. */
+.wizard-stage-step {display:flex;align-items:center;gap:8px;}

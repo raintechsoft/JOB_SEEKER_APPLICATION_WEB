@@ -1243,7 +1243,10 @@ body.professional-theme .application-record-bottom .btn {
 }
 body.professional-theme .professional-nav>a {color:#B8C0CC;}
 body.professional-theme .professional-nav>a.active,body.professional-theme .professional-nav>a:hover {color:#FFFFFF;background:transparent;border-bottom-color:transparent;}
-body.professional-theme .professional-nav>a:hover {background:var(--color-navy);}
+/* Hover changes the icon only (the dock magnification plus a brighter icon); the link keeps no hover background. */
+body.professional-theme .professional-nav>a:hover {background:transparent;}
+body.professional-theme .professional-nav>a .icon {transition:color .16s ease;}
+body.professional-theme .professional-nav>a:hover .icon,body.professional-theme .professional-nav>a:focus-visible .icon {color:#FFFFFF;}
 body.professional-theme .professional-account-menu :is(a,button) {color:var(--text-primary);}
 body.professional-theme .professional-account-menu :is(a,button):hover {color:#315EF4;}
 

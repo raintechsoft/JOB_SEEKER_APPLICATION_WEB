@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Role } from "@/types/domain";
 import { useAuthForm } from "./use-auth-form";
 import { AuthError, AuthField } from "./auth-errors";
@@ -22,6 +22,8 @@ import { AuthHeader, AuthStory } from "@/components/layout/auth-chrome";
 import { EmployerRegistrationScreen } from "./employer-registration";
 import { clearIdentityState } from "./clear-identity-state";
 import { GoogleReturnNotice, GoogleSignInButton } from "./google-sign-in";
+import {applicationSignInReturn} from "@/features/applications/application-wizard-policy";
+import {navigateToApplication} from "@/features/applications/application-signin-return";
 
 export function SignInForm({ role }: { role: Role }) {
   const router = useRouter();
@@ -38,7 +40,9 @@ export function SignInForm({ role }: { role: Role }) {
           const session = await services.auth.login(values, role === "recruiter" ? "employer" : "professional");
           clearIdentityState(); cache.clear();
           const next = new URLSearchParams(window.location.search).get("next");
-          router.push(session.user.email_verified && next?.startsWith("/accept-invitation?") ? next : authDestination(session, role));
+          const application=role==="professional"?applicationSignInReturn(next):null;
+          if(application&&session.user.email_verified){navigateToApplication(application);return;}
+          router.push(session.user.email_verified ? next?.startsWith("/accept-invitation?")?next:application??authDestination(session,role) : application?"/verify-email?next="+encodeURIComponent(application):authDestination(session,role));
           return;
         }
         await services.workspace.signIn(role);
@@ -76,7 +80,9 @@ export function SignUpForm({ role }: { role: Role }) {
         if (apiConfig.dataSource === "http") {
           const session = await services.auth.register(v);
           clearIdentityState(); cache.clear();
-          router.push(authDestination(session));
+          const next=role==="professional"?applicationSignInReturn(new URLSearchParams(window.location.search).get("next")):null;
+          if(next&&session.user.email_verified){navigateToApplication(next);return;}
+          router.push(next?(session.user.email_verified?next:"/verify-email?next="+encodeURIComponent(next)):authDestination(session));
           return;
         }
         await services.workspace.signUp(role, v.name.trim());
@@ -114,6 +120,8 @@ export function AuthScreen({ signup = false, roleParam, employer = false }: { si
 }
 
 function AuthLayout({ signup, role }: { signup: boolean; role: Role }) {
+  const params=useSearchParams();
+  const application=role==="professional"?applicationSignInReturn(params.get("next")):null;
   const run = useServiceAction();
   const router = useRouter();
   const recruiter = role === "recruiter";
@@ -146,7 +154,7 @@ function AuthLayout({ signup, role }: { signup: boolean; role: Role }) {
             )}
             {!(recruiter && !signup) && (
               <p className="auth-switch-link">
-                {signup ? "Already Registered?" : "New around here?"} <Link href={(signup ? "/login" : "/signup") + "?role=" + role}>{signup ? "Login" : "Create a profile"}</Link>
+                {signup ? "Already Registered?" : "New around here?"} <Link href={(signup ? "/login" : "/signup") + "?role=" + role+(application?"&next="+encodeURIComponent(application):"")}>{signup ? "Login" : "Create a profile"}</Link>
               </p>
             )}
             {recruiter && !signup ? (

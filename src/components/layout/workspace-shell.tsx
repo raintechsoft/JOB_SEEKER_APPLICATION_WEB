@@ -23,6 +23,7 @@ import { clearIdentityState } from "@/features/auth/clear-identity-state";
 import { WorkspaceAccessGate } from "@/features/auth/workspace-access-gate";
 import type { Workspace } from "@/services/auth/auth.service";
 import { HeaderSearch } from "@/features/search/header-search";
+import {isApplicationWizardRoute} from "@/features/applications/application-wizard-policy";
 export { HeaderSearch } from "@/features/search/header-search";
 
 interface NavItem {
@@ -175,7 +176,7 @@ function MockProfessionalShell({ children }: { children: ReactNode }) {
   const logout = useLogout();
   const network = useNetworkSheet();
   useWorkspaceRole("professional", pathname.startsWith("/app"));
-  const nav = PROFESSIONAL_NAV.map(([slug, label, icon]) => ({ href: "/app/" + slug, label, icon, active: pathname.startsWith("/app/" + slug), unread: slug === "messages" ? unreadCount??data?.unreadConversations : undefined }));
+  const nav = PROFESSIONAL_NAV.map(([slug, label, icon]) => ({ href: "/app/" + slug, label, icon, active: pathname.startsWith("/app/" + slug) || slug === "applications" && isApplicationWizardRoute(pathname), unread: slug === "messages" ? unreadCount??data?.unreadConversations : undefined }));
   return (
     <WorkspaceFrame
       recruiter={false}
@@ -292,7 +293,7 @@ function MockRecruiterShell({ children }: { children: ReactNode }) {
 export function ProfessionalShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   if (!pathname.startsWith("/app/")) return <>{children}</>;
-  const connected = ["/app/search", "/app/discover", "/app/messages", "/app/settings", "/app/dashboard", "/app/posts/new", "/app/updates", "/app/profile", "/app/projects", "/app/work-pulse", "/app/portfolio", "/app/portfolio/preview", "/app/applications", "/app/jobs"].includes(pathname) || pathname.startsWith("/app/professionals/") || pathname.startsWith("/app/organizations/") || pathname.startsWith("/app/recruiters/");
+  const connected = isApplicationWizardRoute(pathname) || ["/app/search", "/app/discover", "/app/messages", "/app/settings", "/app/dashboard", "/app/posts/new", "/app/updates", "/app/profile", "/app/projects", "/app/work-pulse", "/app/portfolio", "/app/portfolio/preview", "/app/applications", "/app/jobs"].includes(pathname) || pathname.startsWith("/app/professionals/") || pathname.startsWith("/app/organizations/") || pathname.startsWith("/app/recruiters/");
   if(apiConfig.dataSource === "http") return connected ? <WorkspaceAccessGate role="professional"><MockProfessionalShell>{children}</MockProfessionalShell></WorkspaceAccessGate> : <RealWorkspace role="professional"/>;
   return <MockProfessionalShell>{children}</MockProfessionalShell>;
 }

@@ -44,6 +44,8 @@ import { mockJourneyService } from "./journey/journey.mock";
 
 /** Every data-access boundary the UI uses. */
 export interface Services {
+  applicationWizard: ReturnType<typeof import("./applications/application-wizard.http").createHttpApplicationDraftService>;
+  applicationDocuments: ReturnType<typeof import("./applications/application-documents.http").createApplicationDocumentService>;
   journey: JourneyService;
   search: SearchService;
   analytics:Pick<ReturnType<typeof import("./analytics/analytics.http").createHttpAnalyticsService>,"getSettings"|"setConsent">;
@@ -71,6 +73,8 @@ export interface Services {
 
 /** MOCK: browser-local implementations backed by `src/mocks`. */
 const mockServices: Services = {
+  applicationWizard: new Proxy({} as Services["applicationWizard"], {get: () => async () => {throw new Error("Application drafts require HTTP mode.");}}),
+  applicationDocuments: new Proxy({} as Services["applicationDocuments"], {get: () => async () => {throw new Error("Application documents require HTTP mode.");}}),
   journey: mockJourneyService,
   search: mockSearchService,
   analytics:{async getSettings(){return {available:false,granted:false,hasStoredConsent:false,policyVersion:"",retentionDays:0,version:0};},async setConsent(){throw new Error("Analytics consent requires HTTP mode.");}},

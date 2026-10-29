@@ -36,6 +36,10 @@ s.ReviewInput=object({status:enumeration(application.hiringStages),note:{...str,
 const person=s.PublicProfessional.properties.person;
 s.ApplicantProfile=object({...structuredClone(person.properties),name:str,email:str,location:str,locality:str,expectedSalary:nullable(num),notice:nullable(int),joining:nullable(int),industry:str,designation:str,department:str,preferredLocations:str,phone:str,educationText:str,currentRole:str,previousRole:str});
 s.ResponseItem=object({application:ref("ReceivedApplication"),profile:ref("ApplicantProfile"),jobTitle:str,fit:object({score:int,matched:array(str)}),distance:nullable(object({km:int,estimated:bool})),portfolio:nullable(ref("PortfolioView")),strategy:{const:"keyword-overlap-v1"}});
+// A6's independent generator owns this fully inlined safe sharing projection.
+// It does not change ApplicantProfile, so cumulative generation retains stable review-profile fields.
+s.ResponseItem.properties.sharing=read("contracts/openapi/application-wizard-v2.json").components.schemas.ApplicationSharing;
+s.PersonalApplication.properties.sharing=s.ResponseItem.properties.sharing;
 const page=(items,extra={})=>object({items:array(items),total:int,page:int,pageSize:int,pages:int,...extra});
 s.ResponsesPage=page(ref("ResponseItem"),{stage:enumeration(recruiting.tabs),tabCounts:object(Object.fromEntries(recruiting.tabs.map((t)=>[t,int]))),jobs:array(object({id:uuid,title:str,skills:array(str)})),sort:enumeration(recruiting.sorts)});
 s.ManagedJob=object({...s.HiringJob.properties,status:enumeration(["Draft","Closed","Expired","Active"]),responses:int,fresh:int,shortlisted:int,author:str,posted:str},[...s.HiringJob.required,"status","responses","fresh","shortlisted","author","posted"]);

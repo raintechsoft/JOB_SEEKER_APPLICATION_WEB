@@ -10,6 +10,7 @@ import { toast } from "@/stores/toast-store";
 import { devCopy } from "@/lib/env/app-env";
 import { authDestination } from "./auth-navigation";
 import { clearIdentityState } from "./clear-identity-state";
+import {rememberApplicationSignInReturn,takeApplicationSignInReturn,navigateToApplication} from "@/features/applications/application-signin-return";
 
 /** Job-seeker Google sign-in needs the real API and the public flag; Laravel holds the credentials. */
 export const googleSignInEnabled = () => apiConfig.dataSource === "http" && process.env.NEXT_PUBLIC_GOOGLE_SIGN_IN_ENABLED === "true";
@@ -48,7 +49,9 @@ export function useGoogleReturn(): { completing: boolean } {
       .then((session) => {
         clearIdentityState();
         cache.clear();
-        router.replace(authDestination(session, "professional"));
+        const next=takeApplicationSignInReturn();
+        if(next&&session.user.email_verified){navigateToApplication(next);return;}
+        router.replace(session.user.email_verified&&next?next:authDestination(session,"professional"));
       })
       .catch((e) => {
         setFailed(true);
@@ -64,6 +67,8 @@ export function useGoogleReturn(): { completing: boolean } {
     // Drop the code so a refresh does not repeat the toast.
     const rest = new URLSearchParams(params.toString());
     rest.delete("google_error");
+    const next=takeApplicationSignInReturn();
+    if(next)rest.set("next",next);
     router.replace(`${window.location.pathname}${rest.size ? `?${rest}` : ""}`);
   }, [code, params, router]);
   return { completing: success && !failed };
@@ -78,6 +83,7 @@ export function GoogleSignInButton() {
       return;
     }
     setPending(true);
+    rememberApplicationSignInReturn(new URLSearchParams(window.location.search).get("next"));
     // A full navigation: Google's consent page cannot run inside the SPA or a fetch.
     window.location.assign(googleRedirectUrl());
   };
