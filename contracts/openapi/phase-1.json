@@ -1,0 +1,1469 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Skillora Phase 1 API",
+    "version": "1.0.0",
+    "description": "First-party Sanctum sessions. Initialize /sanctum/csrf-cookie and send credentials plus X-XSRF-TOKEN for mutations. Local delivery is test-only; secrets never appear in responses. Email is trimmed and lowercased, passwords are preserved exactly. Verified active accounts and organization policies apply to workspace and organization endpoints."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "operationId": "register",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Register"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "login",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Login"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "description": "Compatibility account authentication for existing clients. Browser login pages use the fixed professional/employer endpoints. Authentication alone never grants workspace access."
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "session",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "responses": {
+          "204": {
+            "description": "Session invalidated; CSRF token rotated."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "operationId": "forgotPassword",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Email"
+        },
+        "responses": {
+          "200": {
+            "description": "A 6-digit reset code was emailed because this address belongs to an active account. Unknown addresses receive a validation error and no message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Challenge"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ]
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "operationId": "resetPassword",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/ResetPassword"
+        },
+        "responses": {
+          "204": {
+            "description": "Verified reset code consumed; all sessions require reauthentication."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ]
+      }
+    },
+    "/auth/password": {
+      "patch": {
+        "operationId": "changePassword",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/ChangePassword"
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed; all sessions including the current one invalidated."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/auth/email/challenge": {
+      "post": {
+        "operationId": "requestEmailCode",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Challenge"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/auth/email/verify": {
+      "post": {
+        "operationId": "verifyEmail",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/VerifyCode"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/workspaces": {
+      "get": {
+        "operationId": "workspaces",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/workspace": {
+      "post": {
+        "operationId": "selectWorkspace",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/SelectWorkspace"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/registration-intents": {
+      "post": {
+        "operationId": "startEmployer",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/EmployerMobile"
+        },
+        "responses": {
+          "201": {
+            "description": "Thirty-minute intent bound to this anonymous session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "intent_id",
+                        "challenge"
+                      ],
+                      "properties": {
+                        "intent_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "challenge": {
+                          "$ref": "#/components/schemas/Challenge"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/registration-intents/{intent}/details": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Intent"
+        }
+      ],
+      "patch": {
+        "operationId": "employerDetails",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/EmployerDetails"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Challenge"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/registration-intents/{intent}/challenge": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Intent"
+        }
+      ],
+      "post": {
+        "operationId": "resendEmployerCode",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/ChallengeKind"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Challenge"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/registration-intents/{intent}/verify": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Intent"
+        }
+      ],
+      "post": {
+        "operationId": "verifyEmployerCode",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/VerifyCode"
+        },
+        "responses": {
+          "204": {
+            "description": "Single-use proof consumed."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/registration-intents/{intent}/finalize": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Intent"
+        }
+      ],
+      "post": {
+        "operationId": "finalizeEmployer",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/EmployerCompany"
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/invitations/accept": {
+      "post": {
+        "operationId": "acceptInvitation",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InvitationToken"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/organizations/{organization}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Organization"
+        }
+      ],
+      "get": {
+        "operationId": "organizationAccess",
+        "responses": {
+          "200": {
+            "description": "Active members can read the organization; only admins receive the members list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrganizationAccess"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/organizations/{organization}/members/{member}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Organization"
+        },
+        {
+          "in": "path",
+          "name": "member",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "updateMember",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/MemberAccess"
+        },
+        "responses": {
+          "204": {
+            "description": "Admin-authorized change. Last active admin cannot be removed."
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/organizations/{organization}/invitations": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Organization"
+        }
+      ],
+      "post": {
+        "operationId": "inviteMember",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InviteMember"
+        },
+        "responses": {
+          "201": {
+            "description": "Invitation queued without revealing its bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Invitation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/auth/recovery": {
+      "get": {
+        "operationId": "recoveryStatus",
+        "summary": "Read the server-controlled recovery step for this browser. No secret or identity is returned.",
+        "responses": {
+          "200": {
+            "description": "Recovery status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RecoveryStatus"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/reset-password/verify": {
+      "post": {
+        "operationId": "verifyResetCode",
+        "summary": "Verify the reset code for the recovery context held in this browser session.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetCodeVerification"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Recovery session may choose a password."
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "description": "No authenticated login is required. A CSRF-protected first-party session containing the originating recovery context is required; supplied identities cannot create it."
+      }
+    },
+    "/auth/recovery/navigation": {
+      "post": {
+        "operationId": "recoveryNavigation",
+        "security": [],
+        "summary": "Invalidate this browser recovery context when leaving its current step; never grants verification.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "screen"
+                ],
+                "properties": {
+                  "screen": {
+                    "type": "string",
+                    "enum": [
+                      "code",
+                      "password",
+                      "other"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Navigation recorded; abandoned recovery proof is consumed. Login session is unchanged."
+          },
+          "419": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/auth/professional/login": {
+      "post": {
+        "operationId": "professionalLogin",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Login"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "description": "Requires correct credentials and an existing professional identity. The endpoint fixes the required kind. A legitimate dual-identity account may use either portal."
+      }
+    },
+    "/auth/employer/login": {
+      "post": {
+        "operationId": "employerLogin",
+        "security": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Login"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Session"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "description": "Requires correct credentials and an existing recruiter identity with active membership in an active organization. The endpoint fixes the required kind; submitted role/identity/portal fields cannot grant access."
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "skillora_session",
+        "description": "HTTP-only session; cookie name is environment configurable. Mutations also require trusted Origin and CSRF header."
+      }
+    },
+    "parameters": {
+      "Intent": {
+        "in": "path",
+        "name": "intent",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "Organization": {
+        "in": "path",
+        "name": "organization",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "requestBodies": {
+      "Register": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Register"
+            }
+          }
+        }
+      },
+      "Login": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Login"
+            }
+          }
+        }
+      },
+      "Email": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Email"
+            }
+          }
+        }
+      },
+      "ResetPassword": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ResetPassword"
+            }
+          }
+        }
+      },
+      "ChangePassword": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ChangePassword"
+            }
+          }
+        }
+      },
+      "VerifyCode": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/VerifyCode"
+            }
+          }
+        }
+      },
+      "SelectWorkspace": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "identity_id"
+              ],
+              "properties": {
+                "identity_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        }
+      },
+      "EmployerMobile": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/EmployerMobile"
+            }
+          }
+        }
+      },
+      "EmployerDetails": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/EmployerDetails"
+            }
+          }
+        }
+      },
+      "ChallengeKind": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "whatsapp",
+                    "email"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "EmployerCompany": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/EmployerCompany"
+            }
+          }
+        }
+      },
+      "InvitationToken": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "token"
+              ],
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            }
+          }
+        }
+      },
+      "MemberAccess": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/MemberAccess"
+            }
+          }
+        }
+      },
+      "InviteMember": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/InviteMember"
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Session": {
+        "description": "Safe session snapshot; never includes password, phone, tokens, or security counters.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "data"
+              ],
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Challenge": {
+        "description": "Challenge metadata only. Codes last 300 seconds, allow five attempts, and have a 60-second resend cooldown.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "data"
+              ],
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/Challenge"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "description": "401 unauthenticated, 403 forbidden, 404 unavailable, 409 conflict, 419 CSRF/session failure, 422 field validation, 429 throttled (Retry-After header), or 500 safe generic failure. All errors include X-Request-ID.",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "EmailValue": {
+        "type": "string",
+        "format": "email",
+        "maxLength": 254,
+        "description": "Trim and lowercase before validation."
+      },
+      "NewPassword": {
+        "type": "string",
+        "minLength": 8,
+        "maxLength": 128,
+        "description": "8–128 characters with Argon2id; null characters forbidden. Passwords are never trimmed. Bcrypt deployments additionally require at most 72 UTF-8 bytes."
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "organization_admin",
+          "recruiter",
+          "hiring_manager"
+        ]
+      },
+      "Email": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/EmailValue"
+          }
+        }
+      },
+      "Login": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/EmailValue"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Existing passwords do not inherit the current creation minimum."
+          }
+        }
+      },
+      "Register": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "email": {
+            "$ref": "#/components/schemas/EmailValue"
+          },
+          "password": {
+            "$ref": "#/components/schemas/NewPassword"
+          }
+        }
+      },
+      "ResetPassword": {
+        "type": "object",
+        "required": [
+          "password",
+          "password_confirmation"
+        ],
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/EmailValue"
+          },
+          "password": {
+            "$ref": "#/components/schemas/NewPassword"
+          },
+          "password_confirmation": {
+            "$ref": "#/components/schemas/NewPassword"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ChangePassword": {
+        "type": "object",
+        "required": [
+          "current_password",
+          "password",
+          "password_confirmation"
+        ],
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "password": {
+            "$ref": "#/components/schemas/NewPassword"
+          },
+          "password_confirmation": {
+            "$ref": "#/components/schemas/NewPassword"
+          }
+        }
+      },
+      "VerifyCode": {
+        "type": "object",
+        "required": [
+          "challenge_id",
+          "code"
+        ],
+        "properties": {
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$",
+            "description": "Keep leading zeroes."
+          }
+        }
+      },
+      "EmployerMobile": {
+        "type": "object",
+        "required": [
+          "country",
+          "mobile"
+        ],
+        "properties": {
+          "country": {
+            "type": "string",
+            "enum": [
+              "+91",
+              "+1",
+              "+44",
+              "+971",
+              "+65",
+              "+61"
+            ]
+          },
+          "mobile": {
+            "type": "string",
+            "pattern": "^[0-9]{8,10}$",
+            "description": "Country-dependent length: +91/+1 ten, +44 nine or ten, +971/+61 nine, +65 eight."
+          }
+        }
+      },
+      "EmployerDetails": {
+        "type": "object",
+        "required": [
+          "full_name",
+          "email",
+          "password",
+          "account_type"
+        ],
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "email": {
+            "$ref": "#/components/schemas/EmailValue"
+          },
+          "password": {
+            "$ref": "#/components/schemas/NewPassword"
+          },
+          "account_type": {
+            "type": "string",
+            "enum": [
+              "company",
+              "individual"
+            ]
+          }
+        }
+      },
+      "EmployerCompany": {
+        "type": "object",
+        "required": [
+          "company_name",
+          "industry",
+          "employees",
+          "designation",
+          "hiring_for",
+          "pincode",
+          "address"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "industry": {
+            "type": "string",
+            "enum": [
+              "Information Technology",
+              "Retail & eCommerce",
+              "Manufacturing",
+              "Healthcare",
+              "Finance & Banking",
+              "Education",
+              "Hospitality",
+              "Logistics",
+              "Professional Services",
+              "Other"
+            ]
+          },
+          "employees": {
+            "type": "string",
+            "enum": [
+              "1–10 employees",
+              "11–50 employees",
+              "51–200 employees",
+              "201–500 employees",
+              "501–1,000 employees",
+              "1,001–5,000 employees",
+              "5,001+ employees"
+            ]
+          },
+          "designation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "hiring_for": {
+            "type": "string",
+            "enum": [
+              "company",
+              "consultancy"
+            ]
+          },
+          "pincode": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9 -]{3,10}$",
+            "description": "India additionally requires exactly six digits, based on the stored intent country."
+          },
+          "address": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 500
+          }
+        }
+      },
+      "MemberAccess": {
+        "type": "object",
+        "required": [
+          "role",
+          "status"
+        ],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          }
+        }
+      },
+      "InviteMember": {
+        "type": "object",
+        "required": [
+          "email",
+          "role"
+        ],
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/EmailValue"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        }
+      },
+      "Challenge": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "sent_at",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "sms",
+              "whatsapp",
+              "email",
+              "reset"
+            ]
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Workspace": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "membership_id",
+          "organization",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "professional",
+              "recruiter"
+            ]
+          },
+          "membership_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "organization": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "role": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "AuthSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user",
+          "workspaces",
+          "selected_identity_id",
+          "email_challenge"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "email",
+              "email_verified"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "$ref": "#/components/schemas/EmailValue"
+              },
+              "email_verified": {
+                "type": "boolean"
+              }
+            }
+          },
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Workspace"
+            }
+          },
+          "selected_identity_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "email_challenge": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Challenge"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "OrganizationAccess": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "members"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "user_id",
+                "name",
+                "email",
+                "role",
+                "status"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "user_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "email": {
+                  "$ref": "#/components/schemas/EmailValue"
+                },
+                "role": {
+                  "$ref": "#/components/schemas/Role"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "inactive"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Invitation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "email",
+          "role",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "$ref": "#/components/schemas/EmailValue"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "errors",
+          "request_id"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "RecoveryStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "step",
+          "expires_at"
+        ],
+        "properties": {
+          "step": {
+            "type": "string",
+            "enum": [
+              "email",
+              "code",
+              "password"
+            ]
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "ResetCodeVerification": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$"
+          },
+          "email": {
+            "$ref": "#/components/schemas/EmailValue"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    }
+  }
+}

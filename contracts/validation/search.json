@@ -2,6 +2,9 @@
   "queryMax": 200,
   "pageMax": 10000,
   "pageSizeMax": 100,
+  "recommendationLimit": 20,
+  "candidateLimit": 200,
+  "strategyVersion": "rules-1",
   "arrangements": [
     "On-site",
     "Hybrid",
@@ -23,9 +26,6 @@
     "EUR",
     "GBP"
   ],
-  "recommendationLimit": 20,
-  "candidateLimit": 200,
-  "strategyVersion": "rules-1",
   "education": [
     "Any graduate",
     "Any qualification",

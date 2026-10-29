@@ -2514,6 +2514,350 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/interactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["recommendations_post_interactions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/search-history/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["recommendations_get_search_history"];
+        put?: never;
+        post?: never;
+        /** @description Deletes every recorded search of the selected workspace. */
+        delete: operations["recommendations_clear_search_history"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/search-history/{identity}/{entry}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Deletes the entry and earlier occurrences of the same search. */
+        delete: operations["recommendations_delete_search_history_entry"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/hidden-items/{identity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description "Not interested": removes a visible job, post or update from the workspace's recommendations and main feeds and lowers the weight of its topics and author. Idempotent. */
+        post: operations["recommendations_hide_item"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/hidden-items/{identity}/{kind}/{item}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Undoes "Not interested". Succeeds when nothing was hidden. */
+        delete: operations["recommendations_unhide_item"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/social/{identity}/search-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Recent searches, trending skills (the searcher's first), companies hiring for them and people they may know, each with a reason. */
+        get: operations["social_search_suggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/recommendations/{identity}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["recommendations_similar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/recommendation-quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["admin_recommendation_quality"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/personalization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["personalization_show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["personalization_update"];
+        trace?: never;
+    };
+    "/me/personalization/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Deletes watch history, served lists and search history of every workspace of the account; "Not interested" choices are kept. */
+        delete: operations["personalization_clear_history"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/personalization/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Download (attachment) of the account's recommendation data. */
+        get: operations["personalization_export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/search-history/{identity}/opened": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Records which result was opened from a search on the newest entry for that query from the last day; nothing is stored when search history is off. */
+        post: operations["recommendations_search_result_opened"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/professionals/{slug}/journey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["journey_public"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/professionals/{slug}/journey/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["journey_public_memories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/profile/journey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["journey_show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/profile/journey/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["journey_memories"];
+        put?: never;
+        post: operations["journey_memory_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/profile/journey/memories/{memory}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["journey_memory_update"];
+        trace?: never;
+    };
+    "/me/profile/journey/colleagues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["journey_colleague_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/profile/journey/colleagues/{colleague}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["journey_colleague_update"];
+        trace?: never;
+    };
+    "/me/profile/journey/colleagues/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["journey_colleague_candidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/profile/journey/{kind}/{id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["journey_delete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4008,6 +4352,8 @@ export interface components {
             logoUrl?: string;
             confidential?: boolean;
             followerCount?: number;
+            /** @description Public organization page slug; present when the organization is public. */
+            slug?: string;
         };
         HiringJob: {
             /** Format: uuid */
@@ -5010,6 +5356,8 @@ export interface components {
             industry?: string;
             companyName?: string;
             followerCount?: number;
+            /** @description Why this result is shown to this searcher, e.g. "Hiring for React · You follow". Present only when there is a reason. */
+            reason?: string;
         };
         WorkspaceSearchPage: {
             items: components["schemas"]["WorkspaceSearchResult"][];
@@ -5430,6 +5778,60 @@ export interface components {
             identityId: string;
             events: components["schemas"]["AnalyticsEvent"][];
         };
+        /** @description A passive event from the browser. Likes, saves, follows, applications and hides are recorded by the server. */
+        InteractionEvent: {
+            /**
+             * Format: uuid
+             * @description Client event id; a retried event is stored once.
+             */
+            id: string;
+            /** @enum {string} */
+            action: "view" | "dwell" | "click";
+            /** @enum {string} */
+            itemKind: "job" | "post" | "update" | "professional" | "organization";
+            /** Format: uuid */
+            itemId: string;
+            /** @enum {string|null} */
+            surface?: "feed" | "jobs" | "talent" | "applications" | "responses" | "projects" | "messages" | "job-page" | "jobs-rail" | "recruiter-feed" | "professional-feed" | null;
+            position?: number | null;
+            /** @description Required for dwell events and only allowed on them. */
+            dwellMs?: number | null;
+            /**
+             * Format: uuid
+             * @description Kept only when it is one of the actor's own recommendation lists.
+             */
+            requestId?: string | null;
+            /**
+             * Format: date-time
+             * @description Within the last 24 hours.
+             */
+            occurredAt: string;
+        };
+        InteractionBatch: {
+            /** Format: uuid */
+            identityId: string;
+            events: components["schemas"]["InteractionEvent"][];
+        };
+        /** @description Events about items the actor cannot currently see are dropped, not rejected. */
+        InteractionResult: {
+            accepted: number;
+            dropped: number;
+        };
+        /** @description A submitted search in the selected workspace. Typing suggestions and further result pages are not recorded. */
+        SearchHistoryEntry: {
+            /** Format: uuid */
+            id: string;
+            query: string;
+            /** @enum {string} */
+            source: "workspace" | "jobs" | "talent";
+            scope: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @description Up to 10 most recent distinct searches, newest first. */
+        SearchHistoryPage: {
+            items: components["schemas"]["SearchHistoryEntry"][];
+        };
         HiddenItemRequest: {
             /** @enum {string} */
             itemKind: "job" | "post" | "update";
@@ -5463,6 +5865,36 @@ export interface components {
                 id: string;
                 title: string;
             };
+        };
+        /** @description What the search box offers before anything is typed. */
+        SearchSuggestions: {
+            recent: components["schemas"]["SearchHistoryEntry"][];
+            skills: {
+                name: string;
+                /** @enum {string} */
+                reason: "In your skills" | "You hire for this" | "Trending";
+            }[];
+            companies: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                slug: string;
+                industry: string;
+                picture: string;
+                reason: string;
+            }[];
+            people: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                headline: string;
+                picture: string;
+                color: string;
+                slug?: string;
+                recruiter?: boolean;
+                followerCount?: number;
+                reason: string;
+            }[];
         };
         /** @description Jobs (anyone) or candidates (recruiters) similar to one item: nearest in meaning with embeddings, else most shared skills. */
         SimilarItems: {
@@ -5520,6 +5952,96 @@ export interface components {
                 /** Format: date-time */
                 evaluatedAt: string;
             }[];
+        };
+        /** @description Account-wide (both roles). personalize: use my activity to personalise (off: nothing is stored and recommendations use only the profile, follows and "Not interested"). searchHistory: keep my searches. */
+        PersonalizationSettings: {
+            personalize: boolean;
+            searchHistory: boolean;
+        };
+        PersonalizationUpdate: {
+            /** @enum {string} */
+            key: "personalize" | "searchHistory";
+            value: boolean;
+        };
+        /** @description Everything kept for recommendations about the account, and what is inferred from it (F10). */
+        PersonalizationExport: {
+            /** Format: date-time */
+            generatedAt: string;
+            choices: components["schemas"]["PersonalizationSettings"];
+            retention: {
+                watchHistoryDays: number;
+                searchHistoryDays: number;
+            };
+            workspaces: {
+                /** Format: uuid */
+                workspace: string;
+                /** @enum {string} */
+                kind: "professional" | "recruiter";
+                inferredInterests: {
+                    skills: {
+                        [key: string]: number;
+                    };
+                    organizations: {
+                        [key: string]: number;
+                    };
+                    locations: {
+                        [key: string]: number;
+                    };
+                    arrangements: {
+                        [key: string]: number;
+                    };
+                };
+            }[];
+            watchHistory: {
+                /** Format: uuid */
+                workspace: string;
+                action: string;
+                itemKind: string;
+                /** Format: uuid */
+                itemId: string;
+                surface: string | null;
+                position: number | null;
+                dwellMs: number | null;
+                /** Format: date-time */
+                occurredAt: string;
+            }[];
+            searchHistory: {
+                /** Format: uuid */
+                workspace: string;
+                query: string;
+                source: string;
+                scope: string;
+                filters: Record<string, never> | null;
+                resultCount: number | null;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            servedLists: {
+                /** Format: uuid */
+                workspace: string;
+                surface: string;
+                strategy: string;
+                /** Format: date-time */
+                servedAt: string;
+                items: {
+                    position: number;
+                    itemKind: string;
+                    /** Format: uuid */
+                    itemId: string;
+                }[];
+            }[];
+        };
+        /** @description A result opened from a search (F4b). */
+        SearchResultOpened: {
+            query: string;
+            /** @enum {string} */
+            kind: "person" | "company" | "post" | "job" | "update" | "talent" | "project";
+            /** Format: uuid */
+            id: string;
+        };
+        /** @description Career journey data (memories, colleagues, timeline). Detailed schema: to be completed by the API owner. */
+        CareerJourneyData: {
+            [key: string]: unknown;
         };
     };
     responses: {
@@ -7653,6 +8175,7 @@ export interface operations {
                             job: components["schemas"]["HiringJob"];
                             company: components["schemas"]["HiringCompany"];
                             saved: boolean;
+                            match?: components["schemas"]["MatchBadge"] | null;
                         }[];
                         meta: {
                             total: number;
@@ -8651,6 +9174,8 @@ export interface operations {
                         data: {
                             locations: string[];
                             skills: string[];
+                            /** @description Skills the organization hires for, strongest first ("Candidates with X"). */
+                            hiringSkills?: string[];
                         };
                     };
                 };
@@ -8945,6 +9470,8 @@ export interface operations {
                         data: {
                             locations: string[];
                             skills: string[];
+                            /** @description Skills the organization hires for, strongest first ("Candidates with X"). */
+                            hiringSkills?: string[];
                         };
                     };
                 };
@@ -10930,6 +11457,641 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recommendations_post_interactions: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InteractionBatch"];
+            };
+        };
+        responses: {
+            /** @description Stored and dropped event counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["InteractionResult"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recommendations_get_search_history: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent searches */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SearchHistoryPage"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recommendations_clear_search_history: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recommendations_delete_search_history_entry: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                entry: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recommendations_hide_item: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HiddenItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Hidden */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["HiddenItem"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recommendations_unhide_item: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                kind: "job" | "post" | "update";
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    social_search_suggestions: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suggestions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SearchSuggestions"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recommendations_similar: {
+        parameters: {
+            query: {
+                kind: "job" | "professional";
+                id: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Similar items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SimilarItems"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    admin_recommendation_quality: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recommendation quality */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RecommendationQuality"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    personalization_show: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current choices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PersonalizationSettings"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    personalization_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonalizationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Current choices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PersonalizationSettings"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    personalization_clear_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    personalization_export: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PersonalizationExport"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recommendations_search_result_opened: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchResultOpened"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_public: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A public career journey */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_public_memories: {
+        parameters: {
+            query?: {
+                employmentId?: string;
+                year?: number;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public memories */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_show: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The owner's career journey */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_memories: {
+        parameters: {
+            query?: {
+                employmentId?: string;
+                year?: number;
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Memories */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_memory_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Saved memory */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_memory_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memory: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Saved memory */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_colleague_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Saved colleague */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_colleague_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                colleague: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Saved colleague */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_colleague_candidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description People who may be colleagues */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    journey_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "memories" | "colleagues";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CareerJourneyData"];
+                    };
+                };
             };
             default: components["responses"]["Error"];
         };

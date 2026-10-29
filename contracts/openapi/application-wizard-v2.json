@@ -1,0 +1,4173 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Skillora dedicated application wizard",
+    "version": "2.0.0-a6",
+    "description": "A2–A6 private drafts, gated contacts, retained documents, full-page UI, review and transactional schema-2 submission are implemented. Live entry remains disabled until A7 release verification."
+  },
+  "x-activation": "Full application journey behind a disabled live-entry flag; candidate delivery remains separately gated.",
+  "x-semantic-rules": [
+    "Supported-region phone parsing",
+    "Unicode normalization/UTF-8 draft byte limit",
+    "Exact decimal amount upper bound",
+    "Case-insensitive distinct locations and question IDs",
+    "Cumulative required fields and server contact/asset proof",
+    "Current questions and type-correct answers",
+    "Current-clock eligibility under transaction locks"
+  ],
+  "paths": {
+    "/api/v1/jobs/{job}/application-context": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_jobs__job__application_context",
+        "x-implemented": true,
+        "x-implementation-phase": "A2",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationContext"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job}/application-drafts": {
+      "post": {
+        "operationId": "applicationWizard_post__api_v1_jobs__job__application_drafts",
+        "x-implemented": true,
+        "x-implementation-phase": "A2",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationDraftCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationDraft"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/application-drafts": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_me_application_drafts",
+        "x-implemented": true,
+        "x-implementation-phase": "A2",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationDraftPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/application-drafts/{draft}": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_me_application_drafts__draft_",
+        "x-implemented": true,
+        "x-implementation-phase": "A2",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationDraft"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "applicationWizard_patch__api_v1_me_application_drafts__draft_",
+        "x-implemented": true,
+        "x-implementation-phase": "A2",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationDraftSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationDraft"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "applicationWizard_delete__api_v1_me_application_drafts__draft_",
+        "x-implemented": true,
+        "x-implementation-phase": "A2",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationDraftDiscard"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Owned private draft or application-contact result"
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/application-drafts/{draft}/contact-challenges": {
+      "post": {
+        "operationId": "applicationWizard_post__api_v1_me_application_drafts__draft__contact_challenges",
+        "x-implemented": true,
+        "x-implementation-phase": "A3",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationContactChallenge"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationChallengeStatus"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/application-drafts/{draft}/contact-challenges/{challenge}": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_me_application_drafts__draft__contact_challenges__challenge_",
+        "x-implemented": true,
+        "x-implementation-phase": "A3",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "challenge",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationChallengeStatus"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/application-drafts/{draft}/contact-challenges/{challenge}/verify": {
+      "post": {
+        "operationId": "applicationWizard_post__api_v1_me_application_drafts__draft__contact_challenges__challenge__verify",
+        "x-implemented": true,
+        "x-implementation-phase": "A3",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "challenge",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationContactVerify"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationProofStatus"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job}/applications": {
+      "post": {
+        "operationId": "applicationWizard_post__api_v1_jobs__job__applications",
+        "x-implemented": true,
+        "x-implementation-phase": "A6",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Skillora-Application-Schema",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "const": 2
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationSubmit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationReceipt"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/application-drafts/{draft}/documents": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_me_application_drafts__draft__documents",
+        "x-implemented": true,
+        "x-implementation-phase": "A4",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationDocumentContext"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/resume-library/{asset}": {
+      "delete": {
+        "operationId": "applicationWizard_delete__api_v1_me_resume_library__asset_",
+        "x-implemented": true,
+        "x-implementation-phase": "A4",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ResumeLibraryRemoval"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/application-drafts/{draft}/review": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_me_application_drafts__draft__review",
+        "x-implemented": true,
+        "x-implementation-phase": "A6",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draft",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationReview"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/applications/{application}/receipt": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_me_applications__application__receipt",
+        "x-implemented": true,
+        "x-implementation-phase": "A6",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "application",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplicationReceipt"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/applications/{application}/attachments/{attachment}/download": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_me_applications__application__attachments__attachment__download",
+        "x-implemented": true,
+        "x-implementation-phase": "A4",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "application",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "attachment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized private streamed file; persistent storage keys are not serialized",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Optional short-lived authorized download redirect after current access checks",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization}/hiring/responses/{application}/attachments/{attachment}/download": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_organizations__organization__hiring_responses__application__attachments__attachment__download",
+        "x-implemented": true,
+        "x-implementation-phase": "A4",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "organization",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "application",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "attachment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized private streamed file; persistent storage keys are not serialized",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Optional short-lived authorized download redirect after current access checks",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sanctum": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "configured-session-cookie"
+      }
+    },
+    "schemas": {
+      "ApplicationStep": {
+        "type": "string",
+        "enum": [
+          "contact",
+          "documents",
+          "details",
+          "questions",
+          "review"
+        ]
+      },
+      "ApplicationPhone": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "nationalNumber": {
+            "type": "string",
+            "pattern": "^[0-9]{4,15}$"
+          }
+        },
+        "required": [
+          "country",
+          "nationalNumber"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationExpectedPay": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "INR",
+                  "USD",
+                  "EUR",
+                  "GBP"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                  "month",
+                  "year",
+                  "case",
+                  "duty",
+                  "engagement"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,12})(\\.[0-9]{1,2})?$",
+                "description": "Exact units, at most 1000000000000.00; no implicit conversion."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "currency",
+          "period",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationContactValues": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[^\\x00]*$"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 254,
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                "format": "email"
+              },
+              {
+                "type": "string",
+                "const": ""
+              }
+            ]
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationPhone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "phone"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationDocuments": {
+        "type": "object",
+        "properties": {
+          "resumeAssetId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "includePortfolio": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "resumeAssetId",
+          "includePortfolio"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationDetails": {
+        "type": "object",
+        "properties": {
+          "introduction": {
+            "type": "string",
+            "maxLength": 1500,
+            "pattern": "^[^\\x00]*$"
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^\\x00]*$"
+          },
+          "locality": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^\\x00]*$"
+          },
+          "noticeDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 365
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "joiningDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 365
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\x00]*$"
+          },
+          "designation": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^\\x00]*$"
+          },
+          "department": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\x00]*$"
+          },
+          "preferredLocations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[^\\x00]*$",
+              "minLength": 1
+            },
+            "maxItems": 10
+          },
+          "expectedCompensation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationExpectedPay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "introduction",
+          "location",
+          "locality",
+          "noticeDays",
+          "joiningDays",
+          "industry",
+          "designation",
+          "department",
+          "preferredLocations",
+          "expectedCompensation"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationAnswers": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "maxProperties": 6,
+        "additionalProperties": {
+          "type": "string",
+          "maxLength": 1000,
+          "pattern": "^[^\\x00]*$"
+        }
+      },
+      "ApplicationQuestion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 240,
+            "pattern": "^[^\\x00]*$",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "number",
+              "yesno"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "type",
+          "required"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationRequirements": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "questionsVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "jobVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requireResume": {
+            "type": "boolean"
+          },
+          "requirePhone": {
+            "type": "boolean"
+          },
+          "requirePortfolio": {
+            "type": "boolean"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplicationQuestion"
+            },
+            "maxItems": 6
+          }
+        },
+        "required": [
+          "version",
+          "questionsVersion",
+          "jobVersion",
+          "requireResume",
+          "requirePhone",
+          "requirePortfolio",
+          "questions"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationDraftCreate": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "const": 2
+          },
+          "creationKey": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "creationKey"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationDraftDiscard": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "const": 2
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationContactChallenge": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "integer",
+                "const": 2
+              },
+              "kind": {
+                "type": "string",
+                "const": "email"
+              },
+              "email": {
+                "type": "string",
+                "maxLength": 254,
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                "format": "email"
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "kind",
+              "email"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "integer",
+                "const": 2
+              },
+              "kind": {
+                "type": "string",
+                "const": "phone"
+              },
+              "phone": {
+                "$ref": "#/components/schemas/ApplicationPhone"
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "kind",
+              "phone"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ApplicationContactVerify": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "const": 2
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationSubmit": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "const": 2
+          },
+          "draftId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requirementsVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "questionsVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "jobVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "acknowledgementVersion": {
+            "type": "string",
+            "const": "application-review-2"
+          },
+          "sharingAcknowledged": {
+            "type": "boolean",
+            "const": true
+          },
+          "reviewHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "Server-computed fingerprint of the exact current draft/job/contact/document/profile/portfolio projection; compare again under locks, never an authorization or contact proof."
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "draftId",
+          "version",
+          "requirementsVersion",
+          "questionsVersion",
+          "jobVersion",
+          "idempotencyKey",
+          "acknowledgementVersion",
+          "sharingAcknowledged",
+          "reviewHash"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationProofStatus": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 254,
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "format": "email"
+                  },
+                  {
+                    "type": "string",
+                    "const": ""
+                  }
+                ]
+              },
+              "verified": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "value",
+              "verified"
+            ],
+            "additionalProperties": false
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "e164": {
+                    "type": "string",
+                    "pattern": "^\\+[1-9][0-9]{3,14}$"
+                  },
+                  "verified": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "e164",
+                  "verified"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "phone"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationResume": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 180,
+            "pattern": "^[^\\x00]*$"
+          },
+          "mime": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\x00]*$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "uploaded",
+              "accepted",
+              "rejected"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "mime",
+          "bytes",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationAttachment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 180,
+            "pattern": "^[^\\x00]*$"
+          },
+          "mime": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\x00]*$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "kind": {
+            "type": "string",
+            "const": "resume"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "mime",
+          "bytes",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationChallengeStatus": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "email",
+              "phone"
+            ]
+          },
+          "maskedDestination": {
+            "type": "string",
+            "maxLength": 254,
+            "pattern": "^[^\\x00]*$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "verified",
+              "expired",
+              "unavailable"
+            ]
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resendAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "serverTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "maskedDestination",
+          "status",
+          "sentAt",
+          "expiresAt",
+          "resendAt",
+          "serverTime"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "unauthenticated",
+              "forbidden",
+              "not_found",
+              "session_expired",
+              "request_failed",
+              "validation_failed",
+              "application_draft_conflict",
+              "application_requirements_changed",
+              "job_closed",
+              "application_already_submitted",
+              "application_contact_unverified",
+              "application_challenge_expired",
+              "application_upload_pending",
+              "application_upload_rejected",
+              "application_client_upgrade_required",
+              "application_delivery_unavailable",
+              "rate_limited",
+              "application_draft_expired",
+              "application_contact_changed"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "pattern": "^[^\\x00]*$"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 1000,
+                "pattern": "^[^\\x00]*$"
+              },
+              "maxItems": 20
+            }
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "errors",
+          "request_id"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationValues": {
+        "type": "object",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/ApplicationContactValues"
+          },
+          "documents": {
+            "$ref": "#/components/schemas/ApplicationDocuments"
+          },
+          "details": {
+            "$ref": "#/components/schemas/ApplicationDetails"
+          },
+          "answers": {
+            "$ref": "#/components/schemas/ApplicationAnswers"
+          }
+        },
+        "required": [
+          "contact",
+          "documents",
+          "details",
+          "answers"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationDraftSave": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "const": 2
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requirementsVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "questionsVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "jobVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "step": {
+            "$ref": "#/components/schemas/ApplicationStep"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "save",
+              "advance"
+            ]
+          },
+          "values": {
+            "$ref": "#/components/schemas/ApplicationValues"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "version",
+          "requirementsVersion",
+          "questionsVersion",
+          "jobVersion",
+          "step",
+          "intent",
+          "values"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationDraft": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requirementsVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "questionsVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "jobVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "step": {
+            "$ref": "#/components/schemas/ApplicationStep"
+          },
+          "reachedStep": {
+            "$ref": "#/components/schemas/ApplicationStep"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "submitted",
+              "discarded",
+              "expired"
+            ]
+          },
+          "values": {
+            "$ref": "#/components/schemas/ApplicationValues"
+          },
+          "savedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "submittedApplicationId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "jobId",
+          "version",
+          "requirementsVersion",
+          "questionsVersion",
+          "jobVersion",
+          "step",
+          "reachedStep",
+          "state",
+          "values",
+          "savedAt",
+          "expiresAt",
+          "submittedApplicationId"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationWorkPreview": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "project",
+              "work_sample",
+              "work_update"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^\\x00]*$"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 5000,
+            "pattern": "^[^\\x00]*$"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "description",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationReviewProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "headline": {
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "Design",
+              "Engineering",
+              "Data",
+              "Business"
+            ]
+          },
+          "location": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "experience": {
+            "type": "string"
+          },
+          "education": {
+            "type": "string"
+          },
+          "arrangement": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          },
+          "picture": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "lastActive": {
+            "type": "string"
+          },
+          "years": {
+            "type": "number"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "complete": {
+            "type": "integer"
+          },
+          "interests": {
+            "const": ""
+          },
+          "credentials": {
+            "type": "object",
+            "properties": {
+              "groups": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "records": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "linkLabel": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "title"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "records"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "breaks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "start": {
+                      "type": "string"
+                    },
+                    "end": {
+                      "type": "string"
+                    },
+                    "current": {
+                      "type": "boolean"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end",
+                    "current",
+                    "description"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "contact": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "groups",
+              "breaks",
+              "contact"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "headline",
+          "category",
+          "location",
+          "summary",
+          "experience",
+          "education",
+          "arrangement",
+          "website",
+          "picture",
+          "color",
+          "lastActive",
+          "years",
+          "skills",
+          "available",
+          "public",
+          "complete",
+          "interests",
+          "credentials"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationReview": {
+        "type": "object",
+        "properties": {
+          "draftId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requirementsVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "questionsVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "jobVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reviewHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "values": {
+            "$ref": "#/components/schemas/ApplicationValues"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplicationQuestion"
+            },
+            "maxItems": 6
+          },
+          "contactStatus": {
+            "$ref": "#/components/schemas/ApplicationProofStatus"
+          },
+          "resume": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationResume"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile": {
+            "$ref": "#/components/schemas/ApplicationReviewProfile"
+          },
+          "portfolio": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "pattern": "^[^\\x00]*$"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ApplicationWorkPreview"
+                    },
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "title",
+                  "items"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "draftId",
+          "version",
+          "requirementsVersion",
+          "questionsVersion",
+          "jobVersion",
+          "reviewHash",
+          "values",
+          "questions",
+          "contactStatus",
+          "resume",
+          "profile",
+          "portfolio"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationReceipt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplicationAttachment"
+            },
+            "maxItems": 1
+          },
+          "contactVerification": {
+            "type": "string",
+            "enum": [
+              "recorded",
+              "not_recorded"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "jobId",
+          "schemaVersion",
+          "submittedAt",
+          "attachments",
+          "contactVerification"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationSharing": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "const": 2
+          },
+          "expectedCompensation": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "INR",
+                          "USD",
+                          "EUR",
+                          "GBP"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "period": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "hour",
+                          "day",
+                          "week",
+                          "month",
+                          "year",
+                          "case",
+                          "duty",
+                          "engagement"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "amount": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]{0,12})(\\.[0-9]{1,2})?$",
+                        "description": "Exact units, at most 1000000000000.00; no implicit conversion."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "currency",
+                  "period",
+                  "amount"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verification": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "verifiedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "account",
+                          "application"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "verifiedAt",
+                      "source"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "phone": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "verifiedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "account",
+                          "application"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "verifiedAt",
+                      "source"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "email",
+              "phone"
+            ],
+            "additionalProperties": false
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 180,
+                  "pattern": "^[^\\x00]*$"
+                },
+                "mime": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "pattern": "^[^\\x00]*$"
+                },
+                "bytes": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "kind": {
+                  "type": "string",
+                  "const": "resume"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "mime",
+                "bytes",
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 1
+          },
+          "portfolio": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "pattern": "^[^\\x00]*$"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "project",
+                            "work_sample",
+                            "work_update"
+                          ]
+                        },
+                        "title": {
+                          "type": "string",
+                          "maxLength": 200,
+                          "pattern": "^[^\\x00]*$"
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 5000,
+                          "pattern": "^[^\\x00]*$"
+                        },
+                        "url": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "title",
+                        "description",
+                        "url"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "title",
+                  "items"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "expectedCompensation",
+          "verification",
+          "attachments",
+          "portfolio"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationDocumentContext": {
+        "type": "object",
+        "properties": {
+          "draftId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requirements": {
+            "type": "object",
+            "properties": {
+              "requireResume": {
+                "type": "boolean"
+              },
+              "requirePortfolio": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "requireResume",
+              "requirePortfolio"
+            ],
+            "additionalProperties": false
+          },
+          "resume": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationResume"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "savedResume": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationResume"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "library": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplicationResume"
+            },
+            "maxItems": 20
+          },
+          "resumeIssue": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^[^\\x00]*$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "includePortfolio": {
+            "type": "boolean"
+          },
+          "portfolio": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "maxLength": 200,
+                "pattern": "^[^\\x00]*$"
+              },
+              "ready": {
+                "type": "boolean"
+              },
+              "sections": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "pattern": "^[^\\x00]*$"
+                },
+                "maxItems": 10
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ApplicationWorkPreview"
+                },
+                "maxItems": 100
+              },
+              "totalItems": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "title",
+              "ready",
+              "sections",
+              "items",
+              "totalItems"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "draftId",
+          "version",
+          "requirements",
+          "resume",
+          "savedResume",
+          "library",
+          "resumeIssue",
+          "includePortfolio",
+          "portfolio"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationContext": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[^\\x00]*$"
+          },
+          "companyName": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[^\\x00]*$"
+          },
+          "acceptingApplications": {
+            "type": "boolean"
+          },
+          "closesAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/ApplicationRequirements"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "application": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactStatus": {
+            "$ref": "#/components/schemas/ApplicationProofStatus"
+          },
+          "profilePhone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationPhone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resume": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplicationResume"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "portfolioReady": {
+            "type": "boolean"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[^\\x00]*$"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "jobId",
+          "title",
+          "companyName",
+          "acceptingApplications",
+          "closesAt",
+          "requirements",
+          "draft",
+          "application",
+          "contactStatus",
+          "profilePhone",
+          "resume",
+          "portfolioReady",
+          "locations"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationDraftSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[^\\x00]*$"
+          },
+          "companyName": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[^\\x00]*$"
+          },
+          "step": {
+            "$ref": "#/components/schemas/ApplicationStep"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "submitted",
+              "discarded",
+              "expired"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "savedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "jobId",
+          "title",
+          "companyName",
+          "step",
+          "state",
+          "version",
+          "savedAt",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "ApplicationDraftPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplicationDraftSummary"
+            },
+            "maxItems": 20
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "additionalProperties": false
+      },
+      "ResumeLibraryRemoval": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deleted"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

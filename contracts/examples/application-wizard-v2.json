@@ -1,0 +1,481 @@
+{
+  "base": {
+    "contact": {
+      "name": "Synthetic Applicant",
+      "email": "candidate@example.test",
+      "phone": null
+    },
+    "documents": {
+      "resumeAssetId": null,
+      "includePortfolio": false
+    },
+    "details": {
+      "introduction": "A synthetic application.",
+      "location": "Chennai",
+      "locality": "",
+      "noticeDays": null,
+      "joiningDays": null,
+      "industry": "",
+      "designation": "",
+      "department": "",
+      "preferredLocations": [],
+      "expectedCompensation": null
+    },
+    "answers": {
+      "00000000-0000-4000-8000-000000000010": "2"
+    }
+  },
+  "requirements": {
+    "version": 1,
+    "questionsVersion": 1,
+    "jobVersion": 1,
+    "requireResume": false,
+    "requirePhone": false,
+    "requirePortfolio": false,
+    "questions": [
+      {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "text": "Years with PHP?",
+        "type": "number",
+        "required": true
+      }
+    ]
+  },
+  "context": {
+    "jobId": "00000000-0000-4000-8000-000000000001",
+    "requirements": {
+      "version": 1,
+      "questionsVersion": 1,
+      "jobVersion": 1,
+      "requireResume": false,
+      "requirePhone": false,
+      "requirePortfolio": false,
+      "questions": [
+        {
+          "id": "00000000-0000-4000-8000-000000000010",
+          "text": "Years with PHP?",
+          "type": "number",
+          "required": true
+        }
+      ]
+    },
+    "verifiedEmails": [
+      "candidate@example.test"
+    ],
+    "verifiedPhones": [],
+    "acceptedResumeAssetIds": [],
+    "portfolioReady": false,
+    "reviewHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "cases": [
+    {
+      "name": "valid incomplete draft",
+      "mode": "draft",
+      "patch": {
+        "contact": {
+          "name": "",
+          "email": ""
+        },
+        "answers": {}
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "valid complete review",
+      "mode": "review",
+      "patch": {},
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "blank name cannot advance",
+      "mode": "contact",
+      "patch": {
+        "contact": {
+          "name": ""
+        }
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "alternate email can advance without verification",
+      "mode": "contact",
+      "patch": {
+        "contact": {
+          "email": "alternate@example.test"
+        }
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "valid applicant-provided phone can advance without verification",
+      "mode": "contact",
+      "patch": {
+        "contact": {
+          "phone": {
+            "country": "IN",
+            "nationalNumber": "8123456789"
+          }
+        }
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "verified exact national phone",
+      "mode": "contact",
+      "patch": {
+        "contact": {
+          "phone": {
+            "country": "IN",
+            "nationalNumber": "8123456789"
+          }
+        }
+      },
+      "contextPatch": {
+        "verifiedPhones": [
+          "+918123456789"
+        ]
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "punctuation-only phone rejected",
+      "mode": "draft",
+      "patch": {
+        "contact": {
+          "phone": {
+            "country": "IN",
+            "nationalNumber": "......."
+          }
+        }
+      },
+      "valid": false,
+      "shapeValid": false
+    },
+    {
+      "name": "unsupported phone country rejected",
+      "mode": "draft",
+      "patch": {
+        "contact": {
+          "phone": {
+            "country": "ZZ",
+            "nationalNumber": "8123456789"
+          }
+        }
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "client cannot supply verification flags",
+      "mode": "draft",
+      "patch": {
+        "contact": {
+          "verified": true
+        }
+      },
+      "valid": false,
+      "shapeValid": false
+    },
+    {
+      "name": "client cannot supply account owner",
+      "mode": "draft",
+      "patch": {
+        "professionalId": "00000000-0000-4000-8000-000000000010"
+      },
+      "valid": false,
+      "shapeValid": false
+    },
+    {
+      "name": "numeric day strings rejected",
+      "mode": "draft",
+      "patch": {
+        "details": {
+          "noticeDays": "30"
+        }
+      },
+      "valid": false,
+      "shapeValid": false
+    },
+    {
+      "name": "fractional notice rejected",
+      "mode": "draft",
+      "patch": {
+        "details": {
+          "noticeDays": 1.5
+        }
+      },
+      "valid": false,
+      "shapeValid": false
+    },
+    {
+      "name": "missing resume blocks documents",
+      "mode": "documents",
+      "patch": {},
+      "requirementsPatch": {
+        "requireResume": true
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "unaccepted selected resume blocks documents",
+      "mode": "documents",
+      "patch": {
+        "documents": {
+          "resumeAssetId": "00000000-0000-4000-8000-000000000010"
+        }
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "accepted resume advances",
+      "mode": "documents",
+      "patch": {
+        "documents": {
+          "resumeAssetId": "00000000-0000-4000-8000-000000000010"
+        }
+      },
+      "contextPatch": {
+        "acceptedResumeAssetIds": [
+          "00000000-0000-4000-8000-000000000010"
+        ]
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "missing required portfolio blocked",
+      "mode": "documents",
+      "patch": {},
+      "requirementsPatch": {
+        "requirePortfolio": true
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "empty required portfolio blocked",
+      "mode": "documents",
+      "patch": {
+        "documents": {
+          "includePortfolio": true
+        }
+      },
+      "requirementsPatch": {
+        "requirePortfolio": true
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "ready shared portfolio advances",
+      "mode": "documents",
+      "patch": {
+        "documents": {
+          "includePortfolio": true
+        }
+      },
+      "requirementsPatch": {
+        "requirePortfolio": true
+      },
+      "contextPatch": {
+        "portfolioReady": true
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "partial expected pay may be saved",
+      "mode": "draft",
+      "patch": {
+        "details": {
+          "expectedCompensation": {
+            "currency": "INR",
+            "period": null,
+            "amount": "20000"
+          }
+        }
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "partial expected pay blocks details",
+      "mode": "details",
+      "patch": {
+        "details": {
+          "expectedCompensation": {
+            "currency": "INR",
+            "period": null,
+            "amount": "20000"
+          }
+        }
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "monthly stipend remains monthly",
+      "mode": "review",
+      "patch": {
+        "details": {
+          "expectedCompensation": {
+            "currency": "INR",
+            "period": "month",
+            "amount": "20000.25"
+          }
+        }
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "case pay remains per case",
+      "mode": "review",
+      "patch": {
+        "details": {
+          "expectedCompensation": {
+            "currency": "INR",
+            "period": "case",
+            "amount": "500"
+          }
+        }
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "numeric money rejected",
+      "mode": "draft",
+      "patch": {
+        "details": {
+          "expectedCompensation": {
+            "currency": "INR",
+            "period": "month",
+            "amount": 20000
+          }
+        }
+      },
+      "valid": false,
+      "shapeValid": false
+    },
+    {
+      "name": "negative money rejected",
+      "mode": "draft",
+      "patch": {
+        "details": {
+          "expectedCompensation": {
+            "currency": "INR",
+            "period": "month",
+            "amount": "-1"
+          }
+        }
+      },
+      "valid": false,
+      "shapeValid": false
+    },
+    {
+      "name": "over-limit money rejected semantically",
+      "mode": "draft",
+      "patch": {
+        "details": {
+          "expectedCompensation": {
+            "currency": "INR",
+            "period": "month",
+            "amount": "1000000000001"
+          }
+        }
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "required answer blank blocked",
+      "mode": "questions",
+      "patch": {
+        "answers": {
+          "00000000-0000-4000-8000-000000000010": ""
+        }
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "wrong numeric answer blocked",
+      "mode": "questions",
+      "patch": {
+        "answers": {
+          "00000000-0000-4000-8000-000000000010": "Infinity"
+        }
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "retired question answer blocked",
+      "mode": "questions",
+      "patch": {
+        "answers": {
+          "00000000-0000-4000-8000-000000000011": "2"
+        }
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "no questions permits empty answers",
+      "mode": "review",
+      "patch": {
+        "answers": {}
+      },
+      "requirementsPatch": {
+        "questions": []
+      },
+      "valid": true,
+      "shapeValid": true
+    },
+    {
+      "name": "duplicate location casing blocked",
+      "mode": "draft",
+      "patch": {
+        "details": {
+          "preferredLocations": [
+            "Chennai",
+            "chennai"
+          ]
+        }
+      },
+      "valid": false,
+      "shapeValid": true
+    },
+    {
+      "name": "NUL injection rejected",
+      "mode": "draft",
+      "patch": {
+        "details": {
+          "introduction": "bad\u0000text"
+        }
+      },
+      "valid": false,
+      "shapeValid": false
+    },
+    {
+      "name": "invalid email rejected",
+      "mode": "draft",
+      "patch": {
+        "contact": {
+          "email": "bad@@example.test"
+        }
+      },
+      "valid": false,
+      "shapeValid": false
+    }
+  ]
+}
