@@ -1,7 +1,10 @@
 "use client";
 import { ContentSkeleton } from "@/components/ui/skeleton";
 import {useState} from "react";
+import {useQueryClient} from "@tanstack/react-query";
 import {useServiceQuery,useServices} from "@/hooks/use-services";
+import {useLiveInterval} from "@/features/messaging/realtime-bridge";
+import type {components} from "@/types/generated/api";
 import {useFormAction} from "@/hooks/use-form-action";
 import {exportRequestSchema,outreachSendSchema} from "@/lib/validation/communication";
 import {Button} from "@/components/ui/primitives";
@@ -21,7 +24,9 @@ export function OutreachDeliveryReview({id}:{id:string}){
  </form>;
 }
 export function ExportProgress({id}:{id:string}){
- const q=useServiceQuery(["export-status",id],(s)=>s.recruiting.exportStatus!(id),{refetchInterval:5000,keepPreviousData:false});const services=useServices();const [errors,setErrors]=useState<Record<string,string>>({});const {execute,pending}=useFormAction(setErrors);
+ // Pushed export.updated signals refresh this while the socket is open; without one, poll until the export settles.
+ const live=useLiveInterval(5000);const cached=useQueryClient().getQueryData<components["schemas"]["ExportStatus"]>(["export-status",id]);const settled=!!cached&&["ready","failed","expired"].includes(cached.state);
+ const q=useServiceQuery(["export-status",id],(s)=>s.recruiting.exportStatus!(id),{refetchInterval:settled?false:live,keepPreviousData:false});const services=useServices();const [errors,setErrors]=useState<Record<string,string>>({});const {execute,pending}=useFormAction(setErrors);
  return <div className="stack">{errors._form&&<p role="alert">{errors._form}</p>}{q.isError?<p role="alert">Export status could not be loaded. <Button onClick={()=>void q.refetch()}>Try again</Button></p>:<p role="status">Export: {q.data?.state??"queued"}. Completed files are available for 24 hours.</p>}{q.data?.state==="ready"&&<Button loading={pending} disabled={pending} onClick={async()=>{let file:Blob|undefined;if(!await execute(async()=>{file=await services.recruiting.downloadExport!(id);}))return;if(file)downloadBlob("skillora-responses.csv",file);}}>Download private CSV</Button>}{q.data?.state==="failed"&&<p>Export could not be prepared. Check access and request a new export.</p>}</div>;
 }
 export function ExportRequest({ids}:{ids:string[]}){

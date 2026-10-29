@@ -18,6 +18,7 @@ import { type ApplicationCounts, type AlertRecord, type ApplicationRecord, type 
 import { formatLongDate } from "@/lib/utils/date";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
+import { useLiveInterval } from "@/features/messaging/realtime-bridge";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
@@ -77,7 +78,8 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
 }
 
 function Details({ id }: { id: Id }) {
-  const { data: a } = useServiceQuery(["application", id], (s) => s.applications.getApplication(id), {keepPreviousData:false,refetchInterval:10_000,refetchOnWindowFocus:"always",staleTime:0});
+  const live = useLiveInterval(10_000);
+  const { data: a } = useServiceQuery(["application", id], (s) => s.applications.getApplication(id), {keepPreviousData:false,refetchInterval:live,refetchOnWindowFocus:"always",staleTime:0});
   const dialogs = useApplicationDialogs();
   const jobs = useJobActions();
   if (!a) return null;
@@ -180,12 +182,13 @@ export function ApplicationsScreen() {
   const savedView = params.get("savedView") === "archived" ? "archived" : "active";
   const unfilteredUrl = "/app/applications?tab=" + tab + (tab === "saved" && savedView === "archived" ? "&savedView=archived" : "");
   const status = tab === "applied" ? applicationFilter(params.get("status")) : "";
+  const live = useLiveInterval(10_000);
   const { data: overview } = useServiceQuery(["applications", "overview"], (s) => s.applications.getOverview());
   const { data: results, isError, refetch } = useServiceQuery(["applications", tab, q, status, savedView], async (s): Promise<{items:(ApplicationRecord | SavedJobRecord | AlertRecord)[];counts?:ApplicationCounts}> => {
     if (tab === "drafts") return {items:[]};
     if (tab === "applied") return s.applications.getApplicationResults({q,status});
     return {items:tab === "saved" ? await s.applications.listSavedJobs({q,state:savedView}) : await s.applications.listAlerts({q})};
-  }, {keepPreviousData:false,refetchInterval:tab === "applied" ? 10_000 : undefined,refetchOnWindowFocus:"always",staleTime:0});
+  }, {keepPreviousData:false,refetchInterval:tab === "applied" ? live : undefined,refetchOnWindowFocus:"always",staleTime:0});
   const list = results?.items;
   const selectStatus = (nextStatus: ApplicationFilter) => {
     const next = new URLSearchParams({tab:"applied"});

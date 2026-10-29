@@ -2,17 +2,16 @@
 
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { create } from "zustand";
 import { useServiceQuery, useServices } from "@/hooks/use-services";
 import { apiConfig } from "@/services/api/config";
+import { REALTIME_INVALIDATIONS, emitRealtime, useRealtimeStatus } from "@/services/realtime/realtime-events";
 
-/** Whether the real-time socket is subscribed; polling slows to a fallback interval while it is. */
-export const useRealtimeStatus = create<{ connected: boolean; set: (connected: boolean) => void }>((set) => ({ connected: false, set: (connected) => set({ connected }) }));
+export { useRealtimeStatus };
 
-/** Poll interval for live data: frequent without a socket, a slow safety net with one. */
-export function useLiveInterval(base: number) {
+/** Poll interval for live data: `base` without a socket, none while the socket pushes changes. */
+export function useLiveInterval(base: number): number | false {
   const connected = useRealtimeStatus((s) => s.connected);
-  return connected ? Math.max(base, 60_000) : base;
+  return connected ? false : base;
 }
 
 const config = {
@@ -38,6 +37,9 @@ export function RealtimeBridge() {
   useEffect(() => {
     if (!active || !identity || !services.messaging.authorizeRealtime) return;
     const authorize = services.messaging.authorizeRealtime;
+    const invalidate = (keys: string[]) => {
+      if (keys.length) void cache.invalidateQueries({ predicate: (q) => keys.includes(String(q.queryKey[0])) });
+    };
     let disposed = false;
     let disconnect = () => {};
     void import("pusher-js").then(({ default: Pusher }) => {
@@ -60,14 +62,21 @@ export function RealtimeBridge() {
         },
       });
       const channel = client.subscribe("private-identity." + identity);
-      channel.bind("pusher:subscription_succeeded", () => setConnected(true));
+      channel.bind("pusher:subscription_succeeded", () => {
+        setConnected(true);
+        // Polling is off while connected, so catch up on anything missed before (re)subscribing.
+        invalidate([...new Set(Object.values(REALTIME_INVALIDATIONS).flat())]);
+      });
       channel.bind("pusher:subscription_error", () => setConnected(false));
       client.connection.bind("state_change", ({ current }: { current: string }) => {
         if (current !== "connected") setConnected(false);
       });
-      channel.bind("conversation.updated", () => {
-        void cache.invalidateQueries({ predicate: (q) => ["messaging", "message-history", "messaging-unread", "notification-counts", "notifications"].includes(String(q.queryKey[0])) });
-      });
+      for (const [event, keys] of Object.entries(REALTIME_INVALIDATIONS)) {
+        channel.bind(event, (data: Record<string, unknown> | undefined) => {
+          invalidate(keys);
+          emitRealtime(event, data ?? {});
+        });
+      }
       disconnect = () => {
         setConnected(false);
         client.unsubscribe("private-identity." + identity);

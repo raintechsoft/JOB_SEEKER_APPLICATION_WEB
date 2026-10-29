@@ -8,7 +8,31 @@ import {
   type MediaPolicy,
 } from "@/lib/validation/profile";
 import { uploadManager, uploadBytes, wait } from "./upload-manager";
+import { onRealtime, realtimeConnected } from "../realtime/realtime-events";
 import type { components } from "@/types/generated/api";
+
+/**
+ * Paces re-reads of a processing upload. It listens from the start, so a `media.updated` signal that
+ * arrives while a status request is in flight still counts. With the socket open it waits for that
+ * signal (30 s fallback for a lost one); without the socket it polls every 2 s.
+ */
+function watchMedia(assetId: string) {
+  let signalled = false;
+  let wake = () => {};
+  const stop = onRealtime("media.updated", (data) => {
+    if (data.assetId !== assetId) return;
+    signalled = true;
+    wake();
+  });
+  return {
+    stop,
+    async next(abort: AbortSignal) {
+      if (!realtimeConnected()) await wait(2000, abort);
+      else if (!signalled) await Promise.race([new Promise<void>((resolve) => (wake = resolve)), wait(30_000, abort)]);
+      signalled = false;
+    },
+  };
+}
 export type UploadedAsset = components["schemas"]["ManagedAsset"];
 type Status = {
   id: string;
@@ -393,25 +417,30 @@ export function createMediaService(
               if (manifestKey) forget(manifestKey);
               return completed;
             }
-            for (;;) {
-              signal.throwIfAborted();
-              current = (
-                await retry(() =>
-                  http.get<{ data: Status }>(`media/${assetId}`),
+            const watcher = watchMedia(assetId);
+            try {
+              for (;;) {
+                signal.throwIfAborted();
+                current = (
+                  await retry(() =>
+                    http.get<{ data: Status }>(`media/${assetId}`),
+                  )
+                ).data;
+                if (current.asset) {
+                  if (manifestKey) forget(manifestKey);
+                  return current.asset;
+                }
+                if (
+                  ["rejected", "cancelled", "deleting"].includes(current.state) ||
+                  current.failureCode
                 )
-              ).data;
-              if (current.asset) {
-                if (manifestKey) forget(manifestKey);
-                return current.asset;
+                  throw new Error(
+                    "The file could not be verified. Retry or choose another file.",
+                  );
+                await watcher.next(signal);
               }
-              if (
-                ["rejected", "cancelled", "deleting"].includes(current.state) ||
-                current.failureCode
-              )
-                throw new Error(
-                  "The file could not be verified. Retry or choose another file.",
-                );
-              await wait(2000, signal);
+            } finally {
+              watcher.stop();
             }
           } catch (e) {
             if (signal.aborted && assetId) {
