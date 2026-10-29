@@ -1,7 +1,7 @@
 import {describe, expect, it, vi} from "vitest";
-import examples from "../../../../contracts/examples/application-wizard-v2.json";
-import policy from "../../../../contracts/validation/application-wizard.json";
-import spec from "../../../../contracts/openapi/application-wizard-v2.json";
+import examples from "../../contracts/examples/application-wizard-v2.json";
+import policy from "../../contracts/validation/application-wizard.json";
+import spec from "../../contracts/openapi/application-wizard-v2.json";
 import {applicationContactChallengeSchema, applicationContactVerifySchema, applicationDraftSaveSchema, applicationRequirementsSchema, applicationSubmitRequestSchema, applicationWizardDraftValuesSchema, applicationWizardStageSchema, type ApplicationStep, type ApplicationWizardValidationContext} from "@/lib/validation/application-wizard";
 import {applicationReturnPath, applicationSteps, applicationWizardPath, emptyApplicationWizardValues, legacyExpectedCompensation, portfolioReady} from "@/lib/domain/application-wizard";
 import {createApplicationWizardCommands, type ApplicationWizardTransport} from "@/services/applications/application-wizard.service";

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import rules from "../../../../../contracts/validation/job-v2.json";
-import legacyRules from "../../../../../contracts/validation/job.json";
+import rules from "../../../contracts/validation/job-v2.json";
+import legacyRules from "../../../contracts/validation/job.json";
 import type { JobWizardValues } from "@/types/domain";
 import { jobV2DraftSchema, moneyMinor, moneyString, type JobValuesV2 } from "@/lib/validation/job-v2";
 

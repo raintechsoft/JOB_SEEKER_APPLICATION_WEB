@@ -1,8 +1,8 @@
 import {describe, expect, it} from "vitest";
-import examples from "../../../../contracts/examples/job-module-v2.json";
-import rules from "../../../../contracts/validation/job-v2.json";
-import oldRules from "../../../../contracts/validation/job.json";
-import spec from "../../../../contracts/openapi/job-module-v2.json";
+import examples from "../../contracts/examples/job-module-v2.json";
+import rules from "../../contracts/validation/job-v2.json";
+import oldRules from "../../contracts/validation/job.json";
+import spec from "../../contracts/openapi/job-module-v2.json";
 import {EMPTY_NOTICE, compensationV2Schema, jobV2DraftSchema, jobV2Errors, jobV2StageAdvanceSchema, jobV2PublishRequestSchema, moneyMinor, publicCompensationV2, type JobValuesV2} from "@/lib/validation/job-v2";
 import {jobValuesToLegacy, jobValuesToV2} from "@/lib/domain/job-v2-compatibility";
 import {jobV2FormToApi} from "@/lib/domain/job-v2-form";

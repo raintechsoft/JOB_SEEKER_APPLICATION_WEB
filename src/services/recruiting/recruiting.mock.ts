@@ -1,4 +1,4 @@
-import jobRules from "../../../../../contracts/validation/job-v2.json";
+import jobRules from "../../../contracts/validation/job-v2.json";
 import type { Draft } from "immer";
 import { paginate } from "@/types/api";
 import type { ApplicationTracking, DemoDatabase, HiringStage, Id, Job, ReceivedApplication } from "@/types/domain";

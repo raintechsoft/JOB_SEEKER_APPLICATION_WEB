@@ -1,7 +1,7 @@
 import { getCountries, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js/max";
 import { z } from "zod";
-import policy from "../../../../../contracts/validation/application-wizard.json";
-import jobPolicy from "../../../../../contracts/validation/job-v2.json";
+import policy from "../../../contracts/validation/application-wizard.json";
+import jobPolicy from "../../../contracts/validation/job-v2.json";
 import { moneyMinor } from "./job-v2";
 
 export const APPLICATION_WIZARD_RULES = policy;

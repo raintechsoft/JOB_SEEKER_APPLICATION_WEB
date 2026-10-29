@@ -22,7 +22,7 @@ it("blocks conditional missing pay and invalid numbers locally and redacts hidde
   expect(formatCompensation({...v.compensation, hidden:true, notes:"private"})).toBe("Compensation not disclosed");
 });
 
-import displayCases from "../../../../contracts/examples/job-compensation-display.json";
+import displayCases from "../../contracts/examples/job-compensation-display.json";
 import { compensationV2Schema } from "@/lib/validation/job-v2";
 it.each(displayCases)("shares compensation display: $name", sample=>expect(formatCompensation(compensationV2Schema.parse(sample.compensation))).toBe(sample.label));
 it("keeps monthly pay and open-ended experience truthful in generated job text",()=>{

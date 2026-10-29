@@ -1,5 +1,5 @@
 import {z} from "zod";
-import rules from "../../../../../contracts/validation/search.json";
+import rules from "../../../contracts/validation/search.json";
 import { compensationQueryShape, compensationQueryErrors } from "./job-discovery";
 
 export const jobSearchSchema=z.object({

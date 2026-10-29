@@ -1,4 +1,4 @@
-import policy from "../../../../../contracts/validation/application-wizard.json";
+import policy from "../../../contracts/validation/application-wizard.json";
 import { applicationStepSchema, type ApplicationRequirements, type ApplicationWizardValues } from "@/lib/validation/application-wizard";
 import { moneyMinor } from "@/lib/validation/job-v2";
 import { z } from "zod";

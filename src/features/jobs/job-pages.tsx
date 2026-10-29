@@ -9,7 +9,7 @@ import {TextField,SelectField} from "@/components/ui/field";
 import {jobSearchSchema,type JobSearchInput} from "@/lib/validation/search";
 import {validationFields} from "@/lib/validation/profile";
 import {useOpenJob} from "@/hooks/use-open-job";
-import searchRules from "../../../../../contracts/validation/search.json";
+import searchRules from "../../../contracts/validation/search.json";
 import {InfoBadge} from "@/components/ui/info-badge";
 
 export function PublicJobScreen({id}:{id:string}){

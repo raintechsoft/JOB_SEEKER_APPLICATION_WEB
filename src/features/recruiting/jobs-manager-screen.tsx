@@ -1,7 +1,7 @@
 "use client";
 
 import { InfoBadge } from "@/components/ui/info-badge";
-import jobRules from "../../../../../contracts/validation/job-v2.json";
+import jobRules from "../../../contracts/validation/job-v2.json";
 
 import { QueryFeedback } from "@/components/ui/query-view";
 

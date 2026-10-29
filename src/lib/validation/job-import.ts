@@ -1,5 +1,5 @@
 import { z } from "zod";
-import rules from "../../../../../contracts/validation/job-import.json";
+import rules from "../../../contracts/validation/job-import.json";
 import { jobV2DraftSchema } from "./job-v2";
 
 /** Pure J1 input contracts; upload, parsing and draft creation are not connected yet. */

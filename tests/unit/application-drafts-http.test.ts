@@ -1,5 +1,5 @@
 import {afterEach, expect, it, vi} from "vitest";
-import examples from "../../../../contracts/examples/application-wizard-v2.json";
+import examples from "../../contracts/examples/application-wizard-v2.json";
 import {applicationRequirementsSchema, applicationWizardDraftValuesSchema, type ApplicationWizardValidationContext} from "@/lib/validation/application-wizard";
 import {createHttpApplicationDraftService} from "@/services/applications/application-wizard.http";
 import {ApiError, createHttpClient} from "@/services/api/client";

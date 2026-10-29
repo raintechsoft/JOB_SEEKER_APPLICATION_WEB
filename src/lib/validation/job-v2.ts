@@ -1,6 +1,6 @@
 import { z } from "zod";
-import rules from "../../../../../contracts/validation/job-v2.json";
-import legacyRules from "../../../../../contracts/validation/job.json";
+import rules from "../../../contracts/validation/job-v2.json";
+import legacyRules from "../../../contracts/validation/job.json";
 import { jobDraftValuesSchema } from "./job";
 
 /** Versioned job rules used by the J3 editor; legacy validation remains independently supported. */

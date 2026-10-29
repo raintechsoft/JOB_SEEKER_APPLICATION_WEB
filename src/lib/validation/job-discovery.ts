@@ -1,5 +1,5 @@
 import { z } from "zod";
-import rules from "../../../../../contracts/validation/search.json";
+import rules from "../../../contracts/validation/search.json";
 
 const amount = z.number().finite().min(0).max(1e12).refine(value => /^\d+(?:\.\d{1,2})?$/.test(String(value)), "Use a decimal amount with at most two decimal places.").optional();
 export const compensationQueryShape = {

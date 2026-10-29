@@ -1,5 +1,5 @@
 import { z } from "zod";
-import rules from "../../../../../contracts/validation/job-v2.json";
+import rules from "../../../contracts/validation/job-v2.json";
 import { jobV2DraftSchema, jobV2PublishSchema, moneyMinor, moneyString } from "@/lib/validation/job-v2";
 
 const record = (v: unknown) => z.record(z.string(), z.unknown()).parse(v);
