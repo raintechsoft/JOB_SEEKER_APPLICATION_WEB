@@ -1,6 +1,6 @@
 import {z} from "zod";
-import policy from "../../../../../contracts/validation/public-browsing.json";
-import search from "../../../../../contracts/validation/global-search.json";
+import policy from "../../../contracts/validation/public-browsing.json";
+import search from "../../../contracts/validation/global-search.json";
 import {compensationQueryErrors, compensationQueryShape} from "./job-discovery";
 
 export const PUBLIC_BROWSING_POLICY=policy;

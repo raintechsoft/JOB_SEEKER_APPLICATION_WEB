@@ -3,7 +3,8 @@ import test from "node:test";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { acceptsSignal, buildSchema, catalog } from "./realtime-contracts.mjs";
 
-const root = new URL("../../../", import.meta.url);
+const repo = new URL("../../../", import.meta.url);
+const apiRealtime = new URL("../../api/contracts/realtime/", import.meta.url);
 const uuid = "11111111-1111-4111-8111-111111111111";
 const example = (type) => {
   const event = catalog.events.find((item) => item.type === type);
@@ -14,7 +15,7 @@ const example = (type) => {
 };
 
 test("the checked-in schema matches the catalog, and names/phases are explicit", () => {
-  assert.deepEqual(JSON.parse(readFileSync(new URL("contracts/realtime/signal.v1.schema.json", root), "utf8")), buildSchema());
+  assert.deepEqual(JSON.parse(readFileSync(new URL("signal.v1.schema.json", apiRealtime), "utf8")), buildSchema());
   assert.equal(new Set(catalog.events.map((event) => event.type)).size, catalog.events.length);
   assert.equal(catalog.runtimeIntegrated, "partial");
   assert.deepEqual(catalog.runtimePhases, ["R2", "R3", "R4", "R5", "R6"]);
@@ -65,10 +66,10 @@ test("public hints cannot carry source identities, private existence or private 
 });
 
 test("the polling inventory points to real sources and covers every current refetch interval", () => {
-  const inventory = JSON.parse(readFileSync(new URL("contracts/realtime/refresh-inventory.v1.json", root), "utf8"));
+  const inventory = JSON.parse(readFileSync(new URL("refresh-inventory.v1.json", apiRealtime), "utf8"));
   for (const row of inventory.entries) {
-    assert.ok(existsSync(new URL(row.file, root)), row.file);
-    const source = readFileSync(new URL(row.file, root), "utf8");
+    assert.ok(existsSync(new URL(row.file, repo)), row.file);
+    const source = readFileSync(new URL(row.file, repo), "utf8");
     for (const marker of row.markers) assert.ok(source.includes(marker), `${row.id}: ${marker}`);
     assert.ok(["replace", "retain", "replaced"].includes(row.disposition));
     if (row.disposition === "replaced") {
@@ -79,11 +80,11 @@ test("the polling inventory points to real sources and covers every current refe
   }
   // R6 replaced the last two inventoried business-data loops (export status and media processing).
   assert.equal(inventory.entries.filter((row) => row.disposition === "replace").length, 0);
-  const scan = (directory) => readdirSync(new URL(directory, root), { withFileTypes: true }).flatMap((entry) => {
+  const scan = (directory) => readdirSync(new URL(directory, repo), { withFileTypes: true }).flatMap((entry) => {
     const path = `${directory}/${entry.name}`;
     if (entry.name === "__tests__") return [];
     if (entry.isDirectory()) return scan(path);
-    return /\.tsx?$/.test(entry.name) && /refetchInterval\s*:/.test(readFileSync(new URL(path, root), "utf8")) ? [path] : [];
+    return /\.tsx?$/.test(entry.name) && /refetchInterval\s*:/.test(readFileSync(new URL(path, repo), "utf8")) ? [path] : [];
   });
   const intervalFiles = scan("apps/web/src");
   const recordedFiles = new Set(inventory.entries.map((entry) => entry.file));

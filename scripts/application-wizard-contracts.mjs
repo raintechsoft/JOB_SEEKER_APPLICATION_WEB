@@ -1,7 +1,8 @@
-import {readFileSync, writeFileSync} from "node:fs";
+import {mkdirSync, readFileSync, writeFileSync} from "node:fs";
 import openapiTS, {astToString} from "openapi-typescript";
 
-const root = new URL("../../../", import.meta.url);
+const root = new URL("../", import.meta.url);
+const api = new URL("../../api/", import.meta.url);
 const read = path => JSON.parse(readFileSync(new URL(path, root), "utf8"));
 const policy = read("contracts/validation/application-wizard.json"), job = read("contracts/validation/job-v2.json");
 const existingApplicant = read("contracts/openapi/phase-11.json").components.schemas.ApplicantProfile;
@@ -96,9 +97,9 @@ for (const [path, operations] of Object.entries(paths)) if (path.endsWith("/down
 const spec = {openapi: "3.1.0", info: {title: "Skillora dedicated application wizard", version: "2.0.0-a6", description: "A2–A6 private drafts, gated contacts, retained documents, full-page UI, review and transactional schema-2 submission are implemented. Live entry remains disabled until A7 release verification."}, "x-activation": "Full application journey behind a disabled live-entry flag; candidate delivery remains separately gated.", "x-semantic-rules": ["Supported-region phone parsing", "Unicode normalization/UTF-8 draft byte limit", "Exact decimal amount upper bound", "Case-insensitive distinct locations and question IDs", "Cumulative required fields and server contact/asset proof", "Current questions and type-correct answers", "Current-clock eligibility under transaction locks"], paths, components: {securitySchemes: {sanctum: {type: "apiKey", in: "cookie", name: "configured-session-cookie"}}, schemas}};
 const output = JSON.stringify(spec, null, 2) + "\n";
 const types = "/** Generated application contracts. A2–A6 application drafts, verification, documents, review and submission implemented; live entry separately gated. */\n" + astToString(await openapiTS(spec));
-for (const [path, content] of [["contracts/openapi/application-wizard-v2.json", output], ["apps/web/src/types/generated/application-wizard-v2.ts", types]]) {
-  const target = new URL(path, root);
+for (const [base, path, content] of [[root, "contracts/openapi/application-wizard-v2.json", output], [root, "src/types/generated/application-wizard-v2.ts", types], [api, "contracts/openapi/application-wizard-v2.json", output]]) {
+  const target = new URL(path, base);
   if (process.argv.includes("--check")) { if (readFileSync(target, "utf8").replaceAll("\r\n", "\n") !== content) throw new Error(`Stale application wizard contract: ${path}`); }
-  else writeFileSync(target, content);
+  else { mkdirSync(new URL(".", target), { recursive: true }); writeFileSync(target, content); }
 }
 console.log("Application wizard OpenAPI and generated types " + (process.argv.includes("--check") ? "match." : "generated."));

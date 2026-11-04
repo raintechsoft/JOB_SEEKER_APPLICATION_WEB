@@ -1,5 +1,5 @@
 import {readFileSync,writeFileSync} from "node:fs";
-const root=new URL("../../../",import.meta.url),api=JSON.parse(readFileSync(new URL("contracts/openapi/phase-5.json",root),"utf8")),s=api.components.schemas;
+const root=new URL("../", import.meta.url),api=JSON.parse(readFileSync(new URL("contracts/openapi/phase-5.json",root),"utf8")),s=api.components.schemas;
 const str={type:"string"},uuid={...str,format:"uuid"},int={type:"integer"},bool={type:"boolean"},ref=(n)=>({$ref:`#/components/schemas/${n}`}),arr=(items,maxItems)=>({type:"array",items,...(maxItems?{maxItems}:{})}),obj=(properties,required=Object.keys(properties))=>({type:"object",properties,required,additionalProperties:false}),nullable=(v)=>({anyOf:[v,{type:"null"}]}),rev={...int,minimum:1},enumStr=(values)=>({...str,enum:values});
 s.MessageAttachment=obj({id:uuid,name:str,type:str,size:{...int,minimum:1,maximum:2097152},data:str,image:bool});
 s.DirectMessage=obj({id:uuid,text:{...str,maxLength:4000},sender:enumStr(["professional","recruiter"]),own:bool,time:str,sequence:rev,attachments:arr(ref("MessageAttachment"),3)});

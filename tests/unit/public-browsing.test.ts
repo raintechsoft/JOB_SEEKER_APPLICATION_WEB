@@ -1,6 +1,6 @@
 import {describe,expect,it,vi} from "vitest";
-import examples from "../../../../contracts/examples/public-browsing.json";
-import policy from "../../../../contracts/validation/public-browsing.json";
+import examples from "../../contracts/examples/public-browsing.json";
+import policy from "../../contracts/validation/public-browsing.json";
 import {publicCommentsQuerySchema,publicEntrySchema,publicFeedQuerySchema,publicSearchQuerySchema,publicExternalVideoSchema} from "@/lib/validation/public-browsing";
 import {GUEST_ACTIONS,guestActionDecision,guestPrompt,readGuestIntent,safeGuestReturnPath,type GuestAction,type GuestViewer} from "@/lib/domain/guest-access";
 import {createPublicBrowsingQueries} from "@/services/public-browsing/public-browsing.service";

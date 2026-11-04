@@ -17,7 +17,7 @@ import {AccountEntryBoundary} from "../account-entry-boundary";
 import {PlatformHomeScreen} from "@/features/public-browsing/platform-home";
 import {actionContinuation,authEntryHref,continuationFromParams,rememberAuthContinuation} from "../auth-continuation";
 import {publicEntrySchema} from "@/lib/validation/public-browsing";
-import exampleData from "../../../../../../contracts/examples/public-browsing.json";
+import exampleData from "../../../../contracts/examples/public-browsing.json";
 import {ApiError} from "@/services/api/client";
 import {useAuthActionStore} from "../auth-action-store";
 

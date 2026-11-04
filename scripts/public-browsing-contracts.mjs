@@ -1,6 +1,6 @@
 import {mkdirSync,readFileSync,writeFileSync} from "node:fs";
 import openapiTS,{astToString} from "openapi-typescript";
-const root=new URL("../../../",import.meta.url),read=path=>JSON.parse(readFileSync(new URL(path,root),"utf8"));
+const web=new URL("../", import.meta.url),api=new URL("../../api/", import.meta.url),read=path=>JSON.parse(readFileSync(new URL(path,web),"utf8"));
 const policy=read("contracts/validation/public-browsing.json"),search=read("contracts/validation/global-search.json"),jobs=read("contracts/validation/search.json");
 const text=maxLength=>({type:"string",maxLength,pattern:"^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"});
 const object=(properties,required=Object.keys(properties))=>({type:"object",properties,required,additionalProperties:false});
@@ -50,10 +50,11 @@ endpoint("/api/v1/public/feed/{entry}",null,"PublicEntry");
 endpoint("/api/v1/public/feed/{entry}/comments","PublicCommentsQuery","PublicCommentsPage");
 endpoint("/api/v1/public/search","PublicSearchQuery","PublicSearchPage");
 const spec={openapi:"3.1.0",info:{title:"Skillora public browsing",version:"1.0.0-g2",description:"G2 public read APIs are implemented behind the default-disabled PUBLIC_BROWSING_ENABLED release gate."},"x-live":false,"x-semantic-rules":["Current source/author/company/project/moderation eligibility before projection and pagination","Public-safe comment authors and parent thread context","Category-specific filters and exact compensation units","Matching resource IDs, paths, response scope and entry/comment ownership","No private portfolio tokens in discovery","Opaque scope-bound expiring cursors","No exposure/history/analytics writes for guest reads"],paths,components:{schemas}};
-const artifacts=[["contracts/openapi/public-browsing-v1.json",JSON.stringify(spec,null,2)+"\n"],["apps/web/src/types/generated/public-browsing-v1.ts","/** Generated public contracts. G2 endpoints require the separately controlled Laravel public-browsing release gate. */\n"+astToString(await openapiTS(spec))]];
-for(const app of ["apps/api","apps/web"]){
-  artifacts.push([`${app}/contracts/openapi/public-browsing-v1.json`,JSON.stringify(spec,null,2)+"\n"]);
-  for(const name of ["validation/public-browsing.json","examples/public-browsing.json"])artifacts.push([`${app}/contracts/${name}`,readFileSync(new URL(`contracts/${name}`,root),"utf8")]);
+const openapi=JSON.stringify(spec,null,2)+"\n";
+const types="/** Generated public contracts. G2 endpoints require the separately controlled Laravel public-browsing release gate. */\n"+astToString(await openapiTS(spec));
+const webArtifacts=[["contracts/openapi/public-browsing-v1.json",openapi],["src/types/generated/public-browsing-v1.ts",types]];
+const apiArtifacts=[["contracts/openapi/public-browsing-v1.json",openapi],["contracts/validation/public-browsing.json",readFileSync(new URL("contracts/validation/public-browsing.json",web),"utf8")],["contracts/examples/public-browsing.json",readFileSync(new URL("contracts/examples/public-browsing.json",web),"utf8")]];
+for(const [base,artifacts] of [[web,webArtifacts],[api,apiArtifacts]]){
+  for(const [path,content]of artifacts){const target=new URL(path,base);if(process.argv.includes("--check")){if(readFileSync(target,"utf8")!==content)throw new Error(`Regenerate ${path}`);}else{mkdirSync(new URL(".",target),{recursive:true});writeFileSync(target,content);}}
 }
-for(const [path,content]of artifacts){const target=new URL(path,root);if(process.argv.includes("--check")){if(readFileSync(target,"utf8")!==content)throw new Error(`Regenerate ${path}`);}else{mkdirSync(new URL(".",target),{recursive:true});writeFileSync(target,content);}}
 console.log(`Public browsing ${policy.phase} contracts and mirrors ${process.argv.includes("--check")?"match.":"generated."}`);

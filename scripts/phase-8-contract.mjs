@@ -1,5 +1,5 @@
 import {readFileSync,writeFileSync} from "node:fs";
-const root=new URL("../../../",import.meta.url),api=JSON.parse(readFileSync(new URL("contracts/openapi/phase-7.json",root),"utf8")),contract=JSON.parse(readFileSync(new URL("contracts/analytics/events.json",root),"utf8"));
+const root=new URL("../", import.meta.url),api=JSON.parse(readFileSync(new URL("contracts/openapi/phase-7.json",root),"utf8")),contract=JSON.parse(readFileSync(new URL("contracts/analytics/events.json",root),"utf8"));
 const str={type:"string"},int={type:"integer"},bool={type:"boolean"},uuid={...str,format:"uuid"},obj=(properties,required=Object.keys(properties))=>({type:"object",properties,required,additionalProperties:false}),ref=name=>({$ref:`#/components/schemas/${name}`});
 const s=api.components.schemas;
 s.AnalyticsContext=obj({requestId:uuid,itemId:uuid,position:{...int,minimum:0,maximum:199}});

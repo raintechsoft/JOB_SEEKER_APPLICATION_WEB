@@ -1,7 +1,8 @@
-import {readFileSync, writeFileSync} from "node:fs";
+import {mkdirSync, readFileSync, writeFileSync} from "node:fs";
 import openapiTS, {astToString} from "openapi-typescript";
 
-const root = new URL("../../../", import.meta.url);
+const root = new URL("../", import.meta.url);
+const api = new URL("../../api/", import.meta.url);
 const read = path => JSON.parse(readFileSync(new URL(path, root), "utf8"));
 const rules = read("contracts/validation/job-v2.json"), imports = read("contracts/validation/job-import.json"), old = read("contracts/openapi/phase-11.json").components.schemas;
 const ref = name => ({$ref: `#/components/schemas/${name}`});
@@ -100,11 +101,11 @@ for (const [path, methods] of Object.entries(paths)) if (path.includes("/drafts"
 }
 paths["/api/v1/jobs/{job}"] = {get:{operationId:"jobV2_publicDetail","x-implementation-phase":"J3","x-implemented":true,parameters:[{name:"job",in:"path",required:true,schema:uuid},{name:"X-Skillora-Job-Schema",in:"header",required:true,schema:{type:"integer",const:2}}],responses:{"200":{description:"Safe public v2 job projection",content:{"application/json":{schema:object({data:ref("JobDetailV2")})}}},"404":{description:"Absent or unavailable"}}}};
 const spec = {openapi:"3.1.0",info:{title:"Skillora job module version 2 contracts",version:"2.0.0-j3",description:"J3 editor/publication contracts; imports remain planned. Job schema version 2 is separate from the /api/v1 URL. Legacy clients remain supported for legacy jobs; upgrades are explicit."},"x-activation":"J3 editor connected; J4 discovery integration pending; Excel import disabled",paths,components:{securitySchemes:{sanctum:{type:"apiKey",in:"cookie",name:"configured-session-cookie"}},schemas}};
-const output = new URL("contracts/openapi/job-module-v2.json",root), generated = JSON.stringify(spec,null,2)+"\n";
+const generated = JSON.stringify(spec,null,2)+"\n";
 const types = "/** Generated job v2 contracts. J3 operations implemented; import operations remain planned. */\n"+astToString(await openapiTS(spec));
-const typePath = new URL("apps/web/src/types/generated/job-module-v2.ts",root);
-for (const [path, content] of [[output,generated],[typePath,types]]) {
-  if (process.argv.includes("--check")) { if (readFileSync(path,"utf8").replaceAll("\r\n","\n") !== content) throw new Error(`Stale job v2 contract: ${path.pathname}`); }
-  else writeFileSync(path,content);
+for (const [base, path, content] of [[root,"contracts/openapi/job-module-v2.json",generated],[root,"src/types/generated/job-module-v2.ts",types],[api,"contracts/openapi/job-module-v2.json",generated]]) {
+  const target = new URL(path, base);
+  if (process.argv.includes("--check")) { if (readFileSync(target,"utf8").replaceAll("\r\n","\n") !== content) throw new Error(`Stale job v2 contract: ${path}`); }
+  else { mkdirSync(new URL(".", target), { recursive: true }); writeFileSync(target, content); }
 }
 console.log(process.argv.includes("--check") ? "Job module OpenAPI and generated types match shared rules." : "Generated job module OpenAPI and TypeScript contracts.");

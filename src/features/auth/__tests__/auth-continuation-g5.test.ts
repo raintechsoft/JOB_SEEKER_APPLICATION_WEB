@@ -5,7 +5,7 @@ import {proxy} from "@/proxy";
 import {bodyClassesFor,bodyClassScript} from "@/lib/routing/body-classes";
 import {safeGuestReturnPath} from "@/lib/domain/guest-access";
 import {actionContinuation,authEntryHref,continuationDestination,continuationFromParams,decodeAuthContinuation,encodeAuthContinuation,legacyAuthReturn,legacyPublicEntry,navigateToAuthContinuation,rememberAuthContinuation,takeAuthContinuation} from "../auth-continuation";
-import examples from "../../../../../../contracts/examples/public-browsing.json";
+import examples from "../../../../contracts/examples/public-browsing.json";
 
 const id=examples.entry.id,comment=examples.comment.id;
 const professional:AuthSession={user:{id,name:"Synthetic",email:"test@example.test",email_verified:true},workspaces:[{id,kind:"professional",organization:null,membership_id:null,role:null}],selected_identity_id:id,email_challenge:null};

@@ -4,7 +4,7 @@ import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
 import type {ReactNode} from "react";
 import {ServicesContext} from "@/hooks/use-services";
 import type {Services} from "@/services";
-import examples from "../../../../../../contracts/examples/public-browsing.json";
+import examples from "../../../../contracts/examples/public-browsing.json";
 import {apiConfig} from "@/services/api/config";
 import {publicEntrySchema} from "@/lib/validation/public-browsing";
 import {createHttpClient,ApiError} from "@/services/api/client";

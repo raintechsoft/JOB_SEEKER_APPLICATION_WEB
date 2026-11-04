@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-const root=new URL("../../../",import.meta.url);
+const root=new URL("../", import.meta.url);
 const api=JSON.parse(readFileSync(new URL("contracts/openapi/phase-4.json",root),"utf8"));
 const s=api.components.schemas,str={type:"string"},uuid={...str,format:"uuid"},int={type:"integer"},bool={type:"boolean"},ref=(n)=>({$ref:`#/components/schemas/${n}`}),arr=(items,maxItems)=>({type:"array",items,...(maxItems?{maxItems}:{})}),obj=(properties,required=Object.keys(properties))=>({type:"object",properties,required,additionalProperties:false}),nullable=(v)=>({anyOf:[v,{type:"null"}]}),rev={...int,minimum:1};
 // Preserve the existing additive profile-cover contract when regenerating cumulative APIs.

@@ -1,5 +1,5 @@
 import {readGuestIntent,safeGuestReturnPath,type GuestAction,type GuestIntent} from "@/lib/domain/guest-access";
-import policy from "../../../../../contracts/validation/public-browsing.json";
+import policy from "../../../contracts/validation/public-browsing.json";
 import type {AuthSession} from "@/services/auth/auth.service";
 import {authDestination} from "./auth-navigation";
 

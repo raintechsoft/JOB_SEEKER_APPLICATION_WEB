@@ -6,7 +6,7 @@ import { useLiveFeed, useLivePublicFeed } from "@/hooks/use-live-feed";
 import type { LiveMeta } from "@/services/realtime/social-reconcile";
 import type { FeedPage } from "@/services/feed/feed.service";
 import { publicFeedQuerySchema, publicFeedPageSchema } from "@/lib/validation/public-browsing";
-import examples from "../../../../contracts/examples/public-browsing.json";
+import examples from "../../contracts/examples/public-browsing.json";
 
 const mocks = vi.hoisted(() => ({ feed: vi.fn(), refresh: vi.fn() }));
 vi.mock("@/hooks/use-services", () => ({ useServices: () => ({ feed: { getFeed: mocks.feed, refreshEntries: mocks.refresh }, publicBrowsing: { feed: mocks.feed, refresh: mocks.refresh } }) }));

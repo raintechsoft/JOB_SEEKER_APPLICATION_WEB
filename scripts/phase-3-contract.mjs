@@ -1,5 +1,5 @@
 import { readFileSync,writeFileSync } from "node:fs";
-const root=new URL("../../../",import.meta.url),read=(p)=>JSON.parse(readFileSync(new URL(p,root),"utf8"));
+const root=new URL("../", import.meta.url),read=(p)=>JSON.parse(readFileSync(new URL(p,root),"utf8"));
 const api=read("contracts/openapi/phase-2.json"),work=read("contracts/validation/work.json"),portfolio=read("contracts/validation/portfolio.json"),schemas=api.components.schemas;
 const str={type:"string"},bool={type:"boolean"},int={type:"integer"},uuid={type:"string",format:"uuid"},ref=(name)=>({$ref:`#/components/schemas/${name}`}),array=(items)=>({type:"array",items});
 const object=(properties,required=Object.keys(properties),additionalProperties=false)=>({type:"object",properties,required,additionalProperties});

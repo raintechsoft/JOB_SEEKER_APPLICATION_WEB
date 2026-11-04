@@ -1,5 +1,5 @@
 import {z} from "zod";
-import policy from "../../../../../contracts/validation/public-browsing.json";
+import policy from "../../../contracts/validation/public-browsing.json";
 import {publicFeedQuerySchema,publicSearchQuerySchema} from "@/lib/validation/public-browsing";
 import {jobSearchSchema} from "@/lib/validation/search";
 import type {components} from "@/types/generated/public-browsing-v1";

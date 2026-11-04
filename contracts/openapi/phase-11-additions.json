@@ -1,0 +1,2372 @@
+{
+  "paths": {
+    "/jobs": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "match": {
+                            "anyOf": [
+                              {
+                                "$ref": "#/components/schemas/MatchBadge"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{organization}/hiring/talent-options": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "hiringSkills": {
+                          "type": "array",
+                          "description": "Skills the organization hires for, strongest first (\"Candidates with X\").",
+                          "items": {
+                            "type": "string"
+                          },
+                          "maxItems": 6
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/talent-options": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "hiringSkills": {
+                          "type": "array",
+                          "description": "Skills the organization hires for, strongest first (\"Candidates with X\").",
+                          "items": {
+                            "type": "string"
+                          },
+                          "maxItems": 6
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/interactions": {
+      "post": {
+        "operationId": "recommendations_post_interactions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InteractionBatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored and dropped event counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/InteractionResult"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/search-history/{identity}": {
+      "get": {
+        "operationId": "recommendations_get_search_history",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent searches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SearchHistoryPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "recommendations_clear_search_history",
+        "description": "Deletes every recorded search of the selected workspace.",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/search-history/{identity}/{entry}": {
+      "delete": {
+        "operationId": "recommendations_delete_search_history_entry",
+        "description": "Deletes the entry and earlier occurrences of the same search.",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "entry",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/hidden-items/{identity}": {
+      "post": {
+        "operationId": "recommendations_hide_item",
+        "description": "\"Not interested\": removes a visible job, post or update from the workspace's recommendations and main feeds and lowers the weight of its topics and author. Idempotent.",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HiddenItemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HiddenItem"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/hidden-items/{identity}/{kind}/{item}": {
+      "delete": {
+        "operationId": "recommendations_unhide_item",
+        "description": "Undoes \"Not interested\". Succeeds when nothing was hidden.",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "job",
+                "post",
+                "update"
+              ]
+            }
+          },
+          {
+            "name": "item",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/social/{identity}/search-suggestions": {
+      "get": {
+        "operationId": "social_search_suggestions",
+        "description": "Recent searches, trending skills (the searcher's first), companies hiring for them and people they may know, each with a reason.",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SearchSuggestions"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/recommendations/{identity}/similar": {
+      "get": {
+        "operationId": "recommendations_similar",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "job",
+                "professional"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Similar items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SimilarItems"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/admin/recommendation-quality": {
+      "get": {
+        "operationId": "admin_recommendation_quality",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recommendation quality",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RecommendationQuality"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/personalization": {
+      "get": {
+        "operationId": "personalization_show",
+        "responses": {
+          "200": {
+            "description": "Current choices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PersonalizationSettings"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "personalization_update",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalizationUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current choices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PersonalizationSettings"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/personalization/history": {
+      "delete": {
+        "operationId": "personalization_clear_history",
+        "description": "Deletes watch history, served lists and search history of every workspace of the account; \"Not interested\" choices are kept.",
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/personalization/export": {
+      "get": {
+        "operationId": "personalization_export",
+        "description": "Download (attachment) of the account's recommendation data.",
+        "responses": {
+          "200": {
+            "description": "Export",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PersonalizationExport"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/search-history/{identity}/opened": {
+      "post": {
+        "operationId": "recommendations_search_result_opened",
+        "description": "Records which result was opened from a search on the newest entry for that query from the last day; nothing is stored when search history is off.",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchResultOpened"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/professionals/{slug}/journey": {
+      "get": {
+        "operationId": "journey_public",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A public career journey",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/professionals/{slug}/journey/memories": {
+      "get": {
+        "operationId": "journey_public_memories",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "employmentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1800,
+              "maximum": 9999
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public memories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/profile/journey": {
+      "get": {
+        "operationId": "journey_show",
+        "responses": {
+          "200": {
+            "description": "The owner's career journey",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/profile/journey/memories": {
+      "get": {
+        "operationId": "journey_memories",
+        "parameters": [
+          {
+            "name": "employmentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1800,
+              "maximum": 9999
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "journey_memory_create",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved memory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/profile/journey/memories/{memory}": {
+      "patch": {
+        "operationId": "journey_memory_update",
+        "parameters": [
+          {
+            "name": "memory",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved memory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/profile/journey/colleagues": {
+      "post": {
+        "operationId": "journey_colleague_create",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved colleague",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/profile/journey/colleagues/{colleague}": {
+      "patch": {
+        "operationId": "journey_colleague_update",
+        "parameters": [
+          {
+            "name": "colleague",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved colleague",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/profile/journey/colleagues/candidates": {
+      "get": {
+        "operationId": "journey_colleague_candidates",
+        "responses": {
+          "200": {
+            "description": "People who may be colleagues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/me/profile/journey/{kind}/{id}/delete": {
+      "post": {
+        "operationId": "journey_delete",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "memories",
+                "colleagues"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CareerJourneyData"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HiringCompany": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 180,
+            "description": "Public organization page slug; present when the organization is public."
+          }
+        }
+      },
+      "JobDetail": {
+        "properties": {
+          "match": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchBadge"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "ResponseItem": {
+        "properties": {
+          "ranking": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Best match (sort=relevance under rules-2): structured fit by ApplicantScorer. Shown, never used to hide anyone.",
+            "properties": {
+              "strategy": {
+                "const": "rules-2"
+              },
+              "score": {
+                "type": "number"
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "match": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/MatchBadge"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "strategy",
+              "score",
+              "reason",
+              "match"
+            ],
+            "additionalProperties": false
+          },
+          "analyticsContext": {
+            "$ref": "#/components/schemas/AnalyticsContext"
+          }
+        }
+      },
+      "TalentCard": {
+        "properties": {
+          "hiringMatch": {
+            "type": "object",
+            "description": "Talent search inside an organization (U10): the skills it hires for that this person has. Shown, never used to hide anyone.",
+            "properties": {
+              "skills": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 100
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 300
+              }
+            },
+            "required": [
+              "skills",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "WorkspaceSearchResult": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 160,
+            "description": "Why this result is shown to this searcher, e.g. \"Hiring for React · You follow\". Present only when there is a reason."
+          }
+        }
+      },
+      "RecommendedJob": {
+        "properties": {
+          "match": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchBadge"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "RecommendedTalent": {
+        "properties": {
+          "match": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchBadge"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pool": {
+            "type": "object",
+            "description": "Talent pool (E8.f1): the topic this person shares with one of the organization's open jobs.",
+            "properties": {
+              "topic": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "topic",
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "BaselineRecommendations": {
+        "properties": {
+          "candidateLimit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "description": "Candidates the strategy considered: rules-1 the newest 200, rules-2 up to 500 from its candidate sources."
+          }
+        }
+      },
+      "InteractionEvent": {
+        "type": "object",
+        "description": "A passive event from the browser. Likes, saves, follows, applications and hides are recorded by the server.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client event id; a retried event is stored once."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "view",
+              "dwell",
+              "click"
+            ]
+          },
+          "itemKind": {
+            "type": "string",
+            "enum": [
+              "job",
+              "post",
+              "update",
+              "professional",
+              "organization"
+            ]
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "surface": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "feed",
+              "jobs",
+              "talent",
+              "applications",
+              "responses",
+              "projects",
+              "messages",
+              "job-page",
+              "jobs-rail",
+              "recruiter-feed",
+              "professional-feed",
+              null
+            ]
+          },
+          "position": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 199
+          },
+          "dwellMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 3600000,
+            "description": "Required for dwell events and only allowed on them."
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Kept only when it is one of the actor's own recommendation lists."
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Within the last 24 hours."
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "itemKind",
+          "itemId",
+          "occurredAt"
+        ],
+        "additionalProperties": false
+      },
+      "InteractionBatch": {
+        "type": "object",
+        "properties": {
+          "identityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "events": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/InteractionEvent"
+            }
+          }
+        },
+        "required": [
+          "identityId",
+          "events"
+        ],
+        "additionalProperties": false
+      },
+      "InteractionResult": {
+        "type": "object",
+        "description": "Events about items the actor cannot currently see are dropped, not rejected.",
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dropped": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "accepted",
+          "dropped"
+        ],
+        "additionalProperties": false
+      },
+      "SearchHistoryEntry": {
+        "type": "object",
+        "description": "A submitted search in the selected workspace. Typing suggestions and further result pages are not recorded.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "workspace",
+              "jobs",
+              "talent"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "query",
+          "source",
+          "scope",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "SearchHistoryPage": {
+        "type": "object",
+        "description": "Up to 10 most recent distinct searches, newest first.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "$ref": "#/components/schemas/SearchHistoryEntry"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "HiddenItemRequest": {
+        "type": "object",
+        "properties": {
+          "itemKind": {
+            "type": "string",
+            "enum": [
+              "job",
+              "post",
+              "update"
+            ]
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "itemKind",
+          "itemId"
+        ],
+        "additionalProperties": false
+      },
+      "HiddenItem": {
+        "type": "object",
+        "properties": {
+          "itemKind": {
+            "type": "string",
+            "enum": [
+              "job",
+              "post",
+              "update"
+            ]
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hidden": {
+            "const": true
+          }
+        },
+        "required": [
+          "itemKind",
+          "itemId",
+          "hidden"
+        ],
+        "additionalProperties": false
+      },
+      "MatchBadge": {
+        "type": "object",
+        "description": "How well a person fits a job. Shown, never used to hide anyone.",
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "good",
+              "partial"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "enum": [
+              "Strong match",
+              "Good match",
+              "Partial match"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "matchedSkills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          },
+          "requiredSkills": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "missingSkills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5
+          },
+          "missingEssential": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          },
+          "experience": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "fit",
+              "stretch",
+              "over",
+              "far",
+              null
+            ]
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5
+          },
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "level",
+          "label",
+          "summary",
+          "matchedSkills",
+          "requiredSkills",
+          "missingSkills",
+          "missingEssential",
+          "experience",
+          "reasons"
+        ],
+        "additionalProperties": false
+      },
+      "SearchSuggestions": {
+        "type": "object",
+        "description": "What the search box offers before anything is typed.",
+        "properties": {
+          "recent": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/SearchHistoryEntry"
+            }
+          },
+          "skills": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "In your skills",
+                    "You hire for this",
+                    "Trending"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "companies": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "industry": {
+                  "type": "string"
+                },
+                "picture": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string",
+                  "maxLength": 160
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "slug",
+                "industry",
+                "picture",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "people": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "headline": {
+                  "type": "string"
+                },
+                "picture": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "recruiter": {
+                  "type": "boolean"
+                },
+                "followerCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reason": {
+                  "type": "string",
+                  "maxLength": 160
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "headline",
+                "picture",
+                "color",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "recent",
+          "skills",
+          "companies",
+          "people"
+        ],
+        "additionalProperties": false
+      },
+      "SimilarItems": {
+        "type": "object",
+        "description": "Jobs (anyone) or candidates (recruiters) similar to one item: nearest in meaning with embeddings, else most shared skills.",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "job",
+              "professional"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/RecommendedJob"
+                },
+                {
+                  "$ref": "#/components/schemas/RecommendedTalent"
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "RecommendationQuality": {
+        "type": "object",
+        "description": "Live quality per surface and strategy from first-party served lists; an action counts within windowHours of the first serving of that item to that person.",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 90
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "minimumServed": {
+            "type": "integer"
+          },
+          "windowHours": {
+            "type": "integer"
+          },
+          "surfaces": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "surface": {
+                  "type": "string"
+                },
+                "strategy": {
+                  "type": "string"
+                },
+                "served": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "people": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "viewed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "rates": {
+                  "type": "object",
+                  "properties": {
+                    "view": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "open": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "save": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "apply": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "like": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "hide": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "required": [
+                    "view",
+                    "open",
+                    "save",
+                    "apply",
+                    "like",
+                    "hide"
+                  ],
+                  "additionalProperties": false
+                },
+                "firstOpenPosition": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 1
+                },
+                "enoughData": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "surface",
+                "strategy",
+                "served",
+                "people",
+                "viewed",
+                "rates",
+                "firstOpenPosition",
+                "enoughData"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "search": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "searches": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "zeroResultRate": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "source",
+                "searches",
+                "zeroResultRate"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "offline": {
+            "type": "array",
+            "description": "Latest offline accuracy per surface and strategy on held-out recent activity (skillora:evaluate-recommendations / skillora:tune-weights with --store).",
+            "items": {
+              "type": "object",
+              "properties": {
+                "surface": {
+                  "type": "string",
+                  "enum": [
+                    "jobs",
+                    "feed"
+                  ]
+                },
+                "strategy": {
+                  "type": "string"
+                },
+                "split": {
+                  "type": "string",
+                  "enum": [
+                    "all",
+                    "train",
+                    "validation"
+                  ]
+                },
+                "data": {
+                  "type": "string",
+                  "enum": [
+                    "development",
+                    "production"
+                  ]
+                },
+                "queries": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "days": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "weights": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "ndcgAt10": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "precisionAt10": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "recallAt10": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "mrr": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "evaluatedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "surface",
+                "strategy",
+                "split",
+                "data",
+                "queries",
+                "days",
+                "weights",
+                "ndcgAt10",
+                "precisionAt10",
+                "recallAt10",
+                "mrr",
+                "evaluatedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "days",
+          "generatedAt",
+          "minimumServed",
+          "windowHours",
+          "surfaces",
+          "search",
+          "offline"
+        ],
+        "additionalProperties": false
+      },
+      "PersonalizationSettings": {
+        "type": "object",
+        "description": "Account-wide (both roles). personalize: use my activity to personalise (off: nothing is stored and recommendations use only the profile, follows and \"Not interested\"). searchHistory: keep my searches.",
+        "properties": {
+          "personalize": {
+            "type": "boolean"
+          },
+          "searchHistory": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "personalize",
+          "searchHistory"
+        ],
+        "additionalProperties": false
+      },
+      "PersonalizationUpdate": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "personalize",
+              "searchHistory"
+            ]
+          },
+          "value": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "PersonalizationExport": {
+        "type": "object",
+        "description": "Everything kept for recommendations about the account, and what is inferred from it (F10).",
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "choices": {
+            "$ref": "#/components/schemas/PersonalizationSettings"
+          },
+          "retention": {
+            "type": "object",
+            "properties": {
+              "watchHistoryDays": {
+                "type": "integer"
+              },
+              "searchHistoryDays": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "watchHistoryDays",
+              "searchHistoryDays"
+            ],
+            "additionalProperties": false
+          },
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "workspace": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "professional",
+                    "recruiter"
+                  ]
+                },
+                "inferredInterests": {
+                  "type": "object",
+                  "properties": {
+                    "skills": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "number"
+                      }
+                    },
+                    "organizations": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "number"
+                      }
+                    },
+                    "locations": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "number"
+                      }
+                    },
+                    "arrangements": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "required": [
+                    "skills",
+                    "organizations",
+                    "locations",
+                    "arrangements"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "workspace",
+                "kind",
+                "inferredInterests"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "watchHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "workspace": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "itemKind": {
+                  "type": "string"
+                },
+                "itemId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "surface": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "position": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "dwellMs": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "occurredAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "workspace",
+                "action",
+                "itemKind",
+                "itemId",
+                "surface",
+                "position",
+                "dwellMs",
+                "occurredAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "searchHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "workspace": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "scope": {
+                  "type": "string"
+                },
+                "filters": {
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "resultCount": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "workspace",
+                "query",
+                "source",
+                "scope",
+                "filters",
+                "resultCount",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "servedLists": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "workspace": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "surface": {
+                  "type": "string"
+                },
+                "strategy": {
+                  "type": "string"
+                },
+                "servedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "position": {
+                        "type": "integer"
+                      },
+                      "itemKind": {
+                        "type": "string"
+                      },
+                      "itemId": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "required": [
+                      "position",
+                      "itemKind",
+                      "itemId"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "workspace",
+                "surface",
+                "strategy",
+                "servedAt",
+                "items"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "generatedAt",
+          "choices",
+          "retention",
+          "workspaces",
+          "watchHistory",
+          "searchHistory",
+          "servedLists"
+        ],
+        "additionalProperties": false
+      },
+      "SearchResultOpened": {
+        "type": "object",
+        "description": "A result opened from a search (F4b).",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "person",
+              "company",
+              "post",
+              "job",
+              "update",
+              "talent",
+              "project"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "query",
+          "kind",
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "CareerJourneyData": {
+        "type": "object",
+        "description": "Career journey data (memories, colleagues, timeline). Detailed schema: to be completed by the API owner.",
+        "additionalProperties": true
+      }
+    }
+  }
+}

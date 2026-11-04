@@ -1,5 +1,5 @@
 import {readFileSync,writeFileSync} from "node:fs";
-const root=new URL("../../../",import.meta.url),read=(p)=>JSON.parse(readFileSync(new URL(p,root),"utf8"));
+const root=new URL("../", import.meta.url),read=(p)=>JSON.parse(readFileSync(new URL(p,root),"utf8"));
 const api=read("contracts/openapi/phase-3.json"),rules=read("contracts/validation/job.json"),application=read("contracts/validation/application.json"),recruiting=read("contracts/validation/recruiting.json"),s=api.components.schemas;
 const str={type:"string"},int={type:"integer"},num={type:"number"},bool={type:"boolean"},uuid={...str,format:"uuid"},ref=(name)=>({$ref:`#/components/schemas/${name}`}),array=(items,maxItems)=>({type:"array",items,...(maxItems?{maxItems}:{})}),object=(properties,required=Object.keys(properties),additionalProperties=false)=>({type:"object",properties,required,additionalProperties}),nullable=(v)=>({anyOf:[v,{type:"null"}]}),enumeration=(values)=>({...str,enum:values}),revision={...int,minimum:1},numeric={anyOf:[str,num]};
 s.ScreeningQuestion=object({id:uuid,text:{...str,maxLength:240},type:enumeration(["text","yesno","number"]),required:bool,ideal:{...str,maxLength:200},version:int},["id","text","type","required","ideal"]);

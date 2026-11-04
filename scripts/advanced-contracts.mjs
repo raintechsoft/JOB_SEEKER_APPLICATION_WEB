@@ -1,5 +1,6 @@
-import {readFileSync,writeFileSync} from "node:fs";
-const root=new URL("../../../",import.meta.url);
+import {mkdirSync,readFileSync,writeFileSync} from "node:fs";
+const root=new URL("../", import.meta.url);
+const apiRoot=new URL("../../api/", import.meta.url);
 const api=JSON.parse(readFileSync(new URL("contracts/openapi/phase-8.json",root),"utf8"));
 // Phase 11 also carries endpoints authored directly in the backend copy (recommendations, personalization,
 // career journey). They live in phase-11-additions.json and are merged in so regeneration keeps them; on a
@@ -14,6 +15,11 @@ for(const phase of [9,10,11]){
  // rules-2 considers up to 500 candidates, so phase 11 no longer pins the rules-1 limit of 200.
  if(phase===11)delete api.components.schemas.BaselineRecommendations.properties.candidateLimit.const;
  if(phase===11)merge(api,JSON.parse(readFileSync(new URL("contracts/openapi/phase-11-additions.json",root),"utf8")));
- const target=new URL(`contracts/openapi/phase-${phase}.json`,root),output=JSON.stringify(api,null,2)+"\n";
- if(process.argv.includes("--check")){if(readFileSync(target,"utf8").replaceAll("\r\n","\n")!==output)throw new Error(`Phase ${phase} contract is stale`);}else writeFileSync(target,output);
+ const output=JSON.stringify(api,null,2)+"\n";
+ const targets=[new URL(`contracts/openapi/phase-${phase}.json`,root)];
+ if(phase===11)targets.push(new URL("contracts/openapi/phase-11.json",apiRoot));
+ for(const target of targets){
+  if(process.argv.includes("--check")){if(readFileSync(target,"utf8").replaceAll("\r\n","\n")!==output)throw new Error(`Phase ${phase} contract is stale`);}
+  else{mkdirSync(new URL(".",target),{recursive:true});writeFileSync(target,output);}
+ }
 }

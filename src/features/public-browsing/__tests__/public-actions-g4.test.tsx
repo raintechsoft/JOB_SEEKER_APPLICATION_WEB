@@ -10,7 +10,7 @@ import {apiConfig} from "@/services/api/config";
 import {AuthActionHost} from "@/features/auth/auth-action-host";
 import {useAuthActionStore} from "@/features/auth/auth-action-store";
 import {useModalStore} from "@/stores/modal-store";
-import exampleData from "../../../../../../contracts/examples/public-browsing.json";
+import exampleData from "../../../../contracts/examples/public-browsing.json";
 import {publicEntrySchema,publicCommentSchema} from "@/lib/validation/public-browsing";
 import {PublicEntryCard,PublicShareControls} from "../public-entry-card";
 import {PublicCommentComposer,PublicCommentMenu} from "../public-comment-actions";

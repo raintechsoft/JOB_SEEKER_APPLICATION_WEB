@@ -1,5 +1,5 @@
 import {z} from "zod";
-import searchPolicy from "../../../../../contracts/validation/global-search.json";
+import searchPolicy from "../../../contracts/validation/global-search.json";
 import {publicCommentsPageSchema,publicCommentsQuerySchema,publicEntryIdSchema,publicEntrySchema,publicFeedPageSchema,publicFeedQuerySchema,publicSearchPageSchema,publicSearchQuerySchema,type PublicCommentsQuery,type PublicFeedQuery,type PublicSearchQuery} from "@/lib/validation/public-browsing";
 
 export type PublicReadOptions={signal?:AbortSignal};

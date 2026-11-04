@@ -8,7 +8,7 @@ import {apiConfig} from "@/services/api/config";
 import type {AuthSession} from "@/services/auth/auth.service";
 import type {Role} from "@/types/domain";
 import {guestActionDecision,guestActionSchema,type GuestAction} from "@/lib/domain/guest-access";
-import policy from "../../../../../contracts/validation/public-browsing.json";
+import policy from "../../../contracts/validation/public-browsing.json";
 import {closeAuthAction,nextActionId,useAuthActionStore,type ActionRequest} from "./auth-action-store";
 import {actionContinuation} from "./auth-continuation";
 

@@ -3,8 +3,9 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { z } from "zod";
 
-const root = new URL("../../../", import.meta.url);
-export const catalog = JSON.parse(readFileSync(new URL("contracts/realtime/events.v1.json", root), "utf8"));
+const apiRealtime = new URL("../../api/contracts/realtime/", import.meta.url);
+const webRealtime = new URL("../src/services/realtime/contracts/", import.meta.url);
+export const catalog = JSON.parse(readFileSync(new URL("events.v1.json", apiRealtime), "utf8"));
 const closed = (properties) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
 
 export function buildSchema() {
@@ -35,19 +36,17 @@ export function acceptsSignal(signal, subscriptionAudience) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  const target = new URL("contracts/realtime/signal.v1.schema.json", root);
+  const target = new URL("signal.v1.schema.json", apiRealtime);
   const content = JSON.stringify(buildSchema(), null, 2) + "\n";
   if (process.argv.includes("--write")) writeFileSync(target, content);
   else if (readFileSync(target, "utf8") !== content) throw new Error("Realtime schema differs; run npm run realtime:contracts to regenerate.");
   for (const name of ["events.v1.json", "signal.v1.schema.json"]) {
-    const source = readFileSync(new URL(`contracts/realtime/${name}`, root), "utf8");
-    for (const directory of ["apps/api/contracts/realtime", "apps/web/src/services/realtime/contracts"]) {
-    const mirror = new URL(`${directory}/${name}`, root);
+    const source = readFileSync(new URL(name, apiRealtime), "utf8");
+    const mirror = new URL(name, webRealtime);
     if (process.argv.includes("--write")) {
       mkdirSync(new URL(".", mirror), { recursive: true });
       writeFileSync(mirror, source);
-    } else if (readFileSync(mirror, "utf8") !== source) throw new Error(`Realtime API mirror differs: ${name}`);
-    }
+    } else if (readFileSync(mirror, "utf8") !== source) throw new Error(`Realtime web mirror differs: ${name}`);
   }
-  console.log(`Realtime schema and API mirrors ${process.argv.includes("--write") ? "generated" : "match"}; ${catalog.events.length} event types.`);
+  console.log(`Realtime schema and web mirrors ${process.argv.includes("--write") ? "generated" : "match"}; ${catalog.events.length} event types.`);
 }

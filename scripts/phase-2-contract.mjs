@@ -1,6 +1,6 @@
 // Deterministic Phase 2 schema derived from the shared field contracts.
 import { readFileSync, writeFileSync } from "node:fs";
-const root = new URL("../../../", import.meta.url);
+const root = new URL("../", import.meta.url);
 const read = (path) => JSON.parse(readFileSync(new URL(path, root), "utf8"));
 const profile = read("contracts/validation/profile.json"), org = read("contracts/validation/organization.json"), onboarding = read("contracts/validation/onboarding.json");
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
