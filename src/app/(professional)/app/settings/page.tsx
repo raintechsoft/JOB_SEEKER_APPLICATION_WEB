@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-
-import { SettingsScreen } from "@/features/settings/settings-screen";
+import { SettingsApp } from "@/features/settings/settings-layout";
 
 export const metadata: Metadata = { title: "settings" };
 
 export default function Page() {
-  return <SettingsScreen />;
+  return <SettingsApp role="professional" />;
 }

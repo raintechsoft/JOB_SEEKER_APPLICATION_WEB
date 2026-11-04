@@ -11,9 +11,14 @@ export function createHttpAuthService(http: HttpClient, onSessionChange: () => v
   const resetReads=()=>{sessionEpoch++;pendingSession=null;};
   const changed=()=>new ApiError("Workspace context changed.",412,{message:"Your account workspace changed. Reload this page before continuing."});
   const bind = (session: AuthSession) => { const changed=!observed||observed.user!==session.user.id||observed.workspace!==session.selected_identity_id;http.setUserContext(session.user.id); observed={user:session.user.id,workspace:session.selected_identity_id};if(changed)onBound(session);return session; };
-  const authenticate=async(action:()=>Promise<AuthSession>)=>{resetReads();const result=await action();resetReads();onSessionChange();observed=null;return bind(result);};
+  const authenticate=async(action:()=>Promise<AuthSession>)=>{resetReads();const epoch=sessionEpoch;const result=await action();if(epoch!==sessionEpoch)throw changed();resetReads();http.setUserContext(null);onSessionChange();observed=null;return bind(result);};
   const signOut=async(action:()=>Promise<unknown>)=>{resetReads();await action();resetReads();http.setUserContext(null);observed=null;onSessionChange();};
   return {
+    inspect: () => get<AuthSession>("auth/me"),
+    refreshSession: async () => {
+      try { return await authenticate(() => get<AuthSession>("auth/me")); }
+      catch (error) { if (error instanceof ApiError && [401,403,419].includes(error.status)) { resetReads(); http.setUserContext(null); observed=null; onSessionChange(); } throw error; }
+    },
     login: (input, portal = "professional") => authenticate(()=>post<AuthSession>(portal === "admin" ? "auth/login" : `auth/${portal}/login`, input)),
     register: (input) => authenticate(()=>post<AuthSession>("auth/register", input)),
     me: () => {
@@ -38,7 +43,7 @@ export function createHttpAuthService(http: HttpClient, onSessionChange: () => v
     employerVerify: (id, input) => http.post(`registration-intents/${encodeURIComponent(id)}/verify`, input),
     employerFinalize: (id, input) => authenticate(()=>post<AuthSession>(`registration-intents/${encodeURIComponent(id)}/finalize`, input)),
     completeExternalSignIn: () => authenticate(()=>get<AuthSession>("auth/me")),
-    acceptInvitation: (token) => post("invitations/accept", { token }),
+    acceptInvitation: (token) => authenticate(() => post<AuthSession>("invitations/accept", { token })),
     organization: (id) => get(`organizations/${encodeURIComponent(id)}`),
     invite: async (id, input) => { await http.post(`organizations/${encodeURIComponent(id)}/invitations`, input); },
     updateMember: (organization, member, input) => http.patch(`organizations/${encodeURIComponent(organization)}/members/${encodeURIComponent(member)}`, input),

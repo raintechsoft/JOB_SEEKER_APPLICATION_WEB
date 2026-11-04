@@ -1,7 +1,7 @@
 .feed-people-search { padding: 18px 22px; margin-bottom: 18px; }
 .professional-search { position: relative; }
 .mobile-workspace-search { display:none; }
-@media (max-width:1200px) and (min-width:851px), (max-width:680px) { .mobile-workspace-search { display:inline-flex; align-items:center; justify-content:center; } }
+@media (max-width:1200px) and (min-width:851px) { .mobile-workspace-search { display:inline-flex; align-items:center; justify-content:center; } }
 .header-search-clear { flex-shrink:0; width:30px; height:30px; display:grid; place-items:center; border:0; border-radius:50%; background:transparent; color:#626b76; cursor:pointer; }
 .header-search-clear:hover, .header-search-clear:focus-visible { background:#edf1f7; outline:2px solid #315ef4; }
 .header-search-clear .icon { width:16px; height:16px; }

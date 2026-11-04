@@ -204,6 +204,8 @@ function DocumentSelection({
           <FileDrop
             id={inputId}
             inputRef={fileRef}
+            section="job-application"
+            use="resume"
             label=""
             srLabel="Choose a resume"
             accept={accept}

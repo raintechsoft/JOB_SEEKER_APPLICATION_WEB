@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
   "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next-staging/types/**/*.ts", ".next-staging/dev/types/**/*.ts"],
-  "exclude": ["node_modules", ".next", "test-results", "playwright-report"]
+  "exclude": ["node_modules", ".next", ".next-staging/dev", "test-results", "playwright-report"]
 }

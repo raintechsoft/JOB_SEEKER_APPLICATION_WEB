@@ -65,13 +65,13 @@ test("real professional signup, verification, refresh, logout, login, recovery a
   await page.goto("/signup?role=professional");
   const writes: string[] = [];
   page.on("request", (r) => { if (r.method() === "POST" && r.url().includes("/auth/register")) writes.push(r.url()); });
-  await page.getByRole("button", { name: "SUBMIT", exact: true }).click();
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page.getByText("Add your full name.")).toBeVisible();
   expect(writes).toHaveLength(0);
   await page.getByRole("textbox", { name: "Full name" }).fill("Independent Professional");
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill(password);
-  await page.getByRole("button", { name: "SUBMIT", exact: true }).click();
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page).toHaveURL(/\/verify-email$/);
   await expect(page.locator("[data-demo-code]")).toHaveCount(0);
   { const code = await delivered(email, "Your Skillora verification code"); for (let i=0;i<6;i++) await page.locator(`[data-otp-index="${i}"]`).fill(code[i]); }
@@ -80,7 +80,7 @@ test("real professional signup, verification, refresh, logout, login, recovery a
   await expect(page.getByRole("main", { name: "Your feed", exact: true })).toBeVisible();
   await page.goto("/verify-email");
   await expect(page).toHaveURL(/\/app\/dashboard$/);
-  await page.goto("/app/account");
+  await page.goto("/app/settings/account");
   await page.reload();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("skillora-demo-v1"))).toBeNull();
@@ -93,7 +93,7 @@ test("real professional signup, verification, refresh, logout, login, recovery a
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill(password);
   const deniedEmployer = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/auth/employer/login"));
-  await page.getByRole("button", { name: "LOGIN", exact: true }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   expect((await deniedEmployer).status()).toBe(422);
   await expect(page).toHaveURL(/\/employer\/login\?role=professional$/);
   await expect(page.getByRole("alert").filter({ hasText: "These credentials could not be verified." })).toBeVisible();
@@ -101,12 +101,12 @@ test("real professional signup, verification, refresh, logout, login, recovery a
   await expect(page).toHaveURL(/\/login\?/);
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill(password);
-  await page.getByRole("button", { name: "LOGIN", exact: true }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/dashboard$/);
   await page.goto("/forgot-password");
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   const issued = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/auth/forgot-password"));
-  await page.getByRole("button", { name: "SEND RESET CODE", exact: true }).click();
+  await page.getByRole("button", { name: "Send reset code", exact: true }).click();
   const resetMetadata = (await (await issued).json()).data;
   const resetCode = await delivered(email, "Your Skillora password reset code");
   const outsider = await browser.newContext();
@@ -122,7 +122,7 @@ test("real professional signup, verification, refresh, logout, login, recovery a
     await expect(outsiderPage.getByLabel(/^New password/)).toHaveCount(0);
   } finally { await outsider.close(); }
   for (let i = 0; i < 6; i++) await page.locator(`[data-otp-index="${i}"]`).fill(resetCode[i]);
-  await page.getByRole("button", { name: "VERIFY CODE", exact: true }).click();
+  await page.getByRole("button", { name: "Verify code", exact: true }).click();
   await expect(page).toHaveURL(/\/reset-password$/);
   await page.reload(); // Permission comes from the backend session, not component state.
   await page.getByLabel(/^New password/).fill("replacement password");
@@ -133,7 +133,7 @@ test("real professional signup, verification, refresh, logout, login, recovery a
   await expect(page).toHaveURL(/\/login\?/);
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill("replacement password");
-  await page.getByRole("button", { name: "LOGIN", exact: true }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/dashboard$/);
   const passwordPage = await page.goto("/change-password");
   if (passwordPage?.status() !== 200) {
@@ -165,7 +165,7 @@ test("professional public-page navigation retains the existing session", async (
   await page.getByRole("textbox", { name: "Full name" }).fill("Public Navigation Verification");
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill("secure password");
-  await page.getByRole("button", { name: "SUBMIT", exact: true }).click();
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page).toHaveURL(/\/verify-email$/);
   const code = await delivered(email, "Your Skillora verification code");
   for (let i = 0; i < 6; i++) await page.locator(`[data-otp-index="${i}"]`).fill(code[i]);
@@ -209,14 +209,14 @@ test("real five-step employer enrollment, invitations and organization access", 
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill("employer password");
   const deniedProfessional = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/auth/professional/login"));
-  await page.getByRole("button", { name: "LOGIN", exact: true }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   expect((await deniedProfessional).status()).toBe(422);
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/recruiter/access");
   await expect(page).toHaveURL(/\/employer\/login\?next=/);
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill("employer password");
-  await page.getByRole("button", { name: "LOGIN", exact: true }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/recruiter\/dashboard$/);
   await page.goto("/recruiter/access");
   await expect(page.getByRole("heading", { name: "Independent Organization", exact: true })).toBeVisible();
@@ -234,7 +234,7 @@ test("real five-step employer enrollment, invitations and organization access", 
     await invitee.getByRole("textbox", { name: "Full name" }).fill("Invited Professional");
     await invitee.getByRole("textbox", { name: "Email address" }).fill(inviteEmail);
     await invitee.getByLabel(/^Password/).fill("invitee password");
-    await invitee.getByRole("button", { name: "SUBMIT", exact: true }).click();
+    await invitee.getByRole("button", { name: "Create account", exact: true }).click();
     await expect(invitee).toHaveURL(/\/verify-email$/);
     { const code = await delivered(inviteEmail, "Your Skillora verification code"); for (let i=0;i<6;i++) await invitee.locator(`[data-otp-index="${i}"]`).fill(code[i]); }
     await invitee.getByRole("button", { name: /^Verify email$/i }).click();
@@ -262,7 +262,7 @@ test("real five-step employer enrollment, invitations and organization access", 
     expect(saved.status()).toBe(204);
     await expect(page.getByRole("combobox", { name: "Status for Invited Professional" })).toHaveValue("inactive");
     await invitee.reload();
-    await expect(invitee.getByText("You do not have access to this workspace.", { exact: false })).toBeVisible();
+    await expect(invitee.getByText("You don’t have access to this workspace", { exact: false })).toBeVisible();
     await expect(invitee.getByRole("heading", { name: "Independent Organization", exact: true })).toHaveCount(0);
   } finally { await context.close(); }
 });
@@ -273,16 +273,16 @@ async function beginPasswordReset(page: Page) {
   await page.getByRole("textbox", { name: "Full name" }).fill("Expiry Test Account");
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill("initial test password");
-  await page.getByRole("button", { name: "SUBMIT", exact: true }).click();
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page).toHaveURL(/\/verify-email$/);
   await page.goto("/forgot-password");
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   const issued = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/auth/forgot-password"));
-  await page.getByRole("button", { name: "SEND RESET CODE", exact: true }).click();
+  await page.getByRole("button", { name: "Send reset code", exact: true }).click();
   const metadata = (await (await issued).json()).data;
   const code = await delivered(email, "Your Skillora password reset code");
   for (let i = 0; i < 6; i++) await page.locator(`[data-otp-index="${i}"]`).fill(code[i]);
-  await page.getByRole("button", { name: "VERIFY CODE", exact: true }).click();
+  await page.getByRole("button", { name: "Verify code", exact: true }).click();
   await expect(page).toHaveURL(/\/reset-password$/);
   await expect(page.getByRole("timer")).toBeVisible();
   return metadata.expires_at as string;
@@ -301,7 +301,7 @@ test("reset countdown redirects a sleeping page and requires a fresh code reques
   await expect(page.getByRole("alert").filter({ hasText: "Your password reset session" })).toContainText("Request a new code to continue.");
   await expect(page.getByLabel(/^New password/)).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Email address" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "SEND RESET CODE", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send reset code", exact: true })).toBeVisible();
   expect(writes).toHaveLength(1); // Expiry never sends another code automatically.
 });
 
@@ -315,7 +315,7 @@ test("backend recovery invalidation redirects even before the countdown reaches 
   expect(logout.status()).toBe(204);
   await page.getByLabel(/^New password/).fill("replacement password");
   await page.getByLabel(/^Confirm new password/).fill("replacement password");
-  await page.getByRole("button", { name: "RESET PASSWORD", exact: true }).click();
+  await page.getByRole("button", { name: "Reset password", exact: true }).click();
   await expect(page).toHaveURL(/\/forgot-password\?reason=reset-expired$/);
   await expect(page.getByRole("alert").filter({ hasText: "Your password reset session" })).toContainText("Request a new code to continue.");
   await expect(page.getByLabel(/^New password/)).toHaveCount(0);

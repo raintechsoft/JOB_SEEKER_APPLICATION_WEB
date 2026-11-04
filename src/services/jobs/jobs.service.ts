@@ -1,3 +1,4 @@
+import type { ReadScope } from "../realtime/realtime.http";
 import type { CompanySummary } from "@/types/api";
 import type { Id, Job, JobAlert, RecruitmentDetails, Role, SeekerApplication } from "@/types/domain";
 import type { MatchBadgeData } from "@/components/jobs/match-badge";
@@ -27,12 +28,12 @@ export interface ApplyInput {
 export type JobAlertInput = Omit<JobAlert, "id"> & { id?: Id };
 
 export interface JobsService {
-  listOpportunities(query:import("@/lib/validation/search").JobSearchInput):Promise<{items:{job:Job;company:CompanySummary;saved?:boolean;match?:MatchBadgeData|null}[];total:number}>;
+  listOpportunities(query:import("@/lib/validation/search").JobSearchInput, scope?: ReadScope):Promise<{items:{job:Job;company:CompanySummary;saved?:boolean;match?:MatchBadgeData|null}[];total:number}>;
   toggleSave?(id: Id): Promise<{ saved: boolean; persisted?: boolean }>;
-  getJob(id: Id, role: Role): Promise<JobDetail | null>;
+  getJob(id: Id, role: Role, scope?: ReadScope): Promise<JobDetail | null>;
   markSeen(id: Id): Promise<boolean>;
   apply(input: ApplyInput): Promise<void>;
-  listAlerts(): Promise<JobAlert[]>;
+  listAlerts(scope?: ReadScope): Promise<JobAlert[]>;
   saveAlert(input: JobAlertInput): Promise<void>;
   toggleAlert(id: Id): Promise<boolean | null>;
   deleteAlert(id: Id): Promise<void>;

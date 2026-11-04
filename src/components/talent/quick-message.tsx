@@ -42,7 +42,7 @@ export function QuickMessage({ candidateId, name, role = "recruiter" }: { candid
   return (
     <form className="stack" onSubmit={submit} noValidate>
       <TextAreaField label={"Message to " + name} name="message" value={text} maxLength={contract.messageMax} rows={5} required autoFocus onChange={(e) => setText(e.target.value)} error={error || undefined} />
-      <p className="small muted">They’ll see this in their Skillora messages. You can continue the conversation from Messages.</p>
+      
       <div className="row between">
         <Button variant="text" onClick={() => modal.close()} disabled={pending}>
           Cancel

@@ -1,5 +1,4 @@
 import type { Draft } from "immer";
-import { paginate } from "@/types/api";
 import type { DemoDatabase, Id, Job, Post, Role, SocialGraph, WorkUpdate } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
 import { companySummary, feedPerson, jobCompany, personSummary, projectSummary } from "@/mocks/store/presenters";
@@ -22,8 +21,15 @@ export function blockedInMock(db: DemoDatabase, role: Role, author: Id) {
   return !!socialFor(db, role).blocked?.includes(author) || author === ME_ID && !!db.social.blocked?.includes(me) || author === RECRUITER_ID && !!db.recruiterSocial.blocked?.includes(me);
 }
 
+function companyBlockedInMock(db: DemoDatabase, role: Role, companyId: Id) {
+  return !!(socialFor(db, role).blockedCompanies ?? []).includes(companyId);
+}
+
 function sourceVisible(db: DemoDatabase, role: Role, item: RawItem) {
-  return item.type === "job" || item.owner === identityId(role) || !blockedInMock(db, role, item.owner) && item.visibility !== "Private" && (item.owner === RECRUITER_ID || person(db, item.owner).public);
+  if (item.type === "job") return !companyBlockedInMock(db, role, item.company);
+  if (item.owner === identityId(role)) return true;
+  if (item.owner === RECRUITER_ID && companyBlockedInMock(db, role, homeCompany(db).id)) return false;
+  return !blockedInMock(db, role, item.owner) && item.visibility !== "Private" && (item.owner === RECRUITER_ID || person(db, item.owner).public);
 }
 
 function networkRepost(db: DemoDatabase, role: Role, id: Id, preferOwn = true) {
@@ -86,6 +92,7 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
     likes: item.likes ?? 0,
     comments,
     commentCount: comments.length,
+    commentsEnabled: item.type === "post" ? item.commentsEnabled !== false : true,
     repost: networkRepost(db, role, item.id),
     project: project ? projectSummary(project) : undefined,
   };
@@ -116,7 +123,7 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
       viewer: { liked: s.liked.includes(item.id), saved: s.saved.includes(item.id), following: s.followingCompanies.includes(company.id), own: ownedByViewer, reposted: false, canRepost: false },
     };
   }
-  return {
+  const entry: FeedEntry = {
     ...base,
     type: item.type,
     ownerId: item.owner,
@@ -131,6 +138,22 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
     author: feedPerson(db, item.owner),
     viewer: { liked: s.liked.includes(item.id), saved: s.saved.includes(item.id), following: s.following.includes(item.owner), own: item.owner === viewerId, reposted: !!s.repostDates?.[item.id], canRepost: item.owner === viewerId || item.visibility !== "Private" },
   };
+  if (item.type === "post" && item.linkedJobId) {
+    const job = db.social.jobs.find((j) => j.id === item.linkedJobId);
+    if (job) {
+      entry.linkedJob = {
+        id: job.id,
+        title: job.title,
+        location: job.location,
+        arrangement: job.arrangement,
+        employment: job.employment,
+        ownedByViewer: role === "recruiter" && job.company === homeCompany(db).id,
+        applied: db.social.applications.some((a) => a.job === job.id),
+        open: isJobOpen(job),
+      };
+    }
+  }
+  return entry;
 }
 
 /** Demo "For you": skills the viewer has (or, for a recruiter, hires for) first, then people and companies followed. */
@@ -199,10 +222,13 @@ export const mockFeedService: FeedService = {
     const db = getDb();
     const list = filterItems(db, query);
     const rank = recommendation(db, query.role);
-    const page = paginate(list.map((item) => ({ ...toFeedEntry(db, query.role, item), ...(query.sort === "recommended" ? { recommendationReason: rank(item).reason } : {}) })), 1, query.limit);
+    const ranked = list.map((item) => ({ ...toFeedEntry(db, query.role, item), ...(query.sort === "recommended" ? { recommendationReason: rank(item).reason } : {}) }));
+    const offset = query.cursor && /^\d+$/.test(query.cursor) ? Number(query.cursor) : 0;
+    const items = ranked.slice(offset, offset + query.limit);
+    const nextCursor = offset + query.limit < ranked.length ? String(offset + query.limit) : null;
     const s = socialFor(db, query.role);
-    const suggestions = query.role === "professional" ? db.professionals.filter((p) => p.id !== ME_ID && p.public && !blockedInMock(db, query.role, p.id) && !s.following.includes(p.id)).slice(0, 3).map(p => personSummary(p, db)) : [];
-    return { ...page, suggestions };
+    const suggestions = db.professionals.filter((p) => p.id !== identityId(query.role) && p.public && !blockedInMock(db, query.role, p.id) && !s.following.includes(p.id)).slice(0, 3).map(p => personSummary(p, db));
+    return { items, total: ranked.length, page: 1, pageSize: query.limit, pages: Math.max(1, Math.ceil(ranked.length / query.limit)), suggestions, nextCursor };
   },
 
   async getEntry(role, id) {
@@ -264,15 +290,20 @@ export const mockFeedService: FeedService = {
     return following;
   },
 
-  async toggleFollowCompany(role, companyId) {
+  async toggleFollowCompany(role, companyId, enabled) {
+    if (enabled !== false && companyBlockedInMock(getDb(), role, companyId)) throw new Error("This organization cannot be followed.");
     let following = false;
     commit((db) => {
-      following = toggleIn(graph(db, role).followingCompanies, companyId);
+      const list = graph(db, role).followingCompanies;
+      following = enabled ?? !list.includes(companyId);
+      if (following !== list.includes(companyId)) toggleIn(list, companyId);
     });
     return following;
   },
 
   async addComment(role, postId, text, parentId) {
+    const entry = await mockFeedService.getEntry(role, postId);
+    if (entry && !entry.commentsEnabled) throw new Error("Comments are turned off for this post.");
     commit((db) => {
       (db.social.comments[postId] ??= []).push({ id: uid(), owner: identityId(role), text, createdAt: new Date().toISOString(), parentId });
     });
@@ -317,6 +348,25 @@ export const mockFeedService: FeedService = {
       if (other) { other.following = other.following.filter(target => target !== me); other.followers = other.followers.filter(target => target !== me); }
     });
   },
+  async blockPerson(role, personId) {
+    if (personId === identityId(role)) throw new Error("You cannot block your own account.");
+    commit(db => {
+      const s = graph(db, role), me = identityId(role);
+      s.blocked ??= []; if (!s.blocked.includes(personId)) s.blocked.push(personId);
+      s.following = s.following.filter(target => target !== personId);
+      s.followers = s.followers.filter(target => target !== personId);
+      const other = personId === ME_ID ? db.social : personId === RECRUITER_ID ? db.recruiterSocial : null;
+      if (other) { other.following = other.following.filter(target => target !== me); other.followers = other.followers.filter(target => target !== me); }
+    });
+  },
+  async blockOrganization(role, organizationId) {
+    commit(db => {
+      const s = graph(db, role);
+      s.blockedCompanies ??= [];
+      if (!s.blockedCompanies.includes(organizationId)) s.blockedCompanies.push(organizationId);
+      s.followingCompanies = s.followingCompanies.filter((id) => id !== organizationId);
+    });
+  },
   async reportComment(role, commentId, reason, details) {
     const value = reportSchema.parse({reason, details});
     const postId = Object.keys(getDb().social.comments).find(id => getDb().social.comments[id].some(c => c.id === commentId));
@@ -324,8 +374,26 @@ export const mockFeedService: FeedService = {
     if (!comment || !comment.canReport) throw new Error("This comment cannot be reported.");
     commit(db => { (graph(db, role).commentReports ??= []).push({commentId, ...value, createdAt: new Date().toISOString()}); });
   },
+  async reportPerson(role, personId, reason, details) {
+    if (personId === identityId(role)) throw new Error("You cannot report your own profile.");
+    reportSchema.parse({reason, details});
+  },
+  async reportOrganization(_role, _organizationId, reason, details) {
+    reportSchema.parse({reason, details});
+  },
   async getBlocked(role) { return (socialFor(getDb(), role).blocked ?? []).map(id => ({ identityId: id, person: feedPerson(getDb(), id) })); },
   async unblock(role, id) { commit(db => { const s = graph(db, role); s.blocked = (s.blocked ?? []).filter(target => target !== id); }); },
+  async getBlockedOrganizations(role) {
+    const db = getDb();
+    const ids = socialFor(db, role).blockedCompanies ?? [];
+    return db.companies.filter((c) => ids.includes(c.id)).map((c) => ({ organizationId: c.id, company: companySummary(db, c) }));
+  },
+  async unblockOrganization(role, organizationId) {
+    commit((db) => {
+      const s = graph(db, role);
+      s.blockedCompanies = (s.blockedCompanies ?? []).filter((id) => id !== organizationId);
+    });
+  },
 
   async getNetwork(role): Promise<Network> {
     const db = getDb();
@@ -343,6 +411,9 @@ export const mockFeedService: FeedService = {
     const id = uid();
     const image = input.attachments.find((m) => m.type === "image");
     const video = input.attachments.find((m) => m.type === "video");
+    const quick = input.quickJob?.enabled ? input.quickJob : null;
+    if (quick && role !== "recruiter") throw new Error("Only recruiters can attach a quick job to a post.");
+    const linkedJobId = quick ? uid() : undefined;
     const post: Post = {
       id,
       owner: identityId(role),
@@ -357,9 +428,35 @@ export const mockFeedService: FeedService = {
       createdAt: new Date().toISOString(),
       likes: 0,
       kind: input.attachments.length ? "Media post" : input.project ? "Project showcase" : "Professional update",
+      commentsEnabled: input.commentsEnabled,
+      linkedJobId,
     };
     const ok = commit(
       (db) => {
+        if (quick && linkedJobId) {
+          const company = homeCompany(db);
+          db.social.jobs.unshift({
+            id: linkedJobId,
+            company: company.id,
+            title: quick.title.trim(),
+            location: quick.locations.join(" · "),
+            arrangement: quick.arrangement,
+            employment: quick.employment,
+            salary: "Salary not disclosed",
+            hideSalary: true,
+            skills: ["General"],
+            description: input.body.trim() || "See the linked post for details about this opportunity.",
+            responsibilities: ["Contribute to the role described in this opportunity."],
+            requirements: "Relevant experience for this role.",
+            createdAt: new Date().toISOString(),
+            publishedAt: new Date().toISOString(),
+            likes: 0,
+            art: "cobalt",
+            companyDisplayName: company.name,
+            thumbnail: { template: "none", image: "", alt: "", headline: "" },
+            jobMedia: { video: "", files: [] },
+          });
+        }
         db.social.posts.unshift(post);
         delete db.postEditorDrafts[role];
       },
@@ -402,6 +499,64 @@ export const mockFeedService: FeedService = {
       found = true;
       p.title = input.title;
       p.body = input.body;
+      if (input.project !== undefined) p.project = input.project;
+      if (input.commentsEnabled !== undefined) p.commentsEnabled = input.commentsEnabled;
+      if (input.attachments !== undefined) {
+        p.attachments = input.attachments.map((m) => ({ ...m }));
+        const image = input.attachments.find((m) => m.type === "image");
+        const video = input.attachments.find((m) => m.type === "video");
+        p.image = image?.src || "";
+        p.imageAlt = image?.alt || input.title;
+        p.video = video?.src || "";
+      }
+      if (input.quickJob !== undefined) {
+        if (input.quickJob.enabled && role !== "recruiter") throw new Error("Only recruiters can attach a quick job to a post.");
+        if (input.quickJob.enabled) {
+          const company = homeCompany(db);
+          if (p.linkedJobId) {
+            const job = db.social.jobs.find((j) => j.id === p.linkedJobId);
+            if (job) {
+              job.title = input.quickJob.title.trim();
+              job.location = input.quickJob.locations.join(" · ");
+              job.arrangement = input.quickJob.arrangement;
+              job.employment = input.quickJob.employment;
+              job.description = input.body.trim() || job.description;
+            }
+          } else {
+            const linkedJobId = uid();
+            p.linkedJobId = linkedJobId;
+            db.social.jobs.unshift({
+              id: linkedJobId,
+              company: company.id,
+              title: input.quickJob.title.trim(),
+              location: input.quickJob.locations.join(" · "),
+              arrangement: input.quickJob.arrangement,
+              employment: input.quickJob.employment,
+              salary: "Salary not disclosed",
+              hideSalary: true,
+              skills: ["General"],
+              description: input.body.trim() || "See the linked post for details about this opportunity.",
+              responsibilities: ["Contribute to the role described in this opportunity."],
+              requirements: "Relevant experience for this role.",
+              createdAt: new Date().toISOString(),
+              publishedAt: new Date().toISOString(),
+              likes: 0,
+              art: "cobalt",
+              companyDisplayName: company.name,
+              thumbnail: { template: "none", image: "", alt: "", headline: "" },
+              jobMedia: { video: "", files: [] },
+            });
+          }
+        } else if (p.linkedJobId) {
+          const hasApps = db.social.applications.some((a) => a.job === p.linkedJobId);
+          const job = db.social.jobs.find((j) => j.id === p.linkedJobId);
+          if (hasApps || (job && isJobOpen(job))) throw new Error("This post still has an open job or applications, so the quick job cannot be removed.");
+          p.linkedJobId = undefined;
+        }
+      } else if (p.linkedJobId) {
+        const job = db.social.jobs.find((j) => j.id === p.linkedJobId);
+        if (job) job.description = input.body.trim() || job.description;
+      }
       p.editedAt = new Date().toISOString();
     });
     return found;

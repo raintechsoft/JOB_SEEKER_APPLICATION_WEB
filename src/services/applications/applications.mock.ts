@@ -13,17 +13,21 @@ export function companyName(db: DemoDatabase, j: Job | undefined) {
   return j.hideCompany ? "Confidential company" : j.companyDisplayName || db.companies.find((c) => c.id === j.company)?.name || "Company unavailable";
 }
 
-const ref = (db: DemoDatabase, j: Job): JobRef => ({
-  id: j.id,
-  title: j.title,
-  companyId: j.company,
-  companyName: companyName(db, j),
-  location: j.location,
-  arrangement: j.arrangement,
-  employment: j.employment,
-  salary: j.salary,
-  description: j.description,
-});
+const ref = (db: DemoDatabase, j: Job): JobRef => {
+  const company = jobCompany(db, j);
+  return {
+    id: j.id,
+    title: j.title,
+    companyId: j.company,
+    companyName: companyName(db, j),
+    companyVerified: company.verified === true,
+    location: j.location,
+    arrangement: j.arrangement,
+    employment: j.employment,
+    salary: j.salary,
+    description: j.description,
+  };
+};
 
 const matchesQuery = (db: DemoDatabase, j: Job | undefined, q: string) => !q || [j?.title, companyName(db, j), j?.location, ...(j?.skills || [])].join(" ").toLowerCase().includes(q);
 

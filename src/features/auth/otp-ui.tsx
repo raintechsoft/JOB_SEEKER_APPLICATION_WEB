@@ -9,7 +9,7 @@ export function readOtpCode(form: HTMLFormElement | null): string {
   return Array.from({ length: 6 }, (_, i) => String(data.get("otp-" + i) || "")).join("");
 }
 
-export function OtpFields({ error, legend = "Enter the 6-digit OTP" }: { error?: string; legend?: string }) {
+export function OtpFields({ error, legend = "Enter the 6-digit code" }: { error?: string; legend?: string }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const focus = (i: number) => refs.current[Math.max(0, Math.min(5, i))]?.focus();
   const onPaste = (e: ClipboardEvent<HTMLInputElement>, start: number) => {
@@ -41,7 +41,7 @@ export function OtpFields({ error, legend = "Enter the 6-digit OTP" }: { error?:
             pattern="[0-9]"
             maxLength={1}
             required
-            aria-label={"OTP digit " + (i + 1)}
+            aria-label={"Code digit " + (i + 1)}
             autoComplete={i === 0 ? "one-time-code" : "off"}
             data-otp-index={i}
             onInput={(e) => {
@@ -77,7 +77,7 @@ export function OtpExpiry({ expiresAt }: { expiresAt: number | null }) {
   </p>;
 }
 
-export function OtpResend({ sentAt, onResend, disabled = false, label = "Resend OTP" }: { sentAt: number | null; onResend: () => void; disabled?: boolean; label?: string }) {
+export function OtpResend({ sentAt, onResend, disabled = false, label = "Resend code" }: { sentAt: number | null; onResend: () => void; disabled?: boolean; label?: string }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);

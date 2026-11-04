@@ -7,13 +7,14 @@ const AUTH_THEME_PATHS = ["/login", "/signup", "/employer/login", "/employer/reg
 export function bodyClassesFor(pathname: string): string[] {
   const path = pathname.replace(/\/$/, "") || "/";
   const classes: string[] = [];
-  if (/^\/(app|recruiter|organizations|recruiters)\//.test(path + "/") || AUTH_THEME_PATHS.includes(path)) classes.push("professional-theme");
+  if (path === "/" || /^\/(app|recruiter|organizations|recruiters|professionals)\//.test(path + "/") || /^\/(?:feed(?:\/|$)|search$|jobs$)/.test(path) || AUTH_THEME_PATHS.includes(path)) classes.push("professional-theme");
   if (/^\/(app|recruiter)\/messages$/.test(path)) classes.push("messaging-page");
   if (path === "/recruiter/jobs/new" || /^\/app\/jobs\/[^/]+\/apply$/.test(path)) classes.push("job-wizard-page");
+  if (path === "/recruiter/applications/table") classes.push("responses-table-page");
   return classes;
 }
 
-export const MANAGED_BODY_CLASSES = ["professional-theme", "messaging-page", "job-wizard-page"];
+export const MANAGED_BODY_CLASSES = ["professional-theme", "messaging-page", "job-wizard-page", "responses-table-page"];
 
 /** Inline script that applies the same classes before React hydrates (prevents a theme flash). */
-export const bodyClassScript = `(function(){var p=location.pathname.replace(/\\/$/,"")||"/",c=document.body.classList,a=["/login","/signup","/employer/login","/employer/register","/forgot-password","/reset-password","/verify-email","/change-password","/accept-invitation"];if(/^\\/(app|recruiter|organizations|recruiters)\\//.test(p+"/")||a.indexOf(p)>=0)c.add("professional-theme");if(/^\\/(app|recruiter)\\/messages$/.test(p))c.add("messaging-page");if(p==="/recruiter/jobs/new"||/^\\/app\\/jobs\\/[^/]+\\/apply$/.test(p))c.add("job-wizard-page");})();`;
+export const bodyClassScript = `(function(){var p=location.pathname.replace(/\\/$/,"")||"/",c=document.body.classList,a=["/login","/signup","/employer/login","/employer/register","/forgot-password","/reset-password","/verify-email","/change-password","/accept-invitation"];if(p==="/"||/^\\/(app|recruiter|organizations|recruiters|professionals)\\//.test(p+"/")||/^\\/(?:feed(?:\\/|$)|search$|jobs$)/.test(p)||a.indexOf(p)>=0)c.add("professional-theme");if(/^\\/(app|recruiter)\\/messages$/.test(p))c.add("messaging-page");if(p==="/recruiter/jobs/new"||/^\\/app\\/jobs\\/[^/]+\\/apply$/.test(p))c.add("job-wizard-page");if(p==="/recruiter/applications/table")c.add("responses-table-page");})();`;

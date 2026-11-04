@@ -38,6 +38,14 @@ body.professional-theme .professional-app::before {
   -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 48%,transparent 100%);
   mask-image:linear-gradient(to bottom,#000 0%,#000 48%,transparent 100%);
  }
+ @media(max-width:850px){
+  body.professional-theme .professional-app::before {
+   -webkit-backdrop-filter:blur(8px) saturate(120%);
+   backdrop-filter:blur(8px) saturate(120%);
+   -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 55%,transparent 100%);
+   mask-image:linear-gradient(to bottom,#000 0%,#000 55%,transparent 100%);
+  }
+ }
 }
 @media(prefers-reduced-transparency:reduce){
  body.professional-theme .professional-header {background:#202A36;-webkit-backdrop-filter:none;backdrop-filter:none;}
@@ -49,8 +57,15 @@ body.professional-theme .professional-app::before {
   background:linear-gradient(to bottom,#F6F8FA 0%,#F6F8FA 50%,transparent 100%);
  }
 }
+@media(max-width:850px){
+ /* Compact: keep the fade in the float gap above the navbar, not over page content. */
+ body.professional-theme .professional-app::before {
+  height:36px;margin-bottom:-36px;
+  background:linear-gradient(to bottom,#F6F8FA 0%,rgba(246,248,250,.55) 70%,rgba(246,248,250,0) 100%);
+ }
+}
 @media(max-width:680px){
  body.professional-theme .professional-header {width:calc(100% - 20px);margin-top:10px;top:10px;border-radius:16px;}
- body.professional-theme .professional-app::before {height:170px;margin-bottom:-170px;}
+ body.professional-theme .professional-app::before {height:28px;margin-bottom:-28px;}
 }
 body.messaging-page.professional-theme .professional-app::before {display:none;}

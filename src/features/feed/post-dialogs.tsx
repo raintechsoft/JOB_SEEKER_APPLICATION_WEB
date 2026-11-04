@@ -5,7 +5,7 @@ import type { Id, Role } from "@/types/domain";
 import type { FeedEntry, FeedPage } from "@/services/feed/feed.service";
 import { devCopy } from "@/lib/env/app-env";
 import { useServiceAction, useServices } from "@/hooks/use-services";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Button } from "@/components/ui/primitives";
@@ -16,6 +16,19 @@ import { postTextSchema } from "@/lib/validation/social";
 import { useLinkPreview } from "@/features/posts/use-link-preview";
 import { ComposerLinkPreview } from "@/features/posts/composer-link-preview";
 import { findLinks } from "@/lib/validation/link-preview";
+
+function replaceFeedEntry(current: unknown, fresh: FeedEntry) {
+  if (!current || typeof current !== "object") return current;
+  if ("pages" in current && Array.isArray((current as InfiniteData<FeedPage>).pages)) {
+    const data = current as InfiniteData<FeedPage>;
+    return { ...data, pages: data.pages.map((page) => ({ ...page, items: page.items.map((item) => (item.id === fresh.id ? fresh : item)) })) };
+  }
+  if ("items" in current && Array.isArray((current as FeedPage).items)) {
+    const page = current as FeedPage;
+    return { ...page, items: page.items.map((item) => (item.id === fresh.id ? fresh : item)) };
+  }
+  return current;
+}
 
 export function EditPost({ entry, role }: { entry: FeedEntry; role: Role }) {
   const services=useServices();
@@ -43,9 +56,9 @@ export function EditPost({ entry, role }: { entry: FeedEntry; role: Role }) {
         try {
           const fresh=await services.feed.getEntry(role,entry.id);
           if(fresh){
-            await cache.cancelQueries({predicate:q=>(q.queryKey[0]==="feed"||q.queryKey[0]==="feed-entry")&&q.queryKey[1]===role});
-            cache.setQueriesData<FeedPage>({predicate:q=>q.queryKey[0]==="feed"&&q.queryKey[1]===role},current=>current?{...current,items:current.items.map(item=>item.id===fresh.id?fresh:item)}:current);
-            cache.setQueryData(["feed-entry",role,entry.id],fresh);
+            await cache.cancelQueries({predicate:q=>(q.queryKey[0]==="feed"||q.queryKey[0]==="feed-entry")&&(q.queryKey[1]===role||q.queryKey[3]===role)});
+            cache.setQueriesData({predicate:q=>q.queryKey[0]==="feed"&&(q.queryKey[1]===role||q.queryKey[3]===role)},current=>replaceFeedEntry(current,fresh));
+            cache.setQueriesData({predicate:q=>q.queryKey[0]==="feed-entry"&&(q.queryKey[1]===role&&q.queryKey[2]===entry.id||q.queryKey[3]===role&&q.queryKey[4]===entry.id)},fresh);
           }
         }catch{ /* The edit is committed; keep the confirmed success if a refresh is temporarily unavailable. */ }
         modal.close();

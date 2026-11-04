@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode, type Ref } from "react";
+import { cloneElement, isValidElement, useCallback, useId, useLayoutEffect, useRef, useState, type ComponentProps, type ReactElement, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils/text";
 import { Spinner } from "./spinner";
 import { Icon } from "@/components/ui/icon";
@@ -17,6 +17,20 @@ import { Icon } from "@/components/ui/icon";
 type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
 const DATE_TYPES = ["date", "month", "time", "datetime-local", "week"];
+
+/** Native date/month/time fields should open the picker from a click anywhere on the control. */
+export function openNativePicker(input: HTMLInputElement) {
+  if (input.disabled || input.readOnly) return;
+  try {
+    input.showPicker?.();
+  } catch {
+    /* picker already open, or the browser blocked it */
+  }
+}
+
+function isPickerType(type?: string) {
+  return DATE_TYPES.includes(type ?? "");
+}
 
 function setRef<T>(ref: Ref<T> | undefined, value: T | null) {
   if (typeof ref === "function") ref(value);
@@ -91,15 +105,37 @@ function a11y(label: string, props: { "aria-label"?: string; "aria-labelledby"?:
 
 export type FloatingInputProps = Omit<ComponentProps<"input">, "ref"> & FloatingBase & { ref?: Ref<HTMLInputElement> };
 
-export function FloatingInput({ label, compact, wrapClassName, ref, type, ...props }: FloatingInputProps) {
+export function FloatingInput({ label, compact, wrapClassName, ref, type, onClick, ...props }: FloatingInputProps) {
   const id = useId();
   const { wrap, controlRef } = useFloatingSync(ref as Ref<Control>);
   const isPassword = type === "password";
   const [revealed, setRevealed] = useState(false);
   const inputType = isPassword ? (revealed ? "text" : "password") : type;
+  const picker = isPickerType(type);
+  const openPicker = (input: EventTarget | null) => {
+    if (picker && input instanceof HTMLInputElement) openNativePicker(input);
+  };
   return (
-    <span ref={wrap} className={cn("floating-field", DATE_TYPES.includes(type ?? "") && "is-date", isPassword && "has-password-toggle", compact && "is-compact", wrapClassName)} onClick={(e) => e.target === e.currentTarget && (e.currentTarget.firstElementChild as HTMLElement)?.focus()}>
-      <input ref={controlRef} type={inputType} {...props} {...a11y(label, props, id)} />
+    <span
+      ref={wrap}
+      className={cn("floating-field", picker && "is-date", isPassword && "has-password-toggle", compact && "is-compact", wrapClassName)}
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return;
+        const input = e.currentTarget.firstElementChild as HTMLElement | null;
+        input?.focus();
+        openPicker(input);
+      }}
+    >
+      <input
+        ref={controlRef}
+        type={inputType}
+        {...props}
+        {...a11y(label, props, id)}
+        onClick={(event) => {
+          onClick?.(event);
+          if (!event.defaultPrevented) openPicker(event.currentTarget);
+        }}
+      />
       <FloatingLabel id={id} label={label} required={props.required} />
       {isPassword && (
         <button
@@ -199,6 +235,56 @@ export function CheckRow({ children, className, style, ...props }: Omit<Componen
       {children}
       {props.required && <span aria-hidden="true">*</span>}
     </label>
+  );
+}
+
+/** On/off setting shown as a switch; still a native checkbox, so forms and keyboard work unchanged. */
+export function ToggleRow({ children, hint, className, ...props }: Omit<ComponentProps<"input">, "type" | "role"> & { children: ReactNode; hint?: ReactNode }) {
+  return (
+    <label className={cn("toggle-row", className)}>
+      <span className="toggle-row-text">
+        <span>{children}</span>
+        {hint ? <small>{hint}</small> : null}
+      </span>
+      <input type="checkbox" role="switch" {...props} />
+      <span className="toggle-row-switch" aria-hidden="true" />
+    </label>
+  );
+}
+
+/** Static-label control: label stays beside the value, with no floating transition. */
+export function SecondaryField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: ReactElement;
+}) {
+  const id = useId();
+  const errorId = useId();
+  const native = typeof children.type === "string";
+  const extra = native
+    ? {
+        id,
+        className: cn("secondary-input", (children.props as { className?: string }).className),
+        "aria-invalid": error ? true : (children.props as { "aria-invalid"?: boolean })["aria-invalid"],
+        "aria-describedby": error ? errorId : (children.props as { "aria-describedby"?: string })["aria-describedby"],
+      }
+    : { id, error };
+  return (
+    <div className={cn("secondary-field", !native && "has-picker")}>
+      <label htmlFor={id}>{label}</label>
+      <div className="secondary-field-value">
+        {isValidElement(children) ? cloneElement(children, extra as never) : children}
+        {error && native && (
+          <small id={errorId} role="alert" className="auth-field-error">
+            {error}
+          </small>
+        )}
+      </div>
+    </div>
   );
 }
 

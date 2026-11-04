@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import type { TalentSuggestion } from "@/services/talent/talent.service";
 import { SuggestionCard } from "@/components/suggestions/suggestion-card";
 import type { SuggestionCardAction } from "@/components/suggestions/suggestion-card-menu";
@@ -18,7 +19,7 @@ import { useInteractionTracking } from "@/hooks/use-interaction-tracking";
  * Person result in the shared suggestion-card style: name and designation only; Follow below and a
  * corner menu (recruiters: Save to shortlist and Message; job seekers: Message and View profile).
  */
-export function TalentCard({ person: p, publicMode = false, role = "recruiter" }: { person: TalentSuggestion; publicMode?: boolean; role?: "recruiter" | "professional" }) {
+export function TalentCard({ person: p, publicMode = false, role = "recruiter", action }: { person: TalentSuggestion; publicMode?: boolean; role?: "recruiter" | "professional"; action?: ReactNode }) {
   const shortlists = useShortlistDialogs();
   const router = useRouter();
   const run = useServiceAction();
@@ -28,7 +29,7 @@ export function TalentCard({ person: p, publicMode = false, role = "recruiter" }
   const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLDivElement>(publicMode ? null : { kind: "professional", id: p.id }, { surface: "talent", position: p.analyticsContext?.position, requestId: p.analyticsContext?.requestId });
   const setRef = (el: HTMLDivElement | null) => { ref.current = el; watchRef.current = el; };
   // Follow only where the list reports the current state, so the button never shows a guess.
-  const follow = !publicMode && p.following !== undefined ? async () => {
+  const follow = !publicMode && !action && p.following !== undefined ? async () => {
     const next = await run((s) => s.feed.toggleFollow(role, p.id), { invalidate: ["talent", "network", "feed"] });
     if (next === undefined) return;
     track("person_followed", { personId: p.id, following: next });
@@ -49,6 +50,7 @@ export function TalentCard({ person: p, publicMode = false, role = "recruiter" }
         label={"View " + p.name + " profile"}
         following={!!p.following}
         onFollow={follow}
+        action={action}
         menu={menu}
       />
       <MatchBadge match={p.match} showJob />

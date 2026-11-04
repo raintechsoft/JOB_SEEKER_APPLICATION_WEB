@@ -1,13 +1,15 @@
 "use client";
+import { useHiringQuery } from "@/hooks/use-hiring-query";
 
 import { useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { useQueryClient } from "@tanstack/react-query";
-import { useServiceQuery, useServices } from "@/hooks/use-services";
+import { useServices } from "@/hooks/use-services";
 import { Button, EmptyState, IconButton, LinkButton } from "@/components/ui/primitives";
 import { QueryFeedback } from "@/components/ui/query-view";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { errorMessage } from "@/services/api/client";
 import { applicationWizardPath } from "@/lib/domain/application-wizard";
 import { confirmAction } from "@/components/ui/feedback";
@@ -22,14 +24,11 @@ const stepLabel = (step: string) =>
 
 /** First page of drafts, shared with the sidebar count so both read one cached request. */
 export function useApplicationDraftPage(page = 1, enabled = true) {
-  return useServiceQuery(
+  return useHiringQuery(
     ["application-drafts", page],
-    (s) => s.applicationWizard.list({ page, pageSize: PAGE_SIZE }),
+    (s, scope) => s.applicationWizard.list({ page, pageSize: PAGE_SIZE }, scope),
     {
       enabled,
-      keepPreviousData: false,
-      refetchOnWindowFocus: "always",
-      staleTime: 0,
     },
   );
 }
@@ -48,6 +47,7 @@ export function ApplicationDraftList() {
       <QueryFeedback
         data={data}
         error={query.isError}
+        cause={query.error}
         retry={query.refetch}
         label="Loading draft applications"
       />
@@ -55,7 +55,8 @@ export function ApplicationDraftList() {
   if (!data.total)
     return (
       <EmptyState
-        title="No draft applications."
+        icon="file"
+        title="No draft applications"
         description="Applications you start and save without submitting appear here, ready to finish."
         action={
           <LinkButton href="/app/jobs" variant="primary" icon="search">
@@ -128,8 +129,10 @@ export function ApplicationDraftList() {
                     >
                       {draft.title}
                     </a>
-                    <p>
-                      {draft.companyName} · Next step: {stepLabel(draft.step)}
+                    <p className="application-company-line">
+                      <span>{draft.companyName}</span>
+                      <VerifiedCompanyMark company={{ verified: draft.companyVerified, name: draft.companyName }} />
+                      <span> · Next step: {stepLabel(draft.step)}</span>
                     </p>
                     <time dateTime={draft.savedAt}>
                       Saved {new Date(draft.savedAt).toLocaleDateString()} ·

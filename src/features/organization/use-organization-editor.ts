@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Draft } from "immer";
 import type { Organization, RecruiterMember, WorkplaceImage } from "@/types/domain";
 import { useServiceQuery, useServices } from "@/hooks/use-services";
@@ -13,7 +13,7 @@ import { uid } from "@/lib/utils/id";
 import { toast } from "@/stores/toast-store";
 import { useOrganizationDrafts, type OrganizationDraft } from "./draft-store";
 
-export const ADMIN_ONLY = "An organization admin manages this action.";
+export const ADMIN_ONLY = "Only organization admins can change this.";
 
 /** Adds comma/newline separated chip values (unique, case-insensitive, max 20). */
 export function addChips(list: string[], raw: string) {
@@ -27,10 +27,19 @@ export function useOrganizationEditor() {
   const query = useServiceQuery(["organization"], (s) => s.organization.getContext());
   const ctx = query.data;
   const { organization: draft, errors, initOrganization, updateOrganization, discardOrganization, setErrors } = useOrganizationDrafts();
+  const lastSaved = useRef<string | null>(null);
   useEffect(() => {
-    if (ctx && (!draft || draft.organization.id !== ctx.workspace.organization.id)) {
+    if (!ctx) return;
+    const next = { organization: ctx.workspace.organization, verification: ctx.workspace.verification };
+    const previous = lastSaved.current;
+    lastSaved.current = JSON.stringify(next);
+    if (!draft || draft.organization.id !== ctx.workspace.organization.id) {
       if (draft) discardOrganization();
-      initOrganization({ organization: ctx.workspace.organization, verification: ctx.workspace.verification });
+      initOrganization(next);
+    } else if (previous && previous !== lastSaved.current && JSON.stringify(draft) === previous) {
+      // A background refresh adopts the new saved version only while the editor has no local edits; dirty drafts are kept.
+      discardOrganization();
+      initOrganization(next);
     }
   }, [ctx, draft, initOrganization, discardOrganization]);
   const saved = useMemo<OrganizationDraft | null>(() => (ctx ? { organization: ctx.workspace.organization, verification: ctx.workspace.verification } : null), [ctx]);
@@ -65,7 +74,7 @@ export function useImageUploads() {
         for (const file of files) { const error = validateMedia(file, purpose); if (error) throw new Error(error); }
         const context = await services.organization.getContext();
         const images: WorkplaceImage[] = await Promise.all(files.map(async file => {
-          const asset = await services.media.upload(file, purpose, context.workspace.organization.id, {manual:purpose==="gallery"});
+          const asset = await services.media.upload(file, purpose, context.workspace.organization.id);
           return { id: asset.id, url: asset.url, alt: file.name.replace(/\.[^.]+$/, ""), bytes: asset.bytes };
         }));
         if (purpose !== "recruiter_photo" && useOrganizationDrafts.getState().organization?.organization.id !== context.workspace.organization.id) throw new Error("Your workspace changed. Reopen the original organization to continue editing.");
@@ -90,5 +99,7 @@ export function useRecruiterDraft(member: RecruiterMember | undefined) {
   useEffect(() => {
     if (member && !recruiters[member.id]) initRecruiter(member);
   }, [member, recruiters, initRecruiter]);
-  return { draft: member ? recruiters[member.id] : undefined, update: (recipe: (r: Draft<RecruiterMember>) => void) => member && updateRecruiter(member.id, recipe), discard: () => member && discardRecruiter(member.id) };
+  const draft = member ? recruiters[member.id] : undefined;
+  const dirty = !!draft && !!member && JSON.stringify(draft) !== JSON.stringify(member);
+  return { draft, dirty, update: (recipe: (r: Draft<RecruiterMember>) => void) => member && updateRecruiter(member.id, recipe), discard: () => member && discardRecruiter(member.id) };
 }

@@ -1,3 +1,4 @@
+import type { ReadScope } from "../realtime/realtime.http";
 import { z } from "zod";
 import type { components } from "@/types/generated/application-wizard-v2";
 import { applicationContactChallengeSchema, applicationContactVerifySchema, applicationDraftCreateSchema, applicationDraftDiscardSchema, applicationDraftListSchema, type ApplicationWizardValidationContext } from "@/lib/validation/application-wizard";
@@ -9,17 +10,17 @@ type Schema = components["schemas"];
 /** Typed application draft, contact, review and submission transport. Laravel remains authoritative. */
 export function createHttpApplicationDraftService(http: HttpClient, onSubmitted:()=>void=()=>{}) {
   return {
-    async context(jobId: string): Promise<Schema["ApplicationContext"]> {
+    async context(jobId: string, scope?: ReadScope): Promise<Schema["ApplicationContext"]> {
       z.uuid().parse(jobId);
-      return (await http.get<{data: Schema["ApplicationContext"]}>(`jobs/${jobId}/application-context`)).data;
+      return (await http.get<{data: Schema["ApplicationContext"]}>(`jobs/${jobId}/application-context`,undefined,scope)).data;
     },
-    async read(draftId: string): Promise<Schema["ApplicationDraft"]> {
+    async read(draftId: string, scope?: ReadScope): Promise<Schema["ApplicationDraft"]> {
       z.uuid().parse(draftId);
-      return (await http.get<{data: Schema["ApplicationDraft"]}>(`me/application-drafts/${draftId}`)).data;
+      return (await http.get<{data: Schema["ApplicationDraft"]}>(`me/application-drafts/${draftId}`,undefined,scope)).data;
     },
-    async list(input: unknown = {}): Promise<Schema["ApplicationDraftPage"]> {
+    async list(input: unknown = {}, scope?: ReadScope): Promise<Schema["ApplicationDraftPage"]> {
       const query = applicationDraftListSchema.parse(input);
-      return (await http.get<{data: Schema["ApplicationDraftPage"]}>("me/application-drafts", query)).data;
+      return (await http.get<{data: Schema["ApplicationDraftPage"]}>("me/application-drafts", query,scope)).data;
     },
     async create(jobId: string, input: unknown): Promise<Schema["ApplicationDraft"]> {
       z.uuid().parse(jobId);
@@ -51,13 +52,13 @@ export function createHttpApplicationDraftService(http: HttpClient, onSubmitted:
       const values = applicationContactVerifySchema.parse(input);
       return (await http.post<{data: Schema["ApplicationProofStatus"]}>(`me/application-drafts/${draftId}/contact-challenges/${challengeId}/verify`, values)).data;
     },
-    async review(draftId:string):Promise<Schema["ApplicationReview"]> {
+    async review(draftId:string,scope?:ReadScope):Promise<Schema["ApplicationReview"]> {
       z.uuid().parse(draftId);
-      return (await http.get<{data:Schema["ApplicationReview"]}>(`me/application-drafts/${draftId}/review`)).data;
+      return (await http.get<{data:Schema["ApplicationReview"]}>(`me/application-drafts/${draftId}/review`,undefined,scope)).data;
     },
-    async receipt(applicationId:string):Promise<Schema["ApplicationReceipt"]> {
+    async receipt(applicationId:string,scope?:ReadScope):Promise<Schema["ApplicationReceipt"]> {
       z.uuid().parse(applicationId);
-      return (await http.get<{data:Schema["ApplicationReceipt"]}>(`me/applications/${applicationId}/receipt`)).data;
+      return (await http.get<{data:Schema["ApplicationReceipt"]}>(`me/applications/${applicationId}/receipt`,undefined,scope)).data;
     },
     async submit(jobId:string,input:unknown,values:ApplicationWizardValues,context:ApplicationWizardValidationContext):Promise<Schema["ApplicationReceipt"]> {
       const command=validateApplicationSubmission(jobId,input,values,context);

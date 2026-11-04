@@ -10,6 +10,10 @@ import { GlobalShortcuts } from "@/components/layout/global-shortcuts";
 import { apiConfig } from "@/services/api/config";
 import { RecoveryNavigation } from "@/features/auth/recovery-navigation";
 import { UploadTray } from "@/features/workspace/upload-tray";
+import {AuthActionHost} from "@/features/auth/auth-action-host";
+import {AccountEntryBoundary} from "@/features/auth/account-entry-boundary";
+import { NumericInputGuard } from "@/components/ui/numeric-input-guard";
+import {RealtimeProvider} from "./realtime-provider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [services] = useState(createServices);
@@ -30,11 +34,15 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ServicesContext.Provider value={services}>
       <QueryClientProvider client={queryClient}>
-        <RecoveryNavigation>{children}</RecoveryNavigation>
+        <RealtimeProvider>
+        <RecoveryNavigation><AccountEntryBoundary>{children}</AccountEntryBoundary></RecoveryNavigation>
         <GlobalShortcuts />
         <ModalHost />
         <Toaster />
         <UploadTray />
+        <AuthActionHost />
+        <NumericInputGuard />
+        </RealtimeProvider>
       </QueryClientProvider>
     </ServicesContext.Provider>
   );

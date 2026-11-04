@@ -1,0 +1,303 @@
+{
+  "entry": {
+    "id": "10000000-0000-4000-8000-000000000001",
+    "kind": "post",
+    "path": "/feed/10000000-0000-4000-8000-000000000001",
+    "title": "A public project milestone",
+    "body": "Synthetic public content for contract testing.",
+    "publishedAt": "2026-10-30T08:00:00Z",
+    "author": {
+      "id": "10000000-0000-4000-8000-000000000002",
+      "kind": "professional",
+      "name": "Synthetic Public Author",
+      "headline": "Engineer",
+      "profilePath": "/professionals/synthetic-author",
+      "picture": null
+    },
+    "company": null,
+    "media": [],
+    "counts": {
+      "likes": 3,
+      "comments": 1,
+      "reposts": 0
+    },
+    "job": null
+  },
+  "comment": {
+    "id": "10000000-0000-4000-8000-000000000003",
+    "entryId": "10000000-0000-4000-8000-000000000001",
+    "parentId": null,
+    "author": {
+      "id": "10000000-0000-4000-8000-000000000002",
+      "kind": "professional",
+      "name": "Synthetic Public Author",
+      "headline": "Engineer",
+      "profilePath": "/professionals/synthetic-author",
+      "picture": null
+    },
+    "text": "A public comment.",
+    "createdAt": "2026-10-30T08:01:00Z",
+    "pinned": false
+  },
+  "externalVideoUrls": [
+    {"url":"https://media.example.org/public/intro.mp4","valid":true},
+    {"url":"https://media.example.org/public/intro.WEBM","valid":true},
+    {"url":"https://media.example.org/private.mp4?X-Amz-Signature=secret","valid":false},
+    {"url":"https://name:secret@media.example.org/private.mp4","valid":false},
+    {"url":"https://media.example.org:8443/intro.mp4","valid":false},
+    {"url":"http://media.example.org/intro.mp4","valid":false},
+    {"url":"https://127.0.0.1/intro.mp4","valid":false},
+    {"url":"https://media.internal/intro.mp4","valid":false},
+    {"url":"https://media.test/intro.mp4","valid":false},
+    {"url":"https://media.example.org/intro.mp4#secret","valid":false},
+    {"url":"https://media.example.org/intro.html","valid":false},
+    {"url":"javascript:alert(1)","valid":false}
+  ],
+  "queries": [
+    {
+      "name": "default public feed",
+      "operation": "feed",
+      "input": {},
+      "valid": true
+    },
+    {
+      "name": "public feed numeric URL limit",
+      "operation": "feed",
+      "input": {
+        "limit": "10",
+        "filter": "jobs"
+      },
+      "valid": true
+    },
+    {
+      "name": "no saved guest feed",
+      "operation": "feed",
+      "input": {
+        "filter": "saved"
+      },
+      "valid": false
+    },
+    {
+      "name": "no following guest feed",
+      "operation": "feed",
+      "input": {
+        "filter": "following"
+      },
+      "valid": false
+    },
+    {
+      "name": "no guest recommender",
+      "operation": "feed",
+      "input": {
+        "sort": "recommended"
+      },
+      "valid": false
+    },
+    {
+      "name": "no forged identity",
+      "operation": "feed",
+      "input": {
+        "identity": "10000000-0000-4000-8000-000000000001"
+      },
+      "valid": false
+    },
+    {
+      "name": "bounded feed limit",
+      "operation": "feed",
+      "input": {
+        "limit": 41
+      },
+      "valid": false
+    },
+    {
+      "name": "comments focus",
+      "operation": "comments",
+      "input": {
+        "focus": "10000000-0000-4000-8000-000000000003"
+      },
+      "valid": true
+    },
+    {
+      "name": "reject comment cursor arrays",
+      "operation": "comments",
+      "input": {
+        "cursor": [
+          "x"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "public company search",
+      "operation": "search",
+      "input": {
+        "q": "Northstar",
+        "scope": "companies",
+        "industry": "Software"
+      },
+      "valid": true
+    },
+    {
+      "name": "guest people location search",
+      "operation": "search",
+      "input": {
+        "q": "Engineer",
+        "scope": "people",
+        "location": "Chennai"
+      },
+      "valid": true
+    },
+    {
+      "name": "job pay basis preserved",
+      "operation": "search",
+      "input": {
+        "q": "Developer",
+        "scope": "jobs",
+        "salaryMin": 20000,
+        "currency": "INR",
+        "compensationPeriod": "month"
+      },
+      "valid": true
+    },
+    {
+      "name": "reject recruiter scope",
+      "operation": "search",
+      "input": {
+        "q": "Engineer",
+        "scope": "talent"
+      },
+      "valid": false
+    },
+    {
+      "name": "reject unrelated filter",
+      "operation": "search",
+      "input": {
+        "q": "Update",
+        "scope": "posts",
+        "industry": "Software"
+      },
+      "valid": false
+    },
+    {
+      "name": "reject compensation without currency",
+      "operation": "search",
+      "input": {
+        "q": "Developer",
+        "scope": "jobs",
+        "salaryMin": 20000
+      },
+      "valid": false
+    },
+    {
+      "name": "reject compensation sort without period",
+      "operation": "search",
+      "input": {
+        "q": "Developer",
+        "scope": "jobs",
+        "sort": "salary_asc",
+        "currency": "INR"
+      },
+      "valid": false
+    },
+    {
+      "name": "reject reversed experience",
+      "operation": "search",
+      "input": {
+        "q": "Developer",
+        "scope": "jobs",
+        "experienceMin": 5,
+        "experienceMax": 2
+      },
+      "valid": false
+    },
+    {
+      "name": "reject reversed compensation",
+      "operation": "search",
+      "input": {
+        "q": "Developer",
+        "scope": "jobs",
+        "currency": "INR",
+        "salaryMin": 50000,
+        "salaryMax": 20000
+      },
+      "valid": false
+    },
+    {
+      "name": "reject private account query",
+      "operation": "search",
+      "input": {
+        "q": "Engineer",
+        "role": "recruiter"
+      },
+      "valid": false
+    },
+    {
+      "name": "reject one letter search",
+      "operation": "search",
+      "input": {
+        "q": "a"
+      },
+      "valid": false
+    },
+    {
+      "name": "reject invalid limit types",
+      "operation": "search",
+      "input": {
+        "q": "Engineer",
+        "limit": true
+      },
+      "valid": false
+    },
+    {
+      "name": "reject category mismatch selection",
+      "operation": "search",
+      "input": {
+        "q": "Northstar",
+        "scope": "companies",
+        "selected": "person:10000000-0000-4000-8000-000000000001"
+      },
+      "valid": false
+    },
+    {
+      "name": "reject cursor whitespace",
+      "operation": "feed",
+      "input": {
+        "cursor": " opaque "
+      },
+      "valid": false
+    },
+    {
+      "name": "reject null character before trimming",
+      "operation": "search",
+      "input": {
+        "q": "\u0000Engineer\u0000"
+      },
+      "valid": false
+    },
+    {
+      "name": "reject leading control character",
+      "operation": "search",
+      "input": {
+        "q": "\u000bEngineer"
+      },
+      "valid": false
+    },
+    {
+      "name": "Unicode query length counts characters",
+      "operation": "search",
+      "input": {
+        "q": "😀😀"
+      },
+      "valid": true
+    },
+    {
+      "name": "reject malformed selected identifier",
+      "operation": "search",
+      "input": {
+        "q": "Engineer",
+        "selected": "person:------------------------------------"
+      },
+      "valid": false
+    }
+  ]
+}

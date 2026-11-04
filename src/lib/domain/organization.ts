@@ -14,16 +14,6 @@ export const ORGANIZATION_SECTIONS = {
 
 export type OrganizationSection = keyof typeof ORGANIZATION_SECTIONS;
 
-export const ORGANIZATION_SECTION_DESCRIPTIONS: Record<OrganizationSection, string> = {
-  overview: "The essentials that help candidates recognize your company.",
-  about: "Tell candidates what your organization does and what drives it.",
-  culture: "Show how your team works, learns, and connects.",
-  hiring: "Shape your hiring presence and preview your active opportunities.",
-  verification: devCopy("Manage private registration details and demo review requests.", "Manage private registration details and verification requests."),
-  team: "Manage the people who represent your organization on Skillora.",
-  contact: "Control public contact details and private communication preferences.",
-};
-
 export const ORGANIZATION_ROLES = ["Organization Admin", "Recruiter", "Hiring Manager"] as const;
 
 export const isOrganizationSection = (v: string | null): v is OrganizationSection => !!v && Object.hasOwn(ORGANIZATION_SECTIONS, v);
@@ -87,11 +77,22 @@ export type PublicOrganization = ReturnType<typeof publicOrganization>;
 
 /** Public recruiter identity: no account email, internal role or permissions. */
 export function publicRecruiter(r: RecruiterMember) {
-  const { id, organizationId, fullName, avatarUrl, jobTitle, professionalBio, hiringDepartments, hiringLocations, professionalLinks, profileVisibility } = r;
-  return { id, organizationId, fullName, avatarUrl, jobTitle, professionalBio, hiringDepartments, hiringLocations, professionalLinks, profileVisibility };
+  const { id, organizationId, fullName, avatarUrl, jobTitle, professionalBio, hiringDepartments, hiringLocations, professionalLinks, profileVisibility, followerCount = 0 } = r;
+  return { id, organizationId, fullName, avatarUrl, jobTitle, professionalBio, hiringDepartments, hiringLocations, professionalLinks, profileVisibility, followerCount };
 }
 
 export type PublicRecruiter = ReturnType<typeof publicRecruiter>;
+
+/** Strict gate for org-profile DTOs: badge only when status is exactly Verified. */
+export function isVerifiedOrganizationStatus(status: VerificationStatus | string | null | undefined): boolean {
+  return status === "Verified";
+}
+
+/** Strict gate for company DTOs: badge only when verified === true and not confidential. */
+export function isVerifiedCompany(company: { verified?: boolean; confidential?: boolean; name?: string } | null | undefined): boolean {
+  if (!company || company.confidential || company.name === "Confidential company") return false;
+  return company.verified === true;
+}
 
 export const VERIFICATION_NEXT_STEP: Record<VerificationStatus, string> = {
   "Not started": "Add your registration and representative details to start.",

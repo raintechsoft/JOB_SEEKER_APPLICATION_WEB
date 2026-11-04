@@ -19,38 +19,33 @@ async function signup(page: Page) {
   await page.getByRole("textbox", { name: "Full name" }).fill("Phase Two Professional");
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill("phase two password");
-  await page.getByRole("button", { name: "SUBMIT", exact: true }).click();
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
   { const code = await secret(email); for (let i=0;i<6;i++) await page.locator(`[data-otp-index="${i}"]`).fill(code[i]); }
   await page.getByRole("button", { name: /^Verify email$/i }).click();
   await expect(page).toHaveURL(/\/app\/dashboard$/);
   return email;
 }
 
-test("real onboarding, profile validation, private resume, refresh and public projection", async ({ page, browser }) => {
+test("hidden onboarding redirects, profile validation, private resume, refresh and public projection", async ({ page, browser }) => {
   const errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
   const email = await signup(page);
   await page.goto("/onboarding");
-  const writes: string[] = []; page.on("request", (r) => { if (r.method() === "POST" && r.url().includes("/me/onboarding")) writes.push(r.url()); });
-  await page.getByRole("button", { name: "Save & continue", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Professional headline" })).toHaveAttribute("aria-invalid", "true"); expect(writes).toHaveLength(0);
-  await page.getByRole("textbox", { name: "Professional headline" }).fill("Backend Engineer");
-  await page.getByRole("textbox", { name: "Location", exact: true }).fill("Bengaluru, India");
-  await page.getByRole("spinbutton", { name: "Years of experience" }).fill("3");
-  await page.getByRole("button", { name: "Save & continue", exact: true }).click();
-  await expect(page.getByLabel("Select your CV")).toBeVisible();
-  await expect(page.getByLabel("Select your CV")).toBeEnabled();
-  await page.getByLabel("Select your CV").setInputFiles({ name: "resume.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF") });
-  await page.getByRole('complementary',{name:'Media uploads'}).getByRole('button',{name:'Upload',exact:true}).click();
-  await expect(page.getByRole("status")).toContainText("resume.pdf uploaded.");
-  await page.getByRole("button", { name: "Save & continue", exact: true }).click();
-  await page.getByRole("textbox", { name: "Key skills (comma separated)" }).fill("PHP, SQL");
-  await page.getByRole("textbox", { name: "Experience", exact: true }).fill("Engineer building independently tested systems.");
-  await page.getByRole("textbox", { name: "Education", exact: true }).fill("BSc in Computer Science");
-  await page.getByRole("button", { name: "Save & continue", exact: true }).click();
-  await page.getByRole("checkbox", { name: "Make my professional profile visible in the talent directory" }).check();
-  await page.getByRole("button", { name: "Enter my workspace" }).click();
-  await expect(page).toHaveURL(/\/app\/profile$/);
+  await expect(page).toHaveURL(/\/app\/dashboard$/);
+  await expect(page.getByText("Onboarding CV", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save & continue", exact: true })).toHaveCount(0);
+  await page.goto("/app/profile");
   await expect(page.getByRole("heading", { name: /^Phase Two Professional/ })).toBeVisible();
+  await page.getByRole("button", { name: "Edit basic profile" }).click();
+  const identity = page.getByRole("dialog");
+  await identity.getByRole("textbox", { name: "Headline" }).fill("Backend Engineer");
+  await identity.getByRole("textbox", { name: "City" }).fill("Bengaluru");
+  const publicToggle = identity.getByRole("switch", { name: /Make my professional profile public/ });
+  if (!(await publicToggle.isChecked())) await publicToggle.check();
+  await identity.getByRole("button", { name: "Save changes" }).click();
+  await expect(identity).toHaveCount(0);
+  await page.getByRole("combobox", { name: "Profile section" }).selectOption("resume");
+  await page.getByLabel("Upload resume").setInputFiles({ name: "resume.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF") });
+  await page.getByRole('complementary',{name:'Media uploads'}).getByRole('button',{name:'Upload',exact:true}).click();
   await expect(page.getByRole('heading',{name:'resume.pdf',exact:true})).toBeVisible();
   await page.reload(); await expect(page.getByRole('heading',{name:'resume.pdf',exact:true})).toBeVisible();
   await page.getByRole('link',{name:'Key skills',exact:true}).click();

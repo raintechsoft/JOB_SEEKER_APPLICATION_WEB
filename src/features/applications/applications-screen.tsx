@@ -1,4 +1,5 @@
 "use client";
+import { useHiringQuery } from "@/hooks/use-hiring-query";
 
 import { InfoBadge } from "@/components/ui/info-badge";
 import {ApplicationSharingDetails} from "./application-sharing-details";
@@ -8,7 +9,7 @@ import {applicationWizardEnabled} from "./application-wizard-policy";
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trackingSchema } from "@/lib/validation/application";
 import { validationFields } from "@/lib/validation/profile";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -17,13 +18,17 @@ import type { Id } from "@/types/domain";
 import { type ApplicationCounts, type AlertRecord, type ApplicationRecord, type SavedJobRecord } from "@/services/applications/applications.service";
 import { formatLongDate } from "@/lib/utils/date";
 import { track } from "@/lib/analytics";
-import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
+import { useServiceAction, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Button, EmptyState, LinkButton, PageHeading } from "@/components/ui/primitives";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
+import { cn } from "@/lib/utils/text";
 import { FloatingInput, TextAreaField, TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
+import { ErrorState } from "@/components/ui/state-views";
+import { ContentSkeleton } from "@/components/ui/skeleton";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
 import { useJobActions } from "@/features/feed/job-dialogs";
@@ -34,6 +39,10 @@ import { ApplicationFilters, applicationFilter, type ApplicationFilter } from ".
 
 type Tab = "applied" | "saved" | "alerts" | "drafts";
 const TABS: Record<Tab, string> = { applied: "Applied jobs", saved: "Saved jobs", alerts: "Job alerts", drafts: "Draft applications" };
+const SECTION_TITLES: Record<Tab, string> = { applied: "Your applications", saved: "Saved opportunities", alerts: "Job alerts", drafts: "Draft applications" };
+const DESKTOP_LAYOUT = "(min-width: 851px)";
+const isApplicationTab = (value: string | null, drafts: boolean): value is Tab =>
+  !!value && (Object.keys(TABS) as Tab[]).includes(value as Tab) && (value !== "drafts" || drafts);
 const demoDate = (v?: string) => (v ? formatLongDate(String(v).slice(0, 10)) : "Not set");
 const statusClass = (s: string) => (["Interview", "Offer", "Shortlisted", "Hired"].includes(s) ? "positive" : s === "Rejected" ? "negative" : "pending");
 
@@ -57,8 +66,10 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
     >
       <div>
         <h3>{a.jobRef?.title || "Archived opportunity"}</h3>
-        <p className="small muted">
-          {a.jobRef?.companyName ?? "Company unavailable"} · Applied {demoDate(a.createdAt)}
+        <p className="small muted application-company-line">
+          <span>{a.jobRef?.companyName ?? "Company unavailable"}</span>
+          <VerifiedCompanyMark company={{ verified: a.jobRef?.companyVerified, name: a.jobRef?.companyName }} />
+          <span> · Applied {demoDate(a.createdAt)}</span>
         </p>
       </div>
       {errors._form&&<p role="alert">{errors._form}</p>}
@@ -77,16 +88,21 @@ function TrackingForm({ a }: { a: ApplicationRecord }) {
 }
 
 function Details({ id }: { id: Id }) {
-  const { data: a } = useServiceQuery(["application", id], (s) => s.applications.getApplication(id), {keepPreviousData:false,refetchInterval:10_000,refetchOnWindowFocus:"always",staleTime:0});
+  const query = useHiringQuery(["application", id], (s, scope) => s.applications.getApplication(id, scope));
+  const a = query.data;
   const dialogs = useApplicationDialogs();
   const jobs = useJobActions();
-  if (!a) return null;
+  if (!a && query.isError) return <ErrorState compact error={query.error} title="This application couldn’t load" description="Something interrupted the request. Please try again." onRetry={() => void query.refetch()} />;
+  if (a === null) return <EmptyState compact icon="compass" title="This application isn’t available" description="It may have been withdrawn or removed." action={<Button onClick={() => modal.close()}>Close</Button>} />;
+  if (!a) return <ContentSkeleton layout="form" label="Loading application" />;
   return (
     <div className="stack">
       <div>
         <h3>{a.jobRef?.title || "Archived opportunity"}</h3>
-        <p className="small muted">
-          {a.jobRef?.companyName ?? "Company unavailable"} · {demoDate(a.createdAt)}
+        <p className="small muted application-company-line">
+          <span>{a.jobRef?.companyName ?? "Company unavailable"}</span>
+          <VerifiedCompanyMark company={{ verified: a.jobRef?.companyVerified, name: a.jobRef?.companyName }} />
+          <span> · {demoDate(a.createdAt)}</span>
         </p>
       </div>
       {a.sharing&&<ApplicationSharingDetails sharing={a.sharing} applicationId={a.id}/>}
@@ -174,18 +190,30 @@ export function ApplicationsScreen() {
   // Drafts exist only where the application wizard is enabled.
   const drafts = applicationWizardEnabled();
   const draftPage = useApplicationDraftPage(1, drafts);
-  const requested = params.get("tab") as Tab;
-  const tab: Tab = (Object.keys(TABS) as Tab[]).includes(requested) && (requested !== "drafts" || drafts) ? requested : "applied";
+  const requested = params.get("tab");
+  const isIndex = !isApplicationTab(requested, drafts);
+  const tab: Tab = isApplicationTab(requested, drafts) ? requested : "applied";
   const q = params.get("q") || "";
   const savedView = params.get("savedView") === "archived" ? "archived" : "active";
   const unfilteredUrl = "/app/applications?tab=" + tab + (tab === "saved" && savedView === "archived" ? "&savedView=archived" : "");
   const status = tab === "applied" ? applicationFilter(params.get("status")) : "";
-  const { data: overview } = useServiceQuery(["applications", "overview"], (s) => s.applications.getOverview());
-  const { data: results, isError, refetch } = useServiceQuery(["applications", tab, q, status, savedView], async (s): Promise<{items:(ApplicationRecord | SavedJobRecord | AlertRecord)[];counts?:ApplicationCounts}> => {
+  const { data: overview } = useHiringQuery(["applications", "overview"], (s, scope) => s.applications.getOverview(scope));
+  const { data: results, isError, error, refetch } = useHiringQuery(["applications", tab, q, status, savedView], async (s, scope): Promise<{items:(ApplicationRecord | SavedJobRecord | AlertRecord)[];counts?:ApplicationCounts}> => {
     if (tab === "drafts") return {items:[]};
-    if (tab === "applied") return s.applications.getApplicationResults({q,status});
-    return {items:tab === "saved" ? await s.applications.listSavedJobs({q,state:savedView}) : await s.applications.listAlerts({q})};
-  }, {keepPreviousData:false,refetchInterval:tab === "applied" ? 10_000 : undefined,refetchOnWindowFocus:"always",staleTime:0});
+    if (tab === "applied") return s.applications.getApplicationResults({q,status},scope);
+    return {items:tab === "saved" ? await s.applications.listSavedJobs({q,state:savedView},scope) : await s.applications.listAlerts({q},scope)};
+  });
+  useEffect(() => {
+    if (!isIndex) return;
+    const media = window.matchMedia?.(DESKTOP_LAYOUT);
+    if (!media) return;
+    const go = () => {
+      if (media.matches) router.replace("/app/applications?tab=applied");
+    };
+    go();
+    media.addEventListener("change", go);
+    return () => media.removeEventListener("change", go);
+  }, [isIndex, router]);
   const list = results?.items;
   const selectStatus = (nextStatus: ApplicationFilter) => {
     const next = new URLSearchParams({tab:"applied"});
@@ -207,10 +235,10 @@ export function ApplicationsScreen() {
 
   const filtered = !!(q || status);
   const EMPTY: Record<Tab, [string, string]> = {
-    applied: ["Your next chapter starts with a first step.", devCopy("Demo jobs you apply to appear here, ready for your notes and next steps.", "Jobs you apply to appear here, ready for your notes and next steps.")],
-    saved: ["Keep promising opportunities close.", "Save jobs from the feed or jobs panel to revisit them here. Saved social posts stay in your feed."],
-    alerts: ["Put your next role on your radar.", "Create an alert for the job titles, skills, and locations you’re interested in."],
-    drafts: ["No draft applications.", "Applications you start and save without submitting appear here, ready to finish."],
+    applied: ["Your next chapter starts with a first step", devCopy("Demo jobs you apply to appear here, ready for your notes and next steps.", "Jobs you apply to appear here, ready for your notes and next steps.")],
+    saved: ["Keep promising opportunities close", "Save jobs from the feed or jobs panel to revisit them here. Saved social posts stay in your feed."],
+    alerts: ["Put your next role on your radar", "Create an alert for the job titles, skills, and locations you’re interested in."],
+    drafts: ["No draft applications", "Applications you start and save without submitting appear here, ready to finish."],
   };
   const sections: [Tab, string, number, IconName][] = [
     ["applied", "Your applications", overview?.counts.applied ?? 0, "briefcase"],
@@ -220,9 +248,20 @@ export function ApplicationsScreen() {
   ];
 
   return (
-    <div className="applications-workspace">
+    <div className={cn("applications-workspace", isIndex ? "is-index" : "is-section")}>
       <PageHeading
-        title="Job Tracker"
+        title={
+          <>
+            {!isIndex && (
+              <Link href="/app/applications" className="application-back" aria-label="Back to Job Tracker">
+                <Icon name="chevron" />
+                Job Tracker
+              </Link>
+            )}
+            <span className="application-heading-index">Job Tracker</span>
+            {!isIndex && <span className="application-heading-section">{SECTION_TITLES[tab]}</span>}
+          </>
+        }
         subtitle=""
         actions={
           <>
@@ -235,25 +274,28 @@ export function ApplicationsScreen() {
           </>
         }
       />
-      <div className="application-layout">
+      <div className={cn("application-layout", isIndex ? "is-index" : "is-section")}>
         <aside className="card application-sidebar">
           <h2>Your opportunities</h2>
           <nav aria-label="Application sections">
             {sections.map(([t, label, count, icon]) => (
-              <Link key={t} href={"/app/applications?tab=" + t} className={tab === t ? "active" : ""} aria-current={tab === t ? "page" : undefined}>
+              <Link key={t} href={"/app/applications?tab=" + t} className={!isIndex && tab === t ? "active" : ""} aria-current={!isIndex && tab === t ? "page" : undefined}>
                 <span className="application-section-label">
                   <Icon name={icon} />
                   <span>{label}</span>
                 </span>
                 <span className="application-section-count">{count}</span>
+                <Icon name="chevron" />
               </Link>
             ))}
           </nav>
         </aside>
         <div className="application-content">
-          <h2 className="application-content-title">{{ applied: "Your applications", saved: "Saved opportunities", alerts: "Job alerts", drafts: "Draft applications" }[tab]}</h2>
+          <div className="application-content-heading">
+            <h2 className="application-content-title">{SECTION_TITLES[tab]}</h2>
+            {tab === "applied" && <ApplicationFilters counts={results?.counts} value={status} onSelect={selectStatus} />}
+          </div>
           {tab === "saved" && <nav className="saved-job-views" aria-label="Saved opportunity views">{(["active","archived"] as const).map(view => <Link key={view} href={"/app/applications?" + new URLSearchParams({tab:"saved",...(q ? {q} : {}),...(view === "archived" ? {savedView:"archived"} : {})})} aria-current={savedView === view ? "page" : undefined}>{view === "active" ? "Saved" : "Archived"}</Link>)}</nav>}
-          {tab === "applied" && <ApplicationFilters counts={results?.counts} value={status} onSelect={selectStatus} />}
           {tab === "drafts" ? <section className="application-record-list" aria-label={TABS.drafts}><ApplicationDraftList /></section> : <>
           <div className="application-toolbar">
             <form
@@ -273,21 +315,17 @@ export function ApplicationsScreen() {
                 <Icon name="search" />
                 Search
               </button>
-              {filtered && (
-                <LinkButton href={unfilteredUrl} variant="text sm" icon="close">
-                  Clear
-                </LinkButton>
-              )}
             </form>
 
           </div>
           <section className="application-record-list" aria-label={TABS[tab]}>
-            <QueryFeedback data={list} error={isError} retry={refetch} label="Loading your applications" />
+            <QueryFeedback data={list} error={isError} cause={error} retry={refetch} label="Loading your applications" />
             {list && list.length
               ? tab === "saved" ? <SavedOpportunities key={q + savedView} items={list as SavedJobRecord[]} view={savedView} /> : tab === "applied" ? <AppliedOpportunities items={list as ApplicationRecord[]} onEdit={applicationDialogs.edit} /> : <JobAlertsList items={list as AlertRecord[]} />
               : list && (
                   <EmptyState
-                    title={filtered ? "No matching records." : tab === "saved" && savedView === "archived" ? "No archived opportunities." : EMPTY[tab][0]}
+                    icon={filtered ? "search" : tab === "saved" && savedView === "archived" ? "archive" : tab === "saved" ? "bookmark" : tab === "alerts" ? "bell" : "briefcase"}
+                    title={filtered ? "No matching records" : tab === "saved" && savedView === "archived" ? "No archived opportunities" : EMPTY[tab][0]}
                     description={filtered ? "Clear the search or status filter to see more." : tab === "saved" && savedView === "archived" ? "Jobs you archive from Saved will appear here." : EMPTY[tab][1]}
                     action={
                       filtered ? (

@@ -18,6 +18,8 @@ export interface SearchResult {
   industry?: string;
   companyName?: string;
   followerCount?: number;
+  /** Confirmed organization verification for company/job company names. */
+  verified?: boolean;
   /** Why this result is shown to this person, e.g. "Hiring for React · You follow". */
   reason?: string;
 }

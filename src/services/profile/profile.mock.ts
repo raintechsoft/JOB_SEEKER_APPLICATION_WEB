@@ -2,6 +2,7 @@ import type { Draft } from "immer";
 import type { DemoDatabase, ProfileRecord } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
 import { deleteProfileFile, getProfileFile, putProfileFile } from "@/mocks/store/file-store";
+import { personFollowerCount } from "@/mocks/store/presenters";
 import { me, ME_ID, projectsFor } from "@/mocks/store/selectors";
 import { profileCompletion, skillKey } from "@/lib/domain/profile";
 import { today } from "@/lib/utils/date";
@@ -59,7 +60,13 @@ export const mockProfileService: ProfileService = {
   async getProfile() {
     const db = getDb();
     const p = me(db);
-    return { version:p.professionalDetails?.revision??1, person: p, details: p.professionalDetails!, completion: profileCompletion(p, p.professionalDetails, projectsFor(db, ME_ID).length), projects: projectsFor(db, ME_ID) };
+    return {
+      version: p.professionalDetails?.revision ?? 1,
+      person: { ...p, followerCount: personFollowerCount(db, ME_ID) },
+      details: p.professionalDetails!,
+      completion: profileCompletion(p, p.professionalDetails, projectsFor(db, ME_ID).length),
+      projects: projectsFor(db, ME_ID),
+    };
   },
 
   async saveRecord(collection, input) {

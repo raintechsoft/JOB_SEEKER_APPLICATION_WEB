@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AuthScreen } from "@/features/auth/auth-screen";
 import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "signup" };
+export const metadata: Metadata = { title: "Create account" };
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
   const { role } = await searchParams;

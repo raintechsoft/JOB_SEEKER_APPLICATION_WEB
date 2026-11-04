@@ -1,13 +1,13 @@
 "use client";
 import { QueryFeedback } from "@/components/ui/query-view";
 
+import { useEffect, useState } from "react";
 import type { Id, WorkUpdate } from "@/types/domain";
 import type { Pulse } from "@/services/work/work.service";
 import { formatLongDate, formatShortDate } from "@/lib/utils/date";
 import { useServiceQuery } from "@/hooks/use-services";
 import { Icon } from "@/components/ui/icon";
-import { FloatingSelect } from "@/components/ui/field";
-import { IconButton, LinkButton, Tags } from "@/components/ui/primitives";
+import { IconButton, Tags } from "@/components/ui/primitives";
 import { useUpdateDialogs } from "@/features/work/dialogs";
 
 const RAMP = ["#eff1f1", "#d5eddf", "#a6d7bd", "#66b58b", "#2e8c60"];
@@ -38,6 +38,7 @@ export function pulseLayout(cells: Pulse["cells"]) {
 export function Heatmap({ pulse, ownerId }: { pulse: Pulse; ownerId: Id }) {
   const dialogs = useUpdateDialogs();
   const { offset, months } = pulseLayout(pulse.cells);
+  const own = ownerId === "me";
   return (
     <>
       <div className="heatmap">
@@ -60,21 +61,36 @@ export function Heatmap({ pulse, ownerId }: { pulse: Pulse; ownerId: Id }) {
             {Array.from({ length: offset }, (_, i) => (
               <span key={"pad" + i} className="heat-cell heat-pad" aria-hidden="true" />
             ))}
-            {pulse.cells.map(({ date, count }) => (
-              <button
-                key={date}
-                type="button"
-                className={"heat-cell l" + (count ? Math.min(4, count + 1) : 0)}
-                title={`${formatLongDate(date)}: ${count} recorded updates`}
-                aria-label={`${formatLongDate(date)}, ${count} recorded updates`}
-                onClick={() => dialogs.day(ownerId, date)}
-              />
-            ))}
+            {pulse.cells.map(({ date, count }) => {
+              // On someone else's profile, only days with public updates are interactive (view-only).
+              // Empty days must not open a record/create flow for the viewer.
+              const interactive = own || count > 0;
+              if (!interactive) {
+                return (
+                  <span
+                    key={date}
+                    className={"heat-cell l" + (count ? Math.min(4, count + 1) : 0)}
+                    title={`${formatLongDate(date)}: ${count} recorded updates`}
+                    aria-hidden="true"
+                  />
+                );
+              }
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  className={"heat-cell l" + (count ? Math.min(4, count + 1) : 0)}
+                  title={`${formatLongDate(date)}: ${count} recorded updates`}
+                  aria-label={`${formatLongDate(date)}, ${count} recorded updates`}
+                  onClick={() => dialogs.day(ownerId, date)}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
       <div className="heat-legend">
-        <span>{pulse.totalDays} days of your professional story</span>
+        <span>{pulse.totalDays} days of {own ? "your professional story" : "recorded activity"}</span>
         <span className="row gap8">
           Less{" "}
           {RAMP.map((c) => (
@@ -87,10 +103,35 @@ export function Heatmap({ pulse, ownerId }: { pulse: Pulse; ownerId: Id }) {
   );
 }
 
+function currentUtcYear() {
+  return new Date().getUTCFullYear();
+}
+
 /** Work Pulse card (prototype `pulseCard`). */
-export function PulseCard({ ownerId, days = 365, full = false, onRangeChange }: { ownerId: Id; days?: number; full?: boolean; onRangeChange?: (days: 91 | 365) => void }) {
-  const query = useServiceQuery(["pulse", ownerId, days], (s) => s.work.getPulse(ownerId, days), { keepPreviousData: false });
+export function PulseCard({
+  ownerId,
+  hideWhenEmpty = false,
+}: {
+  ownerId: Id;
+  /** Public profiles omit the card when there is no recorded activity. */
+  hideWhenEmpty?: boolean;
+}) {
+  const [year, setYear] = useState(currentUtcYear);
+  const query = useServiceQuery(["pulse", ownerId, year], (s) => s.work.getPulse(ownerId, { year }), { keepPreviousData: false });
   const pulse = query.data;
+  const years = pulse?.years?.length ? pulse.years : [year];
+
+  useEffect(() => {
+    if (!pulse?.years?.length) return;
+    if (!pulse.years.includes(year)) setYear(pulse.years[0]);
+  }, [pulse?.years, year]);
+
+  if (hideWhenEmpty) {
+    if (query.isPending) return null;
+    // Hide until there is at least one year with visible activity.
+    if (query.isError || !pulse || pulse.years.length === 0) return null;
+  }
+
   return (
     <section className="card">
       <div className="card-head">
@@ -103,50 +144,44 @@ export function PulseCard({ ownerId, days = 365, full = false, onRangeChange }: 
           </h2>
           <p>A little progress, recorded every day.</p>
         </div>
-        {full ? (
-          <FloatingSelect
-            label="Activity date range"
-            className="control"
-            aria-label="Activity date range"
-            id="pulse-range"
-            style={{ width: "auto", fontSize: 10, minHeight: 30, padding: 6 }}
-            value={String(days)}
-            onChange={(e) => onRangeChange?.(Number(e.target.value) as 91 | 365)}
-            options={[
-              { value: "91", label: "Last 3 months" },
-              { value: "365", label: "Last 12 months" },
-            ]}
-          />
-        ) : (
-          <LinkButton href="/app/work-pulse" variant="sm" icon="calendar">
-            Last 12 months
-          </LinkButton>
-        )}
       </div>
       <QueryFeedback data={pulse} error={query.isError} retry={query.refetch} layout="chart" label="Loading recorded work" />
       {pulse && (
-        <>
-          <Heatmap pulse={pulse} ownerId={ownerId} />
-          <div className="pulse-summary">
-            <div>
-              <strong>{pulse.updateCount}</strong>
-              <span>updates recorded</span>
-            </div>
-            <div>
-              <strong>{pulse.activeDays}</strong>
-              <span>active days</span>
-            </div>
-            <div>
-              <strong>{pulse.projectCount}</strong>
-              <span>projects in progress</span>
+        <div className="pulse-layout">
+          <div className="pulse-main">
+            <Heatmap pulse={pulse} ownerId={ownerId} />
+            <div className="pulse-summary">
+              <div>
+                <strong>{pulse.updateCount}</strong>
+                <span>updates recorded</span>
+              </div>
+              <div>
+                <strong>{pulse.activeDays}</strong>
+                <span>active days</span>
+              </div>
+              <div>
+                <strong>{pulse.projectCount}</strong>
+                <span>projects in progress</span>
+              </div>
             </div>
           </div>
-        </>
-      )}
-      {full && (
-        <p className="muted small" style={{ marginTop: 17, fontSize: 10 }}>
-          Work Pulse reflects activity recorded on Skillora. It does not measure productivity, work quality, or hours worked. Select a day to explore its updates.
-        </p>
+          <nav className="pulse-years" aria-label="Years with recorded activity">
+            {years.map((entry) => {
+              const active = entry === year;
+              return (
+                <button
+                  key={entry}
+                  type="button"
+                  className={"pulse-year" + (active ? " is-active" : "")}
+                  aria-current={active ? "true" : undefined}
+                  onClick={() => setYear(entry)}
+                >
+                  {entry}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       )}
     </section>
   );

@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { DiscoverScreen } from "@/features/talent/discover-screen";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "talent" };
-
+// The marketing talent directory is retired; people search covers it inside the app.
 export default function TalentPage() {
-  return (
-    <main id="main" className="container" style={{ paddingTop: 45, paddingBottom: 70 }}>
-      <DiscoverScreen publicMode />
-    </main>
-  );
+  redirect("/search?scope=people");
 }

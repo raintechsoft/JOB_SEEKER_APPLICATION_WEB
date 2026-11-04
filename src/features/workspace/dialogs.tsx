@@ -4,11 +4,14 @@ import { usePathname } from "next/navigation";
 import { useServiceQuery } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { LinkButton } from "@/components/ui/primitives";
+import { ErrorState } from "@/components/ui/state-views";
+import { ContentSkeleton } from "@/components/ui/skeleton";
 import {apiConfig} from "@/services/api/config";
 import {RealNotificationsSheet} from "./notifications-sheet";
+import { portfolioUiEnabled } from "@/features/portfolio/portfolio-ui-policy";
 
 function PrivacyInfo() {
-  if(apiConfig.dataSource==="http")return <div className="stack"><p>Your account data is stored securely by Skillora. Profile, portfolio and individual work visibility determine what others can see.</p><p>Private conversations and files are available to their authorized participants. Notification channels can be changed in Settings. Optional external analytics and recommendations are introduced only in their documented advanced phases.</p><LinkButton href="/app/settings">Privacy settings</LinkButton></div>;
+  if(apiConfig.dataSource==="http")return <div className="stack"><p>Your account data is stored securely by Skillora. Profile, portfolio and individual work visibility determine what others can see.</p><p>Private conversations and files are available to their authorized participants. Notification channels can be changed in Settings. Optional external analytics and recommendations are introduced only in their documented advanced phases.</p><LinkButton href="/app/settings/privacy">Privacy settings</LinkButton></div>;
   return (
     <div className="stack">
       <p className="small muted">Skillora is a frontend prototype. Changes are saved in this browser’s local storage. All people, companies, conversations, and project examples are fictional.</p>
@@ -24,8 +27,8 @@ function PrivacyInfo() {
 function DemoNotificationsSheet() {
   const pathname = usePathname();
   const recruiter = pathname.startsWith("/recruiter");
-  const { data: settings } = useServiceQuery(["settings"], (s) => s.workspace.getSettings());
-  if (!settings) return null;
+  const { data: settings, isError, error, refetch } = useServiceQuery(["settings"], (s) => s.workspace.getSettings());
+  if (!settings) return isError ? <ErrorState compact error={error} title="Notifications couldn’t load" description="Something interrupted the request. Please try again." onRetry={() => void refetch()} /> : <ContentSkeleton label="Loading notifications" />;
   const enabled = settings.notifications;
   return (
     <div className="notifications-empty">
@@ -51,7 +54,9 @@ function DemoNotificationsSheet() {
 const SEARCH_LINKS: [string, string][] = [
   ["Profile", "/app/profile"],
   ["Projects", "/app/projects"],
-  ["Portfolio builder", "/app/portfolio"],
+  ...(portfolioUiEnabled()
+    ? ([["Portfolio builder", "/app/portfolio"]] as [string, string][])
+    : []),
   ["Talent discovery", "/recruiter/discover"],
   ["Shortlists", "/recruiter/shortlists"],
   ["Messages", "/app/messages"],

@@ -1565,6 +1565,130 @@
         }
       }
     },
+    "/api/v1/me/resume-library": {
+      "get": {
+        "operationId": "applicationWizard_get__api_v1_me_resume_library",
+        "x-implemented": true,
+        "x-implementation-phase": "A4",
+        "security": [
+          {
+            "sanctum": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Owned private draft or application-contact result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ResumeLibrary"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me/resume-library/{asset}": {
       "delete": {
         "operationId": "applicationWizard_delete__api_v1_me_resume_library__asset_",
@@ -4165,6 +4289,22 @@
         },
         "required": [
           "deleted"
+        ],
+        "additionalProperties": false
+      },
+      "ResumeLibrary": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApplicationResume"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       }

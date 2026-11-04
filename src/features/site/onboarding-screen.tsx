@@ -10,6 +10,7 @@ import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, Tags } from "@/components/ui/primitives";
+import { FileDrop } from "@/components/ui/file-drop";
 import { TextAreaField, TextField } from "@/components/ui/field";
 import { DevOnly } from "@/components/ui/dev-only";
 import { devCopy } from "@/lib/env/app-env";
@@ -33,7 +34,7 @@ function PrototypeOnboardingScreen() {
   const companyQuery = useServiceQuery(["company", "home"], (s) => s.workspace.getHomeCompany());
   const profile = profileQuery.data, company = companyQuery.data;
   const recruiter = role === "recruiter";
-  if (!profile || !company) return <main id="main" className="onboarding"><QueryFeedback data={undefined} error={profileQuery.isError || companyQuery.isError} retry={() => Promise.all([profileQuery.refetch(), companyQuery.refetch()])} layout="form" label="Loading your profile" /></main>;
+  if (!profile || !company) return <main id="main" className="onboarding"><QueryFeedback data={undefined} error={profileQuery.isError || companyQuery.isError} cause={profileQuery.error ?? companyQuery.error} retry={() => Promise.all([profileQuery.refetch(), companyQuery.refetch()])} layout="form" label="Loading your profile" /></main>;
   const p = profile.person;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -109,26 +110,33 @@ function PrototypeOnboardingScreen() {
           </div>
         ) : step === 1 ? (
           <>
-            <div className="upload-zone">
-              <Icon name="upload" />
-              <h3 style={{ marginTop: 13 }}>Your experience is a good starting point.</h3>
-              <p>Select a PDF or Word CV, up to 5 MB.</p>
-              <input
-                type="file"
-                id="cv-file"
+            <div className="onboarding-cv-upload">
+              <h3>Your experience is a good starting point.</h3>
+              <p className="muted small">You can continue without a CV.</p>
+              <FileDrop
+                id="onboarding-cv"
+                section="onboarding"
+                use="cv"
+                label="Onboarding CV"
+                prompt="Drop your CV here"
+                promptHint="or choose a PDF or Word file"
+                buttonLabel="Choose CV"
+                changeLabel="Replace CV"
+                icon="file"
                 accept=".pdf,.doc,.docx"
-                aria-label="Select your CV"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
+                fileName={cvName || undefined}
+                hint={"PDF or Word · up to 5 MB" + devCopy(" · stays on this device", "")}
+                describedBy="cv-status"
+                onFiles={(files) => {
+                  const file = files?.[0];
                   if (file && (!/\.(pdf|docx?)$/i.test(file.name) || file.size > 5 * 1024 * 1024)) {
-                    e.target.value = "";
                     toast("Choose a PDF or Word document smaller than 5 MB.");
                     return;
                   }
                   setOnboarding({ cvName: file?.name || "" });
                 }}
               />
-              <p id="cv-status">{cvName ? "Selected: " + cvName + devCopy(" · Local only", "") : "No file selected. You can also continue without a CV."}</p>
+              <p id="cv-status" role="status">{cvName ? "Selected: " + cvName + devCopy(" · Local only", "") : "No file selected."}</p>
             </div>
             <DevOnly>
               <InfoBadge label="Onboarding information">Simulated CV parsing: the file stays on your device. We use sample information, not extracted content. Review and edit it below before continuing.</InfoBadge>

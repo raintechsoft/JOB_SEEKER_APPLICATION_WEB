@@ -61,6 +61,11 @@ export function createHttpWorkService(http: HttpClient, media: MediaService): Wo
       updates.set(row.id, row); return true;
     },
     deleteUpdate: (id) => change("updates", id, "delete"),
-    async getPulse(owner, days) { z.union([z.literal(91), z.literal(365)]).parse(days); return (await http.get<{ data: Awaited<ReturnType<WorkService["getPulse"]>> }>(`${scope(owner)}/pulse`, { days, share: portfolioShareContext() })).data; },
+    async getPulse(owner, range) {
+      const query = "year" in range
+        ? { year: z.number().int().min(1970).max(2100).parse(range.year), share: portfolioShareContext() }
+        : { days: z.union([z.literal(91), z.literal(365)]).parse(range.days), share: portfolioShareContext() };
+      return (await http.get<{ data: Awaited<ReturnType<WorkService["getPulse"]>> }>(`${scope(owner)}/pulse`, query)).data;
+    },
   };
 }

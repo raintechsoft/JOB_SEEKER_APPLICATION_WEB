@@ -1,14 +1,19 @@
 "use client";
+import { useHiringQuery } from "@/hooks/use-hiring-query";
 
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
+import type { IconName } from "@/components/ui/icon";
+import { ScreenError } from "@/components/ui/feedback";
+import { useJobAlertDialogs } from "@/features/feed/job-alerts";
 import type { CompanySummary } from "@/types/api";
 import type { IsoDateTime } from "@/types/domain";
 import { QueryFeedback } from "@/components/ui/query-view";
-import { Button } from "@/components/ui/primitives";
+import { Button, EmptyState, LinkButton } from "@/components/ui/primitives";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { ProfileColumn } from "@/features/feed/feed-parts";
 import { useJobActions } from "@/features/feed/job-dialogs";
-import { useServiceQuery } from "@/hooks/use-services";
+
 import { formatFollowers } from "@/lib/utils/text";
 import { formatDay } from "@/lib/utils/date";
 import { searchMetaLine } from "@/lib/search/result-copy";
@@ -30,12 +35,13 @@ function sectionId(title: string) {
 
 function jobLine(company: CompanySummary) {
   const followers = company.confidential || company.followerCount == null ? "" : formatFollowers(company.followerCount);
-  return searchMetaLine([company.confidential ? "Confidential company" : company.name, company.confidential ? "" : company.industry, followers]);
+  return searchMetaLine([company.confidential ? "" : company.industry, followers]);
 }
 
 function ExploreJobCard({ job, onView, onApply }: { job: ExploreJob; onView: (id: string) => void; onApply: (id: string) => void }) {
   const posted = job.createdAt;
-  const line = jobLine(job.company);
+  const company = job.company;
+  const line = jobLine(company);
   const open = (event: MouseEvent) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
@@ -45,10 +51,13 @@ function ExploreJobCard({ job, onView, onApply }: { job: ExploreJob; onView: (id
     <li>
       <div className="explore-job-card">
         <button type="button" className="explore-job-main" onClick={open} aria-label={"View " + job.title + " job"}>
-          <CompanyAvatar company={job.company} />
+          <CompanyAvatar company={company} />
           <span className="explore-job-copy">
             <strong>{job.title}</strong>
-            {line ? <span className="explore-job-meta">{line}</span> : null}
+            <span className="explore-job-meta">
+              <span className="explore-job-company">{company.confidential ? "Confidential company" : company.name}<VerifiedCompanyMark company={company} /></span>
+              {line ? <span>{" · " + line}</span> : null}
+            </span>
             {posted ? <time dateTime={posted}>Posted {formatDay(posted)}</time> : null}
           </span>
         </button>
@@ -66,13 +75,14 @@ function ExploreJobCard({ job, onView, onApply }: { job: ExploreJob; onView: (id
   );
 }
 
-function JobSection({ title, description, jobs, empty, loading, error, retry, onView, onApply }: {
+function JobSection({ title, description, jobs, empty, loading, error, cause, retry, onView, onApply }: {
   title: string;
   description?: string;
   jobs: ExploreJob[];
-  empty: string;
+  empty: { title: string; description: string; icon: IconName; action: ReactNode };
   loading: boolean;
   error: boolean;
+  cause?: unknown;
   retry: () => void;
   onView: (id: string) => void;
   onApply: (id: string) => void;
@@ -85,11 +95,11 @@ function JobSection({ title, description, jobs, empty, loading, error, retry, on
         {description ? <p>{description}</p> : null}
       </header>
       {(loading || error) && !jobs.length ? (
-        <QueryFeedback data={undefined} error={error} retry={retry} label={"Loading " + title.toLowerCase()} />
+        error && !loading ? <ScreenError compact error={cause} title={title + " couldn’t load"} description="Something interrupted the request. Please try again." onRetry={retry} /> : <QueryFeedback data={undefined} error={error} cause={cause} compact retry={retry} label={"Loading " + title.toLowerCase()} />
       ) : jobs.length ? (
         <ul className="explore-job-list">{jobs.map((job) => <ExploreJobCard key={job.id} job={job} onView={onView} onApply={onApply} />)}</ul>
       ) : (
-        <p className="explore-jobs-empty">{empty}</p>
+        <EmptyState compact icon={empty.icon} title={empty.title} description={empty.description} action={empty.action} />
       )}
     </section>
   );
@@ -97,9 +107,10 @@ function JobSection({ title, description, jobs, empty, loading, error, retry, on
 
 export function ExploreJobsScreen() {
   const jobs = useJobActions();
-  const matched = useServiceQuery(["recommendations", "jobs"], (s) => s.recommendations.getJobsForYou());
-  const more = useServiceQuery(["job-opportunities", "explore"], (s) => s.jobs.listOpportunities({ q: "", page: 1, pageSize: 40 }));
-  const applications = useServiceQuery(["applications", "explore"], (s) => s.applications.listApplications({ q: "", status: "" }));
+  const alertDialogs = useJobAlertDialogs();
+  const matched = useHiringQuery(["job-recommendations"], (s) => s.recommendations.getJobsForYou());
+  const more = useHiringQuery(["job-opportunities", "explore"], (s, scope) => s.jobs.listOpportunities({ q: "", page: 1, pageSize: 40 }, scope));
+  const applications = useHiringQuery(["applications", "explore"], (s, scope) => s.applications.listApplications({ q: "", status: "" }, scope));
   const appliedIds = new Set((applications.data ?? []).map((row) => row.job));
   const matchedJobs: ExploreJob[] = (matched.data?.forYou ?? []).flatMap((job) => job?.id && job.company ? [{
     id: job.id,
@@ -130,9 +141,10 @@ export function ExploreJobsScreen() {
           title="Jobs that match your profile"
           description="Based on your profile and the job criteria"
           jobs={matchedJobs}
-          empty="No matching jobs yet. Update your profile or browse more jobs below."
+          empty={{ icon: "briefcase", title: "No matching jobs yet", description: "Add skills and preferences to your profile, or browse more jobs below.", action: <LinkButton variant="sm" icon="user" href="/app/profile">Update your profile</LinkButton> }}
           loading={matched.isPending}
           error={matched.isError}
+          cause={matched.error}
           retry={() => void matched.refetch()}
           onView={openJob}
           onApply={applyJob}
@@ -140,9 +152,10 @@ export function ExploreJobsScreen() {
         <JobSection
           title="More jobs for you"
           jobs={moreJobs}
-          empty="More open roles will appear here as teams start hiring."
+          empty={{ icon: "search", title: "No more open roles right now", description: "More open roles will appear here as teams start hiring. Set a job alert to hear about them first.", action: <Button variant="sm" icon="bell" onClick={() => alertDialogs.edit()}>Create a job alert</Button> }}
           loading={more.isPending || matched.isPending}
           error={more.isError}
+          cause={more.error}
           retry={() => void more.refetch()}
           onView={openJob}
           onApply={applyJob}

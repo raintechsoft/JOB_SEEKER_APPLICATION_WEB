@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Avatar, Button, IconButton, type AvatarPerson } from "@/components/ui/primitives";
 import { MediaImage } from "@/components/ui/media-image";
-import { Icon } from "@/components/ui/icon";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { cn } from "@/lib/utils/text";
 import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
 import { SuggestionCardMenu, type SuggestionCardAction } from "./suggestion-card-menu";
@@ -114,9 +114,9 @@ export function SuggestionCard({
         </span>
         <strong className="suggestion-card-name">
           <span>{name}</span>
-          {verified ? <Icon name="shield" /> : null}
+          {kind === "company" ? <VerifiedCompanyMark company={{ verified }} /> : null}
         </strong>
-        <span className="suggestion-card-headline" title={headline || undefined}>{headline || "\u00a0"}</span>
+        <span className="suggestion-card-headline" title={headline || undefined}><span>{headline || "\u00a0"}</span></span>
         {meta ? <span className="suggestion-card-meta">{meta}</span> : null}
         {detail ? <span className="suggestion-card-detail">{detail}</span> : null}
       </Link>

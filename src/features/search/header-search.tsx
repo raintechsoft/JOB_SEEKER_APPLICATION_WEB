@@ -1,8 +1,10 @@
 "use client";
+import { useSocialQuery } from "@/hooks/use-social-query";
 
 import { useEffect, useId, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceCacheKey } from "@/hooks/use-workspace-cache-key";
 import type { Role } from "@/types/domain";
 import { apiConfig } from "@/services/api/config";
 import { useServiceQuery, useServices } from "@/hooks/use-services";
@@ -10,7 +12,7 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { useUiStore } from "@/stores/ui-store";
 import { track } from "@/lib/analytics";
 import { Icon } from "@/components/ui/icon";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
 import { forgetRecentSearch, readRecentSearches, rememberSearch } from "./recent-searches";
 import { scopedSearchSchema, scopesFor, searchLabels, searchPageUrl, searchSettings, searchQuerySchema, normalizeSearch, filterKeysFor, withoutSearchSelection, searchKindScope, type SearchOptions, type SearchScope } from "@/lib/search/scopes";
 import { searchResultHref, type SearchResult } from "@/services/search/search.service";
@@ -63,10 +65,11 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
   const term = normalizeSearch(value);
   const options = Object.fromEntries(Object.entries(activeOptions).filter(([key]) => key === "sort" || filterKeysFor(category).includes(key as never))) as SearchOptions;
   const ready = !!term && parsed.success && term === debounced && !composing;
-  const result = useQuery({ queryKey: ["workspace-search", scope, role, "header", category, debounced, options], queryFn: ({ signal }) => services.search.query({ role, q: debounced, scope: category, limit: 10, mode: "suggestions", ...options }, { signal }), enabled: hydrated && !!scope && open && ready, placeholderData: () => undefined, retry: false, staleTime: 15_000, refetchOnWindowFocus: false });
+  const cacheKey = useWorkspaceCacheKey();
+  const result = useQuery({ queryKey: cacheKey(["workspace-search", scope, role, "header", category, debounced, options]), meta:{searchCategory:category}, refetchOnReconnect:false, queryFn: ({ signal }) => services.search.query({ role, q: debounced, scope: category, limit: 10, mode: "suggestions", ...options }, { signal }), enabled: hydrated && !!scope && open && ready, placeholderData: () => undefined, retry: false, staleTime: 15_000, refetchOnWindowFocus: false });
   const people = ready && !result.isError ? result.data?.items ?? [] : [];
   // Before anything is typed: recent searches, skills, companies and people to explore, each with its reason.
-  const starters = useQuery({ queryKey: ["search-suggestions", scope, role], queryFn: ({ signal }) => services.search.suggestions(role, { signal }), enabled: hydrated && !!scope && open && !term, retry: false, staleTime: 60_000, refetchOnWindowFocus: false });
+  const starters = useQuery({ queryKey: cacheKey(["search-suggestions", scope, role]), refetchOnReconnect:false, queryFn: ({ signal }) => services.search.suggestions(role, { signal }), enabled: hydrated && !!scope && open && !term, retry: false, staleTime: 60_000, refetchOnWindowFocus: false });
   const serverRecent = starters.data?.recent ?? [];
   const startOptions: StartOption[] = [
     ...(serverRecent.length ? serverRecent.map(entry => ({ group: "Recent searches", label: entry.query, icon: "clock" as const, query: entry.query, recentId: entry.id })) : recent.map(query => ({ group: "Recent searches", label: query, icon: "clock" as const, query }))),
@@ -81,7 +84,7 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
   const identity = useServiceQuery(["feed", "identity", role], async s => role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person, { enabled: open });
   const profile = useServiceQuery(["profile"], s => s.profile.getProfile(), { enabled: open && role === "professional" });
   const homeCompany = useServiceQuery(["company", "home"], s => s.workspace.getHomeCompany(), { enabled: open && role === "recruiter" });
-  const network = useServiceQuery(["network", role], s => s.feed.getNetwork(role), { enabled: open });
+  const network = useSocialQuery(["network", role], (s, scope) => s.feed.getNetwork(role, scope), { enabled: open });
   const ownPerson = role === "professional" ? profile.data?.person ?? identity.data : identity.data;
   const ownSearch = ownPerson ? { id: ownPerson.id, headline: ownPerson.headline, location: "location" in ownPerson ? String(ownPerson.location ?? "") : "", summary: "summary" in ownPerson ? String(ownPerson.summary ?? "") : "", category: "category" in ownPerson ? String(ownPerson.category ?? "") : "", currentTitle: profile.data?.details.currentTitle } : undefined;
   const detailedPeople = category === "people" || category === "talent";
@@ -139,7 +142,7 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
     if (option.href) router.push(option.href);
   };
 
-  return <form ref={ref} className={`professional-search header-search${value.length ? " has-query" : ""}`} id="feed-search-form" role="search" noValidate
+  return <form ref={ref} className={`professional-search header-search header-search-badge${value.length ? " has-query" : ""}${open || value.length ? " is-expanded" : ""}`} id="feed-search-form" role="search" noValidate
     onSubmit={event => { event.preventDefault(); if (!composing) submit(value); }}
     onPointerDownCapture={() => { pointerInside.current = true; }}
     onBlur={event => {
@@ -148,7 +151,7 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
       if (!next && pointerInside.current) return;
       setOpen(false); setActive(-1);
     }}>
-    {!value.length && <Icon name="search" />}
+    <Icon name="search" />
     <input id={`${id}-input`} name="query" type="search" role="combobox" aria-label="Search Skillora" placeholder="Search Skillora" autoComplete="off" maxLength={200} value={value}
       aria-autocomplete="list" aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? `${id}-list` : undefined} aria-activedescendant={activeId}
       aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}
@@ -166,7 +169,6 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
           event.preventDefault(); if (term) visit(people[active]); else choose(startOptions[active]);
         }
       }} />
-    {!value.length && <kbd aria-hidden="true">⌘ K</kbd>}
     {!!value.length && <button type="button" className="header-search-clear" aria-label="Clear search" onClick={() => { setValue(""); setDebounced(""); setActive(-1); setError(undefined); setOpen(true); setRecent(readRecentSearches(scope)); ref.current?.querySelector("input")?.focus(); }}><Icon name="close" /></button>}
     {error && <span id={`${id}-error`} role="alert" className="header-search-error">{error}</span>}
     {open && <div className="header-search-dropdown">
@@ -191,8 +193,8 @@ function HeaderSearchInput({ role, scope, initialQuery, initialCategory, initial
         {Object.keys(options).some(key => key !== "sort") && <p className="header-search-hint">Filters are applied to this search. <button type="button" onClick={() => { setActiveOptions({ sort: options.sort }); setActive(-1); ref.current?.querySelector("input")?.focus(); }}>Clear filters</button></p>}
         {!term && !startOptions.length && !starters.isFetching && <p className="header-search-hint">Your recent searches will appear here.</p>}
         {term && !parsed.success && <p className="header-search-hint">Enter at least {searchSettings.minimum} characters to search.</p>}
-        {ready && result.isFetching && !result.data && <div className="header-search-placeholders" aria-busy="true" aria-label="Matching search results"><Skeleton style={{ height: 42 }} /><Skeleton style={{ height: 42 }} /><Skeleton style={{ height: 42 }} /></div>}
-        {term && ready && result.isError && <SearchFailure error={result.error} retry={() => void result.refetch()} />}
+        {ready && result.isFetching && !result.data && <LoadingRegion label="Loading matching results"><div className="header-search-placeholders"><Skeleton style={{ height: 42 }} /><Skeleton style={{ height: 42 }} /><Skeleton style={{ height: 42 }} /></div></LoadingRegion>}
+        {term && ready && result.isError && <SearchFailure compact error={result.error} retry={() => void result.refetch()} />}
         {term && ready && result.isSuccess && !people.length && <p className="header-search-hint">No matching results in {searchLabels[category].toLowerCase()}. Try another term or category.</p>}
         <span className="sr-only" role="status">{ready && result.isSuccess ? `${people.length} suggestions available.` : ""}</span>
       </div>

@@ -13,6 +13,10 @@ export interface AuthService {
   login(input: components["schemas"]["Login"], portal?: "professional" | "employer" | "admin"): Promise<AuthSession>;
   register(input: components["schemas"]["Register"]): Promise<AuthSession>;
   me(): Promise<AuthSession>;
+  /** Account-action probe; does not attach analytics/history or change the selected workspace. */
+  inspect?(): Promise<AuthSession>;
+  /** Adopt the server session after a socket reports changed/expired access. */
+  refreshSession?(): Promise<AuthSession>;
   logout(): Promise<void>;
   forgot(input: { email: string }): Promise<Challenge>;
   recovery(): Promise<RecoveryStatus>;

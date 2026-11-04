@@ -68,16 +68,53 @@ function StageDropdown({ label, count, active, value, options, onSelect }: {
   </div>;
 }
 
+const MENU_FILTERS: { value: ApplicationFilter; label: string }[] = [
+  { value: "in-progress", label: "In progress" },
+  { value: "Applied", label: "Applied" },
+  { value: "Interview", label: "Interview" },
+  { value: "other", label: "Other" },
+  { value: "", label: "All" },
+];
+
 export function ApplicationFilters({ counts, value, onSelect }: {
   counts: ApplicationCounts | undefined; value: ApplicationFilter; onSelect: (value: ApplicationFilter) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const toolbar = useRef<HTMLDivElement>(null);
   const count = (filter: ApplicationFilter) => !counts ? undefined : filter === "in-progress" ? counts.inProgress : filter === "other" ? counts.other : filter ? counts.statuses[filter] : counts.all;
-  return <div className="application-status-filters" role="group" aria-label="Filter your applications">
-    <StageDropdown label="In progress" count={count("in-progress")} active={value === "in-progress" || IN_PROGRESS.includes(value as ApplicationStatus)} value={value} onSelect={onSelect}
-      options={[{ value: "in-progress", label: "All in progress", count: count("in-progress") }, ...IN_PROGRESS.map(stage => ({value:stage,label:stage,count:count(stage)}))]} />
-    {(["Applied", "Interview"] as const).map(stage => <button type="button" key={stage} className="application-filter-pill" aria-label={`${stage}, ${countLabel(count(stage))}`} aria-pressed={value === stage} onClick={() => onSelect(stage)}>{stage}<span aria-hidden="true"> · </span>{count(stage) ?? "—"}</button>)}
-    <StageDropdown label="Other" count={counts?.other} active={value === "other" || APPLICATION_FILTER_GROUPS.other.includes(value as ApplicationStatus)} value={value} onSelect={onSelect}
-      options={APPLICATION_FILTER_GROUPS.other.map(stage => ({value:stage,label:stage,count:count(stage)}))} />
-    <button type="button" className="application-filter-pill" aria-label={`All, ${countLabel(counts?.all)}`} aria-pressed={!value} onClick={() => onSelect("")}>All<span aria-hidden="true"> · </span>{counts?.all ?? "—"}</button>
+  const menuActive = (filter: ApplicationFilter) => filter === "in-progress" ? value === "in-progress" || IN_PROGRESS.includes(value as ApplicationStatus)
+    : filter === "other" ? value === "other" || APPLICATION_FILTER_GROUPS.other.includes(value as ApplicationStatus)
+    : filter ? value === filter : !value;
+  const select = (next: ApplicationFilter) => {
+    onSelect(next);
+    setMenuOpen(false);
+  };
+  useEffect(() => {
+    if (!menuOpen) return;
+    const outside = (event: PointerEvent) => { if (!toolbar.current?.contains(event.target as Node)) setMenuOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
+  }, [menuOpen]);
+  return <div className={"application-status-toolbar" + (menuOpen ? " is-open" : "") + (value ? " has-filter" : "")} ref={toolbar}>
+    <button type="button" className="iconbtn application-filter-trigger" aria-label="Filter applications" aria-expanded={menuOpen} aria-haspopup="true" onClick={() => setMenuOpen(open => !open)}>
+      <Icon name="more" />
+    </button>
+    <div className="application-status-filters" role="group" aria-label="Filter your applications">
+      <StageDropdown label="In progress" count={count("in-progress")} active={value === "in-progress" || IN_PROGRESS.includes(value as ApplicationStatus)} value={value} onSelect={select}
+        options={[{ value: "in-progress", label: "All in progress", count: count("in-progress") }, ...IN_PROGRESS.map(stage => ({value:stage,label:stage,count:count(stage)}))]} />
+      {(["Applied", "Interview"] as const).map(stage => <button type="button" key={stage} className="application-filter-pill" aria-label={`${stage}, ${countLabel(count(stage))}`} aria-pressed={value === stage} onClick={() => select(stage)}>{stage}<span aria-hidden="true"> · </span>{count(stage) ?? "—"}</button>)}
+      <StageDropdown label="Other" count={counts?.other} active={value === "other" || APPLICATION_FILTER_GROUPS.other.includes(value as ApplicationStatus)} value={value} onSelect={select}
+        options={APPLICATION_FILTER_GROUPS.other.map(stage => ({value:stage,label:stage,count:count(stage)}))} />
+      <button type="button" className="application-filter-pill" aria-label={`All, ${countLabel(counts?.all)}`} aria-pressed={!value} onClick={() => select("")}>All<span aria-hidden="true"> · </span>{counts?.all ?? "—"}</button>
+    </div>
+    <div className="application-filter-menu-list" role="group" aria-label="Application status">
+      {MENU_FILTERS.map((item) => (
+        <button type="button" key={item.label} className={menuActive(item.value) ? "active" : undefined} aria-pressed={menuActive(item.value)} onClick={() => select(item.value)}>
+          {item.label}
+        </button>
+      ))}
+    </div>
   </div>;
 }

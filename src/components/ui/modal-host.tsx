@@ -3,8 +3,12 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useModalStore } from "@/stores/modal-store";
 import { cn } from "@/lib/utils/text";
-import { Button, IconButton } from "./primitives";
+import { IconButton } from "./primitives";
 import {UploadTray} from "@/features/workspace/upload-tray";
+import { UnsavedChangesDialog } from "./unsaved-changes-dialog";
+
+/** Editors opt in to "Save" from the unsaved-changes dialog by marking their form. */
+const SAVABLE_FORM = "form[data-profile-editor], form[data-unsaved-guard]";
 
 /**
  * The single application dialog (`<dialog id="modal">`), rendered with the native modal element so
@@ -74,17 +78,17 @@ export function ModalHost() {
           </header>
           <div className="modal-body" key={version}>
             {confirmingDiscard && variant !== "photo" && (
-              <div id="profile-discard-prompt" className="profile-discard-prompt" role="alert">
-                <p>You have unsaved changes. Keep editing or discard them?</p>
-                <div className="row">
-                  <Button variant="sm" onClick={keepEditing} autoFocus>
-                    Keep editing
-                  </Button>
-                  <Button variant="danger sm" disabled={blocking} onClick={discard}>
-                    Discard changes
-                  </Button>
-                </div>
-              </div>
+              <UnsavedChangesDialog
+                saving={blocking}
+                onKeepEditing={keepEditing}
+                onDiscard={discard}
+                onSave={() => {
+                  const form = ref.current?.querySelector<HTMLFormElement>(SAVABLE_FORM);
+                  keepEditing();
+                  // The form's own submit validates, saves and closes the dialog on success.
+                  form?.requestSubmit();
+                }}
+              />
             )}
             {content}
             <UploadTray insideModal />

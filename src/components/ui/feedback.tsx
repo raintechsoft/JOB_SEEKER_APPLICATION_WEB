@@ -1,11 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { devCopy } from "@/lib/env/app-env";
 import { modal } from "@/stores/modal-store";
 import { Button, Notice } from "./primitives";
 import type { IconName } from "./icon";
 import { ContentSkeleton, type SkeletonLayout } from "./skeleton";
+import { ErrorState } from "./state-views";
 
 /** Confirmation dialog body (prototype `confirm()`). */
 export function ConfirmBody({ text, actionLabel = "Delete", icon = "trash", variant = "danger", onConfirm, textClassName = "small muted" }: { text: ReactNode; actionLabel?: string; icon?: IconName; variant?: string; onConfirm: () => void; textClassName?: string }) {
@@ -35,19 +35,9 @@ export function ScreenFallback({ label = "Loading content", layout = "list" }: {
   return <ContentSkeleton label={label} layout={layout} />;
 }
 
-/** Error state for a failed service request. */
-export function ScreenError({ onRetry }: { onRetry?: () => void }) {
-  return (
-    <div className="empty" role="alert">
-      <h3>We couldn’t load this view.</h3>
-      <p>{devCopy("Please try again. Your saved changes are still in this browser.", "Please try again. Your saved changes are safe.")}</p>
-      {onRetry && (
-        <Button variant="primary" icon="refresh" onClick={onRetry}>
-          Try again
-        </Button>
-      )}
-    </div>
-  );
+/** Error state for a failed service request; pass the error for status-aware copy and actions. */
+export function ScreenError({ onRetry, error, compact, title, description, homeHref, homeLabel }: { onRetry?: () => void; error?: unknown; compact?: boolean; title?: string; description?: string; homeHref?: string; homeLabel?: string }) {
+  return <ErrorState error={error} onRetry={onRetry} compact={compact} title={title} description={description} homeHref={homeHref} homeLabel={homeLabel} />;
 }
 
 export { Notice };

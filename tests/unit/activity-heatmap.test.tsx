@@ -160,10 +160,10 @@ it("distinguishes a failed request from an empty month and retries the same peri
   nav.params = new URLSearchParams("activityMonth=9&activityYear=2026");
   const getActivityCalendar = vi.fn().mockRejectedValueOnce(new Error("offline")).mockImplementation(async (_r: string, y: number, m: number) => month(y, m));
   const { container } = mount(getActivityCalendar);
-  expect(await screen.findByRole("alert")).toHaveTextContent("Activity for September 2026 could not be loaded.");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Activity for September 2026 couldn’t load");
   expect(container.querySelectorAll("button.activity-cell")).toHaveLength(0);
   expect(screen.queryByText(/No activity recorded/)).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("No activity recorded in September 2026")).toBeInTheDocument();
   await waitFor(() => expect(getActivityCalendar).toHaveBeenLastCalledWith("professional", 2026, 9));
 });

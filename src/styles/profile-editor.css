@@ -1,0 +1,427 @@
+/* Shared on/off switch (components/ui/field.tsx ToggleRow). */
+.toggle-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #eef1f5;
+  cursor: pointer;
+}
+.toggle-row:last-of-type { border-bottom: 0; }
+.toggle-row-text { display: grid; gap: 2px; min-width: 0; color: #202a36; font-size: 14px; }
+.toggle-row-text small { color: #626b76; font-size: 12px; }
+.toggle-row > input[role="switch"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.toggle-row-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: #cfd6e1;
+  transition: background 0.18s ease;
+}
+.toggle-row-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px #1f2a3a40;
+  transition: transform 0.18s ease;
+}
+.toggle-row > input[role="switch"]:checked + .toggle-row-switch { background: #315ef4; }
+.toggle-row > input[role="switch"]:checked + .toggle-row-switch::after { transform: translateX(18px); }
+.toggle-row > input[role="switch"]:focus-visible + .toggle-row-switch { outline: 2px solid #315ef4; outline-offset: 2px; }
+.toggle-row > input[role="switch"]:disabled + .toggle-row-switch { opacity: 0.5; }
+@media (prefers-reduced-motion: reduce) {
+  .toggle-row-switch, .toggle-row-switch::after { transition: none; }
+}
+
+.profile-preference-form {
+  display: grid;
+  gap: 2px;
+}
+.profile-preference-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #eef1f5;
+}
+.secondary-field {
+  display: grid;
+  grid-template-columns: minmax(148px, 240px) minmax(0, 1fr);
+  gap: 8px 20px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef1f5;
+}
+.profile-preference-form > .secondary-field:last-of-type {
+  border-bottom: 0;
+}
+.secondary-field > label {
+  font-size: 14px;
+  font-weight: 550;
+  color: #626b76;
+  line-height: 1.4;
+}
+.secondary-field:has(textarea),
+.secondary-field.has-picker {
+  align-items: start;
+}
+.secondary-field:has(textarea) > label,
+.secondary-field.has-picker > label {
+  padding-top: 10px;
+}
+.secondary-field-value {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+body.professional-theme .secondary-input,
+.secondary-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid #e4e9ef;
+  border-radius: 7px;
+  background: #f6f8fa;
+  color: #202a36;
+  font-size: 15px;
+  line-height: 1.4;
+  box-shadow: none;
+  accent-color: #e4e9ef;
+  caret-color: #202a36;
+}
+input.secondary-input:not([type="date"]):not([type="month"]),
+textarea.secondary-input {
+  appearance: none;
+}
+input.secondary-input[type="date"],
+input.secondary-input[type="month"] {
+  cursor: pointer;
+}
+.secondary-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  color: #8a93a0;
+}
+input.secondary-input[type="number"] {
+  appearance: textfield;
+}
+input.secondary-input[type="number"]::-webkit-inner-spin-button,
+input.secondary-input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+textarea.secondary-input {
+  min-height: 88px;
+  resize: vertical;
+}
+body.professional-theme .secondary-input:hover,
+.secondary-input:hover,
+body.professional-theme .secondary-input:focus,
+body.professional-theme .secondary-input:focus-visible,
+body.professional-theme .secondary-input:active,
+.secondary-input:focus,
+.secondary-input:focus-visible,
+.secondary-input:active,
+body.professional-theme select.secondary-input:hover,
+body.professional-theme select.secondary-input:focus,
+body.professional-theme select.secondary-input:focus-visible,
+select.secondary-input:hover,
+select.secondary-input:focus,
+select.secondary-input:focus-visible {
+  outline: none;
+  outline-color: transparent;
+  border-color: #e4e9ef;
+  box-shadow: none;
+}
+.secondary-input::selection {
+  background: #e4e9ef;
+  color: #202a36;
+}
+.secondary-input::-moz-selection {
+  background: #e4e9ef;
+  color: #202a36;
+}
+.secondary-input:-webkit-autofill,
+.secondary-input:-webkit-autofill:hover,
+.secondary-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #202a36;
+  caret-color: #202a36;
+  box-shadow: 0 0 0 1000px #f6f8fa inset;
+  transition: background-color 9999s ease-out;
+}
+select.secondary-input option:checked,
+select.secondary-input option:hover:not(:disabled),
+select.secondary-input option:focus-visible {
+  background: #f6f8fa;
+  color: #202a36;
+  outline: none;
+  font-weight: inherit;
+}
+select.secondary-input:open::picker-icon {
+  color: #8291a7;
+}
+@media (max-width: 700px) {
+  .secondary-field {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .secondary-field:has(textarea) > label {
+    padding-top: 0;
+  }
+}
+
+/* Profile identity editor layout. */
+.profile-identity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 18px; }
+.profile-identity-grid > .is-full { grid-column: 1 / -1; }
+.profile-identity-toggles { display: grid; margin-top: 4px; }
+.country-code-value.is-placeholder { color: #8a94a3; }
+.country-code-clear { color: #626b76; }
+@media (max-width: 600px) {
+  .profile-identity-grid,
+  .profile-form-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Profile editors keep Save/Cancel visible at the bottom of the dialog while the form scrolls. */
+form[data-profile-editor] > .modal-footer {
+  position: sticky;
+  bottom: -1px;
+  z-index: 3;
+  margin: 8px -25px -25px;
+  padding: 14px 25px 18px;
+  border-top: 1px solid #e4e9ef;
+  background: #fff;
+}
+@media (max-width: 680px) {
+  form[data-profile-editor] > .modal-footer { margin: 8px -20px -20px; padding: 12px 20px 16px; }
+}
+/* Shared unsaved-changes confirmation (components/ui/unsaved-changes-dialog.tsx), layered over the open dialog. */
+.unsaved-changes-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(23, 31, 42, 0.45);
+}
+.unsaved-changes-dialog {
+  width: min(420px, 100%);
+  padding: 24px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 60px #17253740;
+  text-align: center;
+}
+.unsaved-changes-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: #fff5e6;
+  color: #b45309;
+}
+.unsaved-changes-icon .icon { width: 24px; height: 24px; }
+body.professional-theme .unsaved-changes-dialog h3,
+.unsaved-changes-dialog h3 { margin: 0 0 8px; font-size: 18px; font-weight: 650; color: #202a36; }
+body.professional-theme .unsaved-changes-dialog p,
+.unsaved-changes-dialog p { margin: 0 0 20px; font-size: 14px; line-height: 1.6; color: #626b76; }
+.unsaved-changes-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.unsaved-changes-actions .btn { justify-content: center; width: 100%; }
+/* Profile editor dialogs: the dialog itself never scrolls or overflows; only the form area does,
+   so the title stays put and Save/Cancel stay pinned at the bottom. */
+dialog[open]:has(form[data-profile-editor]) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: min(780px, calc(100% - 30px));
+}
+dialog[open]:has(form[data-profile-editor]) > .modal-head {
+  flex-shrink: 0;
+}
+dialog[open]:has(form[data-profile-editor]) > .modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Headline box keeps one fixed height instead of a draggable resize handle. */
+.profile-identity-grid textarea[name="headline"] {
+  height: 84px;
+  min-height: 84px;
+  max-height: 84px;
+  resize: none;
+}
+/* Footer flush with the dialog's bottom edge: no body padding below it, so nothing shows underneath. */
+dialog[open]:has(form[data-profile-editor]) > .modal-body {
+  padding-bottom: 0;
+}
+form[data-profile-editor] > .modal-footer {
+  bottom: 0;
+  margin-bottom: 0;
+}
+@media (max-width: 680px) {
+  form[data-profile-editor] > .modal-footer { margin-bottom: 0; }
+}
+/* Smooth scrolling in profile editor dialogs: the blurred page backdrop forced a full repaint on
+   every scroll frame. Keep the dimmed backdrop, drop the blur, and isolate the scrolling area. */
+dialog[open]:has(form[data-profile-editor])::backdrop {
+  backdrop-filter: none;
+  background: rgba(36, 33, 54, 0.45);
+}
+dialog[open]:has(form[data-profile-editor]) > .modal-body {
+  will-change: scroll-position;
+  -webkit-overflow-scrolling: touch;
+}
+/* Profile summary editor: one column, fixed-height summary with a live count at its bottom right. */
+.profile-summary-fields { display: grid; gap: 20px; }
+.profile-summary-box { position: relative; }
+.profile-summary-box textarea {
+  height: 160px;
+  min-height: 160px;
+  max-height: 160px;
+  resize: none;
+  padding-bottom: 28px;
+}
+.profile-summary-count {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  color: #7b8491;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.profile-summary-count.is-full { color: #b45309; font-weight: 600; }
+body.professional-theme .profile-summary-box .profile-summary-count,
+.profile-summary-count { font-size: 11px; }
+/* Same two-column field layout as the employment editor. */
+.profile-form-grid {
+  gap: 20px 18px;
+  align-items: start;
+}
+.profile-form-grid > .field {
+  min-width: 0;
+  margin: 0;
+  width: 100%;
+}
+/* Stacked (single-column) profile editors and shorter fixed height for the one-line headline. */
+.profile-form-grid.profile-form-stacked { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.profile-summary-box textarea[name="headline"] { height: 96px; min-height: 96px; max-height: 96px; }
+/* Skill picker (components/ui/skill-picker.tsx): searchable catalog list, portaled so modal overflow cannot clip it. */
+.skill-picker { position: relative; }
+.skill-picker-list {
+  position: fixed;
+  z-index: 80;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid #dfe5ef;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 30px #1725372e;
+}
+.skill-picker-area {
+  display: block;
+  padding: 8px 10px 4px;
+  color: #7b8491;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.skill-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #202a36;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.skill-picker-option small { color: #7b8491; font-size: 12px; white-space: nowrap; }
+.skill-picker-option.is-active { background: #edf3ff; }
+.skill-picker-option.is-custom { justify-content: flex-start; color: #315ef4; font-weight: 600; }
+.skill-picker-option.is-custom .icon { width: 16px; height: 16px; }
+.skill-picker-empty { padding: 10px; color: #7b8491; font-size: 13px; }
+.profile-skill-tools .skill-picker{max-width:440px;width:100%}
+/* Toggle placed right under a field (e.g. "I currently work here" under End month). */
+.profile-field-after { display: flex; align-items: center; }
+.profile-field-after .toggle-row { width: 100%; padding: 6px 0; border-bottom: 0; }
+.profile-record-toggles { display: grid; margin-top: 4px; }
+/* Multi-skill chips under the skill search. */
+.skill-multi-picker { display: grid; gap: 10px; }
+.skill-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid #c9d7fb;
+  border-radius: 16px;
+  background: #edf3ff;
+  color: #244a73;
+  font-size: 13px;
+}
+.skill-chip button {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #46556e;
+  cursor: pointer;
+}
+.skill-chip button:hover { background: #dbe5fb; color: #c62828; }
+.skill-chip .icon { width: 12px; height: 12px; }
+.preference-catalog,
+.preference-multi { min-width: 0; }
+.preference-multi { gap: 8px; }
+.preference-chip {
+  max-width: 100%;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+.preference-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preference-chip button {
+  width: 16px;
+  height: 16px;
+}
+.preference-chip .icon { width: 10px; height: 10px; }

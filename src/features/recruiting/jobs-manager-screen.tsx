@@ -1,4 +1,5 @@
 "use client";
+import { useHiringQuery } from "@/hooks/use-hiring-query";
 
 import { InfoBadge } from "@/components/ui/info-badge";
 import jobRules from "../../../contracts/validation/job-v2.json";
@@ -16,13 +17,14 @@ import type { ManagedJob } from "@/services/recruiting/recruiting.service";
 import { formatLongDate } from "@/lib/utils/date";
 import { devCopy } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
-import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
+import { useServiceAction, useServices } from "@/hooks/use-services";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Button, EmptyState, IconButton, LinkButton, PageHeading } from "@/components/ui/primitives";
+import { Pagination } from "@/components/ui/pagination";
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingSelect, TextAreaField, TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
@@ -163,7 +165,7 @@ function Collaborate({ jobs }: { jobs: ManagedJob[] }) {
       }}
     >
       <h3>{jobs.length === 1 ? jobs[0].title : jobs.length + " selected job posts"}</h3>
-      {Object.entries(errors).map(([key,error])=><p role="alert" key={key}>{key}: {error}</p>)}
+      {Object.entries(errors).map(([key,error])=><p role="alert" className="error" key={key}>{error}</p>)}
       <p className="small muted">Choose existing active team members to grant review access. Team invitations are managed separately.</p>
       <TextField label="Collaborator emails (comma separated)" name="emails" defaultValue={emails.join(", ")} placeholder="colleague@example.com" />
       <TextAreaField label="Team handoff note" name="note" defaultValue={jobs.length === 1 ? jobs[0].collaborationNote || "" : ""} maxLength={1500} />
@@ -177,6 +179,128 @@ function Collaborate({ jobs }: { jobs: ManagedJob[] }) {
         </Button>
       </div>
     </form>
+  );
+}
+
+function JobsBulkActions({
+  drafts,
+  selected,
+  selectedJobs,
+}: {
+  drafts: boolean;
+  selected: Id[];
+  selectedJobs: () => Promise<ManagedJob[]>;
+}) {
+  const run = useServiceAction();
+  const setJobsManager = useUiStore((s) => s.setJobsManager);
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  useDismissableDetails(menuRef, { closeOnAction: true });
+  const hasSelection = selected.length > 0;
+
+  const refresh = async () => {
+    await run(async () => undefined);
+    toast(devCopy("Job list refreshed from this browser’s saved data.", "Job list refreshed."));
+  };
+
+  const collaborate = async () => {
+    if (!hasSelection) return;
+    modal.show("Collaborate on job posts", <Collaborate jobs={await selectedJobs()} />, "project");
+  };
+
+  const closeSelected = async () => {
+    if (!hasSelection) return;
+    const active = (await selectedJobs()).filter((j) => j.status === "Active");
+    if (!active.length) return toast("Select active jobs to close.");
+    modal.show(
+      "Close selected jobs?",
+      <>
+        <p>
+          {active.length} job {active.length === 1 ? "post will" : "posts will"} close. Existing responses and hiring notes will remain.
+        </p>
+        <div className="modal-footer">
+          <Button onClick={() => modal.close()}>Cancel</Button>
+          <Button
+            variant="primary"
+            icon="check"
+            onClick={async () => {
+              const count = await run((s) => s.recruiting.closeJobs(selected), { invalidate: ["jobs-manager", "responses", "review", "hiring-summary", "jobs", "job", "feed", "applications"] });
+              if (count === undefined) return;
+              setJobsManager({ selected: [] });
+              modal.close();
+              toast((count ?? 0) + " job posts closed.");
+            }}
+          >
+            Close jobs
+          </Button>
+        </div>
+      </>,
+    );
+  };
+
+  const deleteSelectedDrafts = () => {
+    if (!hasSelection) return;
+    const n = selected.length;
+    confirmAction(
+      n === 1 ? "Delete draft?" : "Delete selected drafts?",
+      n === 1
+        ? devCopy("This unpublished draft will be removed from this browser.", "This unpublished draft will be permanently deleted.")
+        : devCopy(n + " unpublished drafts will be removed from this browser.", n + " unpublished drafts will be permanently deleted."),
+      async () => {
+        const count = await run((s) => s.recruiting.deleteDrafts(selected), { invalidate: ["jobs-manager", "responses", "review", "hiring-summary", "jobs", "job", "feed", "applications"] });
+        if (count === undefined) return;
+        setJobsManager({ selected: [] });
+        modal.close();
+        toast(count === 1 ? "Draft deleted." : count + " drafts deleted.");
+      },
+      n === 1 ? "Delete draft" : "Delete drafts",
+      { textClassName: "" },
+    );
+  };
+
+  return (
+    <>
+      <div className="jobs-bulk-actions-desktop">
+        <Button variant="text sm" icon="refresh" onClick={refresh}>
+          Refresh
+        </Button>
+        <Button variant="text sm" icon="users" disabled={!hasSelection} onClick={collaborate}>
+          Collaborate
+        </Button>
+        {!drafts && (
+          <Button variant="text sm" icon="close" disabled={!hasSelection} onClick={closeSelected}>
+            Close
+          </Button>
+        )}
+        {drafts && (
+          <Button variant="text sm" icon="trash" disabled={!hasSelection} onClick={deleteSelectedDrafts}>
+            Delete
+          </Button>
+        )}
+      </div>
+      <details className="jobs-bulk-menu" ref={menuRef}>
+        <summary aria-label="More bulk actions">
+          <Icon name="more" />
+        </summary>
+        <div role="menu" aria-label="Bulk actions">
+          <Button variant="text sm" icon="refresh" role="menuitem" onClick={refresh}>
+            Refresh
+          </Button>
+          <Button variant="text sm" icon="users" role="menuitem" disabled={!hasSelection} onClick={collaborate}>
+            Collaborate
+          </Button>
+          {!drafts && (
+            <Button variant="text sm" icon="close" role="menuitem" disabled={!hasSelection} onClick={closeSelected}>
+              Close
+            </Button>
+          )}
+          {drafts && (
+            <Button variant="text sm" icon="trash" role="menuitem" disabled={!hasSelection} onClick={deleteSelectedDrafts}>
+              Delete
+            </Button>
+          )}
+        </div>
+      </details>
+    </>
   );
 }
 
@@ -301,7 +425,9 @@ function JobCard({ job, selected, onSelect }: { job: ManagedJob; selected: boole
               label={"Refresh posting date for " + job.title}
               onClick={async () => {
                 const ok = await run((s) => s.recruiting.repostJob(job.id),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
-                toast(ok ? "Posting date refreshed in the local feed." : "Reopen this job before refreshing its posting date.");
+                // A failed request already showed its own error toast.
+                if (ok === undefined) return;
+                toast(ok ? "Posting date refreshed." : "Reopen this job before refreshing its posting date.");
               }}
             />
           )}
@@ -320,22 +446,164 @@ function JobCard({ job, selected, onSelect }: { job: ManagedJob; selected: boole
   );
 }
 
+type JobsFilterQuery = {
+  drafts: boolean;
+  q: string;
+  statuses: string[];
+  categories: string[];
+  location: string;
+  days: number;
+  sort: string;
+};
+
+const JOB_SORT_OPTIONS = [
+  { value: "newest", label: "Posted date: newest" },
+  { value: "oldest", label: "Posted date: oldest" },
+  { value: "responses", label: "Total responses" },
+  { value: "active", label: "Active jobs first" },
+  { value: "expired", label: "Expired jobs first" },
+];
+
+function JobsFilterFields({
+  sheet = false,
+  query,
+  statusCounts,
+  categoryCounts,
+  formKey,
+}: {
+  sheet?: boolean;
+  query: JobsFilterQuery;
+  statusCounts?: Record<string, number>;
+  categoryCounts?: Record<string, number>;
+  formKey: string;
+}) {
+  const router = useRouter();
+  const setJobsManager = useUiStore((s) => s.setJobsManager);
+  const clearHref = BASE + (query.drafts ? "?tab=drafts" : "");
+  return (
+    <div className={"jobs-filter-fields" + (sheet ? " is-sheet" : "")}>
+      <form
+        id={sheet ? "jobs-manager-filter-sheet" : "jobs-manager-filter"}
+        className="stack"
+        key={formKey}
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          const q = new URLSearchParams();
+          for (const name of ["tab", "q", "location", "days"]) {
+            const value = String(f.get(name) || "").trim();
+            if (value && !(name === "tab" && value === "all")) q.set(name, value);
+          }
+          for (const name of ["status", "category"]) for (const value of f.getAll(name)) q.append(name, String(value));
+          const sort = String(f.get("sort") || "").trim() || query.sort || "newest";
+          if (sort && sort !== "newest") q.set("sort", sort);
+          setJobsManager({ selected: [] });
+          track("search_performed", { surface: "jobs", hasQuery: !!q.get("q") });
+          if (sheet) modal.close();
+          router.push(BASE + (q.size ? "?" + q : ""));
+        }}
+      >
+        <input type="hidden" name="tab" value={query.drafts ? "drafts" : "all"} />
+        <TextField label="Search title / reference / job ID" name="q" type="search" defaultValue={query.q} />
+        {!query.drafts && (
+          <details className="jobs-filter-group" open>
+            <summary>
+              Job status
+              <Icon name="down" />
+            </summary>
+            {["Active", "Closed", "Expired"].map((v) => (
+              <label className="jobs-filter-check" key={v}>
+                <input type="checkbox" name="status" value={v} defaultChecked={query.statuses.includes(v)} />
+                <span>{STATUS_LABELS[v]}</span>
+                <small>{statusCounts?.[v] ?? 0}</small>
+              </label>
+            ))}
+          </details>
+        )}
+        <details className="jobs-filter-group" open>
+          <summary>
+            Category
+            <Icon name="down" />
+          </summary>
+          {jobRules.employment.map((v) => (
+            <label className="jobs-filter-check" key={v}>
+              <input type="checkbox" name="category" value={v} defaultChecked={query.categories.includes(v)} />
+              <span>{v}</span>
+              <small>{categoryCounts?.[v] ?? 0}</small>
+            </label>
+          ))}
+        </details>
+        <details className="jobs-filter-group" open>
+          <summary>
+            Location & date
+            <Icon name="down" />
+          </summary>
+          <TextField label="Location" name="location" type="search" defaultValue={query.location} />
+          <label className="field">
+            <FloatingSelect
+              label="Posted within"
+              name="days"
+              defaultValue={query.days ? String(query.days) : ""}
+              options={[
+                { value: "", label: "Any time" },
+                { value: "7", label: "Last 7 days" },
+                { value: "30", label: "Last 30 days" },
+                { value: "90", label: "Last 90 days" },
+              ]}
+            />
+          </label>
+        </details>
+        {sheet ? (
+          <label className="field">
+            <FloatingSelect label="Sort by" name="sort" defaultValue={query.sort || "newest"} options={JOB_SORT_OPTIONS} />
+          </label>
+        ) : null}
+        <div className="jobs-filter-actions">
+          <LinkButton
+            href={clearHref}
+            variant="text sm"
+            onClick={() => {
+              if (sheet) modal.close();
+            }}
+          >
+            Clear
+          </LinkButton>
+          <button className="btn primary" type="submit">
+            Apply filters
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export function JobsManagerScreen() {
   const params = useSearchParams();
   const router = useRouter();
   const url = useUrl();
   const run = useServiceAction();
   const services = useServices();
-  const { selected, mobileFilters } = useUiStore((s) => s.jobsManager);
+  const { selected } = useUiStore((s) => s.jobsManager);
   const setJobsManager = useUiStore((s) => s.setJobsManager);
   const drafts = params.get("tab") === "drafts";
   const size = [10, 20, 40, 60].includes(Number(params.get("size"))) ? Number(params.get("size")) : 10;
-  const query = { drafts, q: params.get("q") || "", statuses: params.getAll("status"), categories: params.getAll("category"), location: params.get("location") || "", days: Number(params.get("days")) || 0, sort: (params.get("sort") || "newest") as "newest", page: Number(params.get("page")) || 1, pageSize: size };
-  const { data: m,isError,refetch } = useServiceQuery(["jobs-manager", query], (s) => s.recruiting.listManagedJobs(query),{keepPreviousData:false});
+  const sortParam = params.get("sort") || "newest";
+  const sort = (["newest", "oldest", "responses", "active", "expired"].includes(sortParam) ? sortParam : "newest") as "newest" | "oldest" | "responses" | "active" | "expired";
+  const query = { drafts, q: params.get("q") || "", statuses: params.getAll("status"), categories: params.getAll("category"), location: params.get("location") || "", days: Number(params.get("days")) || 0, sort, page: Number(params.get("page")) || 1, pageSize: size };
+  const { data: m,isError,error,refetch } = useHiringQuery(["jobs-manager", query], (s, scope) => s.recruiting.listManagedJobs(query, scope));
+  const filtered = !!(query.q || query.statuses.length || query.categories.length || query.location || query.days);
+  const filterCount = (query.q ? 1 : 0) + query.statuses.length + query.categories.length + (query.location ? 1 : 0) + (query.days ? 1 : 0);
   const visible = m?.items ?? [];
   const allSelected = visible.length > 0 && visible.every((j) => selected.includes(j.id));
   const toggle = (id: Id, checked: boolean) => setJobsManager({ selected: checked ? [...new Set([...selected, id])] : selected.filter((x) => x !== id) });
   const selectedJobs = async () => (await Promise.all(selected.map((id) => services.recruiting.getManagedJob(id)))).filter((j): j is ManagedJob => !!j);
+  const filterProps = {
+    query: { drafts: query.drafts, q: query.q, statuses: query.statuses, categories: query.categories, location: query.location, days: query.days, sort: query.sort },
+    statusCounts: m?.statusCounts,
+    categoryCounts: m?.categoryCounts,
+    formKey: params.toString(),
+  };
+  const openFilterSheet = () => modal.show("Filters", <JobsFilterFields sheet {...filterProps} />, "following");
 
   return (
     <div className="jobs-responses-workspace">
@@ -349,95 +617,24 @@ export function JobsManagerScreen() {
             </Button>
           }
         />
-        <aside className={"card jobs-manager-filters" + (mobileFilters ? " show-filters" : "")}>
+        <aside className="card jobs-manager-filters" aria-label="Filter jobs">
           <div className="jobs-filters-heading">
             <h2>
               <Icon name="sliders" />
               Filters
             </h2>
-            <button type="button" className="jobs-mobile-filter-toggle" aria-expanded={mobileFilters} onClick={() => setJobsManager({ mobileFilters: !mobileFilters })}>
-              <Icon name="sliders" />
-              Filters
-              <Icon name="down" />
-            </button>
-            <LinkButton href={BASE + (drafts ? "?tab=drafts" : "")} variant="text sm">
-              Clear
-            </LinkButton>
           </div>
-          <form
-            id="jobs-manager-filter"
-            className="stack"
-            key={params.toString()}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              const q = new URLSearchParams();
-              for (const name of ["tab", "q", "location", "days"]) {
-                const value = String(f.get(name) || "").trim();
-                if (value && !(name === "tab" && value === "all")) q.set(name, value);
-              }
-              for (const name of ["status", "category"]) for (const value of f.getAll(name)) q.append(name, String(value));
-              setJobsManager({ selected: [], mobileFilters: false });
-              track("search_performed", { surface: "jobs", hasQuery: !!q.get("q") });
-              router.push(BASE + (q.size ? "?" + q : ""));
-            }}
-          >
-            <input type="hidden" name="tab" value={drafts ? "drafts" : "all"} />
-            <TextField label="Search title / reference / job ID" name="q" type="search" defaultValue={query.q} />
-            {!drafts && (
-              <details className="jobs-filter-group" open>
-                <summary>
-                  Job status
-                  <Icon name="down" />
-                </summary>
-                {["Active", "Closed", "Expired"].map((v) => (
-                  <label className="jobs-filter-check" key={v}>
-                    <input type="checkbox" name="status" value={v} defaultChecked={query.statuses.includes(v)} />
-                    <span>{STATUS_LABELS[v]}</span>
-                    <small>{m?.statusCounts[v] ?? 0}</small>
-                  </label>
-                ))}
-              </details>
-            )}
-            <details className="jobs-filter-group" open>
-              <summary>
-                Category
-                <Icon name="down" />
-              </summary>
-              {jobRules.employment.map((v) => (
-                <label className="jobs-filter-check" key={v}>
-                  <input type="checkbox" name="category" value={v} defaultChecked={query.categories.includes(v)} />
-                  <span>{v}</span>
-                  <small>{m?.categoryCounts[v] ?? 0}</small>
-                </label>
-              ))}
-            </details>
-            <details className="jobs-filter-group" open>
-              <summary>
-                Location & date
-                <Icon name="down" />
-              </summary>
-              <TextField label="Location" name="location" type="search" defaultValue={query.location} />
-              <label className="field">
-                <FloatingSelect
-                  label="Posted within"
-                  name="days"
-                  defaultValue={params.get("days") || ""}
-                  options={[
-                    { value: "", label: "Any time" },
-                    { value: "7", label: "Last 7 days" },
-                    { value: "30", label: "Last 30 days" },
-                    { value: "90", label: "Last 90 days" },
-                  ]}
-                />
-              </label>
-            </details>
-            <button className="btn primary" type="submit">
-              Apply filters
-            </button>
-          </form>
+          <JobsFilterFields {...filterProps} />
         </aside>
         <section className="jobs-manager-results" aria-label="Job posts">
+          <div className="jobs-filter-toolbar">
+            <Button className="jobs-filter-toggle" variant="sm" icon="sliders" onClick={openFilterSheet} aria-haspopup="dialog">
+              Filters{filterCount ? ` (${filterCount})` : ""}
+            </Button>
+            <Button className="jobs-post-job-mobile" variant="primary" icon="plus" onClick={() => router.push("/recruiter/jobs/new")}>
+              Post job
+            </Button>
+          </div>
           <div className="jobs-manager-top">
             <nav className="jobs-manager-tabs" aria-label="Job sections">
               <Link className={!drafts ? "active" : ""} href={BASE}>
@@ -447,136 +644,60 @@ export function JobsManagerScreen() {
                 Drafts{!!m?.draftCount && <span>{m.draftCount}</span>}
               </Link>
             </nav>
-            <div className="jobs-pagination">
-              <label className="jobs-page-size">
-                <FloatingSelect
-                  label="Show"
-                  id="jobs-page-size"
-                  aria-label="Jobs per page"
-                  value={String(size)}
-                  onChange={(e) => {
-                    setJobsManager({ selected: [] });
-                    router.push(url({ size: e.target.value, page: "" }));
-                  }}
-                  options={["10", "20", "40", "60"]}
-                />
-              </label>
-              <span>
-                Page {m?.page ?? 1} of {m?.pages ?? 1}
-              </span>
-              {m && m.page > 1 ? (
-                <LinkButton href={url({ page: m.page - 1 })} variant="text sm jobs-page-prev" icon="chevron">
-                  Previous
-                </LinkButton>
-              ) : (
-                <button type="button" className="iconbtn" disabled aria-label="Previous page">
-                  <Icon name="chevron" />
-                </button>
-              )}
-              {m && m.page < m.pages ? (
-                <LinkButton href={url({ page: m.page + 1 })} variant="text sm" icon="chevron">
-                  Next
-                </LinkButton>
-              ) : (
-                <button type="button" className="iconbtn" disabled aria-label="Next page">
-                  <Icon name="chevron" />
-                </button>
-              )}
-            </div>
+            <label className="jobs-sort-label">
+              <FloatingSelect label="Sort by" id="jobs-manager-sort" aria-label="Sort jobs" value={query.sort} onChange={(e) => router.push(url({ sort: e.target.value, page: "" }))} options={JOB_SORT_OPTIONS} />
+            </label>
           </div>
           <div className="card jobs-bulk-toolbar">
             <label className="jobs-select-all">
               <input type="checkbox" id="jobs-select-all" checked={allSelected} disabled={!visible.length} onChange={(e) => setJobsManager({ selected: e.target.checked ? [...new Set([...selected, ...visible.map((j) => j.id)])] : selected.filter((id) => !visible.some((j) => j.id === id)) })} />
               Select all
             </label>
-            <Button
-              variant="text sm"
-              icon="refresh"
-              onClick={async () => {
-                await run(async () => undefined);
-                toast(devCopy("Job list refreshed from this browser’s saved data.", "Job list refreshed."));
-              }}
-            >
-              Refresh
-            </Button>
-            <Button variant="text sm" icon="users" disabled={!selected.length} onClick={async () => modal.show("Collaborate on job posts", <Collaborate jobs={await selectedJobs()} />, "project")}>
-              Collaborate
-            </Button>
-            {!drafts && (
-              <Button
-                variant="text sm"
-                icon="close"
-                disabled={!selected.length}
-                onClick={async () => {
-                  const active = (await selectedJobs()).filter((j) => j.status === "Active");
-                  if (!active.length) return toast("Select active jobs to close.");
-                  modal.show(
-                    "Close selected jobs?",
-                    <>
-                      <p>
-                        {active.length} job {active.length === 1 ? "post will" : "posts will"} close. Existing responses and hiring notes will remain.
-                      </p>
-                      <div className="modal-footer">
-                        <Button onClick={() => modal.close()}>Cancel</Button>
-                        <Button
-                          variant="primary"
-                          icon="check"
-                          onClick={async () => {
-                            const count = await run((s) => s.recruiting.closeJobs(selected),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
-                            if(count===undefined)return;
-                            setJobsManager({ selected: [] });
-                            modal.close();
-                            toast((count ?? 0) + " job posts closed.");
-                          }}
-                        >
-                          Close jobs
-                        </Button>
-                      </div>
-                    </>,
-                  );
-                }}
-              >
-                Close
-              </Button>
-            )}
-            <span className="jobs-selection-count">{selected.length ? selected.length + " selected" : (m?.total ?? 0) + " " + (drafts ? "drafts" : "jobs")}</span>
-            <label className="jobs-sort-label">
-              <FloatingSelect
-                label="Sort by"
-                id="jobs-manager-sort"
-                aria-label="Sort jobs"
-                value={query.sort}
-                onChange={(e) => router.push(url({ sort: e.target.value, page: "" }))}
-                options={[
-                  { value: "newest", label: "Posted date: newest" },
-                  { value: "oldest", label: "Posted date: oldest" },
-                  { value: "responses", label: "Total responses" },
-                ]}
-              />
-            </label>
+            <JobsBulkActions drafts={drafts} selected={selected} selectedJobs={selectedJobs} />
           </div>
           <div className="managed-jobs-list">
-          <QueryFeedback data={m} error={isError} retry={refetch} label="Loading managed jobs" />
+          <QueryFeedback data={m} error={isError} cause={error} retry={refetch} label="Loading managed jobs" />
             {m &&
               (visible.length ? (
                 visible.map((j) => <JobCard key={j.id} job={j} selected={selected.includes(j.id)} onSelect={(c) => toggle(j.id, c)} />)
               ) : (
                 <div className="card">
-                  <EmptyState
-                    title={drafts ? "No drafts in this view." : "No jobs match these filters."}
-                    description={drafts ? "Start a job post and choose Save draft to finish it later." : "Clear a filter or create a new opportunity."}
-                    action={
-                      <>
-                        <LinkButton href={BASE + (drafts ? "?tab=drafts" : "")}>Clear filters</LinkButton>
+                  {filtered ? (
+                    <EmptyState
+                      icon="search"
+                      title={drafts ? "No drafts match these filters" : "No jobs match these filters"}
+                      description="Try different filters, or clear them to see everything."
+                      action={<LinkButton variant="primary" href={BASE + (drafts ? "?tab=drafts" : "")}>Clear filters</LinkButton>}
+                    />
+                  ) : (
+                    <EmptyState
+                      icon={drafts ? "file" : "briefcase"}
+                      title={drafts ? "No drafts yet" : "No jobs posted yet"}
+                      description={drafts ? "Start a job post and choose Save draft to finish it later." : "Post your first job to start receiving applications."}
+                      action={
                         <Button variant="primary" icon="plus" onClick={() => router.push("/recruiter/jobs/new")}>
-                          Post job
+                          Post a job
                         </Button>
-                      </>
-                    }
-                  />
+                      }
+                    />
+                  )}
                 </div>
               ))}
           </div>
+          <Pagination
+            id="jobs-page-size"
+            page={m?.page ?? 1}
+            pages={m?.pages ?? 1}
+            pageSize={size}
+            pageSizeLabel="Jobs per page"
+            summary={(m?.total ?? 0) + " " + (drafts ? "drafts" : "jobs")}
+            previousHref={m && m.page > 1 ? url({ page: m.page - 1 }) : null}
+            nextHref={m && m.page < m.pages ? url({ page: m.page + 1 }) : null}
+            onPageSizeChange={(next) => {
+              setJobsManager({ selected: [] });
+              router.push(url({ size: next, page: "" }));
+            }}
+          />
           <DevOnly>
             <p className="jobs-manager-note">
               <Icon name="shield" />

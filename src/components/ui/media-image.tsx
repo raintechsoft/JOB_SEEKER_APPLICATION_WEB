@@ -20,7 +20,15 @@ function ImageResource({ fallback, onLoad, onError, className, alt = "", loading
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const image = useRef<HTMLImageElement>(null);
   useEffect(() => {
-    if (image.current?.complete) setState(image.current.naturalWidth > 0 ? "ready" : "error");
+    const node = image.current;
+    if (!node?.complete) return;
+    if (node.naturalWidth > 0) {
+      setState("ready");
+      // Cached images may skip a second browser load event; notify once when already complete.
+      onLoad?.({ currentTarget: node } as Parameters<NonNullable<Props["onLoad"]>>[0]);
+    } else setState("error");
+    // Intentionally once on mount for the keyed image instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   if (state === "error") return <>{fallback ?? <span className="media-fallback" role={alt ? "img" : undefined} aria-label={alt || undefined} style={{ aspectRatio: props.width && props.height ? `${props.width}/${props.height}` : undefined }}>Image unavailable</span>}</>;
   // Existing image containers supply fixed dimensions/aspect ratios. The image's

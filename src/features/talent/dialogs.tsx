@@ -13,16 +13,18 @@ import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-serv
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
-import { Avatar, Button } from "@/components/ui/primitives";
+import { Avatar, Button, EmptyState } from "@/components/ui/primitives";
 import { TextField,SelectField } from "@/components/ui/field";
 import { confirmAction, FormError } from "@/components/ui/feedback";
 import { QueryFeedback } from "@/components/ui/query-view";
+import {useAuthAction} from "@/features/auth/use-auth-action";
+import { COMPARE_CANDIDATES_ENABLED, RECRUITER_INVITES_ENABLED } from "@/lib/feature-flags";
 
 
 
 function ShortlistChooser({ candidateId }: { candidateId: Id }) {
-  const {data,isError,refetch}=useServiceQuery(["shortlists"],(s)=>s.talent.listShortlists(),{keepPreviousData:false});
-  return data?<ShortlistSelection candidateId={candidateId} initialLists={data}/>:<QueryFeedback data={data} error={isError} retry={refetch} label="Loading shortlists" />;
+  const {data,isError,error,refetch}=useServiceQuery(["shortlists"],(s)=>s.talent.listShortlists(),{keepPreviousData:false});
+  return data?<ShortlistSelection candidateId={candidateId} initialLists={data}/>:<QueryFeedback data={data} error={isError} cause={error} compact retry={refetch} label="Loading shortlists" />;
 }
 function ShortlistSelection({candidateId,initialLists}:{candidateId:Id;initialLists:ShortlistView[]}){
   const [lists]=useState(initialLists);
@@ -38,10 +40,11 @@ function ShortlistSelection({candidateId,initialLists}:{candidateId:Id;initialLi
         style={{ marginTop: 20 }}
         onSubmit={async (e) => {
           e.preventDefault();
+          if (!lists.length) return;
           const ids = new FormData(e.currentTarget).getAll("shortlist").map(String);
           const versions=Object.fromEntries(lists.filter((l)=>l.canEdit!==false && typeof l.version==="number").map((l)=>[l.id,l.version!]));
           if(!await execute(async(s)=>{await s.talent.setCandidateShortlists(candidateId, ids,versions);return true;}))return;
-          toast("Shortlists updated.");
+          toast(ids.length ? "Saved to your shortlist." : "Removed from your shortlists.");
           modal.close();
         }}
       >
@@ -53,23 +56,25 @@ function ShortlistSelection({candidateId,initialLists}:{candidateId:Id;initialLi
             </label>
           ))
         ) : (
-          <p className="small muted">Create a shortlist first to save candidates.</p>
+          <EmptyState compact icon="folder" title="No shortlists yet" description="Create a shortlist to keep this person. They’ll be added to it right away." />
         )}
         {Object.values(errors).map((error)=><p role="alert" key={error}>{error}</p>)}
         <div className="modal-footer">
-          <Button icon="plus" onClick={() => dialogs.edit()}>
+          <Button icon="plus" variant={lists.length ? undefined : "primary"} onClick={() => dialogs.edit(undefined, undefined, undefined, candidateId)}>
             New shortlist
           </Button>
-          <Button type="submit" variant="primary" loading={pending} disabled={pending}>
-            Save selection
-          </Button>
+          {lists.length > 0 && (
+            <Button type="submit" variant="primary" loading={pending} disabled={pending}>
+              Save selection
+            </Button>
+          )}
         </div>
       </form>
     </>
   );
 }
 
-function ShortlistNameForm({ id, name,version }: { id?: Id; name?: string;version?:number }) {
+function ShortlistNameForm({ id, name, version, candidateId }: { id?: Id; name?: string; version?: number; candidateId?: Id }) {
   const [errors,setErrors]=useState<Record<string,string>>({});
   const {execute,pending}=useFormAction(setErrors);
   const setUi = useUiStore((s) => s.setUi);
@@ -81,8 +86,23 @@ function ShortlistNameForm({ id, name,version }: { id?: Id; name?: string;versio
         const value = String(new FormData(e.currentTarget).get("name") || "").trim();
         const checked=shortlistNameSchema.safeParse(value);
         if(!checked.success)return setErrors(validationFields(checked.error));
-        if(!await execute(async(s)=>{if(id)await s.talent.renameShortlist(id,checked.data,version);else setUi({shortlistTab:await s.talent.createShortlist(checked.data)});}))return;
-        toast(id ? "Shortlist renamed." : "Your new shortlist is ready.");
+        if(!await execute(async(s)=>{
+          if(id){
+            await s.talent.renameShortlist(id,checked.data,version);
+            return true;
+          }
+          const listId=await s.talent.createShortlist(checked.data);
+          setUi({shortlistTab:listId});
+          if(candidateId){
+            const rows=await s.talent.listShortlists();
+            const editable=rows.filter((l)=>l.canEdit!==false && typeof l.version==="number");
+            const versions=Object.fromEntries(editable.map((l)=>[l.id,l.version!]));
+            const selected=editable.filter((l)=>l.id===listId||l.candidates.includes(candidateId)).map((l)=>l.id);
+            await s.talent.setCandidateShortlists(candidateId,selected,versions);
+          }
+          return true;
+        }))return;
+        toast(id ? "Shortlist renamed." : candidateId ? "Saved to your new shortlist." : "Your new shortlist is ready.");
         modal.close();
       }}
     >
@@ -91,7 +111,7 @@ function ShortlistNameForm({ id, name,version }: { id?: Id; name?: string;versio
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
         <Button type="submit" variant="primary" loading={pending} disabled={pending}>
-          {id ? "Save name" : "Create shortlist"}
+          {id ? "Save name" : candidateId ? "Create and save" : "Create shortlist"}
         </Button>
       </div>
     </form>
@@ -103,8 +123,9 @@ function CompareChooser() {
   const compared = useUiStore((s) => s.compared);
   const setUi = useUiStore((s) => s.setUi);
   const [error, setError] = useState("");
-  const { data: people } = useServiceQuery(["talent", "public-people"], (s) => s.talent.listPublicPeople());
-  if (!people) return null;
+  const { data: people, isError, error: cause, refetch } = useServiceQuery(["talent", "public-people"], (s) => s.talent.listPublicPeople());
+  if (!people) return <QueryFeedback data={people} error={isError} cause={cause} retry={refetch} compact layout="form" label="Loading candidates" />;
+  if (!people.length) return <EmptyState compact icon="users" title="No candidates to compare yet" description="Professionals appear here once their profiles are public." action={<Button onClick={() => modal.close()}>Close</Button>} />;
   return (
     <form
       id="compare-form"
@@ -150,16 +171,29 @@ function ShortlistSharing({list}:{list:Shortlist}){
 }
 
 export function useShortlistDialogs() {
+  const gate=useAuthAction();
   const run = useServiceAction();
   const services = useServices();
   const setUi = useUiStore((s) => s.setUi);
   return {
     choose: async (candidateId: Id) => {
+      return gate.run("shortlist",async()=>{
       const candidate = await services.talent.getCandidate(candidateId);
       modal.show("Keep " + firstName(candidate?.person.name ?? "them") + " in mind.", <ShortlistChooser candidateId={candidateId} />);
+      },{target:{kind:"person",id:candidateId}});
     },
-    edit: (id?: Id, name?: string,version?:number) => modal.show(id ? "Rename your shortlist" : "A place for promising people.", <ShortlistNameForm id={id} name={name} version={version}/>),
-    share:(list:Shortlist)=>modal.show("Share your shortlist",<ShortlistSharing list={list}/>),
+    edit: (id?: Id, name?: string, version?: number, candidateId?: Id) => {
+      void gate.run("shortlist", () =>
+        modal.show(
+          id ? "Rename your shortlist" : candidateId ? "Save to a new shortlist" : "A place for promising people.",
+          <ShortlistNameForm id={id} name={name} version={version} candidateId={candidateId} />,
+        ),
+      );
+    },
+    share: (list: Shortlist) => {
+      if (!RECRUITER_INVITES_ENABLED) return;
+      modal.show("Share your shortlist", <ShortlistSharing list={list} />);
+    },
     remove: (id: Id) =>
       confirmAction("Delete this shortlist?", "The list will be removed. Candidate profiles will remain in the directory.", async () => {
         if(!await run(async(s)=>{await s.talent.deleteShortlist(id);return true;}))return;
@@ -168,15 +202,21 @@ export function useShortlistDialogs() {
         modal.close();
         toast("Shortlist deleted.");
       }),
-    chooseCompare: () => modal.show("A little perspective, side by side.", <CompareChooser />),
+    chooseCompare: () => {
+      if (!COMPARE_CANDIDATES_ENABLED) return;
+      void gate.run("compare_candidates", () => modal.show("A little perspective, side by side.", <CompareChooser />));
+    },
   };
 }
 
 /** Toggles a candidate in the comparison (max four), as the prototype's `compareToggle`. */
 export function useCompareToggle() {
+  const gate=useAuthAction();
   const compared = useUiStore((s) => s.compared);
   const setUi = useUiStore((s) => s.setUi);
   return (id: Id) => {
+    if (!COMPARE_CANDIDATES_ENABLED) return;
+    void gate.run("compare_candidates",()=>{
     if (compared.includes(id)) {
       setUi({ compared: compared.filter((i) => i !== id) });
       toast("Removed from comparison.");
@@ -184,19 +224,23 @@ export function useCompareToggle() {
       setUi({ compared: [...compared, id] });
       toast("Added to comparison.");
     } else toast("Compare up to four people at a time.");
+    },{target:{kind:"person",id}});
   };
 }
 
 /** Opens (or creates) a recruiter conversation with a candidate and goes to Messages. */
 export function useContactCandidate() {
+  const gate=useAuthAction();
   const run = useServiceAction();
   const router = useRouter();
   const setMessaging = useUiStore((s) => s.setMessaging);
   return async (candidateId: Id) => {
-    const id = await run((s) => s.messaging.start("recruiter", candidateId, { anyCompany: true }));
+    return gate.run("message",async(context)=>{
+    const id = await run((s) => s.messaging.start(context.role, candidateId, { anyCompany: true }));
     if (!id) return;
     setMessaging({ conversation: id });
     modal.close();
-    router.push("/recruiter/messages");
+    router.push(context.role==="recruiter"?"/recruiter/messages":"/app/messages");
+    },{target:{kind:"person",id:candidateId}});
   };
 }

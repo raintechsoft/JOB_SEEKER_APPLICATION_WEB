@@ -63,12 +63,18 @@ export interface DiscoverySection {
 export interface TalentInterests { skills: string[]; version: number }
 export interface TalentDiscovery { sections: DiscoverySection[]; interests: TalentInterests }
 
+export interface PublicProfileViewer {
+  own: boolean;
+  following: boolean;
+}
+
 export interface CandidateView {
   person: PublicProfessional;
   projects: Project[];
   updates: WorkUpdate[];
   portfolioSlug: string;
   saved: boolean;
+  viewer: PublicProfileViewer;
 }
 
 export interface ShortlistView extends Shortlist {

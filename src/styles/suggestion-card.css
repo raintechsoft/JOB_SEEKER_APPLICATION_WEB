@@ -2,6 +2,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
   gap: 12px;
+  align-items: stretch;
+}
+
+.suggestion-card-grid > * {
+  min-width: 0;
+  height: 100%;
 }
 
 .suggestion-card {
@@ -10,6 +16,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100%;
   background: #fff;
   border: 1px solid #e4e9ef;
   border-radius: 12px;
@@ -43,13 +50,19 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  padding-top: 72px;
+  padding: 72px 0 14px;
   color: #202a36;
   text-align: center;
   text-decoration: none;
 }
 
 .suggestion-card-main:hover { text-decoration: none; color: #202a36; }
+
+/* Follow / footer action replaces the main's bottom padding. */
+.suggestion-card:has(.suggestion-card-follow) .suggestion-card-main,
+.suggestion-card:has(> :last-child:not(.suggestion-card-main)) .suggestion-card-main {
+  padding-bottom: 0;
+}
 
 .suggestion-card-cover {
   position: absolute;
@@ -93,9 +106,11 @@
   z-index: 1;
   display: flex;
   justify-content: center;
+  align-self: center;
   flex-shrink: 0;
+  width: 80px;
   margin-top: -40px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .suggestion-card-photo .avatar,
@@ -115,24 +130,37 @@
 }
 
 .suggestion-card-name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
   flex-shrink: 0;
+  box-sizing: border-box;
   width: 100%;
   height: calc(13px * 1.3 * 2);
+  margin: 0;
   padding: 0 12px;
   font-size: 13px;
   font-weight: 650;
   letter-spacing: -.1px;
   line-height: 1.3;
+  text-align: center;
+}
+
+/* Clamp on the inner span so -webkit-box does not break centered text. */
+.suggestion-card-name > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  text-align: center;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-
-.suggestion-card-name > span { min-width: 0; }
 
 .suggestion-card-name .icon {
   width: 14px;
@@ -142,20 +170,31 @@
 }
 
 .suggestion-card-headline {
+  display: block;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: calc(12px * 1.35 * 2);
+  margin-top: 4px;
+  padding: 0 14px;
+  color: #626b76;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.suggestion-card-headline > span {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
-  flex-shrink: 0;
   width: 100%;
-  min-height: calc(12px * 1.35);
-  max-height: calc(12px * 1.35 * 2);
-  margin-top: 2px;
-  padding: 0 14px;
-  color: #626b76;
-  font-size: 12px;
-  line-height: 1.35;
+  max-height: 100%;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .suggestion-card-meta {
@@ -180,7 +219,7 @@
   flex-shrink: 0;
   align-self: stretch;
   min-height: 36px;
-  margin: 6px 14px 12px;
+  margin: auto 14px 12px;
   padding: 6px 14px;
   border: 0;
   border-radius: 999px;
@@ -227,8 +266,13 @@
 .suggestion-card-meta > span[title] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Talent results reuse the suggestion card; the wrapper only carries impression tracking. */
-.talent-suggestion { display: flex; min-width: 0; }
-.talent-suggestion > .suggestion-card { flex: 1; }
+.talent-suggestion {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+.talent-suggestion > .suggestion-card { flex: 1 1 auto; width: 100%; }
 .talent-availability { display: inline-flex; align-items: center; gap: 5px; }
 .talent-availability::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #8a93a0; }
 .talent-availability.is-open { color: #1f7a4d; }
@@ -296,7 +340,7 @@
 .suggestion-card.is-skeleton .suggestion-card-main { padding-bottom: 0; }
 .suggestion-card.is-skeleton .suggestion-card-cover { border-radius: 11px 11px 0 0; }
 .suggestion-skeleton-photo { display: block; width: 80px; height: 80px; border: 3px solid #fff; border-radius: 50%; }
-.suggestion-skeleton-line { display: block; width: 55%; height: 12px; margin-top: 8px; border-radius: 6px; }
+.suggestion-skeleton-line { display: block; width: 55%; height: 12px; margin: 8px auto 0; border-radius: 6px; }
 .suggestion-skeleton-line.is-name { width: 65%; height: 14px; margin-top: 4px; }
 .suggestion-skeleton-action { display: block; align-self: center; width: 84px; height: 20px; margin: 18px auto 20px; border-radius: 999px; }
 .suggestion-skeleton-heading { display: grid; gap: 8px; margin-bottom: 20px; }

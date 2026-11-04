@@ -1,0 +1,417 @@
+/* Guest pages reuse the signed-in header, main container and feed/search grids;
+   only guest-specific pieces are styled here. */
+/* Guests search only from the header field. Do not swap it for a Search-page icon. */
+body.professional-theme .public-browse .mobile-workspace-search {
+  display: none;
+}
+@media (max-width: 1200px) and (min-width: 851px) {
+  body.professional-theme .public-browse .professional-header #feed-search-form.header-search-badge {
+    display: flex;
+  }
+}
+.public-feed-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.public-feed-sort .icon {
+  width: 15px;
+  height: 15px;
+}
+.public-guest-column .card {
+  padding: 20px 21px;
+}
+.public-guest-welcome {
+  display: grid;
+  gap: 12px;
+}
+.public-guest-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #edf3ff;
+  color: #315ef4;
+}
+.public-guest-mark .icon {
+  width: 22px;
+  height: 22px;
+}
+.public-guest-welcome h2 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.35;
+}
+.public-guest-welcome p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.public-guest-welcome small {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.public-guest-cta {
+  display: grid;
+  gap: 8px;
+}
+.public-guest-welcome .btn {
+  justify-content: center;
+  width: 100%;
+}
+.public-guest-explore {
+  display: grid;
+  gap: 2px;
+}
+.public-guest-explore h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.public-guest-explore > a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 8px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 14px;
+  text-decoration: none;
+}
+.public-guest-explore > a:hover,
+.public-guest-explore > a[aria-current="page"] {
+  background: #f1f4fa;
+  color: #315ef4;
+}
+.public-guest-explore .icon {
+  width: 18px;
+  height: 18px;
+  color: #718095;
+}
+.public-guest-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+.public-guest-footer a {
+  color: var(--muted);
+}
+.public-jobs-rail .rail-manage-alerts {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.public-back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #315ef4;
+  font-size: 14px;
+}
+
+.public-entry-card .feed-post-body h3 {
+  margin-bottom: 10px;
+}
+.public-entry-card .public-entry-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.public-entry-card .feed-post-header .grow {
+  min-width: 0;
+}
+.public-entry-card .feed-post-byline {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.public-entry-card .feed-post-header h2 a,
+.public-entry-card .feed-post-body h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+.public-comments {
+  padding: 20px 24px;
+  border-top: 1px solid var(--line);
+}
+.public-comments > h3 {
+  margin: 0 0 20px;
+  font-size: 16px;
+}
+.public-comments .feed-comment {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  padding: 12px 0;
+}
+.public-comments .feed-comment .avatar {
+  flex-shrink: 0;
+}
+.public-comments .feed-comment-main {
+  min-width: 0;
+  flex: 1;
+}
+.public-comments .feed-comment-head {
+  gap: 12px;
+}
+.public-comments time {
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.public-comments .feed-comment.is-reply {
+  margin-left: 40px;
+}
+.public-comments .feed-comment.is-highlighted {
+  background: #edf3ff;
+  border-radius: 8px;
+}
+.public-conversation-link {
+  display: inline-block;
+  margin-top: 18px;
+  font-size: 14px;
+  color: #315ef4;
+}
+.public-share-controls {
+  margin-top: auto;
+}
+.public-browse-empty,
+.public-browse-error,
+.public-search-start {
+  padding: 44px 24px;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+.public-browse-empty > .icon,
+.public-browse-error > .icon,
+.public-search-start > .icon {
+  width: 48px;
+  height: 48px;
+  color: #8292a8;
+  stroke-width: 1.3;
+}
+.public-browse-empty h2,
+.public-search-start h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.public-browse-error p,
+.public-search-start p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.public-search-options {
+  min-height: 240px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 12px 0;
+}
+.public-search-options h3 {
+  font-size: 13px;
+  color: #6a7482;
+  font-weight: 600;
+  padding: 0 18px;
+  margin: 2px 0 10px;
+}
+.public-search-options > p {
+  padding: 10px 18px;
+  font-size: 14px;
+}
+#feed-search-form .public-search-options > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 18px;
+  border: 0;
+  background: white;
+  color: #202a36;
+  font: inherit;
+  cursor: pointer;
+}
+#feed-search-form .public-search-options > button:hover,
+#feed-search-form .public-search-options > button[aria-selected="true"],
+#feed-search-form .public-search-options > button:focus-visible {
+  background: #eef2fa;
+}
+.public-search-options > button > .avatar {
+  width: 34px;
+  height: 34px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.public-search-options > button > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  flex: 1;
+}
+.public-search-options strong,
+.public-search-options small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.public-search-options strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+body.professional-theme .public-search-options small {
+  font-size: 12px;
+  color: #65748a;
+}
+.public-search-options > [role="status"] {
+  display: grid;
+  gap: 24px;
+  padding: 16px 18px;
+}
+.public-search-no-result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #65748a;
+}
+@media (max-width: 680px) {
+  .public-comments {
+    padding: 18px;
+  }
+  .public-comments .feed-comment.is-reply {
+    margin-left: 22px;
+  }
+  .public-search-options {
+    max-height: calc(100dvh - 290px);
+  }
+  .public-browse .header-search-dropdown {
+    max-height: calc(100dvh - 190px);
+    width: 100%;
+    min-width: 0;
+  }
+  .public-browse-empty,
+  .public-browse-error {
+    padding: 36px 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-browse * {
+    scroll-behavior: auto;
+  }
+}
+.public-comment-composer {
+  margin-top: 10px;
+}
+.public-comment-composer form {
+  display: grid;
+  justify-items: start;
+  gap: 9px;
+}
+.public-comment-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid #c8d4e7;
+  border-radius: 10px;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  color: #202a36;
+  background: #fff;
+  box-sizing: border-box;
+}
+.public-comment-composer textarea:focus {
+  outline: 2px solid #315ef4;
+  outline-offset: 2px;
+}
+.public-share-controls > .btn {
+  margin-top: 20px;
+}
+.public-entry-menu .activity-post-menu-items > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
+  background: white;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #202a36;
+}
+.public-entry-menu .activity-post-menu-items > button:hover {
+  background: #f0f4fa;
+}
+
+/* Job title opens the same side sheet as the signed-in feed. */
+.public-entry-card .public-job-title {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.public-entry-card .feed-post-body h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (max-width: 680px) {
+  .public-guest-explore,
+  .public-guest-footer {
+    display: none;
+  }
+  .public-guest-welcome {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+  }
+  .public-guest-welcome > p,
+  .public-guest-welcome > small,
+  .public-guest-welcome > .public-guest-cta,
+  .public-guest-welcome > .btn {
+    grid-column: 1/-1;
+  }
+  .public-guest-cta {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+/* Create account stands apart from Sign in with a green gradient. */
+body.professional-theme .public-guest-cta .btn.primary {
+   border: none;
+  /* border-color: #15803d; */
+  background: linear-gradient(135deg, #138b3f 0%, #118b3e 55%, #15803d 100%);
+  color: #fff;
+  box-shadow: 0 6px 16px #16a34a33;
+}
+body.professional-theme .public-guest-cta .btn.primary:hover {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 60%, #166534 100%);
+  color: #fff;
+}
+body.professional-theme .public-guest-cta .btn.primary:focus-visible {
+  outline: 2px solid #15803d;
+  outline-offset: 3px;
+}
+/* Guest links and buttons keep their colour on hover (no colour or underline shift). */
+.public-jobs-rail .rail-job-title:hover,
+.public-jobs-rail .rail-job-actions > button:hover {
+  color: inherit;
+  text-decoration: none;
+}
+.public-comments-region{scroll-margin-top:120px}
+.public-profile-page{max-width:1100px;margin:0 auto;padding-top:4px}
+.public-browse-main .org-public-page{padding-top:4px;padding-bottom:24px}

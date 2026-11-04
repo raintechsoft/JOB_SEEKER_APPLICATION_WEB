@@ -112,10 +112,10 @@ test("profile sidebar displays one section and supports history, editing, and mo
   await expect(panel.locator(".profile-section-card")).toHaveCount(1);
   await page
     .locator(".profile-editor-pagination")
-    .getByRole("button", { name: "Technical skills", exact: true })
+    .getByRole("button", { name: "Projects", exact: true })
     .click();
-  await expect(page.locator("#profile-technical")).toBeVisible();
-  await expect(picker).toHaveValue("technical");
+  await expect(page.locator("#profile-projects")).toBeVisible();
+  await expect(picker).toHaveValue("projects");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth > innerWidth,

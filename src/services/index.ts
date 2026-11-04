@@ -42,9 +42,13 @@ import type { MediaService } from "./media/media.http";
 import type {NotificationsService} from "./notifications/notifications.service";
 import type { JourneyService } from "./journey/journey.service";
 import { mockJourneyService } from "./journey/journey.mock";
+import {ApiError} from "./api/client";
+import type {PublicBrowsingService} from "./public-browsing/public-browsing.service";
 
 /** Every data-access boundary the UI uses. */
 export interface Services {
+  realtime?: ReturnType<typeof import("./realtime/realtime.http").createRealtimeService>;
+  publicBrowsing: PublicBrowsingService;
   applicationWizard: ReturnType<typeof import("./applications/application-wizard.http").createHttpApplicationDraftService>;
   applicationDocuments: ReturnType<typeof import("./applications/application-documents.http").createApplicationDocumentService>;
   journey: JourneyService;
@@ -75,6 +79,7 @@ export interface Services {
 
 /** MOCK: browser-local implementations backed by `src/mocks`. */
 const mockServices: Services = {
+  publicBrowsing: new Proxy({} as PublicBrowsingService,{get:()=>async()=>{throw new ApiError("Public browsing requires the connected API.",503);}}),
   applicationWizard: new Proxy({} as Services["applicationWizard"], {get: () => async () => {throw new Error("Application drafts require HTTP mode.");}}),
   applicationDocuments: new Proxy({} as Services["applicationDocuments"], {get: () => async () => {throw new Error("Application documents require HTTP mode.");}}),
   journey: mockJourneyService,
@@ -83,7 +88,7 @@ const mockServices: Services = {
   media: { async upload() { throw new Error("Managed uploads require HTTP mode."); }, async remove() { throw new Error("Managed uploads require HTTP mode."); } },
   auth: new Proxy({} as AuthService, { get: () => async () => { throw new Error("Real account operations require HTTP mode."); } }),
   activity: mockActivityService,
-  notifications:{async list(){return {items:[],unreadCount:0,newCount:0,seenToken:"mock"};},async counts(){return {unreadCount:0,newCount:0};},async markSeen(){},async delete(){},async markRead(){},async preferences(){return [];},async savePreference(){}},
+  notifications:{async list(){return {items:[],unreadCount:0,newCount:0,seenToken:"mock"};},async counts(){return {unreadCount:0,newCount:0};},async markSeen(){},async delete(){},async clearAll(){},async markRead(){},async preferences(){return [];},async savePreference(){}},
   admin: mockAdminService,
   applications: mockApplicationsService,
   feed: mockFeedService,

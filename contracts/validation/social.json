@@ -3,7 +3,7 @@
   "bodyMax": 3000,
   "commentMax": 1000,
   "mediaMax": 200,
-  "imageBytesMax": 536870912,
+  "imageBytesMax": 104857600,
   "totalImageBytesMax": 2147483648,
   "altMax": 300,
   "filters": [

@@ -15,7 +15,13 @@ function CountryFlag({ iso }: { iso: string }) {
   return <Flag className="country-code-flag" aria-hidden="true" />;
 }
 
-export function CountryCodeField({ name = "country", defaultValue = "IN", error, required = true }: { name?: string; defaultValue?: string; error?: string; required?: boolean }) {
+/**
+ * Searchable country picker. `dial` (default) picks a phone country code by ISO;
+ * `region` picks a country/region by name and can be left empty.
+ */
+export function CountryCodeField({ name = "country", defaultValue = "IN", error, required = true, mode = "dial", label }: { name?: string; defaultValue?: string; error?: string; required?: boolean; mode?: "dial" | "region"; label?: string }) {
+  const region = mode === "region";
+  const fieldLabel = label ?? (region ? "Country / region" : "Country code");
   const labelId = useId();
   const listId = useId();
   const errorId = useId();
@@ -24,14 +30,16 @@ export function CountryCodeField({ name = "country", defaultValue = "IN", error,
   const searchRef = useRef<HTMLInputElement>(null);
   const hiddenRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const [iso, setIso] = useState(defaultValue);
+  const [iso, setIso] = useState(() => region ? (PHONE_COUNTRIES.find((country) => country.name.toLowerCase() === defaultValue.trim().toLowerCase() || country.iso === defaultValue)?.iso ?? "") : defaultValue);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [menuBox, setMenuBox] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
 
-  const selected = PHONE_COUNTRIES.find((country) => country.iso === iso) ?? PHONE_COUNTRIES[0];
-  const openMenu = () => { setActive(Math.max(0, PHONE_COUNTRIES.findIndex(country => country.iso === iso))); setOpen(true); };
+  const selected = PHONE_COUNTRIES.find((country) => country.iso === iso) ?? (region ? undefined : PHONE_COUNTRIES[0]);
+  // Inside a native modal <dialog> (top layer) a body-level menu would sit behind it; render into the dialog instead.
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
+  const openMenu = () => { setPortalHost(rootRef.current?.closest("dialog") ?? document.body); setActive(Math.max(0, PHONE_COUNTRIES.findIndex(country => country.iso === iso))); setOpen(true); };
   const options = useMemo(() => {
     const needle = query.trim().toLowerCase().replace(/^\+/, "");
     if (!needle) return PHONE_COUNTRIES;
@@ -87,8 +95,8 @@ export function CountryCodeField({ name = "country", defaultValue = "IN", error,
     else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
   }, [active, options, menuBox]);
 
-  const choose = (country: PhoneCountry) => {
-    setIso(country.iso);
+  const choose = (country: PhoneCountry | null) => {
+    setIso(country?.iso ?? "");
     setOpen(false);
     setQuery("");
     requestAnimationFrame(() => {
@@ -118,7 +126,7 @@ export function CountryCodeField({ name = "country", defaultValue = "IN", error,
   return (
     <label className="field" ref={rootRef}>
       <span className={cn("floating-field is-select has-value country-code-field", open && "is-open")}>
-        <input ref={hiddenRef} type="hidden" name={name} value={selected?.iso ?? ""} />
+        <input ref={hiddenRef} type="hidden" name={name} value={region ? selected?.name ?? "" : selected?.iso ?? ""} />
         <button
           ref={buttonRef}
           type="button"
@@ -137,23 +145,23 @@ export function CountryCodeField({ name = "country", defaultValue = "IN", error,
           }}
         >
           {selected && <CountryFlag iso={selected.iso} />}
-          <span className="country-code-value">{selected ? `${selected.name} (${selected.code})` : "Country code"}</span>
+          <span className={cn("country-code-value", !selected && "is-placeholder")}>{selected ? (region ? selected.name : `${selected.name} (${selected.code})`) : region ? "Select a country or region" : "Country code"}</span>
           <Icon name="down" />
         </button>
         <span className="floating-label" id={labelId}>
-          Country code
+          {fieldLabel}
           <span className="floating-required" aria-hidden="true" hidden={!required}>*</span>
         </span>
       </span>
       {error && <small id={errorId} role="alert" className="auth-field-error">{error}</small>}
-      {open && menuBox && createPortal(
+      {open && menuBox && portalHost && createPortal(
         <div className="country-code-menu" style={{ top: menuBox.top, left: menuBox.left, width: menuBox.width, maxHeight: menuBox.maxHeight }}>
           <input
             ref={searchRef}
             className="country-code-search"
             value={query}
-            placeholder="Search country or code"
-            aria-label="Search country or code"
+            placeholder={region ? "Search countries and regions" : "Search country or code"}
+            aria-label={region ? "Search countries and regions" : "Search country or code"}
             aria-controls={listId}
             aria-activedescendant={options[active] ? `${listId}-${options[active].iso}` : undefined}
             onChange={(event) => {
@@ -162,7 +170,14 @@ export function CountryCodeField({ name = "country", defaultValue = "IN", error,
             }}
             onKeyDown={onSearchKey}
           />
-          <ul ref={listRef} id={listId} role="listbox" className="country-code-list" aria-label="Country code">
+          <ul ref={listRef} id={listId} role="listbox" className="country-code-list" aria-label={fieldLabel}>
+            {region && !query.trim() && (
+              <li>
+                <button type="button" role="option" aria-selected={!iso} className="country-code-option country-code-clear" onClick={() => choose(null)}>
+                  <span>Not specified</span>
+                </button>
+              </li>
+            )}
             {options.map((country, index) => (
               <li key={country.iso}>
                 <button
@@ -176,14 +191,14 @@ export function CountryCodeField({ name = "country", defaultValue = "IN", error,
                 >
                   <CountryFlag iso={country.iso} />
                   <span>{country.name}</span>
-                  <span className="country-code-dial">{country.code}</span>
+                  {!region && <span className="country-code-dial">{country.code}</span>}
                 </button>
               </li>
             ))}
             {options.length === 0 && <li className="country-code-empty">No countries match.</li>}
           </ul>
         </div>,
-        document.body,
+        portalHost,
       )}
     </label>
   );

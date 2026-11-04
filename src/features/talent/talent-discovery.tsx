@@ -9,9 +9,9 @@ import { ApiError, errorMessage } from "@/services/api/client";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { QueryFeedback } from "@/components/ui/query-view";
-import { Button, LinkButton } from "@/components/ui/primitives";
+import { Button, EmptyState, LinkButton } from "@/components/ui/primitives";
 import { TextField } from "@/components/ui/field";
-import { Icon } from "@/components/ui/icon";
+import { Icon, type IconName } from "@/components/ui/icon";
 import { SuggestionCardGrid, SuggestionCardsSkeleton } from "@/components/suggestions/suggestion-card";
 import { TalentCard } from "@/components/talent/talent-card";
 
@@ -19,13 +19,22 @@ type Audience = "recruiter" | "professional";
 const discoverPath = (role: Audience) => (role === "recruiter" ? "/recruiter/discover" : "/app/discover");
 const seeAllHref = (s: DiscoverySection, role: Audience) => discoverPath(role) + "?section=" + s.key + (s.job ? "&job=" + s.job.id : "");
 
-const EMPTY: Record<DiscoverySectionKey, string> = {
-  jobMatches: "No strong matches yet. Profiles appear here when their skills overlap with this job.",
-  peopleYouMayKnow: "Shortlist, message or receive applications from candidates to see similar people here.",
-  interests: "Choose the skills you hire for and we’ll show people who have them.",
-  suggestions: "No suggestions right now. Check back as more professionals update their profiles.",
-  skills: "No one shares your profile skills yet. Add skills to your profile to find people like you.",
+const EMPTY: Record<DiscoverySectionKey, { icon: IconName; title: string; description: string }> = {
+  jobMatches: { icon: "briefcase", title: "No strong matches yet", description: "Profiles appear here when their skills overlap with this job." },
+  peopleYouMayKnow: { icon: "users", title: "No similar people yet", description: "Shortlist, message or receive applications from candidates to see similar people here." },
+  interests: { icon: "star", title: "No interests chosen yet", description: "Choose the skills you hire for and we’ll show people who have them." },
+  suggestions: { icon: "users", title: "No suggestions right now", description: "Check back as more professionals update their profiles." },
+  skills: { icon: "spark", title: "No one shares your skills yet", description: "Add skills to your profile to find people like you." },
 };
+
+function SectionEmpty({ section, interests, role }: { section: DiscoverySection; interests: TalentInterests; role: Audience }) {
+  const copy = EMPTY[section.key];
+  const action =
+    section.key === "interests" ? <Button variant="primary" icon="edit" onClick={() => modal.show("Skills you’re interested in", <InterestsEditor initial={interests} />)}>Choose skills</Button>
+    : section.key === "skills" && role === "professional" ? <LinkButton href="/app/profile" variant="primary" icon="user">Update your profile</LinkButton>
+    : undefined; // "Back to discover" already sits above the section.
+  return <EmptyState compact icon={copy.icon} title={copy.title} description={copy.description} action={action} />;
+}
 
 function Row({ section, interests, role }: { section: DiscoverySection; interests: TalentInterests; role: Audience }) {
   const editInterests = () => modal.show("Skills you’re interested in", <InterestsEditor initial={interests} />);
@@ -59,8 +68,27 @@ function Row({ section, interests, role }: { section: DiscoverySection; interest
 
 /** Discovery rows (recruiter talent or job seeker people) shown when no search or filter is active. */
 export function TalentDiscoveryRows({ role = "recruiter" }: { role?: Audience }) {
-  const { data, isError, refetch } = useServiceQuery(["talent", "discovery", role], (s) => (role === "recruiter" ? s.talent.getDiscovery() : s.talent.getPeopleDiscovery()));
-  if (!data) return isError ? <QueryFeedback data={data} error={isError} retry={refetch} layout="cards" label="Loading talent for you" /> : <SuggestionCardsSkeleton rows={2} headings label="Loading people for you" />;
+  const { data, isError, error, refetch } = useServiceQuery(["talent", "discovery", role], (s) => (role === "recruiter" ? s.talent.getDiscovery() : s.talent.getPeopleDiscovery()));
+  if (!data) return isError ? <QueryFeedback data={data} error={isError} cause={error} retry={refetch} layout="cards" label="Loading talent for you" /> : <SuggestionCardsSkeleton rows={2} headings label="Loading people for you" />;
+  if (!data.sections.some((s) => s.items.length))
+    return (
+      <EmptyState
+        icon="users"
+        title={role === "recruiter" ? "No talent suggestions yet" : "No people suggestions yet"}
+        description={role === "recruiter" ? "Choose the skills you hire for, or search the directory to find people now." : "Add skills to your profile, or search to find people now."}
+        action={
+          role === "recruiter" ? (
+            <Button variant="primary" icon="edit" onClick={() => modal.show("Skills you’re interested in", <InterestsEditor initial={data.interests} />)}>
+              Choose skills
+            </Button>
+          ) : (
+            <LinkButton href="/app/profile" variant="primary" icon="user">
+              Update your profile
+            </LinkButton>
+          )
+        }
+      />
+    );
   return (
     <>
       {/* Rows appear only when they have people; empty rows return once ranking fills them. */}
@@ -73,7 +101,7 @@ export function TalentDiscoveryRows({ role = "recruiter" }: { role?: Audience })
 
 /** "See all" for one discovery row. */
 export function TalentDiscoverySection({ section, job, role = "recruiter" }: { section: DiscoverySectionKey; job?: string; role?: Audience }) {
-  const { data, isError, refetch } = useServiceQuery(["talent", "discovery", role, section, job ?? ""], (s) => (role === "recruiter" ? s.talent.getDiscovery(section, job) : s.talent.getPeopleDiscovery(section as PeopleSectionKey)), { keepPreviousData: false });
+  const { data, isError, error, refetch } = useServiceQuery(["talent", "discovery", role, section, job ?? ""], (s) => (role === "recruiter" ? s.talent.getDiscovery(section, job) : s.talent.getPeopleDiscovery(section as PeopleSectionKey)), { keepPreviousData: false });
   const current = data?.sections[0];
   return (
     <>
@@ -81,7 +109,7 @@ export function TalentDiscoverySection({ section, job, role = "recruiter" }: { s
         Back to discover
       </LinkButton>
       {!data ? (
-        isError ? <QueryFeedback data={data} error={isError} retry={refetch} layout="cards" label="Loading profiles" /> : <SuggestionCardsSkeleton headings cards={12} label="Loading profiles" />
+        isError ? <QueryFeedback data={data} error={isError} cause={error} retry={refetch} layout="cards" label="Loading profiles" /> : <SuggestionCardsSkeleton headings cards={12} label="Loading profiles" />
       ) : current ? (
         <section className="talent-discovery-row">
           <header>
@@ -95,11 +123,11 @@ export function TalentDiscoverySection({ section, job, role = "recruiter" }: { s
               {current.items.map((p) => <TalentCard key={p.id} person={p} role={role} />)}
             </SuggestionCardGrid>
           ) : (
-            <div className="talent-discovery-empty">{EMPTY[current.key]}</div>
+            <SectionEmpty section={current} interests={data.interests} role={role} />
           )}
         </section>
       ) : (
-        <div className="talent-discovery-empty">This list is no longer available. The job may have closed.</div>
+        <EmptyState icon="compass" title="This list is no longer available" description="The job may have closed." action={<LinkButton href={discoverPath(role)} variant="primary" icon="search">Back to discover</LinkButton>} />
       )}
     </>
   );

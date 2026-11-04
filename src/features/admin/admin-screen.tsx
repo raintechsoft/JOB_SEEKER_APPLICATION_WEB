@@ -16,10 +16,11 @@ const STORAGE_FALLBACK = "Saved for this page only. Browser storage is full or u
 
 function Users() {
   const run = useServiceAction();
-  const { data, isPending, isError, refetch } = useServiceQuery(["admin", "users"], (s) => s.admin.listProfessionals());
+  const { data, isPending, isError, error, refetch } = useServiceQuery(["admin", "users"], (s) => s.admin.listProfessionals());
+  if (isError && !data) return <QueryFeedback data={undefined} error cause={error} retry={refetch} />;
+  if (data && !data.length) return <EmptyState icon="users" title="No accounts yet" description="Sample professional accounts appear here once the demo data loads." />;
   return (
     <div className="card" style={{ overflow: "auto" }}>
-      {isError && <QueryFeedback data={undefined} error retry={refetch} />}
       {isPending && <span className="sr-only" role="status">Loading accounts</span>}
       <table className="table" aria-busy={isPending || undefined}>
         <thead>
@@ -58,10 +59,12 @@ function Users() {
 
 function Companies() {
   const run = useServiceAction();
-  const { data } = useServiceQuery(["admin", "companies"], (s) => s.admin.listCompanies());
+  const { data, isError, error, refetch } = useServiceQuery(["admin", "companies"], (s) => s.admin.listCompanies());
+  if (!data) return <QueryFeedback data={data} error={isError} cause={error} retry={refetch} label="Loading companies" />;
+  if (!data.length) return <EmptyState icon="building" title="No companies yet" description="Sample organizations appear here once the demo data loads." />;
   return (
     <div className="stack">
-      {data?.map((c) => (
+      {data.map((c) => (
         <div className="card row between wrap" key={c.id}>
           <div>
             <h3>{c.name}</h3>
@@ -93,7 +96,7 @@ const CARDS: [string, string, string, IconName][] = [
 ];
 
 function Overview() {
-  const { data, isError, refetch } = useServiceQuery(["admin", "overview"], (s) => s.admin.getOverview());
+  const { data, isError, error, refetch } = useServiceQuery(["admin", "overview"], (s) => s.admin.getOverview());
   return (
     <>
       <div className="stats">
@@ -102,7 +105,7 @@ function Overview() {
         <StatCard label="Pending verification" loading={!data && !isError} value={data?.pendingVerification ?? "—"} description="Demo review requests" icon="shield" />
         <StatCard label="Reported content" loading={!data && !isError} value={data?.reportedContent ?? "—"} description="Sample moderation queue" icon="file" />
       </div>
-      {isError && <QueryFeedback data={undefined} error retry={refetch} />}
+      {isError && <QueryFeedback data={undefined} error cause={error} retry={refetch} />}
       <div className="grid cols3">
         {CARDS.map(([title, description, href, icon]) => (
           <div className="card" key={title}>
@@ -128,7 +131,7 @@ export function AdminScreen({ page }: { page: AdminPage }) {
   return (
     <>
       <PageHeading title="A little platform perspective." subtitle="A lightweight administrative demo. No real users or companies are managed here." />
-      {page === "quality" ? <EmptyState title="Recommendation quality uses live data." description="Served lists and what people did with them are measured by the backend. Switch to the API data source to see them." /> : page === "users" ? <Users /> : page === "companies" ? <Companies /> : page === "moderation" ? <EmptyState title="The demo queue is clear." description="No reported content in the seeded dataset." /> : <Overview />}
+      {page === "quality" ? <EmptyState icon="spark" title="Recommendation quality uses live data" description="Served lists and what people did with them are measured by the backend. Switch to the API data source to see them." /> : page === "users" ? <Users /> : page === "companies" ? <Companies /> : page === "moderation" ? <EmptyState icon="shield" title="The demo queue is clear" description="No reported content in the seeded dataset." action={<LinkButton href="/admin/dashboard" icon="grid">Back to overview</LinkButton>} /> : <Overview />}
     </>
   );
 }

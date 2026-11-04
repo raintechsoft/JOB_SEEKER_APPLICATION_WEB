@@ -2,9 +2,11 @@
 
 import { Button } from "@/components/ui/primitives";
 import { InfoBadge } from "@/components/ui/info-badge";
+import { ErrorState } from "@/components/ui/state-views";
+import { ContentSkeleton, LoadingRegion, TextSkeleton } from "@/components/ui/skeleton";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServices, useServiceQuery } from "@/hooks/use-services";
@@ -14,8 +16,10 @@ import { AuthHeader, AuthStory } from "@/components/layout/auth-chrome";
 import { useAuthForm } from "./use-auth-form";
 import { AuthError, AuthField } from "./auth-errors";
 import { authDestination } from "./auth-navigation";
+import { clearIdentityState } from "./clear-identity-state";
 import {applicationSignInReturn} from "@/features/applications/application-wizard-policy";
 import {navigateToApplication} from "@/features/applications/application-signin-return";
+import {authEntryHref,continuationDestination,continuationFromParams,legacyAuthReturn,navigateToAuthContinuation,navigateToLegacyReturn} from "./auth-continuation";
 import { ApiError, errorMessage, fieldErrors } from "@/services/api/client";
 import { toast } from "@/stores/toast-store";
 import type { Challenge } from "@/services/auth/auth.service";
@@ -83,7 +87,7 @@ export function ForgotPasswordForm({ onStep }: { onStep?: (step: "email" | "code
   const [codeError, setCodeError] = useState("");
   const [resending, setResending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const { props, handleSubmit, formState: { errors, isSubmitting } } = useAuthForm(emailSchema, { email: "" });
+  const { props, handleSubmit, setError, clearErrors, formState: { errors, isSubmitting } } = useAuthForm(emailSchema, { email: "" });
 
   const sendCode = async (address: string) => {
     const next = await auth.forgot({ email: address });
@@ -149,7 +153,7 @@ export function ForgotPasswordForm({ onStep }: { onStep?: (step: "email" | "code
         <OtpFields error={codeError} legend="Reset code" />
         <OtpResend sentAt={Date.parse(challenge.sent_at)} onResend={resend} disabled={resending || verifying} label="Resend code" />
         <Button loading={verifying || resending} variant="primary" type="submit" disabled={verifying || resending}>
-          {verifying ? "Verifying…" : "VERIFY CODE"}
+          {verifying ? "Verifying…" : "Verify code"}
         </Button>
       </form>
     );
@@ -157,11 +161,12 @@ export function ForgotPasswordForm({ onStep }: { onStep?: (step: "email" | "code
 
   return (
     <form id="auth-form" className="stack" noValidate onSubmit={handleSubmit(async (input) => {
+      clearErrors("root");
       try {
         await sendCode(input.email);
       } catch (error) {
         const message = fieldErrors(error).email?.[0];
-        toast(message || errorMessage(error), "error");
+        setError("root", { type: "server", message: message || errorMessage(error) });
       }
     })}>
       <AuthField name="email" message={errors.email?.message}>
@@ -169,7 +174,7 @@ export function ForgotPasswordForm({ onStep }: { onStep?: (step: "email" | "code
       </AuthField>
       <AuthError name="root" message={errors.root?.message} />
       <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Sending…"}>
-        {"SEND RESET CODE"}
+        {"Send reset code"}
       </Button>
     </form>
   );
@@ -194,13 +199,14 @@ export function ChangePasswordForm() {
       <AuthError name="root" message={errors.root?.message} />
       <p className="notice">Changing your password signs you out on every device.</p>
       <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Saving…"}>
-        {"CHANGE PASSWORD"}
+        {"Change password"}
       </Button>
     </form>
   );
 }
 
 export function VerifyEmailScreen() {
+  const params=useSearchParams(),intent=useMemo(()=>continuationFromParams(params),[params]),completed=useRef(false);
   const { auth } = useServices();
   const router = useRouter();
   const cache = useQueryClient();
@@ -216,9 +222,10 @@ export function VerifyEmailScreen() {
   const sentAt = activeChallenge ? Date.parse(activeChallenge.sent_at) : null;
 
   useEffect(() => {
-    if (query.error instanceof ApiError && query.error.status === 401) router.replace("/login");
-    else if (session?.user.email_verified) router.replace(authDestination(session));
-  }, [query.error, session, router]);
+    if(completed.current)return;
+    if (query.error instanceof ApiError && query.error.status === 401) router.replace(authEntryHref("/login",intent));
+    else if (session?.user.email_verified) router.replace(continuationDestination(intent,session));
+  }, [query.error, session, router, intent]);
 
   useEffect(() => {
     if (query.isPending || query.isError || !session || session.user.email_verified || activeChallenge || requesting.current) return;
@@ -262,10 +269,16 @@ export function VerifyEmailScreen() {
     setBusy(true);
     try {
       const result = await auth.verifyEmail({ challenge_id: activeChallenge.id, code: checked.data.code });
+      completed.current=true;
       cache.clear();
+      cache.setQueryData(["auth","session"],result);
+      const currentIntent=continuationFromParams(new URLSearchParams(window.location.search));
+      if(currentIntent){navigateToAuthContinuation(currentIntent,result,path=>router.push(path));return;}
       const next=applicationSignInReturn(new URLSearchParams(window.location.search).get("next"));
       const professional=result.workspaces.some(workspace=>workspace.id===result.selected_identity_id&&workspace.kind==="professional");
       if(professional&&next){navigateToApplication(next);return;}
+      const legacy=legacyAuthReturn(new URLSearchParams(window.location.search).get("next"),result);
+      if(legacy){navigateToLegacyReturn(legacy,path=>router.push(path));return;}
       router.push(professional&&next?next:authDestination(result));
     } catch (error) {
       const fields = fieldErrors(error);
@@ -285,25 +298,19 @@ export function VerifyEmailScreen() {
             <div className="auth-form-heading">
               <span className="eyebrow">CONFIRM YOUR EMAIL</span>
               <h1>Verify your email.</h1>
-              <p>{session?.user.email ? `Enter the OTP sent to ${session.user.email}.` : "Enter the six-digit OTP we sent to your email."}</p>
+              <p>{session?.user.email ? `Enter the 6-digit code sent to ${session.user.email}.` : "Enter the 6-digit code we sent to your email."}</p>
             </div>
-            {query.isPending ? null : query.isError ? (
-              <p className="notice" role="alert">
-                {query.error instanceof ApiError && query.error.status === 401 ? (
-                  <>
-                    Please <Link href="/login?role=professional">sign in</Link> to continue.
-                  </>
-                ) : (
-                  errorMessage(query.error)
-                )}
-              </p>
+            {query.isPending ? (
+              <LoadingRegion label="Loading your account"><TextSkeleton lines={3} /></LoadingRegion>
+            ) : query.isError ? (
+              <ErrorState compact error={query.error} onRetry={() => query.refetch()} signInHref={authEntryHref("/login", intent)} title="We couldn’t check your account" description="Something interrupted the request. Please try again." />
             ) : session?.user.email_verified ? (
               <div className="stack">
                 <p className="notice" role="status">
                   Your email is already verified.
                 </p>
-                <Link className="btn primary" href={authDestination(session)}>
-                  CONTINUE
+                <Link className="btn primary" href={continuationDestination(intent,session)}>
+                  Continue
                 </Link>
               </div>
             ) : (
@@ -311,12 +318,12 @@ export function VerifyEmailScreen() {
                 <OtpFields error={codeError} />
                 <OtpResend sentAt={sentAt} onResend={resend} disabled={resending || busy} />
                 <Button loading={busy} loadingLabel="Verifying email" variant="primary" type="submit" disabled={busy || resending}>
-                  VERIFY EMAIL
+                  Verify email
                 </Button>
               </form>
             )}
             <p className="auth-switch-link">
-              <Link href="/login?role=professional">Back to login</Link>
+              <Link href="/login?role=professional">Back to sign in</Link>
             </p>
           </div>
         </section>
@@ -333,14 +340,27 @@ export function AcceptInvitationForm({ token }: { token: string }) {
   return (
     <form id="auth-form" className="stack" noValidate onSubmit={submit(async (input) => {
       const session = await auth.acceptInvitation(input.token);
+      const recruiter =
+        session.workspaces.find((workspace) => workspace.kind === "recruiter" && workspace.id !== session.selected_identity_id) ??
+        session.workspaces.find((workspace) => workspace.kind === "recruiter");
+      if (!recruiter) {
+        clearIdentityState();
+        cache.clear();
+        cache.setQueryData(["auth", "session"], session);
+        router.replace(authDestination(session));
+        return;
+      }
+      const next = recruiter.id === session.selected_identity_id ? session : await auth.selectWorkspace(recruiter.id);
+      clearIdentityState();
       cache.clear();
-      router.push(authDestination(session, "recruiter"));
+      cache.setQueryData(["auth", "session"], next);
+      router.replace("/recruiter/dashboard");
     })}>
       <p className="notice">Accept this invitation using the verified account with the invited email address.</p>
       <AuthError name="token" message={errors.token?.message} />
       <AuthError name="root" message={errors.root?.message} />
       <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Please wait…"}>
-        {"ACCEPT INVITATION"}
+        {"Accept invitation"}
       </Button>
     </form>
   );
@@ -353,7 +373,7 @@ const ACCOUNT_COPY = {
     description: "Enter the email linked to your account and we’ll send a reset code.",
     footer: (
       <p className="auth-switch-link">
-        Remembered your password? <Link href="/login?role=professional">Back to login</Link>
+        Remembered your password? <Link href="/login?role=professional">Back to sign in</Link>
       </p>
     ),
   },
@@ -363,7 +383,7 @@ const ACCOUNT_COPY = {
     description: "Request a reset code, then choose a new password.",
     footer: (
       <p className="auth-switch-link">
-        <Link href="/login?role=professional">Back to login</Link>
+        <Link href="/login?role=professional">Back to sign in</Link>
       </p>
     ),
   },
@@ -383,7 +403,7 @@ const ACCOUNT_COPY = {
     description: "Confirm this invitation to join the team that invited you.",
     footer: (
       <p className="auth-switch-link">
-        <Link href="/login?role=professional">Back to login</Link>
+        <Link href="/login?role=professional">Back to sign in</Link>
       </p>
     ),
   },
@@ -423,7 +443,7 @@ function RecoveryPasswordStep() {
   useEffect(() => {
     if (query.data && (query.data.step !== "password" || !query.data.expires_at)) expire();
   }, [query.data, expire]);
-  if (query.isError) return <p role="alert">{errorMessage(query.error)}</p>;
-  if (query.data?.step !== "password" || !query.data.expires_at) return null;
+  if (query.isError) return <ErrorState compact error={query.error} onRetry={() => query.refetch()} title="We couldn’t load your reset session" description="Something interrupted the request. Please try again." />;
+  if (query.data?.step !== "password" || !query.data.expires_at) return <ContentSkeleton layout="form" label="Loading your reset session" />;
   return <ResetPasswordForm expiresAt={query.data.expires_at} onExpired={expire} />;
 }

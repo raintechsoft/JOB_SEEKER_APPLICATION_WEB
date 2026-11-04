@@ -24,7 +24,7 @@ export function createHttpRecommendationsService(http:HttpClient,auth:AuthServic
     return {strategyVersion:page.strategyVersion,forYou,alertMatches:forYou.filter((j)=>j.matchedAlerts.length>0),newCount:forYou.filter((j)=>j.isNew).length};
   },
   async similarJobs(jobId,limit=4){return (await similar("job",jobId,limit)).filter((r):r is components["schemas"]["RecommendedJob"]=>"job" in r).map(toJob);},
-  async similarPeople(professionalId,limit=4){return (await similar("professional",professionalId,limit)).filter((r):r is components["schemas"]["RecommendedTalent"]=>"person" in r).map(({person,reason})=>({id:person.id,name:person.name,headline:person.headline,picture:person.picture,color:person.color,reason}));},
+  async similarPeople(professionalId,limit=10){return (await similar("professional",professionalId,limit)).filter((r):r is components["schemas"]["RecommendedTalent"]=>"person" in r).map(({person,reason,analyticsContext,match})=>({...person,reason,recommendationReason:reason,analyticsContext,match}));},
   };
   return {...service,async talent(){const page=await read("talent",6);return page.items.filter((r):r is components["schemas"]["RecommendedTalent"]=>"person" in r).map((r)=>({...r.person,recommendationReason:r.reason,analyticsContext:r.analyticsContext,match:r.match,pool:r.pool}));}};
 }

@@ -21,7 +21,7 @@ it("offsets the first day to its weekday row and labels months on their columns"
 });
 
 it("renders padding cells, row-accurate weekday labels and one button per day", () => {
-  const pulse: Pulse = { cells: days("2026-10-28", 91), months: [], totalDays: 91, updateCount: 0, activeDays: 0, projectCount: 0, recentDays: [] };
+  const pulse: Pulse = { cells: days("2026-10-28", 91), months: [], totalDays: 91, updateCount: 0, activeDays: 0, projectCount: 0, recentDays: [], years: [2026], year: 2026 };
   const { container } = render(<Heatmap pulse={pulse} ownerId="me" />);
   const grid = container.querySelector(".heat-grid")!;
   expect(grid.querySelectorAll(".heat-pad")).toHaveLength(4);

@@ -14,23 +14,36 @@ function refreshCompletion(db: Draft<DemoDatabase>) {
   p.complete = profileCompletion(p, p.professionalDetails, db.projects.filter((x) => x.owner === ME_ID).length).percent;
 }
 
-export function buildPulse(db: DemoDatabase, ownerId: Id, days: number): Pulse {
+export function buildPulse(db: DemoDatabase, ownerId: Id, range: { days: number } | { year: number }): Pulse {
   if (ownerId === "me") ownerId = ME_ID;
   const updates = updatesFor(db, ownerId);
-  const end = new Date(today() + "T12:00:00");
-  const total = Math.ceil(days / 7) * 7;
   const counts: Record<string, number> = {};
   for (const u of updates) counts[u.date] = (counts[u.date] || 0) + 1;
-  const start = new Date(end.getTime() - (total - 1) * DAY_MS);
+  const years = [...new Set(updates.map((u) => Number(u.date.slice(0, 4))))].sort((a, b) => b - a);
+  const todayDate = new Date(today() + "T12:00:00");
+  let start: Date;
+  let total: number;
+  let year: number | null = null;
+  if ("year" in range) {
+    year = range.year;
+    start = new Date(Date.UTC(year, 0, 1));
+    const end = year === todayDate.getUTCFullYear() ? todayDate : new Date(Date.UTC(year, 11, 31));
+    total = Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1;
+  } else {
+    const end = todayDate;
+    total = Math.ceil(range.days / 7) * 7;
+    start = new Date(end.getTime() - (total - 1) * DAY_MS);
+  }
   const months: string[] = [];
-  for (let k = 0; k < total; k += 28) months.push(new Date(start.getTime() + k * DAY_MS).toLocaleDateString("en", { month: "short" }));
+  for (let k = 0; k < total; k += 28) months.push(new Date(start.getTime() + k * DAY_MS).toLocaleDateString("en", { month: "short", timeZone: "UTC" }));
   const cells = Array.from({ length: total }, (_, i) => {
     const date = new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10);
     return { date, count: counts[date] || 0 };
   });
-  const inRange = updates.filter((u) => (new Date(today()).getTime() - new Date(u.date).getTime()) / DAY_MS < days);
-  const recentDays = Array.from({ length: 22 }, (_, i) => i).filter((i) => updates.some((u) => Math.floor((new Date(today()).getTime() - new Date(u.date).getTime()) / DAY_MS) === i));
-  return { cells, months, totalDays: total, updateCount: inRange.length, activeDays: new Set(inRange.map((u) => u.date)).size, projectCount: projectsFor(db, ownerId).length, recentDays };
+  const inRange = cells.reduce((n, cell) => n + cell.count, 0);
+  const activeDays = cells.filter((cell) => cell.count > 0).length;
+  const recentDays = Array.from({ length: 22 }, (_, i) => i).filter((i) => updates.some((u) => Math.floor((todayDate.getTime() - new Date(u.date + "T12:00:00").getTime()) / DAY_MS) === i));
+  return { cells, months, totalDays: total, updateCount: inRange, activeDays, projectCount: projectsFor(db, ownerId).length, recentDays, years, year };
 }
 
 export const mockWorkService: WorkService = {
@@ -108,8 +121,10 @@ export const mockWorkService: WorkService = {
   },
 
   async listUpdates(ownerId, options = {}) {
-    let list = updatesFor(getDb(), ownerId === "me" ? ME_ID : ownerId);
-    if (options.publicOnly) list = list.filter((u) => u.visibility === "Public");
+    const own = ownerId === "me";
+    let list = updatesFor(getDb(), own ? ME_ID : ownerId);
+    // Other professionals are view-only: never expose private updates in mock.
+    if (options.publicOnly || !own) list = list.filter((u) => u.visibility === "Public");
     if (options.date) list = list.filter((u) => u.date === options.date);
     return options.limit ? list.slice(0, options.limit) : list;
   },
@@ -135,7 +150,7 @@ export const mockWorkService: WorkService = {
     });
   },
 
-  async getPulse(ownerId, days) {
-    return buildPulse(getDb(), ownerId, days);
+  async getPulse(ownerId, range) {
+    return buildPulse(getDb(), ownerId, range);
   },
 };

@@ -92,3 +92,132 @@
 }
 .post-tile-video video {width:100%;max-height:160px;object-fit:contain;}
 .post-selected-file-name {max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;}
+/* Header doubles as the minimise control, like a docked chat widget. */
+.upload-tray > header {
+  display: block;
+  padding: 0;
+}
+.upload-tray-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px 10px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.upload-tray-toggle strong {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 650;
+}
+.upload-tray-percent {
+  color: #4a5668;
+  font-variant-numeric: tabular-nums;
+}
+.upload-tray-chevron {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+.upload-tray-toggle:hover .upload-tray-chevron {
+  background: #eef2f8;
+}
+.upload-tray-toggle:focus-visible {
+  outline: 2px solid #315ef4;
+  outline-offset: -2px;
+}
+.upload-tray-chevron .icon {
+  width: 16px;
+  height: 16px;
+}
+.upload-tray-overall {
+  display: block;
+  height: 4px;
+  margin: 0 16px 12px;
+  border-radius: 2px;
+  background: #e6ebf2;
+  overflow: hidden;
+}
+.upload-tray-overall > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #315ef4;
+  transition: width 0.3s ease;
+}
+/* Minimised: docked to the bottom edge, only title, bar and percentage. */
+.upload-tray.is-minimized {
+  bottom: 0;
+  width: min(300px, calc(100vw - 24px));
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+}
+.upload-tray.is-minimized > header {
+  border-bottom: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .upload-tray-overall > span { transition: none; }
+}
+/* Dark theme: header-dark panel, white text, blue accents (matches the app header and sign-in popover). */
+.upload-tray {
+  border-color: #3a4654;
+  background: #2b3641;
+  color: #fff;
+  box-shadow: 0 10px 34px #0f172a59;
+}
+.upload-tray > header,
+.upload-tray.is-minimized > header {
+  border-bottom-color: #3a4654;
+}
+.upload-tray-toggle,
+.upload-tray-toggle strong,
+.upload-tray article strong {
+  color: #fff;
+}
+.upload-tray-percent,
+.upload-tray article span {
+  color: #c9d2de;
+}
+.upload-tray-toggle:hover .upload-tray-chevron {
+  background: #ffffff1f;
+}
+.upload-tray-toggle:focus-visible {
+  outline-color: #8fb0ff;
+}
+.upload-tray-overall {
+  background: #ffffff26;
+}
+.upload-tray-overall > span {
+  background: #4d7cff;
+}
+.upload-tray article + article {
+  border-top-color: #3a4654;
+}
+.upload-tray-preview {
+  background: #ffffff14;
+  color: #8fb0ff;
+}
+.upload-tray progress {
+  accent-color: #4d7cff;
+}
+.upload-tray-actions button,
+.post-publication-progress .upload-tray-actions a {
+  color: #8fb0ff;
+}
+.upload-tray-actions button:hover,
+.post-publication-progress .upload-tray-actions a:hover {
+  color: #fff;
+}
+.upload-tray [role="alert"] {
+  color: #ffb4a8;
+}
+.post-publication-progress > .icon {
+  color: #8fb0ff;
+}

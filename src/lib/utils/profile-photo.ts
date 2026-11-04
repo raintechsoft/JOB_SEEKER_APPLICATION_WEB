@@ -4,12 +4,22 @@ export const PHOTO_OUTPUT_SIZE = 512;
 export interface PhotoTransform { zoom: number; rotation: number; flipX: boolean; x: number; y: number }
 export const INITIAL_PHOTO_TRANSFORM: PhotoTransform = { zoom: 1, rotation: 0, flipX: false, x: 0, y: 0 };
 export type PhotoFrame = { width: number; height: number; outputWidth: number; outputHeight: number };
+/**
+ * Facebook-style profile banner: a wide ~2.63:1 window on large screens (820×312)
+ * and 16:9 on phones so the cover scales with width instead of shrinking to a fixed height.
+ * The saved crop is 16:9; desktop display covers to the wider band.
+ */
+export const PROFILE_COVER_DESKTOP = { width: 820, height: 312 };
+export const PROFILE_COVER_MOBILE = { width: 16, height: 9 };
 export const PHOTO_FRAMES = {
   portrait: { width: PHOTO_SIZE, height: PHOTO_SIZE, outputWidth: PHOTO_OUTPUT_SIZE, outputHeight: PHOTO_OUTPUT_SIZE },
   recruiter_photo: { width: PHOTO_SIZE, height: PHOTO_SIZE, outputWidth: PHOTO_OUTPUT_SIZE, outputHeight: PHOTO_OUTPUT_SIZE },
   logo: { width: PHOTO_SIZE, height: PHOTO_SIZE, outputWidth: PHOTO_OUTPUT_SIZE, outputHeight: PHOTO_OUTPUT_SIZE },
   cover: { width: 640, height: 160, outputWidth: 1600, outputHeight: 400 },
-  profile_cover: { width: 640, height: 160, outputWidth: 1600, outputHeight: 400 },
+  profile_cover: { width: 960, height: 540, outputWidth: 1920, outputHeight: 1080 },
+  gallery: { width: 640, height: 480, outputWidth: 1600, outputHeight: 1200 },
+  /** Feed / wizard hiring thumbnail — fixed 16:9. */
+  job_thumbnail: { width: 640, height: 360, outputWidth: 1280, outputHeight: 720 },
 } as const satisfies Record<string, PhotoFrame>;
 
 export function photoGeometry(width: number, height: number, transform: PhotoTransform, frame: PhotoFrame = PHOTO_FRAMES.portrait) {

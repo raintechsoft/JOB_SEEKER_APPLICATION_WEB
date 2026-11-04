@@ -1,15 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { OrganizationRole, RecruiterMember } from "@/types/domain";
 import { ORGANIZATION_ROLES } from "@/lib/domain/organization";
+import { RECRUITER_INVITES_ENABLED } from "@/lib/feature-flags";
 import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
-import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
-import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
+import { InfoBadge } from "@/components/ui/info-badge";
+import { Avatar, Button, EmptyState, LinkButton } from "@/components/ui/primitives";
+import { QueryFeedback } from "@/components/ui/query-view";
 import { FloatingInput, SelectField, TextField } from "@/components/ui/field";
 import { DevOnly } from "@/components/ui/dev-only";
 import { useFormAction } from "@/hooks/use-form-action";
@@ -164,105 +167,180 @@ function ManageMember({ member, own }: { member: RecruiterMember; own: boolean }
 }
 
 function RowMenu({ row, admin, own, member }: { row: TeamRow; admin: boolean; own: boolean; member?: RecruiterMember }) {
-  const ref = useRef<HTMLDetailsElement>(null);
-  useDismissableDetails(ref, { closeOnAction: true });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  const [open, setOpen] = useState(false);
+  const [box, setBox] = useState<{ top: number; left: number } | null>(null);
   const run = useServiceAction();
-  const close = () => ref.current && (ref.current.open = false);
+  const close = () => {
+    setOpen(false);
+    setBox(null);
+  };
+  const place = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return null;
+    const rect = trigger.getBoundingClientRect();
+    const width = panelRef.current?.offsetWidth || 215;
+    const left = Math.min(Math.max(8, Math.round(rect.right - width)), window.innerWidth - width - 8);
+    const top = Math.min(Math.round(rect.bottom + 6), window.innerHeight - 8);
+    const next = { top, left };
+    setBox(next);
+    return next;
+  };
+  useLayoutEffect(() => {
+    if (open) place();
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      close();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      close();
+      triggerRef.current?.focus();
+    };
+    const onMove = () => place();
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onMove);
+    window.addEventListener("scroll", onMove, true);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onMove);
+      window.removeEventListener("scroll", onMove, true);
+    };
+  }, [open]);
+  const actions = row.invitation ? (
+    admin && (
+      <>
+        <DevOnly>
+          <Button
+            variant="text sm"
+            icon="check"
+            onClick={async () => {
+              close();
+              const ok = await run((s) => s.organization.acceptInvitation(row.id));
+              if (ok !== undefined) toast(ok ? "Invitation accepted in the demo. The new recruiter profile starts hidden." : "The sample member could not be saved.");
+            }}
+          >
+            Simulate acceptance
+          </Button>
+          <Button
+            variant="text sm"
+            icon="send"
+            onClick={async () => {
+              close();
+              const ok = await run((s) => s.organization.remindInvitation(row.id));
+              if (ok !== undefined) toast(ok ? "Demo reminder recorded. No invitation email was sent." : "The reminder could not be saved.");
+            }}
+          >
+            Resend demo invite
+          </Button>
+        </DevOnly>
+        <Button
+          variant="text sm"
+          icon="close"
+          onClick={() => {
+            close();
+            modal.show(
+              devCopy("Cancel this demo invitation?", "Cancel this invitation?"),
+              <>
+                <p className="org-help">This removes the pending invitation from the active team list.{devCopy(" No email is sent.", "")}</p>
+                <div className="modal-footer">
+                  <Button onClick={() => modal.close()}>Cancel</Button>
+                  <Button
+                    variant="danger"
+                    onClick={async () => {
+                      const ok = await run((s) => s.organization.cancelInvitation(row.id));
+                      modal.close();
+                      if (ok !== undefined) toast(ok ? devCopy("Demo invitation cancelled.", "Invitation cancelled.") : "Could not save this change.");
+                    }}
+                  >
+                    Confirm
+                  </Button>
+                </div>
+              </>,
+            );
+          }}
+        >
+          Cancel invitation
+        </Button>
+      </>
+    )
+  ) : (
+    <>
+      <LinkButton href={own ? "/recruiter/profile" : "/recruiter/team/" + row.id} variant="text sm" icon="user" onClick={close}>
+        {own ? "My recruiter profile" : "Recruiter profile"}
+      </LinkButton>
+      {admin && member && (
+        <Button
+          variant="text sm"
+          icon="settings"
+          onClick={() => {
+            close();
+            modal.show("Manage team access", <ManageMember member={member} own={own} />);
+          }}
+        >
+          Manage role & status
+        </Button>
+      )}
+      {row.profileVisibility === "Public" && row.accountStatus === "Active" && (
+        <LinkButton href={"/recruiters/" + row.id} variant="text sm" icon="external" onClick={close}>
+          Public profile
+        </LinkButton>
+      )}
+    </>
+  );
   return (
-    <details
-      className="org-team-menu"
-      ref={ref}
-      onToggle={(e) => {
-        if (!(e.currentTarget as HTMLDetailsElement).open) return;
-        document.querySelectorAll<HTMLDetailsElement>(".org-team-menu[open]").forEach((d) => d !== e.currentTarget && (d.open = false));
-      }}
-    >
-      <summary aria-label={"Actions for " + row.fullName}>
+    <div className={"org-team-menu" + (open ? " is-open" : "")} ref={rootRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="org-team-menu-trigger"
+        aria-label={"Actions for " + row.fullName}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        onClick={() => {
+          if (open) {
+            close();
+            return;
+          }
+          const rect = triggerRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          setBox({
+            top: Math.round(rect.bottom + 6),
+            left: Math.min(Math.max(8, Math.round(rect.right - 215)), window.innerWidth - 223),
+          });
+          setOpen(true);
+        }}
+      >
         <Icon name="more" />
-      </summary>
-      <div>
-        {row.invitation ? (
-          admin && (
-            <>
-              <DevOnly>
-                <Button
-                  variant="text sm"
-                  icon="check"
-                  onClick={async () => {
-                    close();
-                    const ok = await run((s) => s.organization.acceptInvitation(row.id));
-                    if (ok !== undefined) toast(ok ? "Invitation accepted in the demo. The new recruiter profile starts hidden." : "The sample member could not be saved.");
-                  }}
-                >
-                  Simulate acceptance
-                </Button>
-                <Button
-                  variant="text sm"
-                  icon="send"
-                  onClick={async () => {
-                    const ok = await run((s) => s.organization.remindInvitation(row.id));
-                    if (ok !== undefined) toast(ok ? "Demo reminder recorded. No invitation email was sent." : "The reminder could not be saved.");
-                  }}
-                >
-                  Resend demo invite
-                </Button>
-              </DevOnly>
-              <Button
-                variant="text sm"
-                icon="close"
-                onClick={() =>
-                  modal.show(
-                    devCopy("Cancel this demo invitation?", "Cancel this invitation?"),
-                    <>
-                      <p className="org-help">This removes the pending invitation from the active team list.{devCopy(" No email is sent.", "")}</p>
-                      <div className="modal-footer">
-                        <Button onClick={() => modal.close()}>Cancel</Button>
-                        <Button
-                          variant="danger"
-                          onClick={async () => {
-                            const ok = await run((s) => s.organization.cancelInvitation(row.id));
-                            modal.close();
-                            if (ok !== undefined) toast(ok ? devCopy("Demo invitation cancelled.", "Invitation cancelled.") : "Could not save this change.");
-                          }}
-                        >
-                          Confirm
-                        </Button>
-                      </div>
-                    </>,
-                  )
-                }
-              >
-                Cancel invitation
-              </Button>
-            </>
-          )
-        ) : (
-          <>
-            <LinkButton href={own ? "/recruiter/profile" : "/recruiter/team/" + row.id} variant="text sm" icon="user">
-              {own ? "My recruiter profile" : "Recruiter profile"}
-            </LinkButton>
-            {admin && member && (
-              <Button variant="text sm" icon="settings" onClick={() => modal.show("Manage team access", <ManageMember member={member} own={own} />)}>
-                Manage role & status
-              </Button>
-            )}
-            {row.profileVisibility === "Public" && row.accountStatus === "Active" && (
-              <LinkButton href={"/recruiters/" + row.id} variant="text sm" icon="external">
-                Public profile
-              </LinkButton>
-            )}
-          </>
+      </button>
+      {open &&
+        box &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div ref={panelRef} id={menuId} role="menu" className="org-team-menu-panel" style={{ top: box.top, left: box.left }}>
+            {actions}
+          </div>,
+          document.body,
         )}
-      </div>
-    </details>
+    </div>
   );
 }
 
 export function TeamSection({ admin }: { admin: boolean }) {
   const filter = useUiStore((s) => s.teamFilter);
   const setTeamFilter = useUiStore((s) => s.setTeamFilter);
-  const { data: ctx } = useServiceQuery(["organization"], (s) => s.organization.getContext());
-  if (!ctx) return null;
+  const { data: ctx, isError, error, refetch } = useServiceQuery(["organization"], (s) => s.organization.getContext());
+  if (!ctx) return <QueryFeedback data={ctx} error={isError} cause={error} retry={refetch} compact layout="table" label="Loading team members" />;
   const w = ctx.workspace;
   const pending = w.invitations.filter((i) => i.invitationStatus === "Invitation Pending");
   const records: TeamRow[] = [...w.recruiters, ...pending.map((i) => ({ id: i.id, invitation: true, fullName: i.fullName || "Invited recruiter", workEmail: i.email, jobTitle: "Invitation pending", role: i.role, hiringDepartments: i.hiringDepartment ? [i.hiringDepartment] : [], accountStatus: "Invitation Pending" }))];
@@ -272,10 +350,23 @@ export function TeamSection({ admin }: { admin: boolean }) {
     <>
       <div className="org-team-heading">
         <div>
-          <h3>{w.recruiters.length} team members</h3>
+          <div className="org-team-title-row">
+            <h3>{w.recruiters.length} team members</h3>
+            <InfoBadge label="Organization role information">
+              <p>
+                <strong>Organization Admin</strong> manages the company and team access.
+              </p>
+              <p>
+                <strong>Recruiter</strong> uses the organization’s hiring features.
+              </p>
+              <p>
+                <strong>Hiring Manager</strong> participates in assigned hiring activities.
+              </p>
+            </InfoBadge>
+          </div>
           <p className="org-help">Manage organization access separately from each recruiter’s public identity.</p>
         </div>
-        {admin && (
+        {admin && RECRUITER_INVITES_ENABLED && (
           <Button variant="primary sm" icon="plus" onClick={() => modal.show("Invite Recruiter", <InviteForm organizationName={w.organization.name} />)}>
             Invite Recruiter
           </Button>
@@ -284,27 +375,13 @@ export function TeamSection({ admin }: { admin: boolean }) {
           My recruiter profile
         </LinkButton>
       </div>
-      <div className="org-role-explainer">
-        <p>
-          <strong>Organization Admin</strong> manages the company and team access.
-        </p>
-        <p>
-          <strong>Recruiter</strong> uses the organization’s hiring features.
-        </p>
-        <p>
-          <strong>Hiring Manager</strong> participates in assigned hiring activities.
-        </p>
-        <DevOnly>
-          <small>These roles demonstrate frontend permissions. They do not provide real authentication or access control.</small>
-        </DevOnly>
-      </div>
       <div className="org-team-filter">
         <label className="application-search">
           <Icon name="search" />
           <FloatingInput label="Search team members" compact id="org-team-search" type="search" value={filter.q} onChange={(e) => setTeamFilter({ q: e.target.value })} aria-label="Search team members" placeholder="Search name, email, or designation" />
         </label>
-        <SelectField label="Filter team role" name="org-team-role" value={filter.role} onChange={(e) => setTeamFilter({ role: e.target.value })} options={[{ value: "", label: "All roles" }, ...ORGANIZATION_ROLES]} />
-        <SelectField label="Filter team status" name="org-team-status" value={filter.status} onChange={(e) => setTeamFilter({ status: e.target.value })} options={[{ value: "", label: "All statuses" }, "Active", "Invitation Pending", "Inactive"]} />
+        <SelectField compact label="Filter team role" name="org-team-role" value={filter.role} onChange={(e) => setTeamFilter({ role: e.target.value })} options={[{ value: "", label: "All roles" }, ...ORGANIZATION_ROLES]} />
+        <SelectField compact label="Filter team status" name="org-team-status" value={filter.status} onChange={(e) => setTeamFilter({ status: e.target.value })} options={[{ value: "", label: "All statuses" }, "Active", "Invitation Pending", "Inactive"]} />
       </div>
       <div className="org-table-wrap">
         <table className="org-team-table">
@@ -360,20 +437,23 @@ export function TeamSection({ admin }: { admin: boolean }) {
             ) : (
               <tr>
                 <td colSpan={6}>
-                  <div className="org-inline-empty">
-                    <strong>No recruiters match these filters.</strong>
-                    <p>Try another name, role, or status.</p>
-                    <Button variant="sm" onClick={() => setTeamFilter({ q: "", role: "", status: "" })}>
-                      Clear filters
-                    </Button>
-                  </div>
+                  <EmptyState
+                    compact
+                    icon="search"
+                    title="No team members match these filters"
+                    description="Try another name, role, or status."
+                    action={
+                      <Button variant="primary sm" onClick={() => setTeamFilter({ q: "", role: "", status: "" })}>
+                        Clear filters
+                      </Button>
+                    }
+                  />
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      <p className="org-help">{pending.length} pending {devCopy("demo invitations", "invitations")}. Team emails and internal roles are private to this management view.</p>
     </>
   );
 }

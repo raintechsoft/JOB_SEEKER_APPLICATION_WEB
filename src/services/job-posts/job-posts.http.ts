@@ -1,4 +1,6 @@
 import type { components as JobComponents } from "@/types/generated/job-module-v2";
+import { ApiError } from "../api/client";
+import type { ReadScope } from "../realtime/realtime.http";
 import type { HttpClient } from "../api/client";
 import type { AuthService } from "../auth/auth.service";
 import type { JobPostsService, JobDraftContext } from "./job-posts.service";
@@ -7,8 +9,10 @@ import { jobEditorPayload, jobEditorErrors, jobEditorValues } from "@/lib/domain
 import type { JobValuesV2 } from "@/lib/validation/job-v2";
 import { z } from "zod";
 
-export async function hiringPath(auth: AuthService): Promise<string> {
+export async function hiringPath(auth: AuthService, scope?: ReadScope): Promise<string> {
   const session=await auth.me();
+  scope?.signal?.throwIfAborted();
+  if(scope?.userId&&session.user.id!==scope.userId||scope?.identityId&&session.selected_identity_id!==scope.identityId)throw new ApiError("Workspace changed.",412);
   const workspace=session.workspaces.find((w)=>w.id===session.selected_identity_id&&w.kind==="recruiter");
   if(!workspace?.organization)throw new Error("Select an active organization workspace first.");
   return `organizations/${workspace.organization.id}/hiring`;
@@ -49,6 +53,16 @@ export function createHttpJobPostsService(http:HttpClient,auth:AuthService):JobP
     return true;
   }
   return {
+    async draftState(key,draft,scope){
+      z.uuid().parse(key);const ctx=contexts.get(draft.editorToken??"");
+      if(!ctx||ctx.context.key!==key)throw new Error("Reload this draft before continuing.");
+      await pending.get(key);const base=await hiringPath(auth,scope);
+      if(base!==ctx.base)throw new ApiError("Workspace changed.",412);
+      const raw=(await http.get<{data:unknown}>(`${base}/drafts/${key}/state`,undefined,scope)).data;
+      const row=z.object({version:z.number().int().positive(),jobVersion:z.number().int().positive()}).strict().parse(raw);
+      // A local acknowledged write can finish while this read is in flight.
+      return {changed:row.version>ctx.version||row.jobVersion>ctx.jobVersion};
+    },
     reset(){contexts.clear();pending.clear();newDrafts.clear();},
     async rebaseJobDraft(key,draft,latestJobVersion){z.uuid().parse(key);revision(latestJobVersion);jobEditorPayload(draft.values);const ctx=contexts.get(draft.editorToken??"");if(!ctx||ctx.context.key!==key)throw new Error("Reload this draft before continuing.");await pending.get(key);const row=(await http.post<{data:DraftDto}>(`${ctx.base}/drafts/${key}/rebase`,{version:ctx.version,latestJobVersion,confirmed:true},options)).data;ctx.version=row.version;ctx.jobVersion=row.jobVersion;ctx.context.draft={...editorDraft(row),editorToken:draft.editorToken};return {...draft,version:row.version,jobVersion:row.jobVersion};},
     async openJobDraft(id,creationKey=crypto.randomUUID()){

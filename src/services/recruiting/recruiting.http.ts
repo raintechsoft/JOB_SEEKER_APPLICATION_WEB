@@ -1,3 +1,4 @@
+import type { ReadScope } from "../realtime/realtime.http";
 import {z} from "zod";
 import type {components} from "@/types/generated/api";
 import type {HttpClient} from "../api/client";
@@ -12,8 +13,8 @@ type ManagedJob=components["schemas"]["ManagedJob"];
 export function createHttpRecruitingService(http:HttpClient,auth:AuthService):RecruitingService & {reset():void} {
   const exportAttempts=new Map<string,string>();
   const responses=new Map<string,ResponseItem>(),jobs=new Map<string,ManagedJob>();
-  const getApplicant=async(id:string)=>{z.uuid().parse(id);const row=(await http.get<{data:ResponseItem}>(`${await hiringPath(auth)}/responses/${id}`)).data;responses.set(id,row);return row;};
-  const getManagedJob=async(id:string)=>{z.uuid().parse(id);const row=(await http.get<{data:ManagedJob}>(`${await hiringPath(auth)}/jobs/${id}`)).data;jobs.set(id,row);return row;};
+  const getApplicant=async(id:string,scope?:ReadScope)=>{z.uuid().parse(id);const row=(await http.get<{data:ResponseItem}>(`${await hiringPath(auth,scope)}/responses/${id}`,undefined,scope)).data;responses.set(id,row);return row;};
+  const getManagedJob=async(id:string,scope?:ReadScope)=>{z.uuid().parse(id);const row=(await http.get<{data:ManagedJob}>(`${await hiringPath(auth,scope)}/jobs/${id}`,undefined,scope)).data;jobs.set(id,row);return row;};
   const action=async(kind:"responses"|"jobs",name:string,ids:string[],body:object={})=>{
     bulkIdsSchema.parse(ids);
     const records=await Promise.all(ids.map(async(id)=>kind==="jobs"?jobs.get(id)??await getManagedJob(id):(responses.get(id)??await getApplicant(id)).application));
@@ -22,7 +23,7 @@ export function createHttpRecruitingService(http:HttpClient,auth:AuthService):Re
     if(kind==="jobs")ids.forEach((id)=>jobs.delete(id));else ids.forEach((id)=>responses.delete(id));
     return result;
   };
-  const listResponses=async(params:ResponseParams)=>{responseFiltersSchema.parse(params);const page=(await http.get<{data:components["schemas"]["ResponsesPage"]}>(`${await hiringPath(auth)}/responses`,params)).data;for(const row of page.items)responses.set(row.application.id,row);return page;};
+  const listResponses=async(params:ResponseParams,scope?:ReadScope)=>{responseFiltersSchema.parse(params);const page=(await http.get<{data:components["schemas"]["ResponsesPage"]}>(`${await hiringPath(auth,scope)}/responses`,params,scope)).data;for(const row of page.items)responses.set(row.application.id,row);return page;};
   const transition=async(ids:string[],status:string)=>{
     bulkIdsSchema.parse(ids);z.enum(["New","Reviewing","Shortlisted","Interview","Hired","Rejected"]).parse(status);
     for(const id of ids){const record=responses.get(id)??await getApplicant(id);const a=record.application;
@@ -30,15 +31,16 @@ export function createHttpRecruitingService(http:HttpClient,auth:AuthService):Re
   };
   return {
     reset(){responses.clear();jobs.clear();exportAttempts.clear();},getApplicant,getManagedJob,listResponses,
-    async getHiringSummary(){return (await http.get<{data:components["schemas"]["HiringSummary"]}>(`${await hiringPath(auth)}/summary`)).data;},
-    async getReview(id){const row=await getApplicant(id);return {application:row.application,person:row.profile,jobTitle:row.jobTitle};},
+    async getHiringSummary(scope){return (await http.get<{data:components["schemas"]["HiringSummary"]}>(`${await hiringPath(auth,scope)}/summary`,undefined,scope)).data;},
+    async getReview(id,scope){const row=await getApplicant(id,scope);return {application:row.application,person:row.profile,jobTitle:row.jobTitle};},
     async saveReview(id,input){const v=reviewSchema.parse(input);z.uuid().parse(id);await transition([id],v.status);await action("responses","review",[id],{...v,...(input.version?{versions:{[id]:input.version}}:{})});return true;},
-    async listManagedJobs(query){const q=managedJobsSchema.parse(query);const result=(await http.get<{data:components["schemas"]["ManagedJobsPage"]}>(`${await hiringPath(auth)}/jobs`,q)).data;result.items.forEach((row)=>jobs.set(row.id,row));return result;},
+    async listManagedJobs(query,scope){const q=managedJobsSchema.parse(query);const result=(await http.get<{data:components["schemas"]["ManagedJobsPage"]}>(`${await hiringPath(auth,scope)}/jobs`,q,scope)).data;result.items.forEach((row)=>jobs.set(row.id,row));return result;},
     async toggleJob(id){return (await action("jobs","toggle",[id])).status;},
     async repostJob(id){await action("jobs","repost",[id]);return true;},
     async closeJobs(ids){return (await action("jobs","close",ids)).count;},
     async saveCollaboration(ids,emails,note,versions){const v=collaborationSchema.parse({ids,emails,note});await action("jobs","collaboration",ids,{emails:v.emails,note:v.note,...(versions?{versions}:{})});},
     async deleteDraft(id){await action("jobs","delete",[id]);},
+    async deleteDrafts(ids){bulkIdsSchema.parse(ids);return (await action("jobs","delete",ids)).count;},
     async setStatus(ids,status){await transition(ids,status);return (await action("responses","status",ids,{status})).count;},
     async saveNote(id,note,version){const v=z.string().trim().max(5000).parse(note);await action("responses","note",[id],{note:v,...(version?{versions:{[id]:version}}:{})});},
     async markViewed(id){return (await action("responses","viewed",[id])).candidate??null;},

@@ -40,15 +40,8 @@ export interface JobRecommendations {
   alerts?: JobAlert[];
 }
 
-/** A candidate similar to the one being viewed (recruiters). */
-export interface SimilarPerson {
-  id: Id;
-  name: string;
-  headline: string;
-  picture?: string;
-  color?: string;
-  reason: string;
-}
+/** A candidate similar to the one being viewed (recruiters) — same card shape as Discover. */
+export type SimilarPerson = import("@/services/talent/talent.service").TalentSuggestion & { reason: string };
 
 export interface RecommendationsService {
   getJobsForYou(): Promise<JobRecommendations>;

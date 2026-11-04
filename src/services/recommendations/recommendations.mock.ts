@@ -4,7 +4,6 @@ import { jobCompany } from "@/mocks/store/presenters";
 import { me } from "@/mocks/store/selectors";
 import { isOpenJob, matchesAlert, normalizeKeywords as norm } from "@/lib/domain/jobs";
 import { DAY_MS } from "@/lib/utils/date";
-import { personSummary } from "@/mocks/store/presenters";
 import type { RecommendationsService, RecommendedJob, SimilarPerson } from "./recommendations.service";
 
 const SENIORITY = ["senior", "junior", "lead", "principal", "manager"];
@@ -75,7 +74,7 @@ export const mockRecommendationsService: RecommendationsService = {
   },
 
   /** Demo: public professionals sharing the most skills with this one. */
-  async similarPeople(professionalId, limit = 4) {
+  async similarPeople(professionalId, limit = 10) {
     const db = getDb();
     const source = db.professionals.find((p) => p.id === professionalId);
     if (!source) return [];
@@ -83,6 +82,20 @@ export const mockRecommendationsService: RecommendationsService = {
       .filter((p) => p.id !== professionalId && p.public && shared(source.skills, p.skills) > 0)
       .sort((a, b) => shared(source.skills, b.skills) - shared(source.skills, a.skills) || a.id.localeCompare(b.id))
       .slice(0, limit)
-      .map((p): SimilarPerson => { const s = personSummary(p, db); return { id: s.id, name: s.name, headline: s.headline ?? "", picture: s.picture, color: s.color, reason: "Has similar skills" }; });
+      .map((p): SimilarPerson => ({
+        id: p.id,
+        slug: p.slug,
+        name: p.name,
+        headline: p.headline,
+        location: p.location,
+        years: p.years,
+        available: p.available,
+        color: p.color,
+        picture: p.picture,
+        cover: p.cover,
+        saved: false,
+        reason: "Has similar skills",
+        recommendationReason: "Has similar skills",
+      }));
   },
 };

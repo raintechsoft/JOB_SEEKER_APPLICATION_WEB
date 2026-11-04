@@ -1,4 +1,6 @@
-.professional-profile-summary {
+.professional-profile-summary,
+.org-summary,
+.org-recruiter-identity-card {
   position: relative;
 }
 .profile-header-top {
@@ -8,9 +10,21 @@
   position: absolute;
   top: 18px;
   right: 18px;
-  z-index: 30;
+  z-index: 2;
 }
-.professional-profile-summary .profile-overflow .profile-overflow-trigger {
+.org-summary .profile-overflow {
+  top: 14px;
+  right: 16px;
+}
+.org-summary-body > .profile-overflow {
+  top: 12px;
+  right: 14px;
+}
+.org-recruiter-identity-card .profile-overflow {
+  top: 16px;
+  right: 16px;
+}
+.profile-overflow .profile-overflow-trigger {
   width: 36px;
   height: 36px;
   border: 1px solid #d8e1ed;
@@ -18,8 +32,8 @@
   color: #46556e;
   border-radius: 8px;
 }
-.professional-profile-summary .profile-overflow .profile-overflow-trigger:hover,
-.professional-profile-summary .profile-overflow .profile-overflow-trigger[aria-expanded="true"] {
+.profile-overflow .profile-overflow-trigger:hover,
+.profile-overflow .profile-overflow-trigger[aria-expanded="true"] {
   background: #e5ecf7;
   border-color: #b7c6df;
   color: #315ef4;
@@ -34,6 +48,7 @@
   position: absolute;
   top: 40px;
   right: 0;
+  z-index: 2;
   width: 228px;
   max-width: calc(100vw - 56px);
   padding: 6px;
@@ -84,3 +99,139 @@
     padding-right: 28px;
   }
 }
+/* Edit sits beside the options button: same size, profile blue, larger pencil and no label. */
+.profile-overflow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.profile-header-top {
+  padding-right: 96px;
+}
+.profile-overflow .profile-edit-trigger {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #c9d7fb;
+  border-radius: 8px;
+  background: #edf3ff;
+  color: #315ef4;
+}
+.profile-overflow .profile-edit-trigger:hover {
+  border-color: #315ef4;
+  background: #dfe8ff;
+}
+.profile-overflow .profile-edit-trigger:focus-visible {
+  outline: 2px solid #315ef4;
+  outline-offset: 2px;
+}
+.profile-edit-trigger > .icon {
+  width: 20px;
+  height: 20px;
+}
+.profile-overflow .profile-overflow-trigger {
+  width: 38px;
+  height: 38px;
+}
+/* Plain icon buttons: no badge background or border; a soft circle only on hover/open. */
+.profile-overflow .profile-edit-trigger,
+.profile-overflow .profile-overflow-trigger {
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+.profile-overflow .profile-overflow-trigger {
+  color: #46556e;
+}
+.profile-overflow .profile-edit-trigger:hover,
+.profile-overflow .profile-overflow-trigger:hover,
+.profile-overflow .profile-overflow-trigger[aria-expanded="true"] {
+  border: 0;
+  background: #eef2f8;
+}
+/* Header text: headline in a neutral dark grey (not blue) and a tighter stack under the name. */
+body.professional-theme .professional-profile-summary .profile-header-top h1 {
+  margin-bottom: 2px;
+}
+body.professional-theme .professional-profile-summary .profile-header-top .profile-header-headline {
+  margin-top: 2px;
+  color: #3b4552;
+  font-weight: 500;
+}
+body.professional-theme .professional-profile-summary .profile-header-top .profile-header-company {
+  margin-top: 2px;
+  color: #626b76;
+}
+/* Resume card: coloured file-type tile and clearly visible actions. */
+body.professional-theme .profile-resume-record .profile-document-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 56px;
+  border-radius: 8px;
+  background: #eef2f8;
+  color: #4a5668;
+}
+body.professional-theme .profile-resume-record .profile-document-icon .icon {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 10px;
+}
+.profile-resume-record .profile-document-icon b {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: currentColor;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+.profile-resume-record .profile-document-icon b { color: #fff; }
+body.professional-theme .profile-resume-record .resume-type-pdf { background: #fdecec; color: #d93025; }
+body.professional-theme .profile-resume-record .resume-type-word { background: #e8f0fe; color: #2b579a; }
+.profile-resume-record .resume-type-pdf b { background: #d93025; }
+.profile-resume-record .resume-type-word b { background: #2b579a; }
+.profile-resume-record .resume-type-other b { background: #4a5668; }
+/* Resume actions: plain icons (no badge box). Download in blue; remove turns red on hover. */
+body.professional-theme .profile-resume-record .iconbtn.resume-download,
+body.professional-theme .profile-resume-record .iconbtn.resume-remove {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+body.professional-theme .profile-resume-record .iconbtn.resume-download { color: #315ef4; }
+body.professional-theme .profile-resume-record .iconbtn.resume-download:hover { background: #edf3ff; }
+body.professional-theme .profile-resume-record .iconbtn.resume-remove { color: #4a5668; }
+body.professional-theme .profile-resume-record .iconbtn.resume-remove:hover { background: #fdecec; color: #d93025; }
+body.professional-theme .profile-resume-record .iconbtn:is(.resume-download, .resume-remove) .icon {
+  width: 18px;
+  height: 18px;
+}
+/* Long headlines wrap within a readable width instead of running past the card edge. */
+body.professional-theme .professional-profile-summary .profile-header-top > div {
+  min-width: 0;
+  max-width: 720px;
+}
+body.professional-theme .professional-profile-summary .profile-header-top .profile-header-headline {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+body.professional-theme .professional-profile-summary .profile-header-top .profile-header-company {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+body.professional-theme .professional-profile-summary .profile-header-top .profile-header-headline {
+  font-size: 15px;
+}
+/* Timeline entry layout is shared with public profile tabs. */
+@import "../../components/profile/profile-timeline.css";

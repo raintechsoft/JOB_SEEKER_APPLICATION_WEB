@@ -1,3 +1,4 @@
+import type { ReadScope } from "../realtime/realtime.http";
 import type { Paginated, PersonSummary } from "@/types/api";
 import type { HiringStage, Id, IsoDateTime, Job, ReceivedApplication } from "@/types/domain";
 import type { JobStatus } from "@/lib/domain/jobs";
@@ -36,7 +37,7 @@ export interface ManagedJobsQuery {
   categories: string[];
   location: string;
   days: number;
-  sort: "newest" | "oldest" | "responses";
+  sort: "newest" | "oldest" | "responses" | "active" | "expired";
   page: number;
   pageSize: number;
 }
@@ -105,19 +106,20 @@ export interface ResponsesPage extends Paginated<ResponseItem> {
 }
 
 export interface RecruitingService {
-  getHiringSummary(): Promise<HiringSummary>;
-  getReview(id: Id): Promise<ReviewView | null>;
+  getHiringSummary(scope?: ReadScope): Promise<HiringSummary>;
+  getReview(id: Id, scope?: ReadScope): Promise<ReviewView | null>;
   saveReview(id: Id, input: { status: HiringStage; note: string; followUp: string; version?:number }): Promise<boolean>;
 
-  listManagedJobs(query: ManagedJobsQuery): Promise<ManagedJobsPage>;
-  getManagedJob(id: Id): Promise<ManagedJob | null>;
+  listManagedJobs(query: ManagedJobsQuery, scope?: ReadScope): Promise<ManagedJobsPage>;
+  getManagedJob(id: Id, scope?: ReadScope): Promise<ManagedJob | null>;
   toggleJob(id: Id): Promise<JobStatus | null>;
   repostJob(id: Id): Promise<boolean>;
   closeJobs(ids: Id[]): Promise<number>;
   saveCollaboration(ids: Id[], emails: string[], note: string, versions?:Record<string,number>): Promise<void>;
   deleteDraft(id: Id): Promise<void>;
+  deleteDrafts(ids: Id[]): Promise<number>;
 
-  listResponses(params: ResponseParams): Promise<ResponsesPage>;
+  listResponses(params: ResponseParams, scope?: ReadScope): Promise<ResponsesPage>;
   /** Ids visible on the current page (for "select all"). */
   setStatus(ids: Id[], status: HiringStage): Promise<number>;
   saveNote(id: Id, note: string, version?:number): Promise<void>;
@@ -132,6 +134,6 @@ export interface RecruitingService {
   runKeywordMatch(params: ResponseParams, autoShortlist: boolean): Promise<{ matches: number; shortlisted: number }>;
   exportCsv(ids: Id[]): Promise<string>;
   exportProfile(id: Id): Promise<{ fileName: string; text: string } | null>;
-  getApplicant(id: Id): Promise<ResponseItem | null>;
+  getApplicant(id: Id, scope?: ReadScope): Promise<ResponseItem | null>;
   applicantNames(ids: Id[]): Promise<string[]>;
 }

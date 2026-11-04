@@ -1,4 +1,5 @@
 "use client";
+import { useHiringQuery } from "@/hooks/use-hiring-query";
 
 import { InfoBadge } from "@/components/ui/info-badge";
 
@@ -12,7 +13,7 @@ import { isPrototype } from "@/lib/env/app-env";
 import { HIRING_STAGES } from "@/services/recruiting/recruiting.service";
 import type {ReviewView} from "@/services/recruiting/recruiting.service";
 import { devCopy } from "@/lib/env/app-env";
-import { useServiceQuery } from "@/hooks/use-services";
+
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
@@ -20,29 +21,32 @@ import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { QueryFeedback } from "@/components/ui/query-view";
 
 function ReviewForm({ id }: { id: Id }) {
-  const {data,isError,refetch}=useServiceQuery(["review",id],(s)=>s.recruiting.getReview(id),{keepPreviousData:false});
-  return data?<ReviewEditor initialData={data}/>:<QueryFeedback data={data} error={isError} retry={refetch} layout="form" label="Loading application review" />;
+  const {data,isError,error,refetch}=useHiringQuery(["review",id],(s,scope)=>s.recruiting.getReview(id,scope));
+  return data?<ReviewEditor initialData={data}/>:<QueryFeedback data={data} error={isError} cause={error} compact retry={refetch} layout="form" label="Loading application review" />;
 }
 
 export function ReviewEditor({initialData}:{initialData:ReviewView}){
-  const [data]=useState(initialData);
+  const [data,setData]=useState(initialData);
+  const changed=initialData.application.version!==data.application.version;
   const [errors,setErrors]=useState<Record<string,string>>({});
   const {execute,pending}=useFormAction(setErrors);
   const { application: a, person: p } = data;
   const id=a.id;
   return (
     <form
+      key={data.application.version}
       id="recruiter-review-form"
       className="stack"
       onSubmit={async (e) => {
         e.preventDefault();
+        if(changed)return;
         const f = new FormData(e.currentTarget);
         const checked=reviewSchema.safeParse({ status: String(f.get("status")), note: String(f.get("note") || "").trim(), followUp: String(f.get("followUp") || "") });
         if(!checked.success)return setErrors(validationFields(checked.error));
         const ok=await execute((s)=>s.recruiting.saveReview(id,{...checked.data,version:a.version}),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
         if(!ok)return;
         modal.close();
-        toast(ok ? devCopy("Changes saved in your demo workspace.", "Changes saved.") : "Changes kept for this session; browser storage is unavailable.");
+        toast(devCopy("Changes saved in your demo workspace.", "Changes saved."));
       }}
     >
       <div className="row">
@@ -71,7 +75,8 @@ export function ReviewEditor({initialData}:{initialData:ReviewView}){
       <LinkButton href={"/recruiter/talent/" + p.id} icon="arrowUp">
         Explore candidate profile
       </LinkButton>
-      {errors._form&&<p role="alert">{errors._form}</p>}
+      {errors._form&&<p role="alert" className="error">{errors._form}</p>}
+      {changed&&<div className="notice" role="status">This application changed. Your entered notes are retained. Reload the current review before saving.<Button onClick={()=>setData(initialData)}>Reload current review</Button></div>}
       {a.withdrawnAt&&<p className="notice">The applicant withdrew this application. Its hiring stage cannot change.</p>}
       <SelectField required label="Hiring status" name="status" error={errors.status} defaultValue={a.status} options={isPrototype?HIRING_STAGES:[a.status,...(a.withdrawnAt?[]:RECRUITING_RULES.transitions[a.status])]} />
       <TextAreaField label="Private hiring notes" name="note" error={errors.note} defaultValue={a.recruiterNote} maxLength={2000} />
@@ -80,7 +85,7 @@ export function ReviewEditor({initialData}:{initialData:ReviewView}){
       {!!a.history?.length&&<details><summary>Private review history</summary>{a.history.map((event)=><p key={event.id} className="small"><strong>{event.author}</strong> · {event.kind==="stage"?`${event.from} → ${event.to}`:event.body||"Note cleared"}</p>)}</details>}
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
+        <Button type="submit" variant="primary" loading={pending} disabled={pending||changed}>
           Save review
         </Button>
       </div>

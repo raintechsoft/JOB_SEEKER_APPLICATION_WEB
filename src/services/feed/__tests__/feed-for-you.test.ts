@@ -35,6 +35,15 @@ describe("demo feed: For you and Not interested", () => {
     await mockFeedService.setHidden("professional", first.id, first.type, false);
     expect((await mockFeedService.getFeed(query())).items.map((e) => e.id)).toContain(first.id);
   });
+
+  it("returns the next slice from a cursor without repeating the first page", async () => {
+    const first = await mockFeedService.getFeed({ ...query(), limit: 3 });
+    expect(first.items).toHaveLength(3);
+    expect(first.nextCursor).toBe("3");
+    const next = await mockFeedService.getFeed({ ...query(), limit: 3, cursor: first.nextCursor ?? undefined });
+    expect(next.items.map((e) => e.id)).not.toEqual(first.items.map((e) => e.id));
+    expect(next.items.some((e) => first.items.some((row) => row.id === e.id))).toBe(false);
+  });
 });
 
 describe("http feed: Not interested", () => {

@@ -67,7 +67,7 @@ export function CommentMenu({ role, entry, comment, onEdit }: { role: Role; entr
     <details className="activity-post-menu feed-comment-menu" ref={ref}>
       <summary aria-label={`Comment actions for ${name}`}><Icon name="more" /></summary>
       <div className="activity-post-menu-items">
-        {(comment.canMessage ?? !own) && <Button variant="text sm" icon="send" disabled={pending} onClick={async () => {
+        {!own && (comment.canMessage ?? true) && <Button variant="text sm" icon="send" disabled={pending} onClick={async () => {
           let id: string | null = null;
           if (!await execute(async s => { id = await s.messaging.start(role, comment.author.id); if (!id) throw new Error("Messaging is unavailable for this account."); }, { invalidate: ["messaging", "inbox"] })) return;
           router.push((role === "recruiter" ? "/recruiter/messages" : "/app/messages") + "?conversation=" + encodeURIComponent(id!));
@@ -88,10 +88,11 @@ export function CommentMenu({ role, entry, comment, onEdit }: { role: Role; entr
         {(comment.canDelete ?? (own || entry.viewer.own)) && <Button variant="text sm" icon="trash" disabled={pending} onClick={async () => {
           if (await execute(s => s.feed.deleteComment(role, entry.id, comment.id, comment.version), { invalidate: invalidates })) toast("Comment deleted.");
         }}>Delete</Button>}
-        {(comment.canBlock ?? !own) && <Button variant="text sm" icon="ban" disabled={pending} onClick={async () => {
+        {/* Your own comment can never be blocked or reported by you, whatever the server flags say. */}
+        {!own && (comment.canBlock ?? true) && <Button variant="text sm" icon="ban" disabled={pending} onClick={async () => {
           if (await execute(s => s.feed.blockCommentAuthor(role, entry.id, comment.id), { invalidate: invalidates })) toast("Blocked " + name + ". You can unblock this account from your account menu.");
         }}>Block {name}</Button>}
-        {(comment.canReport ?? !own) && <Button variant="text sm" icon="flag" disabled={pending} onClick={() => modal.show("Report comment", <CommentReportForm role={role} comment={comment} />)}>Report comment</Button>}
+        {!own && (comment.canReport ?? true) && <Button variant="text sm" icon="flag" disabled={pending} onClick={() => modal.show("Report comment", <CommentReportForm role={role} comment={comment} />)}>Report comment</Button>}
       </div>
     </details>
     {errors._form && <p className="error" role="alert">{errors._form}</p>}

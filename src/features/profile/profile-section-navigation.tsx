@@ -1,13 +1,22 @@
 "use client";
 
 import { Icon } from "@/components/ui/icon";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { openAddProfileSection } from "./add-profile-section-dialog";
 import {
-  PROFILE_SECTION_GROUPS,
+  addableProfileSectionGroups,
   navigateToProfileSection,
+  profileSectionById,
+  readAddedProfileSections,
+  useProfileSectionGroups,
 } from "./profile-navigation";
 
 export function ProfileSectionNavigation({ active }: { active: string }) {
+  const groups = useProfileSectionGroups(active);
+  const current = profileSectionById(active);
+  const listed = groups.some((group) => group.sections.some((section) => section.id === active));
+  const listedIds = groups.flatMap((group) => group.sections.map((section) => section.id));
+  const canAdd = addableProfileSectionGroups(listedIds).length > 0;
   return (
     <aside className="profile-quick-links profile-section-navigation">
       <div className="profile-navigation-heading">
@@ -15,9 +24,8 @@ export function ProfileSectionNavigation({ active }: { active: string }) {
           YOUR PROFESSIONAL STORY
         </span>
         <h2>Edit profile</h2>
-        <p>A little detail makes a difference.</p>
       </div>
-      <DesktopSectionGroups key={active} active={active} />
+      <DesktopSectionGroups active={active} groups={groups} />
       <label
         className="profile-navigation-mobile"
         htmlFor="profile-section-picker"
@@ -29,7 +37,8 @@ export function ProfileSectionNavigation({ active }: { active: string }) {
           value={active}
           onChange={(event) => navigateToProfileSection(event.target.value)}
         >
-          {PROFILE_SECTION_GROUPS.map((group) => (
+          {!listed && current && <option value={current.id}>{current.label}</option>}
+          {groups.map((group) => (
             <optgroup key={group.label} label={group.label}>
               {group.sections.map((section) => (
                 <option key={section.id} value={section.id}>
@@ -40,20 +49,38 @@ export function ProfileSectionNavigation({ active }: { active: string }) {
           ))}
         </select>
       </label>
+      {canAdd && (
+        <button
+          type="button"
+          className="profile-add-section"
+          onClick={() => openAddProfileSection(readAddedProfileSections())}
+        >
+          <Icon name="plus" />
+          Add Section
+        </button>
+      )}
     </aside>
   );
 }
 
-function DesktopSectionGroups({ active }: { active: string }) {
-  const [expanded, setExpanded] = useState<string | null>(
-    () =>
-      PROFILE_SECTION_GROUPS.find((group) =>
-        group.sections.some((section) => section.id === active),
-      )?.label ?? PROFILE_SECTION_GROUPS[0].label,
-  );
+function DesktopSectionGroups({
+  active,
+  groups,
+}: {
+  active: string;
+  groups: ReturnType<typeof useProfileSectionGroups>;
+}) {
+  const activeGroup =
+    groups.find((group) => group.sections.some((section) => section.id === active))?.label ??
+    groups[0]?.label ??
+    "";
+  const [expanded, setExpanded] = useState(activeGroup);
+  useEffect(() => {
+    if (activeGroup) setExpanded(activeGroup);
+  }, [activeGroup]);
   return (
     <nav aria-label="Profile sections" className="profile-navigation-desktop">
-      {PROFILE_SECTION_GROUPS.map((group, index) => {
+      {groups.map((group, index) => {
         const open = expanded === group.label;
         const current = group.sections.some((section) => section.id === active);
         const panelId = `profile-navigation-group-${index}`;
@@ -65,7 +92,7 @@ function DesktopSectionGroups({ active }: { active: string }) {
                 className="profile-group-toggle"
                 aria-expanded={open}
                 aria-controls={panelId}
-                onClick={() => setExpanded(open ? null : group.label)}
+                onClick={() => setExpanded(group.label)}
               >
                 <span>{group.label}</span>
                 {current && (

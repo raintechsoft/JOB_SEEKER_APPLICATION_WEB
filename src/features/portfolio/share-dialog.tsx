@@ -63,8 +63,8 @@ function CopyFallback({ url }: { url: string }) {
 
 function ShareBody({ ownerId }: { ownerId: Id }) {
   const run = useServiceAction();
-  const { data: view, isError, refetch } = useServiceQuery(["portfolio", ownerId], (s) => s.portfolio.getPortfolio(ownerId));
-  if (!view) return <QueryFeedback data={view} error={isError} retry={refetch} layout="form" label="Loading sharing settings" />;
+  const { data: view, isError, error, refetch } = useServiceQuery(["portfolio", ownerId], (s) => s.portfolio.getPortfolio(ownerId));
+  if (!view) return <QueryFeedback data={view} error={isError} cause={error} compact retry={refetch} layout="form" label="Loading sharing settings" />;
   const url = shareUrl(view.config.slug);
   const copy = async () => {
     try {
@@ -96,7 +96,7 @@ function ShareBody({ ownerId }: { ownerId: Id }) {
           const f = new FormData(e.currentTarget);
           const ok = await run((s) => s.portfolio.saveSharing(ownerId, { public: f.has("public"), otp: isDevelopment ? f.has("otp") : view.config.otp, expiry: isDevelopment ? String(f.get("expiry") || "") : view.config.expiry }));
           if (ok === undefined) return;
-          toast(ok ? devCopy("Sharing preferences saved. Expiry and OTP remain simulations.", "Sharing preferences saved.") : "Saved for this page only. Browser storage is full or unavailable.");
+          toast(ok ? devCopy("Sharing preferences saved. Expiry and OTP remain simulations.", "Sharing preferences saved.") : "Saved for this page only. Browser storage is full or unavailable.", ok ? undefined : "error");
           modal.close();
         }}
       >
@@ -132,7 +132,7 @@ function RealShareBody() {
   const [link, setLink] = useState<{ id: string; url: string } | null>(null);
   const action = useFormAction(setErrors);
   const view = query.data;
-  if (!view) return <QueryFeedback data={view} error={query.isError} retry={query.refetch} layout="form" label="Loading sharing settings" />;
+  if (!view) return <QueryFeedback data={view} error={query.isError} cause={query.error} compact retry={query.refetch} layout="form" label="Loading sharing settings" />;
   const activeId = link?.id ?? view.shareLink?.id;
   return <form className="stack" noValidate onSubmit={async (event) => {
     event.preventDefault();

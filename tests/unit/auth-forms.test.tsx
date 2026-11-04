@@ -53,12 +53,12 @@ describe("authentication forms block invalid requests", () => {
     const user = userEvent.setup();
     mount(<ForgotPasswordForm />, { forgot: vi.fn().mockResolvedValue(challenge), verifyReset, recovery });
     await user.type(screen.getByRole("textbox", { name: "Email address" }), "alex@example.test");
-    await user.click(screen.getByRole("button", { name: "SEND RESET CODE" }));
-    await user.click(await screen.findByRole("button", { name: "VERIFY CODE" }));
+    await user.click(screen.getByRole("button", { name: "Send reset code" }));
+    await user.click(await screen.findByRole("button", { name: "Verify code" }));
     expect(await screen.findByText("Enter the complete 6-digit code.")).toBeVisible();
     expect(verifyReset).not.toHaveBeenCalled();
-    for (let i = 1; i <= 6; i++) await user.type(screen.getByRole("textbox", { name: `OTP digit ${i}` }), "1");
-    await user.click(screen.getByRole("button", { name: "VERIFY CODE" }));
+    for (let i = 1; i <= 6; i++) await user.type(screen.getByRole("textbox", { name: `Code digit ${i}` }), "1");
+    await user.click(screen.getByRole("button", { name: "Verify code" }));
     expect(await screen.findByText("Incorrect reset code.")).toBeVisible();
     expect(verifyReset).toHaveBeenCalledExactlyOnceWith({ code: "111111" });
     expect(recovery).not.toHaveBeenCalled();
@@ -70,12 +70,12 @@ describe("authentication forms block invalid requests", () => {
     const login = vi.fn().mockResolvedValue(session);
     const user = userEvent.setup();
     mount(<SignInForm role="professional" />, { login });
-    fireEvent.submit(screen.getByRole("button", { name: "LOGIN" }).closest("form")!);
+    fireEvent.submit(screen.getByRole("button", { name: "Sign in" }).closest("form")!);
     expect(await screen.findByText("Enter a valid email address.")).toBeVisible();
     expect(login).not.toHaveBeenCalled();
     await user.type(screen.getByRole("textbox", { name: "Email address" }), " ALEX@EXAMPLE.TEST ");
     await user.type(screen.getByLabelText(/^Password/), "old");
-    await user.click(screen.getByRole("button", { name: "LOGIN" }));
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(login).toHaveBeenCalledExactlyOnceWith({ email: "alex@example.test", password: "old" }, "professional"));
     expect(push).toHaveBeenCalledWith("/app/dashboard");
   });
@@ -86,11 +86,13 @@ describe("authentication forms block invalid requests", () => {
     mount(<SignInForm role="professional" />, { login });
     await user.type(screen.getByRole("textbox", { name: "Email address" }), "alex@example.test");
     await user.type(screen.getByLabelText(/^Password/), "password");
-    await user.click(screen.getByRole("button", { name: "LOGIN" }));
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("These credentials could not be verified.");
-    expect(alert.closest("#toasts")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "LOGIN" }).closest("form")).not.toHaveTextContent("These credentials could not be verified.");
+    // One persistent banner inside the form, no duplicate toast.
+    expect(alert.closest("#toasts")).toBeNull();
+    expect(screen.getByRole("button", { name: "Sign in" }).closest("form")).toContainElement(alert);
+    expect(screen.getAllByText("These credentials could not be verified.")).toHaveLength(1);
     expect(screen.getByRole("textbox", { name: "Email address" })).toHaveValue("alex@example.test");
     expect(push).not.toHaveBeenCalled();
   });
@@ -99,11 +101,11 @@ describe("authentication forms block invalid requests", () => {
     const login = vi.fn().mockRejectedValue(new ApiError("invalid", 422, { errors: { email: ["These credentials could not be verified."] } }));
     const user = userEvent.setup();
     mount(<SignInForm role="recruiter" />, { login });
-    await user.click(screen.getByRole("button", { name: "LOGIN" }));
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
     expect(login).not.toHaveBeenCalled();
     await user.type(screen.getByRole("textbox", { name: "Email address" }), "professional@example.test");
     await user.type(screen.getByLabelText(/^Password/), "password");
-    await user.click(screen.getByRole("button", { name: "LOGIN" }));
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(login).toHaveBeenCalledExactlyOnceWith({ email: "professional@example.test", password: "password" }, "employer"));
     expect(await screen.findByRole("alert")).toHaveTextContent("These credentials could not be verified.");
     expect(push).not.toHaveBeenCalled();
@@ -116,7 +118,7 @@ describe("authentication forms block invalid requests", () => {
     await user.type(screen.getByRole("textbox", { name: "Full name" }), "  ");
     await user.type(screen.getByRole("textbox", { name: "Email address" }), "alex@example.test");
     await user.type(screen.getByLabelText(/^Password/), "short");
-    await user.click(screen.getByRole("button", { name: "SUBMIT" }));
+    await user.click(screen.getByRole("button", { name: "Create account" }));
     expect(await screen.findByText("Add your full name.")).toBeVisible();
     expect(await screen.findByText("Use at least 8 characters.")).toBeVisible();
     expect(register).not.toHaveBeenCalled();
@@ -155,7 +157,7 @@ describe("authentication forms block invalid requests", () => {
     expect(await screen.findByText("Enter the complete 6-digit code.")).toBeVisible();
     expect(document.querySelector('[data-demo-code]')).toBeNull();
     expect(screen.getByText(/Check WhatsApp for the verification code/)).toBeVisible();
-    for (let i = 0; i < 6; i++) await user.type(screen.getByRole("textbox", { name: "OTP digit " + (i + 1) }), "001234"[i]);
+    for (let i = 0; i < 6; i++) await user.type(screen.getByRole("textbox", { name: "Code digit " + (i + 1) }), "001234"[i]);
     expect(screen.getByText(/Code expires in 0[45]:/)).toBeVisible();
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse(challenge.expires_at) + 1);
     try {

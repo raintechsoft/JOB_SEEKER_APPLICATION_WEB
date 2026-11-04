@@ -9,7 +9,8 @@ import {APPLICATION_WIZARD_RULES,applicationWizardDraftValuesSchema,applicationW
 import {applicationSteps} from "@/lib/domain/application-wizard";
 import {applicationStage,applicationValidationContext,type ApplicationContext,type ApplicationDraft,type DocumentContext,type ApplicationReview} from "./application-wizard-policy";
 import type {ApplicationWizardSubmit} from "@/services/applications/application-wizard.service";
-import {useQuery,useQueryClient} from "@tanstack/react-query";
+import {useQueryClient} from "@tanstack/react-query";
+import {useHiringQuery} from "@/hooks/use-hiring-query";
 
 const fingerprint = (values:unknown) => {
   const checked=applicationWizardDraftValuesSchema.safeParse(values);
@@ -54,6 +55,22 @@ export function useApplicationEditor(initial:{context:ApplicationContext;draft:A
   useEffect(()=>{latestStep.current=step;},[step]);
   const validation=applicationValidationContext(context,documents,initial.accountEmail);
   const dirty=fingerprint(watched)!==acknowledged;
+  const live=useHiringQuery(["application-live",initial.context.jobId,resetKey],(s,scope)=>s.applicationWizard.context(initial.context.jobId,scope),{enabled:!context.application});
+  useEffect(()=>{
+    // External query revisions must clear a user's prior approval without resetting their dirty form.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if(live.isFetching){setSharingAcknowledgement(null);return;}
+    if(saving||working)return; // Own acknowledged writes settle before comparing revisions.
+    const next=live.data;
+    if(live.isError){stopped.current=true;setBlocked(true);setNotice("The application could not be checked. Your input is retained. Reload the saved draft before continuing.");return;}
+    if(!next)return;
+    if(next.application){setContext(next);setSharingAcknowledgement(null);return;}
+    if(!next.acceptingApplications||!next.draft||next.draft.id!==saved.current.id||next.draft.version>saved.current.version||next.requirements.version!==contextRef.current.requirements.version||next.requirements.questionsVersion!==contextRef.current.requirements.questionsVersion||next.requirements.jobVersion!==contextRef.current.requirements.jobVersion){
+      stopped.current=true;setBlocked(true);setSharingAcknowledgement(null);
+      setNotice(!next.acceptingApplications?"This job is no longer accepting applications. Your input is retained.":"Your saved draft or the job requirements changed. Your input is retained. Reload the saved draft before continuing.");
+      if(!next.acceptingApplications)setContext(current=>({...current,acceptingApplications:false}));
+    }
+  },[live.data,live.dataUpdatedAt,live.isFetching,live.isError,saving,working]);
   const steps=applicationSteps(context.requirements);
   const changed=context.requirements.version!==draft.requirementsVersion||context.requirements.questionsVersion!==draft.questionsVersion||context.requirements.jobVersion!==draft.jobVersion;
   const retiredQuestions=Object.keys(watched.answers??{}).some(id=>!context.requirements.questions.some(question=>question.id===id));
@@ -91,10 +108,10 @@ export function useApplicationEditor(initial:{context:ApplicationContext;draft:A
     if(!(error instanceof ApiError)||error.status!==422){stopped.current=true;setBlocked(true);}
   }
 
-  const reviewEnabled=step==="review"&&!context.application&&context.acceptingApplications&&!dirty&&!saving&&!working&&!blocked;
-  const reviewQuery=useQuery<ApplicationReview>({queryKey:["application-review",draft.id,draft.version,resetKey,reviewAttempt],enabled:reviewEnabled,retry:false,staleTime:0,refetchOnWindowFocus:false,placeholderData:()=>undefined,queryFn:async()=>{
-    try{const result=await api.review(saved.current.id);if(mounted.current&&saved.current.version===result.version)setErrors({});return result;}catch(error){reject(error);throw error;}
-  }});
+  const reviewEnabled=step==="review"&&!context.application&&context.acceptingApplications&&!dirty&&!saving&&!working&&!blocked&&!live.isFetching&&!live.isError;
+  const reviewQuery=useHiringQuery<ApplicationReview>(["application-review",draft.id,draft.version,resetKey,reviewAttempt],async(_services,scope)=>{
+    try{const result=await api.review(saved.current.id,scope);if(mounted.current&&saved.current.version===result.version)setErrors({});return result;}catch(error){reject(error);throw error;}
+  },{enabled:reviewEnabled});
   const currentReview=reviewQuery.data;
   const review=reviewEnabled&&!reviewQuery.isPlaceholderData&&!reviewQuery.isFetching&&currentReview?.draftId===draft.id&&currentReview.version===draft.version?currentReview:null;
   const reviewLoading=reviewEnabled&&(reviewQuery.isPending||reviewQuery.isFetching);

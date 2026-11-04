@@ -3,10 +3,14 @@
 import type { ChangeEvent } from "react";
 import type { VerificationStatus } from "@/types/domain";
 import { isPrototype } from "@/lib/env/app-env";
+import { isVerifiedCompany, isVerifiedOrganizationStatus } from "@/lib/domain/organization";
+import { PREFERENCE_LIMITS, type PreferenceCatalogId } from "@/lib/domain/preference-catalog";
 import { Icon } from "@/components/ui/icon";
 import { MediaImage } from "@/components/ui/media-image";
+import { CatalogMultiPicker, CatalogPicker } from "@/components/ui/skill-picker";
+import { InfoBadge } from "@/components/ui/info-badge";
 import { Button, IconButton } from "@/components/ui/primitives";
-import { FloatingInput, FloatingSelect, FloatingTextArea, type Option } from "@/components/ui/field";
+import { FloatingInput, FloatingSelect, FloatingTextArea, ToggleRow, type Option } from "@/components/ui/field";
 
 const keyId = (key: string) => "org-" + key.replaceAll(".", "-");
 
@@ -71,13 +75,9 @@ export function OrgSelect({ label, name, value, error, onValue, options, require
 
 export function OrgCheck({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) {
   return (
-    <label className="org-check">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span>
-        {label}
-        {hint && <small>{hint}</small>}
-      </span>
-    </label>
+    <ToggleRow checked={checked} onChange={(e) => onChange(e.target.checked)} hint={hint}>
+      {label}
+    </ToggleRow>
   );
 }
 
@@ -86,10 +86,13 @@ export function OrgChoices({ label, options, chosen, onChange }: { label: string
     <fieldset className="org-choices">
       <legend>{label}</legend>
       {options.map((v) => (
-        <label key={v}>
-          <input type="checkbox" value={v} checked={chosen.includes(v)} onChange={(e) => onChange(e.target.checked ? [...chosen, v] : chosen.filter((x) => x !== v))} />
+        <ToggleRow
+          key={v}
+          checked={chosen.includes(v)}
+          onChange={(e) => onChange(e.target.checked ? [...chosen, v] : chosen.filter((x) => x !== v))}
+        >
           {v}
-        </label>
+        </ToggleRow>
       ))}
     </fieldset>
   );
@@ -140,6 +143,89 @@ export function OrgChips({ label, name, scope, values, onAdd, onRemove }: { labe
   );
 }
 
+/** Controlled single catalogue field for organization / recruiter drafts. */
+export function OrgCatalogField({
+  label,
+  name,
+  catalog,
+  value,
+  error,
+  allowCustom = true,
+  onValue,
+}: {
+  label: string;
+  name: string;
+  catalog: PreferenceCatalogId;
+  value: string;
+  error?: string;
+  allowCustom?: boolean;
+  onValue: (value: string) => void;
+}) {
+  return (
+    <div className="org-field-wrap">
+      <CatalogPicker
+        id={keyId(name)}
+        catalog={catalog}
+        name={name}
+        label={label}
+        value={value}
+        onChange={onValue}
+        error={error}
+        allowCustom={allowCustom}
+      />
+    </div>
+  );
+}
+
+/** Controlled multi catalogue chips for organization / recruiter drafts. */
+export function OrgCatalogChips({
+  label,
+  name,
+  catalog,
+  values,
+  error,
+  max,
+  allowCustom = true,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  catalog: PreferenceCatalogId;
+  values: string[];
+  error?: string;
+  max?: number;
+  allowCustom?: boolean;
+  onChange: (values: string[]) => void;
+}) {
+  const limit =
+    max ??
+    (catalog === "department"
+      ? PREFERENCE_LIMITS.departments
+      : catalog === "location"
+        ? PREFERENCE_LIMITS.locations
+        : catalog === "employmentType"
+          ? PREFERENCE_LIMITS.types
+          : catalog === "interest"
+            ? PREFERENCE_LIMITS.interests
+            : catalog === "benefit"
+              ? PREFERENCE_LIMITS.benefits
+              : 20);
+  return (
+    <div className="org-chip-field org-catalog-chips">
+      <CatalogMultiPicker
+        id={keyId(name)}
+        catalog={catalog}
+        label={label}
+        value={values}
+        onChange={onChange}
+        max={limit}
+        error={error}
+        allowCustom={allowCustom}
+      />
+    </div>
+  );
+}
+
 export function OrgImageUpload({ label, kind, value, disabled, busy, onManage }: { label: string; kind: "logoUrl" | "coverImageUrl"; value: string; disabled?: boolean; busy?: boolean; onManage: () => void }) {
   const manageLabel = kind === "logoUrl" ? "Manage logo" : "Manage cover";
   const empty = <Icon name={kind === "logoUrl" ? "building" : "image"} />;
@@ -162,21 +248,41 @@ export function OrgImageUpload({ label, kind, value, disabled, busy, onManage }:
 }
 
 export function VerificationBadge({ status }: { status: VerificationStatus }) {
-  const cls = status === "Verified" ? "verified" : status === "Pending review" ? "pending" : status === "Action required" ? "action" : status === "In progress" ? "progress" : "not-started";
+  if (status === "Verified") {
+    return (
+      <span className="org-verified-mark" role="img" aria-label={isPrototype ? "Verified · Demo" : "Verified"}>
+        {/* Decorative mark only — never a control or link. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/icons/verified.png" alt="" draggable={false} />
+      </span>
+    );
+  }
+  const cls = status === "Pending review" ? "pending" : status === "Action required" ? "action" : status === "In progress" ? "progress" : "not-started";
   return (
     <span className={"org-status " + cls}>
-      <Icon name={status === "Verified" ? "shield" : status === "Action required" ? "help" : "clock"} />
+      <Icon name={status === "Action required" ? "help" : status === "Not started" ? "shield" : "clock"} />
       {status}
-      {status === "Verified" && isPrototype ? " · Demo" : ""}
     </span>
   );
 }
 
+/** Icon-only mark for public company names. Renders nothing unless verification is confirmed. */
+export function VerifiedCompanyMark({
+  company,
+  status,
+}: {
+  company?: { verified?: boolean; confidential?: boolean; name?: string } | null;
+  status?: VerificationStatus | string | null;
+}) {
+  const confirmed = company !== undefined ? isVerifiedCompany(company) : isVerifiedOrganizationStatus(status);
+  if (!confirmed) return null;
+  return <VerificationBadge status="Verified" />;
+}
+
 export function OrgPublicHint() {
   return (
-    <p className="org-visibility-hint">
-      <Icon name="globe" />
+    <InfoBadge label="Public profile visibility">
       These details appear on your public organization profile when visibility is enabled.
-    </p>
+    </InfoBadge>
   );
 }

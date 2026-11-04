@@ -8,8 +8,12 @@ import {apiConfig} from "@/services/api/config";
 import {ApiError} from "@/services/api/client";
 import { toast } from "@/stores/toast-store";
 import { Icon, type IconName } from "@/components/ui/icon";
-import { Avatar, Brand, IconButton } from "@/components/ui/primitives";
+import { Avatar, Brand, IconButton, LinkButton } from "@/components/ui/primitives";
+import { ScreenFallback } from "@/components/ui/feedback";
+import { StatePanel } from "@/components/ui/state-panel";
+import { ErrorState } from "@/components/ui/state-views";
 import { workspaceDialogs } from "@/features/workspace/dialogs";
+import { portfolioUiEnabled } from "@/features/portfolio/portfolio-ui-policy";
 
 const NAV: [string, string, IconName][] = [
   ["dashboard", "Overview", "grid"],
@@ -58,15 +62,13 @@ function AdminFrame({ children,adminName=ADMIN.name }: { children: ReactNode;adm
             <Icon name="spark" />
             <h4>Your work tells a story.</h4>
             <p>Turn your everyday progress into your next opportunity.</p>
-            <Link href="/app/portfolio">
-              Build your portfolio <Icon name="arrow" />
-            </Link>
+            {portfolioUiEnabled() ? (
+              <Link href="/app/portfolio">
+                Build your portfolio <Icon name="arrow" />
+              </Link>
+            ) : null}
           </div>
           <nav className="side-nav">
-            <Link href="/">
-              <Icon name="globe" />
-              Back to website
-            </Link>
             <Link href="/recruiter/dashboard">
               <Icon name="compare" />
               Switch to recruiter
@@ -106,5 +108,10 @@ function AdminFrame({ children,adminName=ADMIN.name }: { children: ReactNode;adm
   );
 }
 
-function RealAdminGate({children}:{children:ReactNode}){const router=useRouter();const session=useServiceQuery(["admin","session"],(s)=>s.admin.session!());useEffect(()=>{if(session.error instanceof ApiError&&session.error.status===401)router.replace("/login?next=/admin/dashboard");},[session.error,router]);if(session.isPending)return null;if(session.isError||!session.data)return <div className="card"><h1>Administrator access required</h1><p>This account does not have access to platform administration.</p><Link href="/">Back to Skillora</Link></div>;return <AdminFrame adminName={session.data.name}>{children}</AdminFrame>;}
+function RealAdminGate({children}:{children:ReactNode}){const router=useRouter();const session=useServiceQuery(["admin","session"],(s)=>s.admin.session!());useEffect(()=>{if(session.error instanceof ApiError&&session.error.status===401)router.replace("/login?next=/admin/dashboard");},[session.error,router]);if(session.isPending)return <main id="main" className="page"><ScreenFallback layout="stats" label="Checking administrator access" /></main>;
+ // Only a refused session means "not an administrator"; network and server failures can be retried.
+ const denied=session.error instanceof ApiError&&session.error.status===403;
+ if(denied||(!session.isError&&!session.data))return <main id="main" className="page"><StatePanel role="alert" icon="lock" tone="warning" title="Administrator access required" description="This account does not have access to platform administration." actions={<LinkButton href="/">Back to Skillora</LinkButton>} /></main>;
+ if(session.isError||!session.data)return <main id="main" className="page"><ErrorState error={session.error} onRetry={()=>session.refetch()} title="Administration couldn’t load" signInHref="/login?next=/admin/dashboard" homeHref="/" homeLabel="Back to Skillora" /></main>;
+ return <AdminFrame adminName={session.data.name}>{children}</AdminFrame>;}
 export function AdminShell({children}:{children:ReactNode}){return apiConfig.dataSource==="http"?<RealAdminGate>{children}</RealAdminGate>:<AdminFrame>{children}</AdminFrame>;}

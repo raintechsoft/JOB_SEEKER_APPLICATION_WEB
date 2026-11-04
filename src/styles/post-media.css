@@ -1,0 +1,520 @@
+/* Aspect-aware post media: landscape fills card width; portrait uses a mid-width
+   column sized from max height × aspect so vertical content stays readable. */
+body.professional-theme .feed-post {
+  --feed-media-max-height: min(70vh, 720px);
+}
+body.professional-theme #post-live-preview .feed-post {
+  --feed-media-max-height: min(52vh, 420px);
+}
+body .post-carousel .post-carousel-stage,
+body.professional-theme .post-carousel .post-carousel-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  overflow: hidden;
+  background-color: #2a2f36;
+}
+body .post-carousel .post-carousel-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-inline: auto;
+  width: min(100%, calc(var(--feed-media-max-height, 720px) * var(--media-aspect, 1.7777778)));
+  max-width: 100%;
+  max-height: var(--feed-media-max-height, 720px);
+  aspect-ratio: var(--media-aspect-ratio, 16 / 9);
+  background-color: #2a2f36;
+}
+body .post-carousel .post-carousel-frame[data-orientation="portrait"] {
+  /* Prefer height-driven mid column for tall media. */
+  width: min(100%, calc(var(--feed-media-max-height, 720px) * var(--media-aspect, 0.5625)));
+}
+body .post-carousel .post-carousel-slide,
+body.professional-theme .post-carousel .post-carousel-slide {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  max-height: none;
+  overflow: hidden;
+}
+body .post-carousel .post-carousel-slide[hidden] {
+  display: none;
+}
+/* Main media fills the frame; backdrop is excluded so it never sits in flex flow beside it. */
+body .post-carousel .post-carousel-slide :is(img, video, .media-image, .media-fallback):not(.post-carousel-backdrop),
+body.professional-theme .post-carousel .post-carousel-slide :is(img, video, .media-image, .media-fallback):not(.post-carousel-backdrop) {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
+  display: block;
+}
+body .post-carousel .post-media-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+body .post-carousel .post-media-frame > .media-image:not(.post-carousel-backdrop),
+body .post-carousel .post-media-frame > img:not(.post-carousel-backdrop) {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+body .post-carousel .post-carousel-slide .post-carousel-backdrop,
+body .post-carousel .post-media-frame > .post-carousel-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center;
+  filter: blur(26px) brightness(0.75) saturate(1.1);
+  transform: scale(1.15);
+  pointer-events: none;
+  display: block;
+}
+body .post-carousel .post-carousel-slide video {
+  background: #2a2f36;
+}
+/* Loading: hide the half-drawn image and show a dark animated placeholder. */
+.post-carousel-slide .media-image-loading {
+  opacity: 0;
+}
+body .post-carousel .post-carousel-slide:not([hidden]):has(.media-image-loading) {
+  background: linear-gradient(100deg, #222b36 25%, #33404f 45%, #222b36 65%) 0 0 / 200% 100%;
+  animation: loading-shimmer 1.3s ease-in-out infinite;
+}
+.post-carousel-slide .media-image {
+  transition: opacity 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  body .post-carousel .post-carousel-slide:has(.media-image-loading) { animation: none; }
+  .post-carousel-slide .media-image { transition: none; }
+}
+/* Media arrows stay on the full-width stage edges so they do not jump when slide aspect changes. */
+body .post-carousel .post-carousel-stage > .post-carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #202a36;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease;
+}
+body .post-carousel .post-carousel-stage > .post-carousel-arrow.previous {
+  left: 12px;
+  right: auto;
+}
+body .post-carousel .post-carousel-stage > .post-carousel-arrow.next {
+  right: 12px;
+  left: auto;
+}
+body .post-carousel .post-carousel-stage > .post-carousel-arrow.previous .icon {
+  transform: rotate(180deg);
+}
+body .post-carousel .post-carousel-stage > .post-carousel-arrow:hover,
+body .post-carousel .post-carousel-stage > .post-carousel-arrow:focus-visible {
+  background: rgba(255, 255, 255, 0.92);
+}
+body .post-carousel .post-media-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  background: #2a2f36;
+  color: #e6e9ee;
+  font-size: 14px;
+}
+body .post-carousel .post-media-failed .icon {
+  width: 26px;
+  height: 26px;
+  color: #f5b04c;
+}
+body .post-carousel .post-media-failed button {
+  padding: 7px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+body .post-carousel .post-media-failed button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Document page carousel (PDF): full-width stage; page centered; arrows on outer edges. */
+body .post-carousel.has-document .post-carousel-stage {
+  background: #3a3f46;
+}
+body .post-carousel.has-document .post-carousel-frame {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: auto;
+  height: var(--feed-media-max-height, 720px);
+  max-height: var(--feed-media-max-height, 720px);
+}
+body .post-carousel .post-doc-viewer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  background: #3a3f46;
+  color: #f4f6f8;
+}
+body .post-carousel .post-doc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  background: rgba(32, 36, 42, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 2;
+}
+body .post-carousel .post-doc-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+body .post-carousel .post-doc-page-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: rgba(244, 246, 248, 0.78);
+}
+body .post-carousel .post-doc-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #4a5058;
+}
+body .post-carousel .post-doc-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+body .post-carousel .post-doc-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: #e6e9ee;
+  font-size: 14px;
+  text-align: center;
+}
+body .post-carousel .post-doc-status a {
+  color: #9db7ff;
+  font-weight: 600;
+}
+/* Document page arrows use the same fixed stage-edge anchors as media arrows. */
+body .post-carousel .post-doc-viewer > .post-doc-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(42, 47, 54, 0.92);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  left: 12px;
+  right: auto;
+}
+body .post-carousel .post-doc-viewer > .post-doc-arrow.next {
+  left: auto;
+  right: 12px;
+}
+body .post-carousel .post-doc-viewer > .post-doc-arrow.previous .icon {
+  transform: rotate(180deg);
+}
+body .post-carousel .post-doc-viewer > .post-doc-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.post-doc-overlay .post-doc-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(42, 47, 54, 0.92);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  left: 12px;
+}
+.post-doc-overlay .post-doc-arrow.next {
+  left: auto;
+  right: 12px;
+}
+.post-doc-overlay .post-doc-arrow.previous .icon {
+  transform: rotate(180deg);
+}
+.post-doc-overlay .post-doc-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+body .post-carousel .post-carousel-navigation.is-document {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: "count scrub expand" "dots dots dots";
+  gap: 8px 12px;
+  align-items: center;
+  padding: 10px 14px 12px;
+  background: #2a2f36;
+  border-bottom: none;
+  color: #e6e9ee;
+}
+body .post-carousel .post-carousel-navigation.is-single {
+  grid-template-areas: "count scrub expand";
+  grid-template-columns: 1fr auto auto;
+}
+body .post-carousel .post-carousel-navigation .post-carousel-count {
+  grid-area: count;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e6e9ee;
+}
+body .post-carousel .post-carousel-scrub {
+  grid-area: scrub;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+body .post-carousel .post-carousel-scrub input[type="range"] {
+  width: 100%;
+  accent-color: #fff;
+  cursor: pointer;
+}
+body .post-carousel .post-carousel-expand,
+body .post-carousel .post-carousel-expand-spacer {
+  grid-area: expand;
+  width: 34px;
+  height: 34px;
+}
+body .post-carousel .post-carousel-expand {
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+body .post-carousel .post-carousel-expand:hover,
+body .post-carousel .post-carousel-expand:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+}
+body .post-carousel .post-carousel-dots {
+  grid-area: dots;
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+}
+body .post-carousel .post-carousel-navigation.is-document .post-carousel-dots button {
+  background: rgba(255, 255, 255, 0.28);
+}
+body .post-carousel .post-carousel-navigation.is-document .post-carousel-dots button.active {
+  background: #fff;
+}
+
+/* In-app expanded PDF viewer — works on mobile without new-tab / popup blockers. */
+.post-doc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background: rgba(12, 14, 18, 0.96);
+}
+.post-doc-overlay .post-doc-viewer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, 100%);
+  height: 100%;
+  margin: 0 auto;
+  background: #2a2f36;
+  color: #f4f6f8;
+}
+.post-doc-overlay .post-doc-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 16px;
+  background: #1c2026;
+}
+.post-doc-overlay .post-doc-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-doc-overlay .post-doc-page-label {
+  font-size: 12px;
+  color: rgba(244, 246, 248, 0.75);
+}
+.post-doc-overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.post-doc-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+}
+.post-doc-zoom-btn {
+  padding: 8px;
+  border: 0;
+  background: transparent;
+}
+.post-doc-zoom-btn:hover:not(:disabled),
+.post-doc-zoom-btn:focus-visible:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+.post-doc-zoom-label {
+  min-width: 3.25rem;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(244, 246, 248, 0.9);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.post-doc-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.post-doc-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.post-doc-action .icon {
+  width: 16px;
+  height: 16px;
+}
+.post-doc-overlay .post-doc-stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #3a3f46;
+  padding: 16px;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.post-doc-overlay .post-doc-stage.is-zoomable {
+  cursor: grab;
+}
+.post-doc-overlay .post-doc-stage:active {
+  cursor: grabbing;
+}
+.post-doc-overlay .post-doc-zoom-layer {
+  transform-origin: center center;
+  will-change: transform;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 100%;
+}
+.post-doc-overlay .post-doc-canvas {
+  max-width: min(100%, 960px);
+  max-height: calc(100vh - 140px);
+  width: auto;
+  height: auto;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.post-doc-download-error {
+  margin: 0;
+  padding: 8px 16px;
+  background: #5c2b2b;
+  color: #ffe8e8;
+  font-size: 13px;
+}

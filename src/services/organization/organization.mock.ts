@@ -1,6 +1,7 @@
 import type { Draft } from "immer";
 import type { DemoDatabase, OrganizationWorkspace } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
+import { companyFollowerCount, personFollowerCount } from "@/mocks/store/presenters";
 import { canManageOrganization, currentRecruiter, isJobOpen } from "@/mocks/store/selectors";
 import { ORGANIZATION_ROLES, publicOrganization, publicRecruiter } from "@/lib/domain/organization";
 import { uid } from "@/lib/utils/id";
@@ -31,7 +32,20 @@ const mutate = (fn: (w: Draft<OrganizationWorkspace>) => void) =>
 export const mockOrganizationService: OrganizationService = {
   async getContext() {
     const db = getDb();
-    return { workspace: db.organizationWorkspace, currentRecruiter: currentRecruiter(db), canManage: canManageOrganization(db), companyJobs: companyJobs(db), openJobs: companyJobs(db).filter(isJobOpen) };
+    const current = currentRecruiter(db);
+    return {
+      workspace: {
+        ...db.organizationWorkspace,
+        recruiters: db.organizationWorkspace.recruiters.map((r) => ({
+          ...r,
+          followerCount: personFollowerCount(db, r.id),
+        })),
+      },
+      currentRecruiter: { ...current, followerCount: personFollowerCount(db, current.id) },
+      canManage: canManageOrganization(db),
+      companyJobs: companyJobs(db),
+      openJobs: companyJobs(db).filter(isJobOpen),
+    };
   },
 
   async saveOrganization(organization, verification) {
@@ -113,14 +127,23 @@ export const mockOrganizationService: OrganizationService = {
     const db = getDb();
     const o = db.organizationWorkspace.organization;
     if (slug !== o.slug || o.profileVisibility !== "Public") return null;
-    return { organization: publicOrganization(o), openJobs: companyJobs(db).filter(isJobOpen) };
+    return {
+      organization: publicOrganization({ ...o, followerCount: companyFollowerCount(db, o.id) }),
+      openJobs: companyJobs(db).filter(isJobOpen),
+      viewer: { own: false, following: false },
+    };
   },
 
   async getPublicRecruiter(id) {
-    const w = getDb().organizationWorkspace;
+    const db = getDb();
+    const w = db.organizationWorkspace;
     const member = w.recruiters.find((r) => r.id === id);
     if (!member || member.profileVisibility !== "Public" || member.accountStatus !== "Active") return null;
-    return { recruiter: publicRecruiter(member), organization: publicOrganization(w.organization) };
+    return {
+      recruiter: publicRecruiter({ ...member, followerCount: personFollowerCount(db, member.id) }),
+      organization: publicOrganization(w.organization),
+      viewer: { own: false, following: false },
+    };
   },
 
   async listInvitations() {

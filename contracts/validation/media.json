@@ -7,6 +7,13 @@
   "postMaxItems": 200,
   "postTotalBytes": 2147483648,
   "quotaBytes": 5368709120,
+  "postLimits": {
+    "maxPages": 300,
+    "maxWords": 1000000,
+    "maxImagePixels": 36000000,
+    "maxGifFrames": 500,
+    "maxGifPixels": 36152320
+  },
   "rules": {
     "career_memory": [
       1048576,
@@ -50,36 +57,44 @@
       ]
     ],
     "post_image": [
-      536870912,
+      104857600,
       [
         "png",
         "jpg",
         "jpeg",
         "webp",
         "gif",
+        "heic",
+        "heif",
         "pdf",
         "doc",
         "docx",
-        "rtf",
-        "txt",
+        "ppt",
+        "pptx",
         "mp4",
-        "webm"
+        "mov",
+        "webm",
+        "mkv"
       ],
       [
         "image/png",
         "image/jpeg",
         "image/webp",
         "image/gif",
+        "image/heic",
+        "image/heif",
         "application/pdf",
         "application/msword",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/rtf",
-        "text/rtf",
-        "text/plain",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "video/mp4",
         "application/mp4",
+        "video/quicktime",
         "video/webm",
-        "application/webm"
+        "application/webm",
+        "video/x-matroska",
+        "video/mkv"
       ]
     ],
     "job_thumbnail": [

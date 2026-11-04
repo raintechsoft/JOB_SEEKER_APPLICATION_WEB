@@ -16,7 +16,9 @@ export function WorkspaceAccessGate({role,children}:{role:"professional"|"recrui
   useEffect(() => {
     if (home && pathname !== home) router.replace(home);
   }, [home, pathname, router]);
-  if (session.isPending || (home && pathname !== home)) return null;
+  // Do not paint a global profile ContentSkeleton here — it replaced every destination's own
+  // loading UI. Keep the streaming boundary quiet; each page owns its visible skeleton.
+  if (session.isPending || (home && pathname !== home)) return <div className="container section" role="status" aria-label="Loading your workspace" aria-busy="true"><span className="sr-only">Loading your workspace</span></div>;
   if(session.isError||selected?.kind!==role||!data?.user.email_verified)return <RealWorkspace role={role}/>;
   return children;
 }

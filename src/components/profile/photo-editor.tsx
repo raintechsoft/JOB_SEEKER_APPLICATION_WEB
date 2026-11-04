@@ -11,7 +11,7 @@ import { ApiError, errorMessage } from "@/services/api/client";
 import { modal, useModalStore } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 
-export type PhotoEditorPurpose = "portrait" | "recruiter_photo" | "logo" | "cover" | "profile_cover";
+export type PhotoEditorPurpose = "portrait" | "recruiter_photo" | "logo" | "cover" | "profile_cover" | "gallery" | "job_thumbnail";
 interface PhotoEditorProps {
   person?: AvatarPerson;
   imageUrl?: string;
@@ -23,7 +23,7 @@ interface PhotoEditorProps {
   removedMessage?: string;
 }
 type View = "preview" | "edit" | "update" | "camera" | "remove";
-type CropShape = "circle" | "square" | "landscape";
+type CropShape = "circle" | "square" | "landscape" | "banner" | "gallery" | "thumbnail";
 const copy: Record<PhotoEditorPurpose, {
   titles: Record<View, string>;
   emptyHint: string;
@@ -39,11 +39,13 @@ const copy: Record<PhotoEditorPurpose, {
   shape: CropShape;
   emptyIcon: IconName;
 }> = {
-  portrait: { titles: { preview: "Profile photo", edit: "Edit photo", update: "Update profile photo", camera: "Take a photo", remove: "Remove profile photo?" }, emptyHint: "Add a photo to help people recognize you.", updateHint: "Choose how you’d like to add your photo.", typeHint: "You can adjust it before saving.", removeHint: "Your initials will appear until you add another photo.", saveLabel: "Save photo", changeLabel: "Change photo", removeLabel: "Remove photo", fileLabel: "Choose a profile photo", cropLabel: "Cropped profile photo preview", filename: "profile-photo.jpg", shape: "circle", emptyIcon: "user" },
-  recruiter_photo: { titles: { preview: "Profile photo", edit: "Edit photo", update: "Update profile photo", camera: "Take a photo", remove: "Remove profile photo?" }, emptyHint: "Add a photo to help people recognize you.", updateHint: "Choose how you’d like to add your photo.", typeHint: "You can adjust it before saving.", removeHint: "Your initials will appear until you add another photo.", saveLabel: "Save photo", changeLabel: "Change photo", removeLabel: "Remove photo", fileLabel: "Choose a profile photo", cropLabel: "Cropped profile photo preview", filename: "profile-photo.jpg", shape: "circle", emptyIcon: "user" },
+  portrait: { titles: { preview: "Profile photo", edit: "Edit photo", update: "Update profile photo", camera: "Take a photo", remove: "Remove profile photo?" }, emptyHint: "Add a photo to help people recognize you.", updateHint: "Choose how you’d like to add your photo.", typeHint: "PNG, JPEG, or WEBP. GIFs are not supported for profile photos.", removeHint: "Your initials will appear until you add another photo.", saveLabel: "Save photo", changeLabel: "Change photo", removeLabel: "Remove photo", fileLabel: "Choose a profile photo", cropLabel: "Cropped profile photo preview", filename: "profile-photo.jpg", shape: "circle", emptyIcon: "user" },
+  recruiter_photo: { titles: { preview: "Profile photo", edit: "Edit photo", update: "Update profile photo", camera: "Take a photo", remove: "Remove profile photo?" }, emptyHint: "Add a photo to help people recognize you.", updateHint: "Choose how you’d like to add your photo.", typeHint: "PNG, JPEG, or WEBP. GIFs are not supported for profile photos.", removeHint: "Your initials will appear until you add another photo.", saveLabel: "Save photo", changeLabel: "Change photo", removeLabel: "Remove photo", fileLabel: "Choose a profile photo", cropLabel: "Cropped profile photo preview", filename: "profile-photo.jpg", shape: "circle", emptyIcon: "user" },
   logo: { titles: { preview: "Organization logo", edit: "Edit logo", update: "Update organization logo", camera: "Take a photo", remove: "Remove organization logo?" }, emptyHint: "Add a square logo for your organization.", updateHint: "Upload a logo from your computer.", typeHint: "Square image recommended. You can adjust it before saving.", removeHint: "A building icon will appear until you add another logo.", saveLabel: "Save logo", changeLabel: "Change logo", removeLabel: "Remove logo", fileLabel: "Choose an organization logo", cropLabel: "Cropped organization logo preview", filename: "organization-logo.jpg", shape: "square", emptyIcon: "building" },
   cover: { titles: { preview: "Cover image", edit: "Edit cover image", update: "Update cover image", camera: "Take a photo", remove: "Remove cover image?" }, emptyHint: "Add a landscape cover image for your organization.", updateHint: "Upload a cover image from your computer.", typeHint: "Landscape image recommended. You can adjust it before saving.", removeHint: "The default banner will appear until you add another cover image.", saveLabel: "Save cover", changeLabel: "Change cover", removeLabel: "Remove cover", fileLabel: "Choose a cover image", cropLabel: "Cropped cover image preview", filename: "organization-cover.jpg", shape: "landscape", emptyIcon: "image" },
-  profile_cover: { titles: { preview: "Cover image", edit: "Edit cover image", update: "Update cover image", camera: "Take a photo", remove: "Remove cover image?" }, emptyHint: "Add a landscape cover image to personalize your profile.", updateHint: "Upload a cover image from your computer.", typeHint: "Landscape image recommended. You can adjust it before saving.", removeHint: "The default banner will appear until you add another cover image.", saveLabel: "Save cover", changeLabel: "Change cover", removeLabel: "Remove cover", fileLabel: "Choose a cover image", cropLabel: "Cropped cover image preview", filename: "profile-cover.jpg", shape: "landscape", emptyIcon: "image" },
+  profile_cover: { titles: { preview: "Cover image", edit: "Edit cover image", update: "Update cover image", camera: "Take a photo", remove: "Remove cover image?" }, emptyHint: "Add a landscape cover image to personalize your profile.", updateHint: "Upload a cover image from your computer.", typeHint: "PNG, JPEG, or WEBP only — GIFs are not supported for background photos. Drag to mark the area that stays visible on this screen.", removeHint: "The default banner will appear until you add another cover image.", saveLabel: "Save cover", changeLabel: "Change cover", removeLabel: "Remove cover", fileLabel: "Choose a cover image", cropLabel: "Cropped cover image preview", filename: "profile-cover.jpg", shape: "banner", emptyIcon: "image" },
+  gallery: { titles: { preview: "Workplace image", edit: "Edit workplace image", update: "Update workplace image", camera: "Take a photo", remove: "Remove workplace image?" }, emptyHint: "Add a workplace photo for your public gallery.", updateHint: "Upload a workplace image from your computer.", typeHint: "Crop to 4:3 proportion.", removeHint: "This image will be removed from your unsaved gallery.", saveLabel: "Save image", changeLabel: "Change image", removeLabel: "Remove image", fileLabel: "Choose a workplace image", cropLabel: "Cropped workplace image preview", filename: "workplace-gallery.jpg", shape: "gallery", emptyIcon: "image" },
+  job_thumbnail: { titles: { preview: "Job thumbnail", edit: "Edit thumbnail", update: "Update job thumbnail", camera: "Take a photo", remove: "Remove job thumbnail?" }, emptyHint: "Add a 16:9 thumbnail for this job in the feed.", updateHint: "Upload a thumbnail from your computer.", typeHint: "Crop to a fixed 16:9 frame (1280×720).", removeHint: "Template artwork will be used until you upload another thumbnail.", saveLabel: "Save thumbnail", changeLabel: "Change thumbnail", removeLabel: "Remove thumbnail", fileLabel: "Choose a job thumbnail", cropLabel: "Cropped job thumbnail preview", filename: "job-thumbnail.jpg", shape: "thumbnail", emptyIcon: "image" },
 };
 const photoError = (error: unknown) => error instanceof ApiError ? errorMessage(error) : error instanceof Error ? error.message : errorMessage(error);
 
@@ -144,7 +146,7 @@ export function PhotoEditor(props: PhotoEditorProps) {
     </>}
     {view === "camera" && !computerOnly && <CameraCapture maxBytes={rule.max} onCapture={prepare} onBack={() => changeView("update")} onUpload={() => { changeView("update"); input.current?.click(); }} />}
     {view === "edit" && source && geometry && <>
-      <div className="photo-crop-stage">
+      <div className={"photo-crop-stage" + (labels.shape === "banner" ? " is-banner" : "")}>
         <div className={"photo-crop-circle is-" + labels.shape} role="group" aria-label="Photo crop area" aria-describedby="photo-crop-help" tabIndex={0} onPointerDown={pointerDown} onPointerMove={event => {
           const start = drag.current;
           if (start && start.id === event.pointerId) adjust({ ...transform, x: start.offsetX + (event.clientX - start.x) * start.ratio, y: start.offsetY + (event.clientY - start.y) * start.ratio });
@@ -159,9 +161,15 @@ export function PhotoEditor(props: PhotoEditorProps) {
               <image href={source.src} crossOrigin={/^https?:/i.test(source.src) ? "use-credentials" : undefined} x={-source.image.naturalWidth / 2} y={-source.image.naturalHeight / 2} width={source.image.naturalWidth} height={source.image.naturalHeight} />
             </g>
           </svg>
+          {labels.shape === "banner" && (
+            <span className="photo-crop-mark" aria-hidden="true">
+              <span className="photo-crop-mark-label photo-crop-mark-desktop">Visible on large screens</span>
+              <span className="photo-crop-mark-label photo-crop-mark-mobile">Visible on this phone</span>
+            </span>
+          )}
         </div>
       </div>
-      <p id="photo-crop-help" className="photo-editor-hint">Drag to reposition, or focus the photo and use the arrow keys.</p>
+      <p id="photo-crop-help" className="photo-editor-hint">{labels.shape === "banner" ? "The highlighted frame is how this cover looks on this device. Drag to reposition. Keep names and faces inside it so they stay visible when the banner is cropped on other screens." : "Drag to reposition, or focus the photo and use the arrow keys."}</p>
       <label className="photo-zoom-control">Zoom <input type="range" min="1" max="3" step="0.05" value={transform.zoom} disabled={busy} onChange={event => adjust({ ...transform, zoom: Number(event.target.value) })} /><output>{Math.round(transform.zoom * 100)}%</output></label>
       <div className="photo-editor-tools">
         <Button icon="rotate" disabled={busy} onClick={() => adjust({ ...transform, rotation: (transform.rotation + (transform.flipX ? 270 : 90)) % 360, x: 0, y: 0 })}>Rotate</Button>

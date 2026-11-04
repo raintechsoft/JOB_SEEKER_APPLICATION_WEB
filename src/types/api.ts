@@ -52,6 +52,7 @@ export interface CompanySummary {
   industry?: string;
   logoUrl?: string;
   confidential?: boolean;
+  verified?: boolean;
   slug?: string;
   description?: string;
   companySize?: string;

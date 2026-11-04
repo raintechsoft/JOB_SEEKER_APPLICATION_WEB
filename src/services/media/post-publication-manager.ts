@@ -65,7 +65,10 @@ class PostPublicationManager {
   }
   start(draftId: string, name: string, run: Task["run"], release: () => void) {
     const previous = [...this.tasks.values()].find(
-      (task) => task.draftId === draftId && task.state !== "cancelled",
+      (task) =>
+        task.draftId === draftId &&
+        task.state !== "cancelled" &&
+        task.state !== "completed",
     );
     if (previous) return previous.id;
     const id = crypto.randomUUID();

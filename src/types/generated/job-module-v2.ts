@@ -658,6 +658,7 @@ export interface components {
             industry?: string;
             logoUrl?: string;
             confidential?: boolean;
+            verified?: boolean;
             followerCount?: number;
         };
         PersonalApplication: {
@@ -763,6 +764,7 @@ export interface components {
             title: string;
             companyId: string;
             companyName: string;
+            companyVerified?: boolean;
             location: string;
             arrangement: string;
             employment: string;

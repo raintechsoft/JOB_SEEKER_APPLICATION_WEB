@@ -7,36 +7,42 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import type { Message, Role } from "@/types/domain";
 import type { ConversationFlag, ConversationView, MessageFilter } from "@/services/messaging/messaging.service";
 import { formatDay, formatTime } from "@/lib/utils/date";
-import { readAsDataUrl } from "@/lib/utils/files";
 import { uid } from "@/lib/utils/id";
 import { devCopy } from "@/lib/env/app-env";
-import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
+import { useServiceAction } from "@/hooks/use-services";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
-import { Icon } from "@/components/ui/icon";
+import { Icon, type IconName } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, IconButton } from "@/components/ui/primitives";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingInput, SelectField, TextAreaField } from "@/components/ui/field";
-import { confirmAction } from "@/components/ui/feedback";
+import { confirmAction, ScreenError } from "@/components/ui/feedback";
+import { ErrorState } from "@/components/ui/state-views";
+import { StatePanel } from "@/components/ui/state-panel";
 import {useDrafts,EMPTY_DRAFT} from "./draft-store";
 import {apiConfig} from "@/services/api/config";
-import {messageSchema,reportSchema,validateMessageFile} from "@/lib/validation/communication";
+import {messageAttachmentSchema,messageSchema,reportSchema} from "@/lib/validation/communication";
+import {ChatAttachment} from "./message-attachment";
+import {MessageResumePicker,resumeToAttachment} from "./message-resume-picker";
 import {useFormAction} from "@/hooks/use-form-action";
 import {useServices} from "@/hooks/use-services";
 import {usePathname,useRouter,useSearchParams} from "next/navigation";
 import {z} from "zod";
-import { useLiveInterval } from "./realtime-bridge";
+import {useCommunicationQuery} from "@/hooks/use-communication-query";
+import {applyPeerReceipts,outgoingTick,tickLabel} from "@/services/messaging/message-status";
+import type {SignalNotice} from "@/services/realtime/signal-hub";
 
 const EMOJIS = ["😀", "😊", "👋", "👍", "👏", "🎉", "❤️", "💡", "🚀", "🙏", "✅", "✨"];
-const FILTERS: [MessageFilter, string][] = [
-  ["all", "All messages"],
-  ["jobs", "Jobs"],
-  ["unread", "Unread"],
-  ["starred", "Starred"],
-  ["archived", "Archived"],
+const FILTERS: [MessageFilter, string, IconName][] = [
+  ["all", "All messages", "inbox"],
+  ["jobs", "Jobs", "briefcase"],
+  ["unread", "Unread", "mail"],
+  ["starred", "Starred", "star"],
+  ["archived", "Archived", "archive"],
 ];
 
 function ReportForm({ role, c }: { role: Role; c: ConversationView }) {
@@ -83,10 +89,12 @@ function ReportForm({ role, c }: { role: Role; c: ConversationView }) {
 }
 
 function NewMessage({ role, onStart }: { role: Role; onStart: (id: string) => void }) {
-  const { data } = useServiceQuery(["messaging", "recipients", role], (s) => s.messaging.listRecipients(role));
+  const { data, isError, error, refetch } = useCommunicationQuery(["messaging", "recipients", role], (s,scope) => s.messaging.listRecipients(role,scope));
   return (
     <div className="stack">
       <p className="small muted">{devCopy("Choose someone to start a local demo conversation.", "Choose someone to start a conversation.")}</p>
+      {!data && (isError ? <ErrorState compact error={error} title="People couldn’t load" description="Something interrupted the request. Please try again." onRetry={() => void refetch()} /> : <ContentSkeleton label="Loading people" />)}
+      {data && !data.length && <EmptyState compact icon="users" title="No one to message yet" description="Follow or connect with people to start a conversation." />}
       {data?.map((p) => (
         <button type="button" className="message-recipient" key={p.id} onClick={() => onStart(p.id)}>
           <Avatar person={p} />
@@ -98,6 +106,26 @@ function NewMessage({ role, onStart }: { role: Role; onStart: (id: string) => vo
         </button>
       ))}
     </div>
+  );
+}
+
+function InboxFilterMenu({ filter, unreadCount, onSelect }: { filter: MessageFilter; unreadCount?: number; onSelect: (id: MessageFilter) => void }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useDismissableDetails(ref, { closeOnAction: true });
+  return (
+    <details className={"message-options messaging-filter-menu" + (filter !== "all" ? " has-filter" : "")} ref={ref}>
+      <summary className="iconbtn" aria-label="Message filters">
+        <Icon name="more" />
+      </summary>
+      <div className="message-options-list messaging-filter-list" role="group" aria-label="Message filters">
+        {FILTERS.map(([id, label, icon]) => (
+          <Button key={id} variant="text sm" icon={icon} aria-pressed={filter === id} onClick={() => onSelect(id)}>
+            {label}
+            {id === "unread" && !!unreadCount && <span>{unreadCount}</span>}
+          </Button>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -144,33 +172,49 @@ export function MessagingScreen({ role }: { role: Role }) {
   const requested=params.get("conversation");
   const [historyLimit,setHistoryLimit]=useState(50);
   const readAcknowledged=useRef("");
+  const liveRead=useRef("");
   const [error,setError]=useState("");
   const cache = useQueryClient();
   // Messages shown immediately while their send request is in flight.
   const [pending, setPending] = useState<(Message & { id: string; conversationId: string })[]>([]);
   const recruiter = role === "recruiter";
   const { query, filter, mobileChat, conversation } = useUiStore((s) => s.messaging);
-  // With a live socket these become a slow safety net; signals refresh them immediately.
-  const inboxInterval = useLiveInterval(10000), historyInterval = useLiveInterval(10000), longHistoryInterval = useLiveInterval(30000);
   const setMessaging = useUiStore((s) => s.setMessaging);
-  const { data,isError,refetch } = useServiceQuery(["messaging", role, query, filter, conversation], (s) => s.messaging.getInbox(role, { q: query, filter, selectedId: conversation }),{refetchInterval:real?inboxInterval:undefined,keepPreviousData:false});
+  const { data,isError,error:inboxError,refetch } = useCommunicationQuery(["messaging", role, query, filter, conversation], (s,scope) => s.messaging.getInbox(role, { q: query, filter, selectedId: conversation },scope));
   const c = data?.selected ?? null;
-  const historyPage=useServiceQuery(["message-history",role,c?.id,historyLimit],(s)=>s.messaging.getHistory!(role,c!.id,historyLimit),{enabled:real&&!!c,refetchInterval:real?(historyLimit>50?longHistoryInterval:historyInterval):undefined,keepPreviousData:false});
-  const stored=historyPage.isError?[]:historyPage.data?.messages??c?.messages??[];
+  const historyPage=useCommunicationQuery(["message-history",role,c?.id,historyLimit],(s,scope)=>s.messaging.getHistory!(role,c!.id,historyLimit,scope),{enabled:real&&!!c});
+  const view=historyPage.isError?c:historyPage.data??c;
+  const stored=applyPeerReceipts(view?.messages??[],view?.peerDeliveredSequence??0,view?.peerReadSequence??0);
   const messages:Message[]=[...stored,...pending.filter((m)=>m.conversationId===c?.id).map(({conversationId:_conversation,...m})=>({...m,sender:role,own:true}))];
+  const firstMessageId=messages[0]?.id??"", messageCount=messages.length;
   const readSequence=historyPage.data?.readSequence??c?.readSequence;
   useEffect(()=>{if(!real||!requested||!z.uuid().safeParse(requested).success)return;setMessaging({conversation:requested,mobileChat:true});router.replace(pathname,{scroll:false});},[real,requested,router,pathname,setMessaging]);
   useEffect(()=>{
-    if(!real||!c||readSequence===undefined)return;
-    const id=c.id,sequence=readSequence;
-    const acknowledge=()=>{if(document.visibilityState!=="visible"||!mobileChat&&!window.matchMedia("(min-width: 768px)").matches)return;const key=`${role}:${id}:${sequence}`;if(readAcknowledged.current===key)return;readAcknowledged.current=key;void services.messaging.markRead(role,id,sequence).catch(()=>{readAcknowledged.current="";});};
-    acknowledge();document.addEventListener("visibilitychange",acknowledge);return()=>document.removeEventListener("visibilitychange",acknowledge);
+    if(!real||!c)return;
+    const id=c.id;
+    const chatVisible=()=>document.visibilityState==="visible"&&(mobileChat||window.matchMedia("(min-width: 768px)").matches);
+    const acknowledge=()=>{
+      if(!chatVisible()||readSequence===undefined)return;
+      const key=`${role}:${id}:${readSequence}`;
+      if(readAcknowledged.current===key)return;
+      readAcknowledged.current=key;
+      void services.messaging.markRead(role,id,readSequence).catch(()=>{if(readAcknowledged.current===key)readAcknowledged.current="";});
+    };
+    const onSignal=(event:SignalNotice)=>{
+      if(!("data" in event)||event.type!=="conversation.updated"||String(event.data.conversationId)!==id)return;
+      if(!chatVisible()||liveRead.current===id)return;
+      liveRead.current=id;
+      void services.messaging.markRead(role,id).catch(()=>{}).finally(()=>{if(liveRead.current===id)liveRead.current="";});
+    };
+    acknowledge();
+    const unsub=services.realtime?.hub.subscribe(onSignal);
+    document.addEventListener("visibilitychange",acknowledge);
+    return()=>{unsub?.();document.removeEventListener("visibilitychange",acknowledge);};
   },[real,c?.id,readSequence,mobileChat,role,services,c]);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const history = useRef<HTMLDivElement>(null);
+  const scrollState = useRef({ id: "", nearEnd: true, height: 0, first: "" });
   const textRef = useRef<HTMLTextAreaElement>(null);
-  const imageInput = useRef<HTMLInputElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   const draftKey = c ? role + ":" + c.id : "";
   const draft = useDrafts((st) => (draftKey ? (st.drafts[draftKey] ?? EMPTY_DRAFT) : null));
   const patchDraft = useDrafts((st) => st.patch);
@@ -180,8 +224,13 @@ export function MessagingScreen({ role }: { role: Role }) {
     if (c && c.id !== conversation) setMessaging({ conversation: c.id });
   }, [c, conversation, setMessaging]);
   useEffect(() => {
-    if (history.current) history.current.scrollTop = history.current.scrollHeight;
-  }, [c?.id, c?.messages.length]);
+    const element=history.current;
+    if(!element)return;
+    const previous=scrollState.current, id=c?.id??"", first=firstMessageId;
+    if(previous.id!==id||previous.nearEnd)element.scrollTop=element.scrollHeight;
+    else if(previous.first&&first!==previous.first)element.scrollTop+=element.scrollHeight-previous.height;
+    scrollState.current={id,first,height:element.scrollHeight,nearEnd:element.scrollHeight-element.scrollTop-element.clientHeight<80};
+  }, [c?.id, messageCount, firstMessageId]);
   useEffect(() => {
     if (!emojiOpen) return;
     const close = (e: MouseEvent) => !(e.target as Element).closest(".message-emoji-wrap") && setEmojiOpen(false);
@@ -217,33 +266,25 @@ export function MessagingScreen({ role }: { role: Role }) {
     modal.close();
     requestAnimationFrame(() => textRef.current?.focus());
   };
-  const attach = async (file: File | undefined, image: boolean) => {
-    if (!file || !c || !draft) return;
-    if(useDrafts.getState().drafts[draftKey]?.busy)return;
-    if(real){const issue=validateMessageFile(file,draft.files.length,image);if(issue){setError(issue);return;}}
-    if (draft.files.length >= 3) return toast("Attach up to three files per message.");
-    if (image && !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) return toast("Choose a PNG, JPEG, WebP, or GIF image.");
-    if (file.size > (image ? 1 : 2) * 1024 * 1024) return toast(image ? "Choose an image up to 1 MB." : "Choose a file up to 2 MB.");
-    const key = draftKey;
-    patchDraft(key, { busy: true });
-    try {
-      const asset=real?await services.media.upload(file,"message_attachment",undefined,{manual:true}):null;
-      const attachment = { id: asset?.id??uid(), name: file.name, type: file.type, size: file.size, data: asset?.url??await readAsDataUrl(file), image };
-      patchDraft(key, { files: [...(useDrafts.getState().drafts[key]?.files ?? []), attachment] });
-    } catch {
-      toast("That file could not be read. Please try again.");
-    } finally {
-      patchDraft(key, { busy: false });
+  const attachResume = (item: Parameters<typeof resumeToAttachment>[0]) => {
+    if (!c || !draft) return;
+    const attachment = resumeToAttachment(item);
+    if (real) {
+      const parsed = messageAttachmentSchema.safeParse(attachment);
+      if (!parsed.success) { setError(parsed.error.issues[0].message); return; }
     }
+    patchDraft(draftKey, { files: [attachment] });
+    setError("");
   };
   const send = async () => {
     if (!c || !draft || draft.busy || useDrafts.getState().drafts[draftKey]?.busy || c.flags.blocked || c.canSend===false) return;
     const text = draft.text.trim();
     if(real){const parsed=messageSchema.safeParse({text,attachments:draft.files});if(!parsed.success){setError(parsed.error.issues[0].message);return;}}
-    if (!text && !draft.files.length) {setError("Write a message or attach a file.");return;}
+    if (!text && !draft.files.length) {setError("Write a message or attach a resume.");return;}
     setError("");
     // Optimistic: show the message and clear the composer at once; the server call and refreshes run behind it.
     const files = draft.files, pendingId = "pending-" + uid(), conversationId = c.id;
+    scrollState.current.nearEnd=true;
     setPending((list) => [...list, { id: pendingId, conversationId, text, attachments: files, time: new Date().toISOString(), sender: role, own: true }]);
     clearDraft(draftKey);
     if (textRef.current) textRef.current.value = "";
@@ -255,7 +296,7 @@ export function MessagingScreen({ role }: { role: Role }) {
       patchDraft(draftKey, { text, files, busy: false });
       if (textRef.current) textRef.current.value = text;
       setError("Your message could not be sent. Your draft is kept here; retry when ready.");
-      if (ok === false) toast("Browser storage is full. Remove an attachment or choose a smaller file. Your draft is kept.");
+      if (ok === false) toast("Browser storage is full. Remove an attachment or choose a smaller file. Your draft is kept.", "error");
       return;
     }
     // Swap the placeholder for the stored message once the thread has refetched; other views refresh in the background.
@@ -269,8 +310,8 @@ export function MessagingScreen({ role }: { role: Role }) {
   let previousDay = "";
   return (
     <section className={"messaging-workspace" + (mobileChat ? " show-direct-message" : "")} aria-label="Messaging">
-      {real&&requested&&!z.uuid().safeParse(requested).success&&<p role="alert">This conversation link is invalid.</p>}
-      {isError&&<p role="alert">Messages could not be loaded. <Button onClick={()=>void refetch()}>Try again</Button></p>}
+      {real&&requested&&!z.uuid().safeParse(requested).success&&<StatePanel compact role="alert" icon="compass" title="We can’t find this conversation" description="The link may be incomplete or out of date." actions={<Button icon="message" onClick={() => router.replace(pathname, { scroll: false })}>Back to messages</Button>} />}
+      {isError&&data&&<p role="status" className="state-inline-note">Couldn’t refresh your messages. Showing the last loaded conversations. <button type="button" className="link" onClick={() => void refetch()}>Try again</button></p>}
       {error&&<p role="alert" className="error" id="message-error">{error}</p>}
       <header className="messaging-top">
         <h1>Messaging</h1>
@@ -278,13 +319,13 @@ export function MessagingScreen({ role }: { role: Role }) {
           <Icon name="search" />
           <FloatingInput label="Search messages" id="message-search" type="search" value={query} onChange={(e) => setMessaging({ query: e.target.value })} aria-label="Search messages" placeholder="Search messages" />
         </label>
+        <InboxFilterMenu filter={filter} unreadCount={data?.unreadCount} onSelect={(id) => setMessaging({ filter: id })} />
         <DevOnly>
           <span className="messaging-local">
             <Icon name="shield" />
             Local demo
           </span>
         </DevOnly>
-        <IconButton icon="edit" label="New message" onClick={() => modal.show("New message", <NewMessage role={role} onStart={start} />)} />
       </header>
       <div className="messaging-filters" role="group" aria-label="Message filters">
         {FILTERS.map(([id, label]) => (
@@ -299,7 +340,7 @@ export function MessagingScreen({ role }: { role: Role }) {
       </div>
       <div className="messaging-panels">
         <aside className="message-threads" aria-label="Conversations" id="message-threads">
-          <QueryFeedback data={data} error={isError} retry={refetch} label="Loading conversations" />
+          {isError && !data ? <ScreenError compact error={inboxError} title="Messages couldn’t load" description="Something interrupted the request. Please try again." onRetry={() => void refetch()} /> : <QueryFeedback data={data} error={isError} cause={inboxError} compact retry={refetch} label="Loading conversations" />}
           {data &&
             (list.length ? (
               list.map((t) => {
@@ -326,11 +367,11 @@ export function MessagingScreen({ role }: { role: Role }) {
                 );
               })
             ) : (
-              <div className="message-list-empty">
-                <Icon name="search" />
-                <strong>No conversations found</strong>
-                <p>Try another search or filter.</p>
-              </div>
+              query.trim() || filter !== "all" ? (
+                <EmptyState compact icon="search" title="No conversations found" description={query.trim() ? <>Nothing matches “{query.trim()}”. Try another search or filter.</> : "No conversations match this filter."} action={<Button variant="sm" icon="close" onClick={() => setMessaging({ query: "", filter: "all" })}>{query.trim() ? "Clear search" : "Show all messages"}</Button>} />
+              ) : (
+                <EmptyState compact icon="message" title="No conversations yet" description="Messages you send and receive will appear here." action={<Button variant="sm" icon="edit" onClick={() => modal.show("New message", <NewMessage role={role} onStart={start} />)}>New message</Button>} />
+              )
             ))}
         </aside>
         {c && draft ? (
@@ -340,8 +381,8 @@ export function MessagingScreen({ role }: { role: Role }) {
               <Avatar person={c.contact} />
               <div className="grow">
                 <h2>{c.contact.name}</h2>
-                <p>
-                  {recruiter ? c.contact.headline : c.company}
+                <p className="application-company-line">
+                  {recruiter ? c.contact.headline : <><span>{c.company}</span><VerifiedCompanyMark company={{ verified: c.companyVerified, name: c.company }} /></>}
                   {c.flags.muted ? " · Muted" : ""}
                   {c.flags.blocked ? " · Blocked" : ""}
                 </p>
@@ -374,8 +415,8 @@ export function MessagingScreen({ role }: { role: Role }) {
                 <Icon name="star" />
               </button>
             </header>
-            <div className="direct-message-history" id="chat-history" role="log" aria-label="Message history" aria-live="polite" ref={history}>
-              {historyPage.isError&&<p role="alert">Message history could not be loaded. <Button onClick={()=>void historyPage.refetch()}>Try again</Button></p>}
+            <div className="direct-message-history" id="chat-history" role="log" aria-label="Message history" aria-live="polite" ref={history} onScroll={event=>{const el=event.currentTarget;scrollState.current.nearEnd=el.scrollHeight-el.scrollTop-el.clientHeight<80;scrollState.current.height=el.scrollHeight;}}>
+              {historyPage.isError&&<ErrorState compact error={historyPage.error} title="Message history couldn’t load" description="Something interrupted the request. Please try again." onRetry={() => void historyPage.refetch()} />}
               {historyPage.data?.nextBefore&&historyLimit<500&&<Button disabled={historyPage.isFetching} onClick={()=>setHistoryLimit((n)=>n+50)}>Load earlier messages</Button>}
               {real && !historyPage.data && !historyPage.isError && !messages.length ? <ContentSkeleton layout="list" label="Loading messages" /> : messages.length ? (
                 messages.map((m, i) => {
@@ -383,6 +424,7 @@ export function MessagingScreen({ role }: { role: Role }) {
                   const divider = previousDay !== d;
                   previousDay = d;
                   const own = m.own ?? m.sender === role;
+                  const tick = outgoingTick({...m, own});
                   const who = own ? c.self : c.contact;
                   return (
                     <Fragment key={m.id ?? i}>
@@ -396,28 +438,13 @@ export function MessagingScreen({ role }: { role: Role }) {
                         <div className="message-entry-body">
                           <div className="message-entry-meta">
                             <strong>{who.name}</strong>
-                            {m.id?.startsWith("pending-") ? <span className="message-sending">Sending…</span> : <time>{formatTime(m.time)}</time>}
+                            {m.id?.startsWith("pending-") ? null : <time>{formatTime(m.time)}</time>}
+                            {tick && <span className={"message-status" + (tick === "seen" ? " is-seen" : "")} aria-label={tickLabel(tick)}><Icon name={tick === "clock" ? "clock" : tick === "sent" ? "check" : "ticks"} /></span>}
                           </div>
                           {m.text && <p>{m.text}</p>}
-                          {(m.attachments || [])
-                            .filter((a) => /^data:/.test(a.data || ""))
-                            .map((a) =>
-                              a.image ? (
-                                <a className="message-image" href={a.data} download={a.name} key={a.id}>
-                                  {/* eslint-disable-next-line @next/next/no-img-element -- attachment data URL */}
-                                  <img src={a.data} alt={a.name} loading="lazy" />
-                                </a>
-                              ) : (
-                                <a className="message-file" href={a.data} download={a.name} key={a.id}>
-                                  <Icon name="file" />
-                                  <span>
-                                    <strong>{a.name}</strong>
-                                    <small>{Math.max(1, Math.ceil(a.size / 1024))} KB · Download</small>
-                                  </span>
-                                  <Icon name="download" />
-                                </a>
-                              ),
-                            )}
+                          {(m.attachments || []).map((a) => (
+                            <ChatAttachment a={a} key={a.id} real={real} />
+                          ))}
                         </div>
                       </article>
                     </Fragment>
@@ -457,10 +484,9 @@ export function MessagingScreen({ role }: { role: Role }) {
                 key={c.id}
                 onInput={(e) => patchDraft(draftKey, { text: e.currentTarget.value })}
                 onKeyDown={(e) => {
-                  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                    e.preventDefault();
-                    void send();
-                  }
+                  if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || e.nativeEvent.isComposing || e.keyCode === 229) return;
+                  e.preventDefault();
+                  void send();
                 }}
               />
               <div className="message-attachment-previews" hidden={!draft.files.length}>
@@ -479,8 +505,7 @@ export function MessagingScreen({ role }: { role: Role }) {
               </div>
               <div className="message-composer-tools">
                 <div className="message-attachment-tools">
-                  <IconButton icon="image" label="Add an image" onClick={() => imageInput.current?.click()} />
-                  <IconButton icon="paperclip" label="Attach a file" onClick={() => fileInput.current?.click()} />
+                  <MessageResumePicker disabled={draft.busy || c.flags.blocked || c.canSend === false} onAttach={attachResume} role={role} selectedId={draft.files.find((file) => !file.image)?.id} />
                   <div className="message-emoji-wrap">
                     <button type="button" className="iconbtn" aria-label="Choose emoji" aria-expanded={emojiOpen} onClick={() => setEmojiOpen((v) => !v)}>
                       <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -509,36 +534,18 @@ export function MessagingScreen({ role }: { role: Role }) {
                     </div>
                   </div>
                 </div>
-                <span className="message-composer-hint">{draft.busy ? "Adding attachment…" : "Enter for a new line"}</span>
+                <span className="message-composer-hint">{draft.busy ? "Adding attachment…" : ""}</span>
                 <button id="message-send" className="btn primary" type="submit" disabled={(!draft.text.trim() && !draft.files.length) || draft.busy || c.flags.blocked||c.canSend===false}>
                   Send <Icon name="send" />
                 </button>
               </div>
-              <input
-                type="file"
-                ref={imageInput}
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                hidden
-                onChange={(e) => {
-                  void attach(e.target.files?.[0], true);
-                  e.target.value = "";
-                }}
-              />
-              <input
-                type="file"
-                ref={fileInput}
-                hidden
-                onChange={(e) => {
-                  void attach(e.target.files?.[0], false);
-                  e.target.value = "";
-                }}
-              />
             </form>
           </section>
         ) : data ? (
           <div className="direct-message message-empty">
             <EmptyState
-              title="Start a conversation."
+              icon="message"
+              title="Start a conversation"
               description="Find someone to connect with."
               action={
                 <Button variant="primary" icon="edit" onClick={() => modal.show("New message", <NewMessage role={role} onStart={start} />)}>

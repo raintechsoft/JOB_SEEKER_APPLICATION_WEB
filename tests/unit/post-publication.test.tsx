@@ -1,5 +1,5 @@
 import {afterEach,beforeEach,expect,it,vi} from "vitest";
-import {act,render,screen,waitFor} from "@testing-library/react";
+import {act,fireEvent,render,screen,waitFor} from "@testing-library/react";
 import {postPublications} from "@/services/media/post-publication-manager";
 import {uploadManager} from "@/services/media/upload-manager";
 import {UploadTray} from "@/features/workspace/upload-tray";
@@ -25,7 +25,8 @@ it("groups child transfers into one progress bar, retries failed children and wa
   let id="";act(()=>{id=postPublications.start("draft-one","A post",run,release);});
   render(<UploadTray/>);
   await screen.findByText("Post upload failed");
-  expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+  // One bar for the post's grouped files, plus the panel's overall bar.
+  expect(screen.getAllByRole("progressbar").filter(bar=>bar.getAttribute("aria-label")!=="Overall upload progress")).toHaveLength(1);
   expect(screen.queryByText("photo.png")).not.toBeInTheDocument();
   act(()=>postPublications.retry(id));
   await waitFor(()=>expect(postPublications.getSnapshot()[0].state).toBe("publishing"));
@@ -45,4 +46,19 @@ it("deduplicates a publication and cancels it when identity state is cleared",as
   await waitFor(()=>expect(run).toHaveBeenCalledOnce());
   uploadManager.clear();expect(signal.aborted).toBe(true);expect(release).toHaveBeenCalledOnce();
   finish();await Promise.resolve();expect(postPublications.getSnapshot()).toEqual([]);
+});
+
+it("minimises to a docked bar that keeps only the title, overall progress and percentage",async()=>{
+  sessionStorage.clear();
+  let finish!:()=>void;const pending=new Promise<void>(resolve=>{finish=resolve;});
+  act(()=>{void uploadManager.add(new File(["fixture"],"photo.png",{type:"image/png"}),async(_signal,progress)=>{progress(40);await pending;return asset;},false);});
+  render(<UploadTray/>);
+  const toggle=await screen.findByRole("button",{name:/Minimise uploads/});
+  expect(screen.getByText("photo.png")).toBeVisible();
+  fireEvent.click(toggle);
+  expect(screen.getByRole("button",{name:/Expand uploads/})).toHaveAttribute("aria-expanded","false");
+  expect(screen.queryByText("photo.png")).not.toBeVisible();
+  expect(screen.getByRole("progressbar",{name:"Overall upload progress"})).toBeVisible();
+  expect(screen.getByText(/%$/)).toBeVisible();
+  await act(async()=>{finish();});
 });

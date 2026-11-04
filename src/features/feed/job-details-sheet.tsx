@@ -1,12 +1,15 @@
 "use client";
+import { useSocialQuery } from "@/hooks/use-social-query";
 
 import { InfoBadge } from "@/components/ui/info-badge";
 import { JobValueSummary } from "@/components/jobs/job-value-summary";
 import { JobNoticeDetails } from "@/components/jobs/job-notice-details";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import {useAuthAction} from "@/features/auth/use-auth-action";
+import {useJobAlertDialogs} from "./job-alerts";
 import type { CompanySummary } from "@/types/api";
 import type { Id, IsoDateTime, Job, Role } from "@/types/domain";
 import { isSimilarJobAlert, similarJobAlertInput } from "@/lib/domain/jobs";
@@ -18,11 +21,14 @@ import { HOUR_MS } from "@/lib/utils/date";
 import { formatFollowers } from "@/lib/utils/text";
 import { devCopy } from "@/lib/env/app-env";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
-import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
+import { useServiceAction } from "@/hooks/use-services";
+import { useHiringQuery } from "@/hooks/use-hiring-query";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { MatchBadge } from "@/components/jobs/match-badge";
 import { QueryFeedback } from "@/components/ui/query-view";
-import { Badge, Button, LinkButton, Tags } from "@/components/ui/primitives";
+import { Badge, Button, EmptyState, LinkButton, Tags } from "@/components/ui/primitives";
+import { modal } from "@/stores/modal-store";
 import { Icon } from "@/components/ui/icon";
 import { DevOnly } from "@/components/ui/dev-only";
 import { LoadingRegion, Skeleton, TextSkeleton } from "@/components/ui/skeleton";
@@ -43,14 +49,26 @@ function jobShareUrl(id: Id) {
   return window.location.origin + devCopy("/app/dashboard?post=" + encodeURIComponent(id), "/jobs/" + encodeURIComponent(id));
 }
 
+function useCompanyProfileHref(role:Role,company:CompanySummary){
+  const pathname=usePathname();
+  if(company.confidential||!company.slug)return "";
+  return /^\/(app|recruiter)\//.test(pathname)?organizationProfileHref(role,company.slug)??"":"/organizations/"+encodeURIComponent(company.slug);
+}
+
 function useCompanyFollow(role: Role, companyId: Id, enabled: boolean) {
+  const gate = useAuthAction(), pathname = usePathname();
+  const publicMode = !/^\/(app|recruiter)\//.test(pathname);
+  const [confirmed, setConfirmed] = useState<boolean>();
   const run = useServiceAction();
-  const network = useServiceQuery(["network", role], (s) => s.feed.getNetwork(role), { enabled });
-  const following = !!network.data?.companies.some((company) => company.id === companyId);
+  const network = useSocialQuery(["network", role], (s, scope) => s.feed.getNetwork(role, scope), { enabled: enabled && !publicMode });
+  const following = publicMode ? !!confirmed : !!network.data?.companies.some((company) => company.id === companyId);
   const toggle = async () => {
-    const next = await run((s) => s.feed.toggleFollowCompany(role, companyId), { invalidate: ["network", "feed", "job"] });
+    await gate.run("follow_company", async context => {
+    const next = await run((s) => s.feed.toggleFollowCompany(context.role, companyId, !following), { invalidate: ["network", "feed", "job"] });
     if (next === undefined) return;
+    setConfirmed(next);
     toast(next ? "Following company." : "Unfollowed company.");
+    }, {target:{kind:"company",id:companyId}});
   };
   return { following, toggle };
 }
@@ -75,7 +93,8 @@ function JobSheetMenu({
   const router = useRouter();
   const canFollow = !company.confidential && !ownedByViewer;
   const { following, toggle } = useCompanyFollow(role, company.id, canFollow);
-  const copyLink = async () => {
+  const gate = useAuthAction(), publicMode = !/^\/(app|recruiter)\//.test(usePathname());
+  const writeLink = async () => {
     try {
       await navigator.clipboard.writeText(jobShareUrl(job.id));
       toast("Job link copied.");
@@ -83,6 +102,8 @@ function JobSheetMenu({
       toast("The link could not be copied. Please allow clipboard access.", "error");
     }
   };
+  // Guests must sign in before sharing; workspace pages copy directly.
+  const copyLink = (anchor?: HTMLElement) => publicMode ? gate.run("copy_link", writeLink, { anchor: anchor ?? null, target: { kind: "job", id: job.id } }) : writeLink();
   return (
     <details className="activity-post-menu job-sheet-menu" ref={ref}>
       <summary aria-label={"Actions for " + job.title}>
@@ -94,7 +115,7 @@ function JobSheetMenu({
             {saved ? "Unsave" : "Save"}
           </Button>
         )}
-        <Button variant="text sm" icon="link" onClick={() => void copyLink()}>
+        <Button variant="text sm" icon="link" onClick={(event) => void copyLink(event.currentTarget)}>
           Copy link
         </Button>
         {canFollow && (
@@ -132,16 +153,19 @@ function CompanyIdentity({
   ownedByViewer: boolean;
   onSave: () => void;
 }) {
-  const href = organizationProfileHref(role, company.confidential ? undefined : company.slug) ?? "";
+  const href = useCompanyProfileHref(role,company);
   return (
     <div className="job-sheet-company">
       <div className="job-sheet-company-identity">
         <CompanyAvatar company={company} />
-        {href ? (
-          <Link href={href}>{company.name}</Link>
-        ) : (
-          <span>{company.name}</span>
-        )}
+        <span className="job-sheet-company-name">
+          {href ? (
+            <Link href={href}>{company.name}</Link>
+          ) : (
+            <span>{company.name}</span>
+          )}
+          <VerifiedCompanyMark company={company} />
+        </span>
       </div>
       <JobSheetMenu job={job} company={company} role={role} saved={saved} ownedByViewer={ownedByViewer} onSave={onSave} />
     </div>
@@ -303,16 +327,13 @@ function JobDescription({ job, hideCompanyCopy }: { job: Job; hideCompanyCopy: b
 function SimilarJobsAlert({ job }: { job: Job }) {
   const run = useServiceAction();
   const locked = useRef(false);
-  const { data: alerts, isError } = useServiceQuery(["job-alerts"], (s) => s.jobs.listAlerts());
-  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const { data: alerts, isError } = useHiringQuery(["applications", "alerts"], (s, scope) => s.jobs.listAlerts(scope));
+  const [optimistic, setOptimistic] = useState<{source:typeof alerts;value:boolean} | null>(null);
   const [busy, setBusy] = useState(false);
   const input = similarJobAlertInput(job);
   const match = alerts?.find((alert) => isSimilarJobAlert(alert, job));
-  const on = optimistic ?? !!match?.enabled;
+  const on = optimistic && optimistic.source === alerts ? optimistic.value : !!match?.enabled;
   const caption = [job.title, (job.location || "").replace(/\s*·\s*/g, ", ")].filter(Boolean).join(", ");
-  useEffect(() => {
-    if (optimistic !== null && optimistic === !!match?.enabled) setOptimistic(null);
-  }, [optimistic, match?.enabled]);
   const toggle = async () => {
     if (locked.current) return;
     const desired = !on;
@@ -328,7 +349,7 @@ function SimilarJobsAlert({ job }: { job: Job }) {
       }
       locked.current = true;
       setBusy(true);
-      setOptimistic(true);
+      setOptimistic({source:alerts,value:true});
       const saved = await run(async (s) => {
         await s.jobs.saveAlert({ ...checked.data, ...(match ? { id: match.id } : {}) });
         return true;
@@ -346,7 +367,7 @@ function SimilarJobsAlert({ job }: { job: Job }) {
     if (!match?.enabled) return;
     locked.current = true;
     setBusy(true);
-    setOptimistic(false);
+    setOptimistic({source:alerts,value:false});
     const enabled = await run((s) => s.jobs.toggleAlert(match.id), { invalidate: ["job-alerts", "recommendations", "applications"] });
     locked.current = false;
     setBusy(false);
@@ -405,7 +426,7 @@ function AboutCompany({
   const { following, toggle } = useCompanyFollow(role, company.id, canFollow);
   const description = (company.description || fallbackDescription).trim();
   const facts = [company.industry, company.companySize].filter(Boolean);
-  const href = organizationProfileHref(role, company.confidential ? undefined : company.slug) ?? "";
+  const href = useCompanyProfileHref(role,company);
   const name = href ? <Link href={href}>{company.name}</Link> : <strong>{company.name}</strong>;
   return (
     <section className="job-sheet-about-company" aria-labelledby="job-sheet-about-company-title">
@@ -414,7 +435,7 @@ function AboutCompany({
         <div className="job-sheet-about-company-head">
           <CompanyAvatar company={company} />
           <div className="job-sheet-about-company-copy">
-            <div className="job-sheet-about-company-name">{name}</div>
+            <div className="job-sheet-about-company-name">{name}<VerifiedCompanyMark company={company} /></div>
             {company.followerCount != null && <p>{formatFollowers(company.followerCount)}</p>}
           </div>
           {canFollow && (
@@ -519,7 +540,7 @@ function JobDetailsSkeleton({ role }: { role: Role }) {
 /** LinkedIn-style job details drawer opened from View opportunity. */
 /** Jobs close to this one (E6): nearest in meaning when embeddings are on, most shared skills otherwise. */
 function SimilarJobs({ jobId, onOpen }: { jobId: Id; onOpen: (id: Id) => void }) {
-  const { data } = useServiceQuery(["similar-jobs", jobId], (s) => s.recommendations.similarJobs(jobId, 4));
+  const { data } = useHiringQuery(["job-recommendations", "similar", jobId], (s) => s.recommendations.similarJobs(jobId, 4), {public:true});
   if (!data?.length) return null;
   return (
     <section className="job-sheet-section job-sheet-similar" aria-labelledby={`similar-jobs-${jobId}`}>
@@ -528,7 +549,12 @@ function SimilarJobs({ jobId, onOpen }: { jobId: Id; onOpen: (id: Id) => void })
         {data.map((item) => (
           <li key={item.id}>
             <button type="button" className="job-sheet-similar-title" onClick={() => onOpen(item.id)}>{item.title}</button>
-            <span className="job-sheet-similar-meta">{[item.company.name, item.location, item.arrangement].filter(Boolean).join(" · ")}</span>
+            <span className="job-sheet-similar-meta">
+              <span className="job-sheet-similar-company">{item.company.name}<VerifiedCompanyMark company={item.company} /></span>
+              {[item.location, item.arrangement].filter(Boolean).map((part, i) => (
+                <span key={part}>{(i === 0 ? " · " : " · ") + part}</span>
+              ))}
+            </span>
             {item.match ? <MatchBadge match={item.match} /> : item.reason ? <span className="search-result-reason">{item.reason}</span> : null}
           </li>
         ))}
@@ -538,9 +564,13 @@ function SimilarJobs({ jobId, onOpen }: { jobId: Id; onOpen: (id: Id) => void })
 }
 
 export function JobDetailsSideSheet({ id, role, onApply, onSave, onOpenJob }: { id: Id; role: Role; onApply: () => void; onSave: () => void; onOpenJob?: (id: Id) => void }) {
-  const { data, isError, refetch } = useServiceQuery(["job", id, role], (s) => s.jobs.getJob(id, role));
+  const pathname = usePathname(), alerts = useJobAlertDialogs();
+  const publicMode = !/^\/(app|recruiter)\//.test(pathname);
+  const { data, isError, error, refetch } = useHiringQuery(["job", id, role], (s, scope) => s.jobs.getJob(id, role, scope), {public:true});
   if (!data) {
-    if (isError) return <div className="job-details-sheet"><QueryFeedback data={data} error retry={refetch} label="Loading opportunity" /></div>;
+    if (isError) return <div className="job-details-sheet"><QueryFeedback data={data} error cause={error} retry={refetch} label="Loading opportunity" /></div>;
+    // A removed or closed job resolves to null; it must not keep the skeleton on screen.
+    if (data === null) return <div className="job-details-sheet"><EmptyState icon="briefcase" title="This job is no longer available" description="It may have been closed, filled or removed by the employer." action={<Button onClick={() => modal.close()}>Close</Button>} /></div>;
     return <JobDetailsSkeleton role={role} />;
   }
   const { job, company, saved, application, ownedByViewer } = data;
@@ -561,8 +591,9 @@ export function JobDetailsSideSheet({ id, role, onApply, onSave, onOpenJob }: { 
       />
       <JobDescription job={job} hideCompanyCopy={!company.confidential && !!companyDescription} />
       {!company.confidential && <AboutCompany company={company} fallbackDescription={about.company} role={role} ownedByViewer={ownedByViewer} />}
-      {role === "professional" && onOpenJob && <SimilarJobs jobId={job.id} onOpen={onOpenJob} />}
-      {role === "professional" && <SimilarJobsAlert job={job} />}
+      {!publicMode && role === "professional" && onOpenJob && <SimilarJobs jobId={job.id} onOpen={onOpenJob} />}
+      {!publicMode && role === "professional" && <SimilarJobsAlert job={job} />}
+      {publicMode && <Button icon="bell" onClick={()=>void alerts.edit()}>Create job alert</Button>}
       {role === "professional" && (
         <DevOnly>
           <Badge tone="purple">Fictional demo opportunity</Badge>

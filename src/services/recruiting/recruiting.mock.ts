@@ -124,7 +124,21 @@ export const mockRecruitingService: RecruitingService = {
         (!q.days || (Date.now() - new Date(posted(j)).getTime()) / DAY_MS <= q.days),
     );
     const count = (id: Id) => apps.filter((r) => r.job === id).length;
-    list.sort((a, b) => (q.sort === "oldest" ? posted(a).localeCompare(posted(b)) : q.sort === "responses" ? count(b.id) - count(a.id) : posted(b).localeCompare(posted(a))));
+    const statusRank = (j: (typeof list)[number]) => {
+      const status = jobStatus(j);
+      if (q.sort === "active") return status === "Active" ? 0 : status === "Closed" ? 1 : 2;
+      if (q.sort === "expired") return status === "Expired" ? 0 : status === "Closed" ? 1 : 2;
+      return 0;
+    };
+    list.sort((a, b) => {
+      if (q.sort === "oldest") return posted(a).localeCompare(posted(b));
+      if (q.sort === "responses") return count(b.id) - count(a.id);
+      if (q.sort === "active" || q.sort === "expired") {
+        const byStatus = statusRank(a) - statusRank(b);
+        return byStatus || posted(b).localeCompare(posted(a));
+      }
+      return posted(b).localeCompare(posted(a));
+    });
     const published = all.filter((j) => !j.draft);
     const statusCounts = Object.fromEntries(["Active", "Closed", "Expired"].map((s) => [s, published.filter((j) => jobStatus(j) === s).length]));
     const categoryCounts = Object.fromEntries(jobRules.employment.map((s) => [s, all.filter((j) => !!j.draft === q.drafts && j.employment === s).length]));
@@ -195,9 +209,18 @@ export const mockRecruitingService: RecruitingService = {
   },
 
   async deleteDraft(id) {
+    await this.deleteDrafts([id]);
+  },
+
+  async deleteDrafts(ids) {
+    let count = 0;
     commit((db) => {
-      db.social.jobs = db.social.jobs.filter((j) => !(j.id === id && j.company === db.companies[0].id && j.draft));
+      const before = db.social.jobs.length;
+      const set = new Set(ids);
+      db.social.jobs = db.social.jobs.filter((j) => !(set.has(j.id) && j.company === db.companies[0].id && j.draft));
+      count = before - db.social.jobs.length;
     });
+    return count;
   },
 
   async listResponses(params) {

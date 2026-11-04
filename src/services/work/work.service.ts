@@ -15,7 +15,13 @@ export interface Pulse {
   projectCount: number;
   /** Days ago (0–21) with at least one update, for the compact mini pulse. */
   recentDays: number[];
+  /** Calendar years with at least one visible update, newest first. */
+  years: number[];
+  /** Selected calendar year when requested by year; null for rolling ranges. */
+  year?: number | null;
 }
+
+export type PulseRange = { days: 91 | 365 } | { year: number };
 
 export interface ProjectQuery {
   ownerId: Id;
@@ -42,5 +48,5 @@ export interface WorkService {
   getUpdate(id: Id): Promise<WorkUpdate | null>;
   saveUpdate(input: UpdateInput): Promise<boolean>;
   deleteUpdate(id: Id): Promise<void>;
-  getPulse(ownerId: Id, days: number): Promise<Pulse>;
+  getPulse(ownerId: Id, range: PulseRange): Promise<Pulse>;
 }
