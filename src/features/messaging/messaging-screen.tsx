@@ -505,7 +505,9 @@ export function MessagingScreen({ role }: { role: Role }) {
               </div>
               <div className="message-composer-tools">
                 <div className="message-attachment-tools">
-                  <MessageResumePicker disabled={draft.busy || c.flags.blocked || c.canSend === false} onAttach={attachResume} role={role} selectedId={draft.files.find((file) => !file.image)?.id} />
+                  {role === "professional" ? (
+                    <MessageResumePicker disabled={draft.busy || c.flags.blocked || c.canSend === false} onAttach={attachResume} role={role} selectedId={draft.files.find((file) => !file.image)?.id} />
+                  ) : null}
                   <div className="message-emoji-wrap">
                     <button type="button" className="iconbtn" aria-label="Choose emoji" aria-expanded={emojiOpen} onClick={() => setEmojiOpen((v) => !v)}>
                       <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">

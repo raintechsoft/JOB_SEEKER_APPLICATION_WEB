@@ -34,8 +34,8 @@ function xsrfToken(): string | undefined {
   return raw ? decodeURIComponent(raw) : undefined;
 }
 
-async function ensureCsrfCookie(url: URL, signal?: AbortSignal) {
-  if (xsrfToken()) return;
+async function ensureCsrfCookie(url: URL, signal?: AbortSignal, force = false) {
+  if (!force && xsrfToken()) return;
   const csrf = await fetch(new URL("/sanctum/csrf-cookie", url), { credentials: "include", headers: { Accept: "application/json" }, ...(signal ? { signal } : {}) });
   if (!csrf.ok) throw new ApiError("Session initialization failed.", csrf.status);
 }
@@ -81,15 +81,21 @@ export function createHttpClient(baseUrl: string): HttpClient {
     }
     // Reuse a current XSRF cookie so receipts are not blocked behind a CSRF prefetch; never replay a failed mutation.
     if (mutation) await ensureCsrfCookie(url);
-    const xsrf = xsrfToken();
     if (scoped && contextEpoch !== expectedEpoch) throw new ApiError("Account context changed.", 412, { message: "Your signed-in account changed. Reload this page before continuing." });
-    const response = await fetch(url, {
-      method,
-      credentials: "include",
-      headers: { ...headers, Accept: binary ? "application/octet-stream" : "application/json", ...(expectedUser ? { "X-Skillora-User": expectedUser } : {}), ...(body !== undefined && !(body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...(mutation && xsrf ? { "X-XSRF-TOKEN": xsrf } : {}) },
-      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
-      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
-    });
+    const send = async (refreshCsrf: boolean) => {
+      if (refreshCsrf) await ensureCsrfCookie(url, signal, true);
+      const xsrf = xsrfToken();
+      return fetch(url, {
+        method,
+        credentials: "include",
+        headers: { ...headers, Accept: binary ? "application/octet-stream" : "application/json", ...(expectedUser ? { "X-Skillora-User": expectedUser } : {}), ...(body !== undefined && !(body instanceof FormData) ? { "Content-Type": "application/json" } : {}), ...(mutation && xsrf ? { "X-XSRF-TOKEN": xsrf } : {}) },
+        body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
+      });
+    };
+    let response = await send(false);
+    // Stale XSRF cookies produce a fast 419 before the controller; refresh once and retry.
+    if (mutation && response.status === 419) response = await send(true);
     const payload = response.status === 204 ? undefined : binary && response.ok ? await response.blob() : await response.json().catch(() => undefined);
     if ((scoped || /^jobs(?:\/|$)/.test(path)) && contextEpoch !== expectedEpoch) throw new ApiError("Account context changed.", 412);
     if (!response.ok) { const retry = Number(response.headers.get("Retry-After")); throw new ApiError(`Request failed with status ${response.status}`, response.status, payload, response.status === 429 && retry > 0 ? Math.min(3600, Math.ceil(retry)) : undefined); }

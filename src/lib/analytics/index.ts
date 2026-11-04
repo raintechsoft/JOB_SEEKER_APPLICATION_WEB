@@ -23,6 +23,7 @@ export interface AnalyticsEvents {
   post_saved: { postId: string; saved: boolean };
   post_commented: { postId: string };
   post_published: { mediaCount: number; hasProject: boolean };
+  post_edited: { mediaCount: number; hasProject: boolean };
   search_performed: { surface: "feed" | "talent" | "applications" | "responses" | "jobs" | "projects" | "messages"; hasQuery: boolean; resultCount?: number };
   job_alert_saved: { arrangement: string; days: number };
 }

@@ -42,6 +42,8 @@ const PATHS = {
   restore: "M3 10a9 9 0 1 1 2 8 M3 3v7h7",
   external: "M14 3h7v7M21 3 11 13 M10 3H3v18h18v-7",
   expand: "M9 3H3v6 M15 3h6v6 M9 21H3v-6 M21 15v6h-6",
+  /** Restore / shrink a maximised window toward the centre. */
+  compress: "M9 3v6H3 M15 3v6h6 M9 21v-6H3 M15 21v-6h6",
   send: "m22 2-7 20-4-9-9-4z M22 2 11 13",
   file: "M5 2h9l5 5v15H5z M14 2v6h5 M8 12h8 M8 16h8",
   upload: "M12 16V3m-5 5 5-5 5 5 M3 15v6h18v-6",

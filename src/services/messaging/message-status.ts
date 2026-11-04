@@ -1,5 +1,5 @@
 import type { Message, MessageStatus } from "@/types/domain";
-import type { ConversationView, Inbox } from "@/services/messaging/messaging.service";
+import type { Inbox } from "@/services/messaging/messaging.service";
 
 export type MessageTick = "clock" | MessageStatus;
 
@@ -42,7 +42,9 @@ export function applyPeerReceipts<T extends Pick<Message, "own" | "sequence" | "
   return applyReceiptToMessages(applyReceiptToMessages(messages, "delivered", deliveredSequence), "seen", readSequence);
 }
 
-export function keepConversationReceipts<T extends Pick<ConversationView, "messages" | "peerDeliveredSequence" | "peerReadSequence">>(previous: T | undefined, next: T): T {
+type ReceiptFields = { messages: Array<Pick<Message, "id" | "own" | "sequence" | "status">>; peerDeliveredSequence?: number; peerReadSequence?: number };
+
+export function keepConversationReceipts<T extends ReceiptFields>(previous: ReceiptFields | undefined, next: T): T {
   const byId = new Map((previous?.messages ?? []).map((message) => [message.id, message]));
   const delivered = Math.max(previous?.peerDeliveredSequence ?? 0, next.peerDeliveredSequence ?? 0);
   const seen = Math.max(previous?.peerReadSequence ?? 0, next.peerReadSequence ?? 0);

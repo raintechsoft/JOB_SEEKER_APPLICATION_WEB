@@ -79,7 +79,8 @@ export interface PublicProfessional {
   color: string;
   lastActive: IsoDate;
   credentials: PublicCredentials;
-  followerCount: number;
+  /** Directory/social count when the API includes it; omit or 0 when unknown. */
+  followerCount?: number;
 }
 
 const KINDS = {

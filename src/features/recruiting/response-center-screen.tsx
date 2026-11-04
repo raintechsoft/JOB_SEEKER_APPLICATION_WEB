@@ -2,20 +2,20 @@
 import { useHiringQuery } from "@/hooks/use-hiring-query";
 
 import { InfoBadge } from "@/components/ui/info-badge";
-import {ApplicationSharingDetails,sharedPayLabel,SubmittedDocumentViewer} from "@/features/applications/application-sharing-details";
+import {sharedPayLabel} from "@/features/applications/application-sharing-details";
 
 import { QueryFeedback } from "@/components/ui/query-view";
 
-import Link from "next/link";
-import Image from "next/image";
-import {useEffect,useRef,useState,type ReactNode} from "react";
+import {useEffect,useId,useRef,useState,type ReactNode} from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {outreachSchema} from "@/lib/validation/application";
 import {responseFiltersSchema,RECRUITING_RULES} from "@/lib/validation/recruiting";
 import {validationFields} from "@/lib/validation/profile";
 import {useFormAction} from "@/hooks/use-form-action";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { HiringStage, Id } from "@/types/domain";
-import { RESPONSE_FILTER_KEYS, RESPONSE_TABS, type ResponseItem, type ResponseParams, type ResponseTab } from "@/services/recruiting/recruiting.service";
+import { applicantProfileHref, RESPONSE_FILTER_KEYS, RESPONSE_TABS, type ResponseItem, type ResponseParams, type ResponseTab } from "@/services/recruiting/recruiting.service";
+import Link from "next/link";
 import { formatLocaleDate, formatLongDate } from "@/lib/utils/date";
 import { downloadFile } from "@/lib/utils/files";
 import { devCopy,isPrototype } from "@/lib/env/app-env";
@@ -28,16 +28,18 @@ import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, IconButton, LinkButton } from "@/components/ui/primitives";
 import { Pagination } from "@/components/ui/pagination";
 import { DevOnly } from "@/components/ui/dev-only";
-import { FloatingInput, FloatingSelect, SelectField, TextAreaField, TextField } from "@/components/ui/field";
+import { FloatingSelect, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { CatalogPicker } from "@/components/ui/skill-picker";
-import { useContactCandidate } from "@/features/talent/dialogs";
 import { MatchBadge } from "@/components/jobs/match-badge";
 import { useImpression } from "@/hooks/use-impression";
 import { useInteractionTracking } from "@/hooks/use-interaction-tracking";
 import { openReview } from "./review-dialog";
-import {ExportRequest,OutreachDeliveryReview} from "./delivery-dialogs";
+import {OutreachDeliveryReview} from "./delivery-dialogs";
 import { RESPONSE_KEYWORD_MATCHING_ENABLED } from "@/lib/feature-flags";
+import { CandidateProfileActions } from "./candidate-profile-actions";
 import { ResponseDataGrid } from "./response-data-grid";
+import { FloatingChatDock } from "@/features/messaging/floating-chat-dock";
+import { useApplicationsMessage } from "./use-applications-message";
 
 const CARDS_BASE = "/recruiter/applications";
 const TABLE_BASE = "/recruiter/applications/table";
@@ -62,85 +64,66 @@ function cardsHref(params: URLSearchParams, rows?: "compact" | "") {
   return CARDS_BASE + "?" + q;
 }
 
-function measureStageOverflow(el: HTMLElement) {
-  const { scrollLeft, scrollWidth, clientWidth } = el;
-  return {
-    left: scrollLeft > 1,
-    right: scrollLeft + clientWidth < scrollWidth - 1,
-  };
-}
+const VIEW_OPTIONS = [
+  { id: "compact" as const, label: "Collapse", icon: "menu" as const, href: (params: URLSearchParams) => cardsHref(params, "compact") },
+  { id: "expand" as const, label: "Expand", icon: "layout" as const, href: (params: URLSearchParams) => cardsHref(params, "") },
+  { id: "table" as const, label: "Table", icon: "grid" as const, href: (params: URLSearchParams) => tableHref(params) },
+];
 
-function ResponseStageTabs({
-  stage,
-  tabCounts,
-  hrefFor,
-}: {
-  stage?: string;
-  tabCounts?: Partial<Record<ResponseTab, number>>;
-  hrefFor: (key: ResponseTab) => string;
-}) {
-  const listRef = useRef<HTMLDivElement>(null);
-  const [overflow, setOverflow] = useState({ left: false, right: false });
-
-  function syncOverflow() {
-    const el = listRef.current;
-    if (!el) return;
-    setOverflow(measureStageOverflow(el));
-  }
+function ResponseViewMenu({ mode, rows }: { mode: ResponseCenterMode; rows?: string }) {
+  const router = useRouter();
+  const params = useSearchParams();
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  const active = mode === "table" ? "table" : rows === "compact" ? "compact" : "expand";
+  const activeLabel = VIEW_OPTIONS.find((option) => option.id === active)?.label ?? "Expand";
 
   useEffect(() => {
-    const active = listRef.current?.querySelector<HTMLElement>("a.active");
-    active?.scrollIntoView?.({ behavior: "smooth", inline: "nearest", block: "nearest" });
-  }, [stage]);
-
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    syncOverflow();
-    const onScroll = () => syncOverflow();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    const resize = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => syncOverflow()) : null;
-    resize?.observe(el);
-    window.addEventListener("resize", syncOverflow);
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      resize?.disconnect();
-      window.removeEventListener("resize", syncOverflow);
+    if (!open) return;
+    const close = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
-  }, [tabCounts]);
-
-  function scrollStages(direction: -1 | 1) {
-    const el = listRef.current;
-    if (!el) return;
-    const step = Math.max(140, Math.floor(el.clientWidth * 0.7));
-    el.scrollBy({ left: direction * step, behavior: "smooth" });
-  }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   return (
-    <div
-      className={
-        "response-stage-tabs-shell" +
-        (overflow.left ? " has-overflow-left" : "") +
-        (overflow.right ? " has-overflow-right" : "")
-      }
-    >
-      {overflow.left ? (
-        <button type="button" className="response-stage-tabs-arrow is-prev" aria-label="Show previous sections" onClick={() => scrollStages(-1)}>
-          <Icon name="chevron" />
-        </button>
-      ) : null}
-      <div ref={listRef} className="response-stage-tabs" aria-label="Response sections">
-        {(Object.entries(RESPONSE_TABS) as [ResponseTab, string][]).map(([key, label]) => (
-          <Link key={key} href={hrefFor(key)} className={stage === key ? "active" : ""} aria-current={stage === key ? "page" : undefined}>
-            {label}
-            {!!tabCounts?.[key] && <span>{tabCounts[key]}</span>}
-          </Link>
-        ))}
-      </div>
-      {overflow.right ? (
-        <button type="button" className="response-stage-tabs-arrow is-next" aria-label="Show more sections" onClick={() => scrollStages(1)}>
-          <Icon name="chevron" />
-        </button>
+    <div className="response-view-menu" ref={root}>
+      <IconButton
+        icon="eye"
+        label={"View: " + activeLabel}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        onClick={() => setOpen((value) => !value)}
+      />
+      {open ? (
+        <div className="response-view-menu-panel" id={menuId} role="menu" aria-label="Applicant detail view">
+          {VIEW_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={active === option.id}
+              className={"response-view-menu-option" + (active === option.id ? " is-active" : "")}
+              onClick={() => {
+                setOpen(false);
+                router.push(option.href(params));
+              }}
+            >
+              <Icon name={option.icon} />
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   );
@@ -182,12 +165,21 @@ const RESPONSE_SORT_OPTIONS = [
   { value: "experience", label: "Experience" },
 ];
 
-function ResponseFilterFields({ q }: { q: ResponseParams }) {
+function ResponseFilterFields({
+  q,
+  jobs = [],
+  stage = "all",
+  tabCounts,
+}: {
+  q: ResponseParams;
+  jobs?: { id: string; title: string }[];
+  stage?: ResponseTab;
+  tabCounts?: Partial<Record<ResponseTab, number>>;
+}) {
   const router = useRouter();
   const setResponses = useUiStore((s) => s.setResponses);
   const params = useSearchParams();
-  const job = q.job || "";
-  const clearHref = BASE + "?view=responses" + (job ? "&job=" + job : "");
+  const clearHref = BASE + "?view=responses";
   const num = (label: string, name: string, max?: number) => <TextField label={label} name={name} type="number" min={0} max={max} defaultValue={q[name] || ""} />;
   const openKeywordMatch = () => modal.show(devCopy("AI filter · Keyword matching demo", "Keyword matching"), <AiFilterForm q={q} />, "project");
   return (
@@ -209,7 +201,8 @@ function ResponseFilterFields({ q }: { q: ResponseParams }) {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
           const get = (k: string) => String(f.get(k) || "").trim();
-          if (get("distance") && !q.job) return toast("Choose a job before using the distance filter.");
+          const job = get("job");
+          if (get("distance") && !job) return toast("Choose a job before using the distance filter.");
           for (const [min, max, label] of [
             ["expMin", "expMax", "experience"],
             ["salaryMin", "salaryMax", "salary"],
@@ -220,6 +213,17 @@ function ResponseFilterFields({ q }: { q: ResponseParams }) {
             next.delete(key);
             if (get(key)) next.set(key, get(key));
           }
+          const query = get("q");
+          if (query) next.set("q", query);
+          else next.delete("q");
+          if (job) next.set("job", job);
+          else {
+            next.delete("job");
+            next.delete("distance");
+          }
+          const nextStage = (get("stage") || "all") as ResponseTab;
+          if (nextStage && nextStage !== "all") next.set("stage", nextStage);
+          else next.delete("stage");
           const sort = get("sort") || q.sort || "newest";
           if (sort && sort !== "newest") next.set("sort", sort);
           else next.delete("sort");
@@ -230,11 +234,31 @@ function ResponseFilterFields({ q }: { q: ResponseParams }) {
             if (!checked.success) return toast(checked.error.issues[0].message);
           }
           setResponses({ selection: [] });
-          track("search_performed", { surface: "responses", hasQuery: !!get("keywords") });
+          track("search_performed", { surface: "responses", hasQuery: !!(query || get("keywords")) });
           modal.close();
           router.push(BASE + "?" + next);
         }}
       >
+        <Panel title="Response section">
+          <div className="response-stage-sheet" role="radiogroup" aria-label="Response sections">
+            {(Object.entries(RESPONSE_TABS) as [ResponseTab, string][]).map(([key, label]) => (
+              <label key={key} className={"response-stage-sheet-option" + (stage === key ? " is-active" : "")}>
+                <input type="radio" name="stage" value={key} defaultChecked={stage === key} />
+                <span className="response-stage-sheet-label">{label}</span>
+                {tabCounts?.[key] ? <span className="response-stage-sheet-count">{tabCounts[key]}</span> : null}
+              </label>
+            ))}
+          </div>
+        </Panel>
+        <Panel title="Search">
+          <TextField label="Search applicants" name="q" type="search" defaultValue={q.q || ""} maxLength={200} />
+          <SelectField
+            label="Filter by job"
+            name="job"
+            defaultValue={q.job || ""}
+            options={[{ value: "", label: "All job posts" }, ...jobs.map((j) => ({ value: j.id, label: j.title }))]}
+          />
+        </Panel>
         <div className="response-keywords">
           <TextAreaField label="CV / profile keywords" name="keywords" defaultValue={q.keywords || ""} maxLength={500} rows={2} />
           <SelectField
@@ -253,7 +277,7 @@ function ResponseFilterFields({ q }: { q: ResponseParams }) {
             <TextField label="Locality" name="locality" type="search" defaultValue={q.locality || ""} />
           </div>
           <SelectField label="Distance from job" name="distance" defaultValue={q.distance || ""} options={[{ value: "", label: "Any distance" }, ...[5, 10, 25, 50, 100, 500].map((v) => ({ value: String(v), label: "Within " + v + " km" }))]} />
-          <p className="response-filter-help">Choose a job in the list header to use distance. City-centre estimates are used where precise coordinates are unavailable.</p>
+          <p className="response-filter-help">Choose a job above to use distance. City-centre estimates are used where precise coordinates are unavailable.</p>
         </Panel>
         <Panel title="Experience">
           <div className="response-filter-range">
@@ -439,26 +463,86 @@ function NoteForm({ item }: { item: ResponseItem }) {
   );
 }
 
-function ContactDialog({ item }: { item: ResponseItem }) {
-  const contact = useContactCandidate();
-  const p = item.profile;
+function contactTelHref(phone: string) {
+  const digits = phone.replace(/[^\d+]/g, "");
+  return digits ? "tel:" + digits : undefined;
+}
+
+function ContactActionField({
+  label,
+  name,
+  value,
+  actionHref,
+  actionIcon,
+  actionLabel,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  actionHref: string;
+  actionIcon: "mail" | "phone";
+  actionLabel: string;
+}) {
   return (
-    <div className="stack">
-      <div className="row">
+    <div className="response-contact-field">
+      <TextField label={label} name={name} defaultValue={value} readOnly />
+      <a className="response-contact-action" href={actionHref} aria-label={actionLabel} title={actionLabel}>
+        <Icon name={actionIcon} />
+      </a>
+    </div>
+  );
+}
+
+function ContactDialog({ item }: { item: ResponseItem }) {
+  const message = useApplicationsMessage();
+  const p = item.profile;
+  const designation = p.designation?.trim() || p.currentRole?.trim() || p.headline?.trim() || "";
+  const telHref = p.phone ? contactTelHref(p.phone) : undefined;
+  return (
+    <div className="stack response-contact-dialog">
+      <div className="row response-contact-profile">
         <Avatar person={p} size="lg" />
         <div>
           <h3>{p.name}</h3>
-          <p className="small muted">{p.designation}</p>
+          {designation ? <p className="response-contact-designation">{designation}</p> : null}
         </div>
       </div>
-      <TextField label="Application email" name="email" defaultValue={p.email} readOnly />
-      {p.phone ? <TextField label="Shared phone number" name="phone" defaultValue={p.phone} readOnly /> : <p className="small muted">Phone number not shared with this application.</p>}
+      <ContactActionField
+        label="Application email"
+        name="email"
+        value={p.email}
+        actionHref={"mailto:" + p.email}
+        actionIcon="mail"
+        actionLabel={"Email " + p.name}
+      />
+      {p.phone && telHref ? (
+        <ContactActionField
+          label="Shared phone number"
+          name="phone"
+          value={p.phone}
+          actionHref={telHref}
+          actionIcon="phone"
+          actionLabel={"Call " + p.name}
+        />
+      ) : (
+        <p className="small muted">Phone number not shared with this application.</p>
+      )}
       <DevOnly>
         <InfoBadge label="Recruiting information">These are fictional or applicant-supplied demo details. No call or email is sent.</InfoBadge>
       </DevOnly>
       <div className="modal-footer">
         <Button onClick={() => modal.close()}>Close</Button>
-        <Button variant="primary" icon="message" onClick={() => contact(p.id)}>
+        <Button
+          variant="primary"
+          icon="message"
+          onClick={() =>
+            void message(p.id, {
+              name: p.name,
+              picture: p.picture,
+              headline: designation || p.headline,
+            })
+          }
+        >
           {devCopy("Open demo message", "Send message")}
         </Button>
       </div>
@@ -501,24 +585,32 @@ function OutreachForm({ ids, names }: { ids: Id[]; names: string[] }) {
 }
 
 function CandidateCard({ item, q, selected, onSelect, actions }: { item: ResponseItem; q: ResponseParams; selected: boolean; onSelect: (c: boolean) => void; actions: ReturnType<typeof useResponseActions> }) {
-  const contact = useContactCandidate();
+  const message = useApplicationsMessage();
   const { application: a, profile: p, fit, distance } = item;
-  const canMove=(stage:HiringStage)=>isPrototype||!a.withdrawnAt&&(a.status===stage||(RECRUITING_RULES.transitions[a.status] as string[]).includes(stage));
+  const canMove = (stage: HiringStage) =>
+    isPrototype ||
+    (!a.withdrawnAt &&
+      (a.status === stage || !!(RECRUITING_RULES.transitions[a.status] as string[] | undefined)?.includes(stage)));
   const fitOn = RESPONSE_KEYWORD_MATCHING_ENABLED && q.fit === "1";
   // A best-match list is a recommendation list (U9): exposure, and opening an applicant, teach the ranking.
   const context = item.analyticsContext;
   const seenRef = useImpression<HTMLElement>(() => { if (context) track("recommendation_exposed", context); }, context?.requestId);
   const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLElement>(item.ranking ? { kind: "professional", id: a.candidate } : null, { surface: "applicants", position: context?.position, requestId: context?.requestId });
   const setRef = (el: HTMLElement | null) => { seenRef.current = el; watchRef.current = el; };
-  const open = () => { if (context) track("recommendation_clicked", context); watchClick(); actions.view(a.id); };
+  const profileHref = applicantProfileHref(item);
+  const openProfile = () => {
+    if (context) track("recommendation_clicked", context);
+    watchClick();
+    void actions.markViewed(a.id);
+  };
   return (
     <article ref={setRef} className={"card response-candidate" + (q.rows === "compact" ? " is-compact" : "")} data-response-id={a.id}>
       <div className="response-candidate-main">
         <div className="response-candidate-heading">
           <input type="checkbox" checked={selected} onChange={(e) => onSelect(e.target.checked)} aria-label={"Select " + p.name} />
-          <button type="button" onClick={open}>
+          <Link href={profileHref} onClick={openProfile}>
             <h2>{p.name}</h2>
-          </button>
+          </Link>
           {item.ranking?.match ? <MatchBadge match={item.ranking.match} /> : fitOn ? <span className="response-fit-badge">{fit.score}% keyword match</span> : a.portfolio ? <span className="response-portfolio-badge">Portfolio included</span> : null}
           <span className="response-status">{a.withdrawnAt?"Withdrawn · Previously "+a.status:a.status}</span>
         </div>
@@ -592,14 +684,32 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
             {a.recruiterNote ? "Edit note" : "Add note"}
           </Button>
           <div className="grow" />
-          <Button variant="sm response-shortlist" icon="check" disabled={!canMove("Shortlisted")} onClick={() => actions.status([a.id], "Shortlisted")}>
-            Shortlist
+          <Button
+            variant={"sm response-shortlist" + (a.status === "Shortlisted" ? " is-active" : "")}
+            icon="check"
+            aria-pressed={a.status === "Shortlisted"}
+            disabled={!canMove("Shortlisted")}
+            onClick={() => actions.status([a.id], "Shortlisted")}
+          >
+            {a.status === "Shortlisted" ? "Shortlisted" : "Shortlist"}
           </Button>
-          <Button variant="sm" icon="folder" disabled={!canMove("Reviewing")} onClick={() => actions.status([a.id], "Reviewing")}>
-            Maybe
+          <Button
+            variant={"sm response-maybe" + (a.status === "Reviewing" ? " is-active" : "")}
+            icon="folder"
+            aria-pressed={a.status === "Reviewing"}
+            disabled={!canMove("Reviewing")}
+            onClick={() => actions.status([a.id], "Reviewing")}
+          >
+            {a.status === "Reviewing" ? "In review" : "Maybe"}
           </Button>
-          <Button variant="sm response-reject" icon="close" disabled={!canMove("Rejected")} onClick={() => actions.status([a.id], "Rejected")}>
-            Reject
+          <Button
+            variant={"sm response-reject" + (a.status === "Rejected" ? " is-active" : "")}
+            icon="close"
+            aria-pressed={a.status === "Rejected"}
+            disabled={!canMove("Rejected")}
+            onClick={() => actions.status([a.id], "Rejected")}
+          >
+            {a.status === "Rejected" ? "Rejected" : "Reject"}
           </Button>
           <IconButton icon="trash" label={"Remove " + p.name + " from recruiter inbox"} onClick={() => actions.remove([a.id])} />
         </div>
@@ -607,19 +717,22 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
       <aside className="response-candidate-profile">
         <Avatar person={p} size="xl" />
         <p>{p.summary || p.headline}</p>
-        <Button variant="sm" icon="phone" onClick={() => actions.contact(item)}>
-          Contact
-        </Button>
-        <Button variant="text sm" icon="message" onClick={() => contact(p.id)}>
-          Message
-        </Button>
-        <Button variant="text sm" icon="user" onClick={() => actions.view(a.id)}>
-          View profile
-        </Button>
-        <SubmittedResumeButton item={item} />
-        <Button variant="text sm" icon="download" onClick={() => actions.exportProfile(a.id)}>
-          Download profile
-        </Button>
+        <CandidateProfileActions
+          item={item}
+          onContact={() => void actions.contact(item)}
+          onMessage={() =>
+            void message(p.id, {
+              name: p.name,
+              picture: p.picture,
+              headline: p.designation || p.headline,
+            })
+          }
+          onMarkViewed={(id) => {
+            if (context) track("recommendation_clicked", context);
+            watchClick();
+            return actions.markViewed(id);
+          }}
+        />
         <span>{a.viewedAt ? "Viewed " + formatLocaleDate(a.viewedAt) : "Not viewed yet"}</span>
       </aside>
       <footer className="response-candidate-footer">
@@ -634,31 +747,38 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
   );
 }
 
-/** Opens the resume the candidate submitted in the browser; downloading is optional from the viewer. */
-function SubmittedResumeButton({item}:{item:ResponseItem}){
-  const resume=item.sharing?.attachments.find(file=>file.kind==="resume");
-  if(!resume)return null;
-  return <Button variant="sm" icon="eye" className="response-resume-download" onClick={()=>modal.show("Resume · "+item.profile.name,<SubmittedDocumentViewer file={resume} applicationId={item.application.id} reviewer/>,"project")} aria-label={"View submitted resume: "+resume.name} title={resume.name}>View resume</Button>;
-}
-
-function SubmittedProfile({item}:{item:ResponseItem}){
-  const {profile:p,application:a,portfolio}=item;
-  return <div className="stack"><div className="row"><Avatar person={p} size="lg"/><div><h2>{p.name}</h2><p>{p.headline}</p></div></div><InfoBadge label="Submitted application information">Submitted with this application on {formatLongDate(a.createdAt.slice(0,10))}. This copy retains what the applicant shared at submission.</InfoBadge><p>{p.location} · {p.years} years of experience</p><p style={{whiteSpace:"pre-line"}}>{p.summary}</p><p>{p.skills.join(" · ")}</p><h3>Experience</h3><p style={{whiteSpace:"pre-line"}}>{p.experience||"Not provided"}</p><h3>Education</h3><p style={{whiteSpace:"pre-line"}}>{p.educationText||"Not provided"}</p><h3>Shared contact and recruitment details</h3><p>{p.email}{p.phone?" · "+p.phone:""}</p>{!item.sharing&&<p>Expected salary: {p.expectedSalary===null?"Not shared":p.expectedSalary+" LPA"}</p>}<p>Notice: {p.notice===null?"Not shared":p.notice+" days"}</p>{item.sharing&&<ApplicationSharingDetails sharing={item.sharing} applicationId={a.id} reviewer/>}{portfolio&&<><h3>Included portfolio</h3>{portfolio.person.summary&&<p>{portfolio.person.summary}</p>}{portfolio.projects.map((project)=><section className="card stack" style={{padding:16}} key={project.id}>{project.cover&&<Image src={project.cover} width={400} height={240} unoptimized alt={project.title} style={{maxWidth:"100%",height:"auto"}}/>}<h4>{project.title}</h4><p>{project.description}</p><p>{project.contribution}</p><p>{project.skills.join(" · ")}</p></section>)}{portfolio.updates.map((update)=><section key={update.id}><h4>{update.title}</h4><p>{update.description}</p></section>)}</>}<div className="modal-footer"><Button onClick={()=>modal.close()}>Close</Button><Button variant="primary" onClick={()=>openReview(a.id)}>Review application</Button></div></div>;
-}
-
 const validBulkSelection=(ids:Id[])=>{if(!ids.length||ids.length>100||new Set(ids).size!==ids.length){toast("Choose 1–100 distinct records for this action.");return false;}return true;};
 
 function useResponseActions() {
   const run = useServiceAction();
   const services = useServices();
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const { selection } = useUiStore((s) => s.responses);
   const setResponses = useUiStore((s) => s.setResponses);
   return {
     status: async (ids: Id[], status: HiringStage) => {
-      if(!validBulkSelection(ids))return;
-      const n = await run((s) => s.recruiting.setStatus(ids, status),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
-      if (n !== undefined) toast(n + " response" + (n === 1 ? "" : "s") + " updated.");
+      if (!validBulkSelection(ids)) return;
+      const n = await run((s) => s.recruiting.setStatus(ids, status), {
+        invalidate: ["jobs-manager", "responses", "review", "hiring-summary", "jobs", "job", "feed", "applications"],
+      });
+      if (n === undefined) {
+        // Even on failure, refresh so badges catch up if the server already moved (stale New vs Shortlisted).
+        await queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "responses" });
+        return;
+      }
+      queryClient.setQueriesData({ predicate: (q) => q.queryKey[0] === "responses" }, (page: { items?: ResponseItem[] } | undefined) => {
+        if (!page?.items) return page;
+        const idSet = new Set(ids);
+        return {
+          ...page,
+          items: page.items.map((item) =>
+            idSet.has(item.application.id)
+              ? { ...item, application: { ...item.application, status, version: (item.application.version ?? 0) + 1 } }
+              : item,
+          ),
+        };
+      });
+      toast(n + " response" + (n === 1 ? "" : "s") + " updated.");
     },
     remove: (ids: Id[]) =>
       modal.show(
@@ -685,18 +805,14 @@ function useResponseActions() {
           </div>
         </>,
       ),
-    view: async (id: Id) => {
-      if(!isPrototype){const item=await run((s)=>s.recruiting.getApplicant(id),{refresh:false});if(!item)return;const marked=await run((s)=>s.recruiting.markViewed(id),{refresh:false});if(!marked)return;modal.show("Submitted profile",<SubmittedProfile item={item}/>,"project");return;}
-      const candidate = await run((s) => s.recruiting.markViewed(id), { refresh: false });
-      if (candidate) router.push("/recruiter/talent/" + candidate);
+    markViewed: async (id: Id) => {
+      await run((s) => s.recruiting.markViewed(id), {
+        invalidate: ["jobs-manager", "responses", "review", "hiring-summary", "jobs", "job", "feed", "applications"],
+      });
     },
     contact: async (item: ResponseItem) => {
       await run((s) => s.recruiting.markViewed(item.application.id),{invalidate:["jobs-manager","responses","review","hiring-summary","jobs","job","feed","applications"]});
       modal.show("Candidate contact", <ContactDialog item={item} />);
-    },
-    exportProfile: async (id: Id) => {
-      const file = await services.recruiting.exportProfile(id);
-      if (file) downloadFile(file.fileName, file.text);
     },
     outreach: async (ids: Id[]) => {
       if(!validBulkSelection(ids))return;
@@ -721,10 +837,17 @@ export function ResponseCenterScreen({ mode = "cards" }: { mode?: ResponseCenter
   const setResponses = useUiStore((s) => s.setResponses);
   const actions = useResponseActions();
   const { data: m,isError,error,refetch } = useHiringQuery(["responses", params.toString()], (s, scope) => s.recruiting.listResponses(q, scope));
-  // Job scope and stage tabs are views, not filters; "no matches" is reserved for real narrowing.
-  const filtered = !!(q.q || q.fit === "1" || RESPONSE_FILTER_KEYS.some((key) => q[key as keyof ResponseParams]));
-  const filterCount = RESPONSE_FILTER_KEYS.reduce((n, key) => n + (q[key as keyof ResponseParams] ? 1 : 0), 0) + (q.fit === "1" ? 1 : 0);
-  const openFilterSheet = () => modal.show("Advanced filters", <ResponseFilterFields q={q} />, "following");
+  // Stage/job/search are sheet filters; "no matches" is reserved for real narrowing beyond the default All section.
+  const activeStage = (m?.stage ?? (q.stage as ResponseTab) ?? "all") as ResponseTab;
+  const filtered = !!(q.q || q.job || q.fit === "1" || (activeStage && activeStage !== "all") || RESPONSE_FILTER_KEYS.some((key) => q[key as keyof ResponseParams]));
+  const filterCount =
+    RESPONSE_FILTER_KEYS.reduce((n, key) => n + (q[key as keyof ResponseParams] ? 1 : 0), 0) +
+    (q.fit === "1" ? 1 : 0) +
+    (q.q ? 1 : 0) +
+    (q.job ? 1 : 0) +
+    (activeStage && activeStage !== "all" ? 1 : 0);
+  const openFilterSheet = () =>
+    modal.show("Filters", <ResponseFilterFields q={q} jobs={m?.jobs ?? []} stage={activeStage} tabCounts={m?.tabCounts} />, "following");
   const visible = m?.items ?? [];
   const allChecked = visible.length > 0 && visible.every(({ application }) => selection.includes(application.id));
   const select = (id: Id, checked: boolean) => setResponses({ selection: checked ? [...new Set([...selection, id])] : selection.filter((x) => x !== id) });
@@ -735,72 +858,24 @@ export function ResponseCenterScreen({ mode = "cards" }: { mode?: ResponseCenter
     ["Reject", () => actions.status(selection, "Rejected"), "close"],
     ["Email draft", () => actions.outreach(selection), "mail"],
     ["Download", () => actions.exportCsv(selection), "download"],
-    ...(!isPrototype?[["Queue CSV",()=>modal.show("Prepare background export",<ExportRequest ids={selection}/>),"download"] as [string,()=>void,Parameters<typeof Button>[0]["icon"]]]:[]),
     ["Remove", () => actions.remove(selection), "trash"],
   ];
   return (
     <div className={"response-center" + (isTable ? " is-table-page" : "")}>
+      {q.job ? <FloatingChatDock jobId={q.job} /> : null}
       <div className="response-center-layout">
         <section className="response-center-content" aria-label={isTable ? "Applicant responses table" : "Applicant responses"}>
           <div className="response-filter-toolbar">
-            <div className="response-view-toggle" role="group" aria-label="Applicant detail view">
-              <Button variant={"sm" + (!isTable && q.rows === "compact" ? " active" : "")} icon="menu" aria-pressed={!isTable && q.rows === "compact"} onClick={() => router.push(cardsHref(params, "compact"))}>
-                Collapse
-              </Button>
-              <Button variant={"sm" + (!isTable && !q.rows ? " active" : "")} icon="layout" aria-pressed={!isTable && !q.rows} onClick={() => router.push(cardsHref(params, ""))}>
-                Expand
-              </Button>
-              <Button variant={"sm" + (isTable ? " active" : "")} icon="grid" aria-pressed={isTable} onClick={() => router.push(tableHref(params))}>
-                Table
-              </Button>
-            </div>
+            <ResponseViewMenu mode={mode} rows={q.rows} />
             <label className="response-sort-label">
               <FloatingSelect label="Sort by" id="response-sort" aria-label="Sort responses" value={m?.sort ?? "newest"} onChange={(e) => router.push(url({ sort: e.target.value, page: "" }))} options={RESPONSE_SORT_OPTIONS} />
             </label>
             <Button className="response-filter-toggle" variant="sm" icon="sliders" onClick={openFilterSheet} aria-haspopup="dialog">
-              Advanced{filterCount ? ` (${filterCount})` : ""}
+              Filters{filterCount ? ` (${filterCount})` : ""}
             </Button>
             <Button className="response-post-job" variant="primary" icon="plus" onClick={() => router.push("/recruiter/jobs/new")}>
               Post a job
             </Button>
-          </div>
-          <ResponseStageTabs stage={m?.stage} tabCounts={m?.tabCounts} hrefFor={(key) => url({ stage: key, page: "" })} />
-          <div className="response-right-search">
-            <form
-              id="response-search-form"
-              key={params.toString()}
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                const job = String(f.get("job") || "");
-                setResponses({ selection: [] });
-                router.push(url({ q: String(f.get("q") || "").trim(), job, distance: job ? q.distance || "" : "", page: "" }));
-              }}
-            >
-              <label className="application-search">
-                <Icon name="search" />
-                <FloatingInput label="Search applicants" compact type="search" name="q" defaultValue={q.q || ""} placeholder="Search applicants" aria-label="Search applicants" />
-              </label>
-              <label className="sr-only" htmlFor="response-job-select">
-                Filter by job
-              </label>
-              <FloatingSelect label="Filter by job" compact id="response-job-select" name="job" defaultValue={q.job || ""} options={[{ value: "", label: "All job posts" }, ...(m?.jobs ?? []).map((j) => ({ value: j.id, label: j.title }))]} />
-              <button type="submit" className="btn sm search-button">
-                <Icon name="search" />
-                Search
-              </button>
-              <Button
-                variant="text sm"
-                className="response-search-clear"
-                disabled={!(q.q || q.job)}
-                onClick={() => {
-                  setResponses({ selection: [] });
-                  router.push(url({ q: "", job: "", distance: "", page: "" }));
-                }}
-              >
-                Clear
-              </Button>
-            </form>
           </div>
           {RESPONSE_KEYWORD_MATCHING_ENABLED && q.fit === "1" && (
             <div className="response-ai-summary">

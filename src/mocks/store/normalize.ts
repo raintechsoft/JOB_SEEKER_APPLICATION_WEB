@@ -2,6 +2,7 @@ import type { Draft } from "immer";
 import type { DemoDatabase } from "@/types/domain";
 import { ACCOMPLISHMENT_TYPES, profileCompletion, skillKey } from "@/lib/domain/profile";
 import { uid } from "@/lib/utils/id";
+import { seedSampleApplications } from "../data/feed";
 import { buildProfessionalDetails } from "../data/profile";
 
 /**
@@ -17,6 +18,14 @@ export function normalizeDatabase(db: Draft<DemoDatabase>) {
   db.jobEditorDrafts ??= {};
   db.employerRegistrations ??= [];
   db.recruiter.responseOutreach ??= [];
+  db.recruiter.sampleApplications ??= [];
+  // Keep seeded applicants current without wiping recruiter tracking on existing demos.
+  {
+    const known = new Set(db.recruiter.sampleApplications.map((a) => a.id));
+    for (const sample of seedSampleApplications()) {
+      if (!known.has(sample.id)) db.recruiter.sampleApplications.push(sample);
+    }
+  }
 
   const p = db.professionals[0];
   if (!Array.isArray(db.social.jobAlerts)) {

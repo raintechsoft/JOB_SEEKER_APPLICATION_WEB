@@ -7,10 +7,7 @@ import jobRules from "../../../contracts/validation/job-v2.json";
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import Link from "next/link";
-import { useRef,useState } from "react";
-import {collaborationSchema} from "@/lib/validation/application";
-import {validationFields} from "@/lib/validation/profile";
-import {useFormAction} from "@/hooks/use-form-action";
+import { useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Id } from "@/types/domain";
 import type { ManagedJob } from "@/services/recruiting/recruiting.service";
@@ -26,7 +23,7 @@ import { Icon } from "@/components/ui/icon";
 import { Button, EmptyState, IconButton, LinkButton, PageHeading } from "@/components/ui/primitives";
 import { Pagination } from "@/components/ui/pagination";
 import { DevOnly } from "@/components/ui/dev-only";
-import { FloatingSelect, TextAreaField, TextField } from "@/components/ui/field";
+import { FloatingSelect, TextField } from "@/components/ui/field";
 import { confirmAction } from "@/components/ui/feedback";
 import { JobArtwork, JobMediaExtras } from "@/components/jobs/job-visuals";
 
@@ -144,44 +141,6 @@ function ShareJob({ job }: { job: ManagedJob }) {
   );
 }
 
-function Collaborate({ jobs }: { jobs: ManagedJob[] }) {
-  const [errors,setErrors]=useState<Record<string,string>>({});
-  const {execute,pending}=useFormAction(setErrors);
-  const emails = [...new Set(jobs.flatMap((j) => j.collaborators || []))];
-  return (
-    <form
-      id="jobs-collaboration-form"
-      className="stack"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
-        const list = [...new Set(String(f.get("emails") || "").split(",").map((s) => s.trim()).filter(Boolean))];
-        if (list.some((x) => !/^\S+@\S+\.\S+$/.test(x))) return toast("Enter valid email addresses separated by commas.");
-        const checked=collaborationSchema.omit({ids:true}).safeParse({emails:list,note:String(f.get("note")||"").trim()});
-        if(!checked.success)return setErrors(validationFields(checked.error));
-        if(!await execute((s)=>s.recruiting.saveCollaboration(jobs.map((j)=>j.id),checked.data.emails,checked.data.note,jobs.every((j)=>j.version)?Object.fromEntries(jobs.map((j)=>[j.id,j.version!])):undefined)))return;
-        modal.close();
-        toast(devCopy("Local collaboration settings saved. No invitations were sent.","Job reviewers updated."));
-      }}
-    >
-      <h3>{jobs.length === 1 ? jobs[0].title : jobs.length + " selected job posts"}</h3>
-      {Object.entries(errors).map(([key,error])=><p role="alert" className="error" key={key}>{error}</p>)}
-      <p className="small muted">Choose existing active team members to grant review access. Team invitations are managed separately.</p>
-      <TextField label="Collaborator emails (comma separated)" name="emails" defaultValue={emails.join(", ")} placeholder="colleague@example.com" />
-      <TextAreaField label="Team handoff note" name="note" defaultValue={jobs.length === 1 ? jobs[0].collaborationNote || "" : ""} maxLength={1500} />
-      <DevOnly>
-        <InfoBadge label="Collaboration information">These are local demo collaboration settings. No invitations or emails are sent.</InfoBadge>
-      </DevOnly>
-      <div className="modal-footer">
-        <Button onClick={() => modal.close()}>Cancel</Button>
-        <Button type="submit" variant="primary" loading={pending} disabled={pending}>
-          Save collaboration
-        </Button>
-      </div>
-    </form>
-  );
-}
-
 function JobsBulkActions({
   drafts,
   selected,
@@ -200,11 +159,6 @@ function JobsBulkActions({
   const refresh = async () => {
     await run(async () => undefined);
     toast(devCopy("Job list refreshed from this browser’s saved data.", "Job list refreshed."));
-  };
-
-  const collaborate = async () => {
-    if (!hasSelection) return;
-    modal.show("Collaborate on job posts", <Collaborate jobs={await selectedJobs()} />, "project");
   };
 
   const closeSelected = async () => {
@@ -263,9 +217,6 @@ function JobsBulkActions({
         <Button variant="text sm" icon="refresh" onClick={refresh}>
           Refresh
         </Button>
-        <Button variant="text sm" icon="users" disabled={!hasSelection} onClick={collaborate}>
-          Collaborate
-        </Button>
         {!drafts && (
           <Button variant="text sm" icon="close" disabled={!hasSelection} onClick={closeSelected}>
             Close
@@ -284,9 +235,6 @@ function JobsBulkActions({
         <div role="menu" aria-label="Bulk actions">
           <Button variant="text sm" icon="refresh" role="menuitem" onClick={refresh}>
             Refresh
-          </Button>
-          <Button variant="text sm" icon="users" role="menuitem" disabled={!hasSelection} onClick={collaborate}>
-            Collaborate
           </Button>
           {!drafts && (
             <Button variant="text sm" icon="close" role="menuitem" disabled={!hasSelection} onClick={closeSelected}>

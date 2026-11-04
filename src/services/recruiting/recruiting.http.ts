@@ -15,25 +15,34 @@ export function createHttpRecruitingService(http:HttpClient,auth:AuthService):Re
   const responses=new Map<string,ResponseItem>(),jobs=new Map<string,ManagedJob>();
   const getApplicant=async(id:string,scope?:ReadScope)=>{z.uuid().parse(id);const row=(await http.get<{data:ResponseItem}>(`${await hiringPath(auth,scope)}/responses/${id}`,undefined,scope)).data;responses.set(id,row);return row;};
   const getManagedJob=async(id:string,scope?:ReadScope)=>{z.uuid().parse(id);const row=(await http.get<{data:ManagedJob}>(`${await hiringPath(auth,scope)}/jobs/${id}`,undefined,scope)).data;jobs.set(id,row);return row;};
-  const action=async(kind:"responses"|"jobs",name:string,ids:string[],body:object={})=>{
+  const loadResponseApplication=async(id:string,fresh=false)=>{
+    if(fresh)responses.delete(id);
+    return (responses.get(id)??await getApplicant(id)).application;
+  };
+  const action=async(kind:"responses"|"jobs",name:string,ids:string[],body:object={},freshResponses=true)=>{
     bulkIdsSchema.parse(ids);
-    const records=await Promise.all(ids.map(async(id)=>kind==="jobs"?jobs.get(id)??await getManagedJob(id):(responses.get(id)??await getApplicant(id)).application));
+    // Response mutations re-read versions by default. Stale list/note versions were returning 409,
+    // so Shortlist/Reject looked like a no-op in the UI.
+    const records=await Promise.all(ids.map(async(id)=>kind==="jobs"?jobs.get(id)??await getManagedJob(id):loadResponseApplication(id,freshResponses)));
     const versions=Object.fromEntries(records.map((r)=>[r.id,z.number().int().min(1).parse(r.version)]));
-    const result=(await http.post<{data:{count:number;status:"Draft"|"Closed"|"Expired"|"Active"|null;candidate?:string|null;draftId?:string}}>(`${await hiringPath(auth)}/${kind}/actions/${name}`,{ids,versions,...body})).data;
+    // Explicit body.versions (e.g. note/review forms) must not overwrite the fresh server versions.
+    const {versions:_ignored, ...rest}=body as {versions?:Record<string,number>};
+    const result=(await http.post<{data:{count:number;status:"Draft"|"Closed"|"Expired"|"Active"|null;candidate?:string|null;draftId?:string}}>(`${await hiringPath(auth)}/${kind}/actions/${name}`,{ids,versions,...rest})).data;
     if(kind==="jobs")ids.forEach((id)=>jobs.delete(id));else ids.forEach((id)=>responses.delete(id));
     return result;
   };
   const listResponses=async(params:ResponseParams,scope?:ReadScope)=>{responseFiltersSchema.parse(params);const page=(await http.get<{data:components["schemas"]["ResponsesPage"]}>(`${await hiringPath(auth,scope)}/responses`,params,scope)).data;for(const row of page.items)responses.set(row.application.id,row);return page;};
   const transition=async(ids:string[],status:string)=>{
     bulkIdsSchema.parse(ids);z.enum(["New","Reviewing","Shortlisted","Interview","Hired","Rejected"]).parse(status);
-    for(const id of ids){const record=responses.get(id)??await getApplicant(id);const a=record.application;
-      if(a.status!==status&&(a.withdrawnAt||!(RECRUITING_RULES.transitions[a.status] as string[]).includes(status)))throw new Error("This hiring transition is unavailable. Review the current stage.");}
+    for(const id of ids){const a=await loadResponseApplication(id,true);
+      const allowed=(RECRUITING_RULES.transitions[a.status] as string[]|undefined)?.includes(status);
+      if(a.status!==status&&(a.withdrawnAt||!allowed))throw new Error("This hiring transition is unavailable. Review the current stage.");}
   };
   return {
     reset(){responses.clear();jobs.clear();exportAttempts.clear();},getApplicant,getManagedJob,listResponses,
     async getHiringSummary(scope){return (await http.get<{data:components["schemas"]["HiringSummary"]}>(`${await hiringPath(auth,scope)}/summary`,undefined,scope)).data;},
     async getReview(id,scope){const row=await getApplicant(id,scope);return {application:row.application,person:row.profile,jobTitle:row.jobTitle};},
-    async saveReview(id,input){const v=reviewSchema.parse(input);z.uuid().parse(id);await transition([id],v.status);await action("responses","review",[id],{...v,...(input.version?{versions:{[id]:input.version}}:{})});return true;},
+    async saveReview(id,input){const v=reviewSchema.parse(input);z.uuid().parse(id);await transition([id],v.status);await action("responses","review",[id],v,false);return true;},
     async listManagedJobs(query,scope){const q=managedJobsSchema.parse(query);const result=(await http.get<{data:components["schemas"]["ManagedJobsPage"]}>(`${await hiringPath(auth,scope)}/jobs`,q,scope)).data;result.items.forEach((row)=>jobs.set(row.id,row));return result;},
     async toggleJob(id){return (await action("jobs","toggle",[id])).status;},
     async repostJob(id){await action("jobs","repost",[id]);return true;},
@@ -41,8 +50,8 @@ export function createHttpRecruitingService(http:HttpClient,auth:AuthService):Re
     async saveCollaboration(ids,emails,note,versions){const v=collaborationSchema.parse({ids,emails,note});await action("jobs","collaboration",ids,{emails:v.emails,note:v.note,...(versions?{versions}:{})});},
     async deleteDraft(id){await action("jobs","delete",[id]);},
     async deleteDrafts(ids){bulkIdsSchema.parse(ids);return (await action("jobs","delete",ids)).count;},
-    async setStatus(ids,status){await transition(ids,status);return (await action("responses","status",ids,{status})).count;},
-    async saveNote(id,note,version){const v=z.string().trim().max(5000).parse(note);await action("responses","note",[id],{note:v,...(version?{versions:{[id]:version}}:{})});},
+    async setStatus(ids,status){await transition(ids,status);return (await action("responses","status",ids,{status},false)).count;},
+    async saveNote(id,note){const v=z.string().trim().max(5000).parse(note);await action("responses","note",[id],{note:v});},
     async markViewed(id){return (await action("responses","viewed",[id])).candidate??null;},
     async remove(ids){await action("responses","remove",ids);},
     async saveOutreach(ids,subject,message){const v=outreachSchema.parse({ids,subject,message});const row=await action("responses","outreach",ids,{subject:v.subject,message:v.message});return {draftId:z.uuid().parse(row.draftId)};},

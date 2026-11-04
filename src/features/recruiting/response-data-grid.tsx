@@ -14,15 +14,17 @@ import { CSS } from "@dnd-kit/utilities";
 import { flexRender } from "@tanstack/react-table";
 import { getCoreRowModel, useLegacyTable, type LegacyColumnDef } from "@tanstack/react-table/legacy";
 import { useObservedSession } from "@/features/auth/use-observed-session";
-import { useContactCandidate } from "@/features/talent/dialogs";
-import { sharedPayLabel, SubmittedDocumentViewer } from "@/features/applications/application-sharing-details";
+import { sharedPayLabel } from "@/features/applications/application-sharing-details";
 import { Avatar, Button } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
+import Link from "next/link";
 import { modal } from "@/stores/modal-store";
 import { formatLocaleDate } from "@/lib/utils/date";
 import { RECRUITING_RULES } from "@/lib/validation/recruiting";
 import type { HiringStage, Id } from "@/types/domain";
-import type { ResponseItem } from "@/services/recruiting/recruiting.service";
+import { applicantProfileHref, type ResponseItem } from "@/services/recruiting/recruiting.service";
+import { CandidateProfileActions } from "./candidate-profile-actions";
+import { useApplicationsMessage } from "./use-applications-message";
 import { clearResponseTablePrefs, loadResponseTablePrefs, saveResponseTablePrefs } from "./response-table-prefs";
 import {
   defaultResponseTablePrefs,
@@ -41,9 +43,8 @@ import {
 } from "./response-table-types";
 
 export type ResponseGridActions = {
-  view: (id: Id) => void | Promise<void>;
+  markViewed: (id: Id) => void | Promise<void>;
   contact: (item: ResponseItem) => void | Promise<void>;
-  exportProfile: (id: Id) => void | Promise<void>;
   status: (ids: Id[], status: HiringStage) => void | Promise<void>;
 };
 
@@ -69,23 +70,6 @@ type ColumnPinningState = { start: string[]; end: string[] };
 function cellText(value: string | number | null | undefined, empty = "—") {
   if (value == null || value === "") return empty;
   return String(value);
-}
-
-function SubmittedResumeButton({ item }: { item: ResponseItem }) {
-  const resume = item.sharing?.attachments.find((file) => file.kind === "resume");
-  if (!resume) return null;
-  return (
-    <Button
-      variant="sm"
-      icon="eye"
-      className="response-resume-download"
-      onClick={() => modal.show("Resume · " + item.profile.name, <SubmittedDocumentViewer file={resume} applicationId={item.application.id} reviewer />, "project")}
-      aria-label={"View submitted resume: " + resume.name}
-      title={resume.name}
-    >
-      View resume
-    </Button>
-  );
 }
 
 function measureTextWidth(text: string, font = "650 12px Manrope, DM Sans, sans-serif") {
@@ -339,7 +323,7 @@ export function ResponseDataGrid({
   total,
 }: Props) {
   const session = useObservedSession();
-  const contact = useContactCandidate();
+  const message = useApplicationsMessage();
   const userId = session?.user.id;
   const identityId = session?.selected_identity_id ?? undefined;
   const [prefs, setPrefs] = useState<ResponseTablePrefs>(() => loadResponseTablePrefs(userId, identityId));
@@ -412,10 +396,14 @@ export function ResponseDataGrid({
         header: "Name",
         accessorFn: (row) => row.profile.name,
         cell: ({ row }) => (
-          <button type="button" className="response-table-name" onClick={() => void actions.view(row.original.application.id)}>
+          <Link
+            href={applicantProfileHref(row.original)}
+            className="response-table-name"
+            onClick={() => void actions.markViewed(row.original.application.id)}
+          >
             <Avatar person={row.original.profile} />
             <span>{row.original.profile.name}</span>
-          </button>
+          </Link>
         ),
         size: RESPONSE_TABLE_DEFAULT_WIDTHS.name,
         minSize: RESPONSE_TABLE_MIN_WIDTHS.name,
@@ -537,23 +525,21 @@ export function ResponseDataGrid({
         header: "Actions",
         cell: ({ row }) => {
           const item = row.original;
-          const a = item.application;
           const p = item.profile;
           return (
             <div className="response-table-actions">
-              <Button variant="text sm" icon="phone" onClick={() => void actions.contact(item)}>
-                Contact
-              </Button>
-              <Button variant="text sm" icon="message" onClick={() => contact(p.id)}>
-                Message
-              </Button>
-              <Button variant="text sm" icon="user" onClick={() => void actions.view(a.id)}>
-                View profile
-              </Button>
-              <SubmittedResumeButton item={item} />
-              <Button variant="text sm" icon="download" onClick={() => void actions.exportProfile(a.id)}>
-                Download profile
-              </Button>
+              <CandidateProfileActions
+                item={item}
+                onContact={() => void actions.contact(item)}
+                onMessage={() =>
+                  void message(p.id, {
+                    name: p.name,
+                    picture: p.picture,
+                    headline: p.designation || p.headline,
+                  })
+                }
+                onMarkViewed={(id) => actions.markViewed(id)}
+              />
             </div>
           );
         },
@@ -564,7 +550,7 @@ export function ResponseDataGrid({
       },
     ];
     return defs;
-  }, [actions, allChecked, contact, items.length, onSelect, onSelectAll, selection]);
+  }, [actions, allChecked, items.length, message, onSelect, onSelectAll, selection]);
 
   const table = useLegacyTable({
     data: items,
@@ -634,7 +620,7 @@ export function ResponseDataGrid({
             text = formatLocaleDate(item.application.createdAt);
             break;
           case "actions":
-            text = "Contact Message View profile Download";
+            text = "Contact Message View profile Save";
             break;
           default:
             text = "";

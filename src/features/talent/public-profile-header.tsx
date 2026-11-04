@@ -19,7 +19,7 @@ export type PublicProfileHeaderPerson = {
   picture?: string;
   color?: string;
   cover?: string;
-  followerCount: number;
+  followerCount?: number;
   /** Optional directory facts shown before the follower count. */
   location?: string;
   years?: number;
@@ -147,9 +147,9 @@ export function PublicProfileHeader({
   headlineInFacts?: boolean;
 }) {
   const organization = variant === "organization";
-  const [followers, setFollowers] = useState(person.followerCount);
+  const [followers, setFollowers] = useState(person.followerCount ?? 0);
   useEffect(() => {
-    setFollowers(person.followerCount);
+    setFollowers(person.followerCount ?? 0);
   }, [person.id, person.followerCount]);
   const badges = takePublicLinks(links);
   const cover = person.cover?.trim() || "";
@@ -158,7 +158,7 @@ export function PublicProfileHeader({
     title: headlineInFacts ? headline : undefined,
     location: person.location,
     years: person.years,
-    followerCount: followers,
+    followerCount: person.followerCount === undefined ? undefined : followers,
   });
   return (
     <header className="public-profile-hero">

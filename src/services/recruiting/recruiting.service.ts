@@ -98,6 +98,13 @@ export interface ResponseItem {
   analyticsContext?: components["schemas"]["AnalyticsContext"];
 }
 
+/** Public professional page when a slug exists; otherwise the recruiter talent view. */
+export function applicantProfileHref(item: Pick<ResponseItem, "profile">) {
+  const slug = item.profile.slug?.trim();
+  if (slug) return "/professionals/" + encodeURIComponent(slug);
+  return "/recruiter/talent/" + item.profile.id;
+}
+
 export interface ResponsesPage extends Paginated<ResponseItem> {
   stage: ResponseTab;
   tabCounts: Record<ResponseTab, number>;

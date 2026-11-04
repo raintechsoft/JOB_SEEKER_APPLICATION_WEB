@@ -71,7 +71,7 @@ it("reuses the known recruiter destination without a new session request",()=>{
 it("keeps guest search in the header and does not add a duplicate Search nav destination",()=>{
   mount(<BrowseShell><p>Public content</p></BrowseShell>);
   expect(screen.getByRole("combobox",{name:"Search Skillora"})).toBeInTheDocument();
-  expect(screen.queryByRole("link",{name:"Search",exact:true})).not.toBeInTheDocument();
+  expect(screen.queryByRole("link",{name:/^Search$/})).not.toBeInTheDocument();
 });
 it("selects the last suggestion on the first Up key and opens matching filtered results on Enter",async()=>{
   const services=fixture();services.publicBrowsing.search.mockResolvedValue({items:[{id,kind:"company",title:"Northstar Labs",subtitle:"Software",path:"/organizations/northstar-labs",picture:null},{id:other,kind:"company",title:"Northstar Design",subtitle:"Design",path:"/organizations/northstar-design",picture:null}],nextCursor:null,total:2,scope:"companies"});

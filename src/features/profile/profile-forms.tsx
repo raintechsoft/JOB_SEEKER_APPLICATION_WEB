@@ -232,8 +232,8 @@ export function RecordForm({ collection, record, details, projects }: { collecti
               Feature this skill
             </ToggleRow>
           )}
-          {publicSupported && collection !== "employment" && (
-            <ToggleRow name="public" defaultChecked={record?.public ?? ["employment", "education"].includes(collection)}>
+          {publicSupported && (
+            <ToggleRow name="public" defaultChecked={record?.public ?? collection === "education"}>
               Show this record on my public professional profile
             </ToggleRow>
           )}

@@ -17,15 +17,26 @@ const contact = (db: DemoDatabase, c: Conversation, role: Role): PersonSummary =
 const self = (db: DemoDatabase, role: Role): PersonSummary => (role === "recruiter" ? { id: "r0", name: db.companies[0].recruiter, color: "#E4E9EF" } : personSummary(me(db)));
 
 function conversationView(db: DemoDatabase, c: Conversation, role: Role): ConversationView {
+  const messages = c.messages.map((message, index) => {
+    const own = message.senderId ? message.senderId === mockIdentity(role) : message.sender === role;
+    const sequence = index + 1;
+    return { ...message, own, sequence, status: own ? (message.status ?? "delivered") : null };
+  });
+  const lastOwn = Math.max(0, ...messages.filter((m) => m.own).map((m) => m.sequence ?? 0));
+  const latestPeer = Math.max(0, ...messages.filter((m) => !m.own).map((m) => m.sequence ?? 0));
+  // Demo approximation: a peer reply means they have read our earlier messages.
+  const peerReadSequence = latestPeer
+    ? Math.max(0, ...messages.filter((m) => m.own && (m.sequence ?? 0) < latestPeer).map((m) => m.sequence ?? 0))
+    : 0;
   return {
     id: c.id,
     contact: contact(db, c, role),
     company: c.company,
     self: self(db, role),
-    messages: c.messages.map(message => ({...message, own: message.senderId ? message.senderId === mockIdentity(role) : message.sender === role})),
+    messages,
     canSend: !flag(c, "blockedBy", role) && !blockedInMock(db, role, contact(db, c, role).id),
-    peerDeliveredSequence: 0,
-    peerReadSequence: 0,
+    peerDeliveredSequence: lastOwn,
+    peerReadSequence,
     flags: { starred: flag(c, "starredBy", role), muted: flag(c, "mutedBy", role), blocked: flag(c, "blockedBy", role), archived: flag(c, "archivedBy", role), jobLabel: flag(c, "jobLabelBy", role) },
   };
 }

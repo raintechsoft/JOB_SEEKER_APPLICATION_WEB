@@ -118,8 +118,25 @@ export function seedPosts(): Post[] {
 
 export function seedSampleApplications(): SampleApplication[] {
   return [
+    // Product Designer
     { id: "received-alex", job: "job-design", candidate: "p0", createdAt: hoursAgo(6), sample: true, note: "I would love to bring my product design and research experience to your team.", portfolio: true },
     { id: "received-maya", job: "job-design", candidate: "p3", createdAt: hoursAgo(24), sample: true, note: "Sharing my recent design work and visual systems experience.", portfolio: true },
     { id: "received-theo", job: "job-design", candidate: "p6", createdAt: hoursAgo(48), sample: true, note: "Interested in bringing a research-led perspective to product design.", portfolio: true },
+    { id: "received-sam", job: "job-design", candidate: "p4", createdAt: hoursAgo(10), sample: true, note: "Excited to apply — I’ve shipped design systems and partnered closely with engineering.", portfolio: true },
+    { id: "received-elena", job: "job-design", candidate: "p7", createdAt: hoursAgo(18), sample: true, note: "I focus on growth experiments and clear product storytelling. Happy to walk through recent work.", portfolio: true },
+    { id: "received-sofia", job: "job-design", candidate: "p11", createdAt: hoursAgo(36), sample: true, note: "Content design and UX writing background; interested in shaping clearer product narratives.", portfolio: true },
+    // Frontend Engineer
+    { id: "received-priya", job: "job-northstar-frontend", candidate: "p1", createdAt: hoursAgo(4), sample: true, note: "Frontend engineer with a strong accessibility practice. Would love to contribute to Northstar.", portfolio: true },
+    { id: "received-jordan", job: "job-northstar-frontend", candidate: "p2", createdAt: hoursAgo(14), sample: true, note: "React/TypeScript specialist — shipping polished interfaces is my favorite part of the job.", portfolio: true },
+    { id: "received-leo", job: "job-northstar-frontend", candidate: "p10", createdAt: hoursAgo(28), sample: true, note: "Data-minded frontend work; comfortable owning complex UI states and performance budgets.", portfolio: true },
+    { id: "received-noah-fe", job: "job-northstar-frontend", candidate: "p8", createdAt: hoursAgo(40), sample: true, note: "Backend-leaning full-stack who still loves crafting accessible React interfaces.", portfolio: true },
+    // Product Researcher
+    { id: "received-aisha", job: "job-northstar-research", candidate: "p5", createdAt: hoursAgo(8), sample: true, note: "Product manager with research roots — I turn messy discovery into decisions teams can act on.", portfolio: true },
+    { id: "received-zara", job: "job-northstar-research", candidate: "p9", createdAt: hoursAgo(22), sample: true, note: "Motion designer exploring research; I’ve led usability sessions for animated product flows.", portfolio: true },
+    { id: "received-theo-research", job: "job-northstar-research", candidate: "p6", createdAt: hoursAgo(32), sample: true, note: "UX researcher applying again for the research role — happy to share study plans and synthesis samples.", portfolio: true },
+    // Backend Engineer
+    { id: "received-noah-be", job: "job-northstar-backend", candidate: "p8", createdAt: hoursAgo(9), sample: true, note: "Backend engineer focused on APIs and PostgreSQL. Interested in Northstar’s service layer.", portfolio: true },
+    { id: "received-leo-be", job: "job-northstar-backend", candidate: "p10", createdAt: hoursAgo(20), sample: true, note: "Data scientist with strong API and modeling experience — keen on reliable product backends.", portfolio: true },
+    { id: "received-jordan-be", job: "job-northstar-backend", candidate: "p2", createdAt: hoursAgo(44), sample: true, note: "Analyst background, shipping Node services lately. Eager to deepen backend craft here.", portfolio: true },
   ];
 }

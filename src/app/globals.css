@@ -5,6 +5,7 @@
  */
 @layer theme, base, components, utilities;
 @import "../styles/upload-tray.css";
+@import "../styles/floating-chat-dock.css";
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "../styles/tokens.css";
