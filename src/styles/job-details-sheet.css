@@ -68,21 +68,33 @@ body.professional-theme .following-sheet:has(.job-details-sheet) .modal-body {
   border-radius: 6px;
 }
 
-.job-sheet-company-identity > span,
-.job-sheet-company-identity > a {
+.job-sheet-company-name {
   min-width: 0;
   font-size: 14px;
   font-weight: 650;
   line-height: 1.3;
   color: #202a36;
+}
+
+.job-sheet-company-name > a,
+.job-sheet-company-name > span:not(.org-verified-mark) {
+  min-width: 0;
+  color: inherit;
   text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.job-sheet-company-identity > a:hover {
+.job-sheet-company-name > a:hover {
   text-decoration: underline;
+}
+
+.job-sheet-company-identity .org-verified-mark,
+.job-sheet-about-company-name .org-verified-mark {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 body.professional-theme .job-sheet-menu.activity-post-menu {

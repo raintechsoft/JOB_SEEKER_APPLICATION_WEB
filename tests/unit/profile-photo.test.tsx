@@ -1,4 +1,4 @@
-import {mediaRules} from "@/lib/validation/profile";
+import {mediaRules, mediaSizeLabel} from "@/lib/validation/profile";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PhotoEditor } from "@/components/profile/photo-editor";
@@ -114,7 +114,7 @@ it("enforces the configured recruiter photo limit before decoding or upload", ()
   render(<PhotoEditor person={{ id: "recruiter", name: "Jordan Chen" }} purpose="recruiter_photo" onSave={onSave} onRemove={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "Update" }));
   fireEvent.change(screen.getByLabelText("Choose a profile photo"), { target: { files: [new File([new Uint8Array(mediaRules.recruiter_photo.max+1)], "photo.png", { type: "image/png" })] } });
-  expect(screen.getByRole("alert")).toHaveTextContent(`Choose a file up to ${mediaRules.recruiter_photo.max/1024} KB.`);
+  expect(screen.getByRole("alert")).toHaveTextContent(`Choose a file up to ${mediaSizeLabel(mediaRules.recruiter_photo.max)}.`);
   expect(loadProfilePhoto).not.toHaveBeenCalled(); expect(onSave).not.toHaveBeenCalled();
 });
 it("keeps the circular crop covered at every quarter turn and extreme drag position", () => {
@@ -138,6 +138,21 @@ it("keeps a landscape cover crop covered at extreme drag positions", () => {
     }
   }
 });
+it("saves the profile cover as a 16:9 crop so phones can show the full banner", () => {
+  const frame = PHOTO_FRAMES.profile_cover;
+  expect(frame.width / frame.height).toBeCloseTo(16 / 9);
+  expect(frame.outputWidth / frame.outputHeight).toBeCloseTo(16 / 9);
+  const geometry = photoGeometry(1920, 1080, { rotation: 0, zoom: 1, flipX: false, x: 0, y: 0 }, frame);
+  expect(geometry.scale).toBeGreaterThan(0);
+});
+it("marks the visible profile-cover frame while editing", async () => {
+  render(<PhotoEditor purpose="profile_cover" sources="computer" imageUrl="/cover.png" onSave={vi.fn()} onRemove={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+  expect(await screen.findByRole("group", { name: "Photo crop area" })).toBeVisible();
+  expect(screen.getByText("Visible on large screens")).toBeInTheDocument();
+  expect(screen.getByText("Visible on this phone")).toBeInTheDocument();
+  expect(screen.getByText(/highlighted frame is how this cover looks on this device/)).toBeVisible();
+});
 it("offers computer upload only for organization logo and cover", () => {
   const onSave = vi.fn();
   const { unmount } = render(<PhotoEditor purpose="logo" sources="computer" onSave={onSave} onRemove={vi.fn()} />);
@@ -145,14 +160,14 @@ it("offers computer upload only for organization logo and cover", () => {
   expect(screen.queryByRole("button", { name: "Use camera" })).toBeNull();
   expect(screen.getByRole("button", { name: "Upload from computer" })).toBeVisible();
   fireEvent.change(screen.getByLabelText("Choose an organization logo"), { target: { files: [new File([new Uint8Array(mediaRules.logo.max+1)], "logo.png", { type: "image/png" })] } });
-  expect(screen.getByRole("alert")).toHaveTextContent(`Choose a file up to ${mediaRules.logo.max/1024} KB.`);
+  expect(screen.getByRole("alert")).toHaveTextContent(`Choose a file up to ${mediaSizeLabel(mediaRules.logo.max)}.`);
   expect(loadProfilePhoto).not.toHaveBeenCalled();
   unmount();
   render(<PhotoEditor purpose="cover" sources="computer" onSave={onSave} onRemove={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "Update" }));
   expect(screen.queryByRole("button", { name: "Use camera" })).toBeNull();
   fireEvent.change(screen.getByLabelText("Choose a cover image"), { target: { files: [new File([new Uint8Array(mediaRules.cover.max+1)], "cover.png", { type: "image/png" })] } });
-  expect(screen.getByRole("alert")).toHaveTextContent(`Choose a file up to ${mediaRules.cover.max/1024} KB.`);
+  expect(screen.getByRole("alert")).toHaveTextContent(`Choose a file up to ${mediaSizeLabel(mediaRules.cover.max)}.`);
   expect(onSave).not.toHaveBeenCalled();
 });
 it("lets an initiated save finish after closing without closing a newer dialog",async()=>{

@@ -125,9 +125,18 @@ body.professional-theme .explore-jobs-layout,
   body.professional-theme .explore-jobs-layout,
   .explore-jobs-layout { grid-template-columns: var(--feed-side-width, 250px) minmax(0, 1fr); }
 }
+@media (max-width: 850px) {
+  body.professional-theme .explore-jobs-layout,
+  .explore-jobs-layout {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    max-width: 680px;
+    margin-inline: auto;
+  }
+  .explore-jobs-layout > .feed-profile-column { display: none; }
+  .explore-jobs-main { grid-column: 1; width: 100%; }
+}
 @media (max-width: 680px) {
   body.professional-theme .explore-jobs-layout,
-  .explore-jobs-layout { grid-template-columns: minmax(0, 1fr); max-width: 550px; margin: auto; }
-  .explore-jobs-layout > .feed-profile-column { grid-column: 1; grid-row: 1; }
-  .explore-jobs-main { grid-column: 1; grid-row: 2; }
+  .explore-jobs-layout { max-width: 550px; }
 }

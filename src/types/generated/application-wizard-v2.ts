@@ -144,6 +144,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/resume-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["applicationWizard_get__api_v1_me_resume_library"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/resume-library/{asset}": {
         parameters: {
             query?: never;
@@ -576,6 +592,7 @@ export interface components {
             jobId: string;
             title: string;
             companyName: string;
+            companyVerified?: boolean;
             acceptingApplications: boolean;
             closesAt: string | null;
             requirements: components["schemas"]["ApplicationRequirements"];
@@ -594,6 +611,7 @@ export interface components {
             jobId: string;
             title: string;
             companyName: string;
+            companyVerified?: boolean;
             step: components["schemas"]["ApplicationStep"];
             /** @enum {string} */
             state: "active" | "submitted" | "discarded" | "expired";
@@ -611,6 +629,9 @@ export interface components {
         };
         ResumeLibraryRemoval: {
             deleted: boolean;
+        };
+        ResumeLibrary: {
+            items: components["schemas"]["ApplicationResume"][];
         };
     };
     responses: never;
@@ -1715,6 +1736,109 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ApplicationDocumentContext"];
+                    };
+                };
+            };
+            /** @description Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present */
+            419: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Session, authorization, actor mismatch, validation, state, throttle or delivery error; honor Retry-After when present */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
+    applicationWizard_get__api_v1_me_resume_library: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Owned private draft or application-contact result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ResumeLibrary"];
                     };
                 };
             };

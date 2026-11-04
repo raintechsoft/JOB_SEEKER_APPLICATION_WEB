@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useServiceQuery } from "@/hooks/use-services";
 import { QueryFeedback } from "@/components/ui/query-view";
-import { Badge } from "@/components/ui/primitives";
+import { Badge, EmptyState } from "@/components/ui/primitives";
 import { FloatingSelect } from "@/components/ui/field";
 import type { components } from "@/types/generated/api";
 
@@ -24,19 +24,18 @@ const OFFLINE_SURFACES: Record<string, string> = { jobs: "Jobs for you", feed: "
 /** Admin: live recommendation quality per surface and strategy (A2), from first-party served lists. */
 export function RecommendationQuality() {
   const [days, setDays] = useState(14);
-  const { data, isError, refetch } = useServiceQuery(["admin", "recommendation-quality", days], (s) => s.admin.recommendationQuality!(days));
+  const { data, isError, error, refetch } = useServiceQuery(["admin", "recommendation-quality", days], (s) => s.admin.recommendationQuality!(days));
   return (
     <div className="stack recommendation-quality">
       <div className="recommendation-quality-head">
         <p className="muted">
           Each person–item pair counts once, at its first serving; an action counts when it happens within {data?.windowHours ?? 24} hours. Rates are per
-          item seen on screen (per item served when no views are recorded). Offline accuracy on held-out activity:{" "}
-          <code>php artisan skillora:evaluate-recommendations --store</code>.
+          item seen on screen (per item served when no views are recorded). Offline accuracy on held-out activity appears below once an evaluation has been stored.
         </p>
         <FloatingSelect label="Period" id="quality-days" value={String(days)} onChange={(e) => setDays(Number(e.target.value))}
           options={[{ value: "7", label: "Last 7 days" }, { value: "14", label: "Last 14 days" }, { value: "30", label: "Last 30 days" }]} />
       </div>
-      <QueryFeedback data={data} error={isError} retry={refetch} label="Loading recommendation quality" />
+      <QueryFeedback data={data} error={isError} cause={error} retry={refetch} label="Loading recommendation quality" />
       {data && <QualityTables data={data} />}
     </div>
   );
@@ -48,7 +47,7 @@ function OfflineAccuracy({ rows }: { rows: Quality["offline"] }) {
     <section className="card" style={{ overflow: "auto" }} aria-labelledby="quality-offline">
       <h2 id="quality-offline">Offline accuracy</h2>
       {rows.length === 0 ? (
-        <p className="muted">No offline evaluation stored yet. Run <code>php artisan skillora:evaluate-recommendations --store</code>.</p>
+        <EmptyState compact icon="pulse" title="No offline evaluation yet" description="Offline accuracy appears here after the platform team stores a recommendation evaluation." />
       ) : (
         <table className="table">
           <thead>
@@ -85,7 +84,7 @@ function QualityTables({ data }: { data: Quality }) {
       <section className="card" style={{ overflow: "auto" }} aria-labelledby="quality-surfaces">
         <h2 id="quality-surfaces">Recommendations</h2>
         {data.surfaces.length === 0 ? (
-          <p className="muted">Nothing served in this period yet.</p>
+          <EmptyState compact icon="spark" title="Nothing served in this period" description="Try a longer period to see recommendation quality." />
         ) : (
           <table className="table">
             <thead>
@@ -120,7 +119,7 @@ function QualityTables({ data }: { data: Quality }) {
       <section className="card" style={{ overflow: "auto" }} aria-labelledby="quality-search">
         <h2 id="quality-search">Search</h2>
         {data.search.length === 0 ? (
-          <p className="muted">No searches in this period.</p>
+          <EmptyState compact icon="search" title="No searches in this period" description="Try a longer period to see search quality." />
         ) : (
           <table className="table">
             <thead><tr><th>Where</th><th>Searches</th><th>No results</th></tr></thead>

@@ -5,8 +5,11 @@ import type { SavedJobRecord } from "@/services/applications/applications.servic
 import { apiConfig } from "@/services/api/config";
 import { bulkIdsSchema, savedJobSelectionSchema, SAVED_JOB_SELECTION_LIMIT } from "@/lib/validation/application";
 import { useFormAction } from "@/hooks/use-form-action";
+import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { Button } from "@/components/ui/primitives";
+import { Icon } from "@/components/ui/icon";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { useJobActions } from "@/features/feed/job-dialogs";
 import { useServiceQuery } from "@/hooks/use-services";
 import { postedAgo } from "@/lib/utils/date";
@@ -22,9 +25,12 @@ export function SavedOpportunities({ items, view = "active" }: { items: SavedJob
   const [errors, setErrors] = useState<Record<string,string>>({});
   const { execute, pending } = useFormAction(setErrors);
   const selectAll = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  useDismissableDetails(menuRef, { closeOnAction: true });
   const selectable = items.slice(0,SAVED_JOB_SELECTION_LIMIT);
   const ids = items.filter(item => selected.includes(item.id)).map(item => item.id);
   const all = selectable.length > 0 && selectable.every(item => selected.includes(item.id));
+  const hasSelection = ids.length > 0;
   useEffect(() => { if (selectAll.current) selectAll.current.indeterminate = ids.length > 0 && !all; }, [ids.length, all]);
   const change = async (action: "unsave" | "archive" | "restore") => {
     const parsed = (apiConfig.dataSource === "http" ? bulkIdsSchema : savedJobSelectionSchema).safeParse(ids);
@@ -36,12 +42,28 @@ export function SavedOpportunities({ items, view = "active" }: { items: SavedJob
       toast(action === "archive" ? "Moved to Archived." : action === "restore" ? "Restored to Saved." : ids.length === 1 ? "Removed from saved jobs." : `Removed ${ids.length} saved jobs.`);
     }
   };
+  const archiveLabel = view === "archived" ? "Restore" : "Archive";
+  const archiveIcon = view === "archived" ? "restore" : "archive";
+  const onArchive = () => void change(view === "archived" ? "restore" : "archive");
+  const onDelete = () => modal.show("Delete saved opportunities?", <SavedJobsDeleteDialog ids={ids} onDeleted={() => setSelected([])} />);
   return <div className="saved-opportunities">
     <div className="saved-opportunities-toolbar" aria-label="Saved job actions">
       <span role="status">{ids.length} selected</span>
-      <Button variant="text sm" icon="bookmark" disabled={!ids.length || pending} onClick={() => change("unsave")}>Unsave</Button>
-      <Button variant="text sm" icon={view === "archived" ? "restore" : "archive"} disabled={!ids.length || pending} onClick={() => change(view === "archived" ? "restore" : "archive")}>{view === "archived" ? "Restore" : "Archive"}</Button>
-      <Button variant="text sm" icon="trash" disabled={!ids.length || pending} onClick={() => modal.show("Delete saved opportunities?", <SavedJobsDeleteDialog ids={ids} onDeleted={() => setSelected([])} />)}>Delete</Button>
+      <div className="jobs-bulk-actions-desktop">
+        <Button variant="text sm" icon="bookmark" disabled={!hasSelection || pending} onClick={() => void change("unsave")}>Unsave</Button>
+        <Button variant="text sm" icon={archiveIcon} disabled={!hasSelection || pending} onClick={onArchive}>{archiveLabel}</Button>
+        <Button variant="text sm" icon="trash" disabled={!hasSelection || pending} onClick={onDelete}>Delete</Button>
+      </div>
+      <details className="jobs-bulk-menu saved-opportunities-bulk-menu" ref={menuRef}>
+        <summary aria-label="More saved job actions">
+          <Icon name="more" />
+        </summary>
+        <div role="menu" aria-label="Saved job actions">
+          <Button variant="text sm" icon="bookmark" role="menuitem" disabled={!hasSelection || pending} onClick={() => void change("unsave")}>Unsave</Button>
+          <Button variant="text sm" icon={archiveIcon} role="menuitem" disabled={!hasSelection || pending} onClick={onArchive}>{archiveLabel}</Button>
+          <Button variant="text sm" icon="trash" role="menuitem" disabled={!hasSelection || pending} onClick={onDelete}>Delete</Button>
+        </div>
+      </details>
     </div>
     {errors._form && <p className="saved-opportunities-error" role="alert">{errors._form}</p>}
     {items.length > SAVED_JOB_SELECTION_LIMIT && <p className="saved-opportunities-limit">Select up to {SAVED_JOB_SELECTION_LIMIT} jobs at a time.</p>}
@@ -63,7 +85,7 @@ export function SavedOpportunities({ items, view = "active" }: { items: SavedJob
             <CompanyAvatar company={{id:item.companyId,name:item.companyName,logoUrl:item.companyLogo,confidential:item.confidential}} />
             <div className="saved-opportunity-copy">
               <button className="saved-opportunity-title" type="button" onClick={() => jobs.view(item.id,"applications")}>{item.title}</button>
-              <p>{item.companyName}{item.location && ` · ${item.location}`}{item.arrangement && ` (${item.arrangement})`}</p>
+              <p className="application-company-line"><span>{item.companyName}</span><VerifiedCompanyMark company={{ verified: item.companyVerified, name: item.companyName, confidential: item.confidential }} />{item.location && <span>{` · ${item.location}`}</span>}{item.arrangement && <span>{` (${item.arrangement})`}</span>}</p>
               {age && <time dateTime={item.postedAt!}>{age === "Just posted" ? age : `Posted ${age}`}</time>}
             </div>
           </div></td>

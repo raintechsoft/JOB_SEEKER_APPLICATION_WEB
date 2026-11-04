@@ -3,7 +3,7 @@ import { dateAgo } from "@/lib/utils/date";
 
 export function seedCompanies(): Company[] {
   return [
-    { id: "c0", name: "Northstar Labs", industry: "Product & technology", website: "https://example.com", summary: "Building thoughtful digital products for a better everyday.", recruiter: "Emma Wilson", email: "emma@northstar.example", title: "Talent Partner", interests: "Design, Engineering, Product", status: "Not verified" },
+    { id: "c0", name: "Northstar Labs", industry: "Product & technology", website: "https://northstar.example", summary: "Building thoughtful digital products for a better everyday.", recruiter: "Emma Wilson", email: "emma@northstar.example", title: "Talent Partner", interests: "Design, Engineering, Product, Research", status: "Demo verified" },
     { id: "c1", name: "Meridian", status: "Pending review", recruiter: "Daniel Brooks" },
     { id: "c2", name: "Forma Studio", status: "Not verified", recruiter: "Riya Patel" },
   ];

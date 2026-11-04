@@ -51,7 +51,10 @@ export function createHttpOrganizationService(http: HttpClient, auth: AuthServic
     async cancelInvitation(id) { await http.post(`organizations/${await organizationId()}/invitations/${encodeURIComponent(id)}/cancel`); return true; },
     async remindInvitation(id) { await http.post(`organizations/${await organizationId()}/invitations/${encodeURIComponent(id)}/remind`); return true; },
     async acceptInvitation() { throw new Error("Accept the secure invitation link delivered to the invited email account."); },
-    async getPublicOrganization(slug) { return (await http.get<{ data: PublicOrganizationView }>(`public/organizations/${encodeURIComponent(slug)}`)).data; },
+    async getPublicOrganization(slug) {
+      const data = (await http.get<{ data: PublicOrganizationView }>(`public/organizations/${encodeURIComponent(slug)}`)).data;
+      return { ...data, viewer: data.viewer ?? { own: false, following: false } };
+    },
     async getPublicRecruiter(id) { return (await http.get<{ data: PublicRecruiterView }>(`public/recruiters/${encodeURIComponent(id)}`)).data; },
     async listInvitations() { return (await getContext()).workspace.invitations; },
   };

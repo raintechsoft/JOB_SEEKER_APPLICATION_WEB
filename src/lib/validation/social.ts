@@ -1,7 +1,13 @@
 import { z } from "zod";
 import contract from "../../../contracts/validation/social.json";
+import jobRules from "../../../contracts/validation/job.json";
 import { safeVideoUrl } from "@/lib/utils/url";
-import { validateMedia, getMediaPolicy } from "./profile";
+import {
+  validateMedia,
+  validatePostMediaContent,
+  getMediaPolicy,
+  withResolvedMediaMime,
+} from "./profile";
 import { linkPreviewContract, previewUrlInBody } from "./link-preview";
 
 const text = (max: number) =>
@@ -9,6 +15,62 @@ const text = (max: number) =>
     .string()
     .trim()
     .refine((v) => [...v].length <= max, `Use at most ${max} characters.`);
+
+const quickJobBaseSchema = z.object({
+  enabled: z.boolean(),
+  title: text(jobRules.text.title),
+  locations: z
+    .array(text(jobRules.itemLength).min(1, "Remove empty locations."))
+    .max(jobRules.lists.locations)
+    .refine(
+      (items) => new Set(items.map((x) => x.toLowerCase())).size === items.length,
+      "Use distinct locations.",
+    ),
+  employment: z
+    .string()
+    .refine(
+      (v) => v === "" || (jobRules.employment as string[]).includes(v),
+      "Choose an employment type.",
+    ),
+  arrangement: z
+    .string()
+    .refine(
+      (v) => v === "" || (jobRules.arrangements as string[]).includes(v),
+      "Choose a work arrangement.",
+    ),
+});
+export const quickJobDraftSchema = quickJobBaseSchema;
+export const quickJobPublishSchema = quickJobBaseSchema.superRefine((v, ctx) => {
+  if (!v.enabled) return;
+  if (!v.title.trim())
+    ctx.addIssue({ code: "custom", path: ["title"], message: "Add a job title." });
+  if (!v.locations.length)
+    ctx.addIssue({
+      code: "custom",
+      path: ["locations"],
+      message: "Add at least one location.",
+    });
+  if (!v.employment)
+    ctx.addIssue({
+      code: "custom",
+      path: ["employment"],
+      message: "Choose an employment type.",
+    });
+  if (!v.arrangement)
+    ctx.addIssue({
+      code: "custom",
+      path: ["arrangement"],
+      message: "Choose a work arrangement.",
+    });
+});
+export const emptyQuickJob = (): z.infer<typeof quickJobBaseSchema> => ({
+  enabled: false,
+  title: "",
+  locations: [],
+  employment: "",
+  arrangement: "",
+});
+
 export const postTextSchema = z.object({
   title: text(contract.titleMax),
   body: text(contract.bodyMax),
@@ -25,11 +87,12 @@ export const directVideoSchema = text(2048).refine(
 const managedDownload = (src: string) =>
   /^https?:\/\/[^?#]+\/api\/v1\/media\/[0-9a-f-]{36}\/download$/i.test(src);
 export function postMediaKind(file: File): "image" | "video" | "document" {
-  if (file.type.startsWith("image/")) return "image";
+  const resolved = withResolvedMediaMime(file, "post_image") ?? file;
+  if (resolved.type.startsWith("image/")) return "image";
   if (
-    file.type.startsWith("video/") ||
-    file.type === "application/mp4" ||
-    file.type === "application/webm"
+    resolved.type.startsWith("video/") ||
+    resolved.type === "application/mp4" ||
+    resolved.type === "application/webm"
   )
     return "video";
   return "document";
@@ -101,6 +164,8 @@ export const postDraftValuesSchema = z
       .optional(),
     step: z.number().int().min(0).max(2),
     reached: z.number().int().min(0).max(2),
+    commentsEnabled: z.boolean().default(true),
+    quickJob: quickJobDraftSchema.optional(),
   })
   .superRefine((v, ctx) => {
     if (v.step > v.reached)
@@ -137,6 +202,8 @@ const publicationSchema = (attachment: ReturnType<typeof mediaSchema>) =>
           "The selection exceeds the configured upload limit.",
         ),
       previewUrl: text(linkPreviewContract.urlMax).optional(),
+      commentsEnabled: z.boolean().default(true),
+      quickJob: quickJobPublishSchema.optional(),
     })
     .superRefine((v, ctx) => {
       if (v.previewUrl && !previewUrlInBody(v.previewUrl, v.body))
@@ -161,6 +228,18 @@ const publicationSchema = (attachment: ReturnType<typeof mediaSchema>) =>
           path: ["attachments"],
           message: "Choose distinct files within the configured upload budget.",
         });
+      if (v.quickJob?.enabled) {
+        const checked = quickJobPublishSchema.safeParse(v.quickJob);
+        if (!checked.success) {
+          for (const issue of checked.error.issues) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["quickJob", ...issue.path],
+              message: issue.message,
+            });
+          }
+        }
+      }
     });
 export const postPublishSchema = publicationSchema(media);
 /** Editor-only validation; registered local files are resolved before strict transport validation. */
@@ -171,6 +250,7 @@ export const socialFeedSchema = z.object({
   sort: z.enum(["recent", "popular", "recommended"]),
   q: text(200),
   limit: z.number().int().min(1).max(1000),
+  cursor: z.string().trim().min(1).max(4096).optional(),
 });
 export const shareSearchSchema = text(contract.searchMax);
 export const feedSearchSchema = text(200);
@@ -212,10 +292,10 @@ export function parseShareFollowers(
     };
   return { success: true, data: parsed.data.selectedIds };
 }
-export function validatePostFiles(
+export async function validatePostFiles(
   files: File[],
   existing: { type: string; bytes?: number }[],
-): string | null {
+): Promise<string | null> {
   if (files.length + existing.length > getMediaPolicy().postMaxItems)
     return "The selection exceeds the configured upload limit.";
   if (
@@ -227,6 +307,8 @@ export function validatePostFiles(
   for (const file of files) {
     const error = validateMedia(file, "post_image");
     if (error) return error;
+    const content = await validatePostMediaContent(file);
+    if (content) return content;
   }
   return null;
 }

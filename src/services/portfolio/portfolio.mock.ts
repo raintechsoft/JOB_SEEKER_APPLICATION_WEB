@@ -1,5 +1,6 @@
 import type { DemoDatabase, Id } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
+import { personFollowerCount } from "@/mocks/store/presenters";
 import { findProfessional, ME_ID, updatesFor } from "@/mocks/store/selectors";
 import { publicProjects, toPublicProfessional } from "@/services/talent/public-profile";
 import type { PortfolioService, PortfolioView } from "./portfolio.service";
@@ -9,7 +10,7 @@ function view(db: DemoDatabase, id: Id): PortfolioView | null {
   const config = db.portfolios[id];
   if (!p || !config) return null;
   return {
-    person: toPublicProfessional(p),
+    person: toPublicProfessional(p, personFollowerCount(db, p.id)),
     config,
     projects: publicProjects(db, id).filter((x) => x.featured),
     updates: updatesFor(db, id)

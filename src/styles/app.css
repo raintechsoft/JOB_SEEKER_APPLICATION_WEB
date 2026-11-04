@@ -130,3 +130,107 @@ body.professional-theme .feed-pulse .heat-month { font-size: 11px; }
 .heat-grid > .heat-cell.heat-pad { visibility: hidden; }
 .heat-body > .weekdays { display: grid; grid-template-rows: repeat(7, 1fr); align-items: center; }
 .heat-body > .weekdays > span { line-height: 1; white-space: nowrap; }
+
+/* Year list beside the Work Pulse heatmap (GitHub-style). */
+.pulse-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  min-width: 0;
+}
+.pulse-main {
+  flex: 1;
+  min-width: 0;
+}
+.pulse-years {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-top: 18px;
+}
+.pulse-year {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #8a93a3;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pulse-year:hover {
+  color: #202A36;
+}
+.pulse-year.is-active,
+.pulse-year[aria-current="true"] {
+  background: #315EF4;
+  color: #fff;
+}
+.pulse-year:focus-visible {
+  outline: 2px solid #315EF4;
+  outline-offset: 2px;
+}
+@media (max-width: 680px) {
+  .pulse-layout {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .pulse-years {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-top: 0;
+  }
+}
+
+/* Title + single action stay on one row on phones (e.g. Shortlist). */
+@media (max-width: 550px) {
+  .page-heading.is-inline {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+  }
+  .page-heading.is-inline > div:first-child {
+    min-width: 0;
+  }
+  .page-heading.is-inline h1 {
+    font-size: 22px;
+    letter-spacing: -.6px;
+  }
+  .page-heading.is-inline > .row {
+    width: auto;
+    flex-shrink: 0;
+    justify-content: flex-end;
+  }
+  .page-heading.is-inline .btn {
+    font-size: 11px;
+    min-height: 34px;
+    padding: 8px 12px;
+  }
+}
+
+/* Job Tracker has two header actions — stack title, then buttons, so they never collide. */
+@media (max-width: 680px) {
+  .applications-workspace .page-heading.is-inline {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .applications-workspace .page-heading.is-inline > div:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .applications-workspace .page-heading.is-inline h1 {
+    white-space: normal;
+  }
+  .applications-workspace .page-heading.is-inline > .row {
+    width: 100%;
+    flex-shrink: 1;
+    justify-content: flex-start;
+  }
+}

@@ -47,11 +47,32 @@ function fixture(questions=false) {
 }
 function mount(f:ReturnType<typeof fixture>,page=false) {
   const client=new QueryClient({defaultOptions:{queries:{retry:false,placeholderData:keepPreviousData}}});
-  return render(<QueryClientProvider client={client}><ServicesContext.Provider value={f.services}>{page?<ApplicationWizardScreen jobId={jobId}/>:<ApplicationEditor initial={f.initial} returnTo="/app/search?q=frontend"/>}</ServicesContext.Provider></QueryClientProvider>);
+  client.setQueryData(["auth","session"],f.session);
+  return {...render(<QueryClientProvider client={client}><ServicesContext.Provider value={f.services}>{page?<ApplicationWizardScreen jobId={jobId}/>:<ApplicationEditor initial={f.initial} returnTo="/app/search?q=frontend"/>}</ServicesContext.Provider></QueryClientProvider>),client};
 }
 beforeEach(()=>{vi.stubEnv("NEXT_PUBLIC_APPLICATION_WIZARD_ENABLED","true");apiConfig.dataSource="http";window.history.replaceState(null,"",`/app/jobs/${jobId}/apply`);navigation.params=new URLSearchParams();navigation.push.mockReset();navigation.replace.mockReset();});
 afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllEnvs();apiConfig.dataSource=oldSource;useModalStore.setState({open:false});});
 const next=()=>fireEvent.click(screen.getByRole("button",{name:"Next"}));
+
+it("retains typed input when another tab changes the saved draft and resumes only after an explicit reload",async()=>{
+  const f=fixture(),view=mount(f);await waitFor(()=>expect(f.api.context).toHaveBeenCalled());
+  const name=screen.getByRole("textbox",{name:/Name/});fireEvent.change(name,{target:{value:"My unsaved name"}});
+  f.state.draft.version++;f.state.context.draft=f.state.draft;f.state.draft.values.contact.name="Remote saved name";
+  await act(()=>view.client.invalidateQueries({queryKey:["application-live"]}));
+  await screen.findByText(/Your saved draft or the job requirements changed/);
+  expect(name).toHaveValue("My unsaved name");expect(f.api.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button",{name:/Reload saved draft/}));
+  await waitFor(()=>expect(screen.getByRole("textbox",{name:/Name/})).toHaveValue("Remote saved name"));expect(screen.queryByText(/Your saved draft or the job requirements changed/)).toBeNull();
+});
+
+it("clears review approval and prevents submission when the job closes remotely",async()=>{
+  const f=fixture();f.initial.draft.step="review";f.initial.draft.reachedStep="review";const view=mount(f);
+  fireEvent.click(await screen.findByRole("checkbox",{name:/reviewed and verified/}));expect(screen.getByRole("button",{name:"Submit application"})).toBeEnabled();
+  f.state.context.acceptingApplications=false;
+  await act(()=>view.client.invalidateQueries({queryKey:["application-live"]}));
+  await screen.findByText("This job is no longer accepting applications. Your input is retained.");
+  expect(screen.getByRole("button",{name:"Submit application"})).toBeDisabled();expect(f.api.submit).not.toHaveBeenCalled();
+});
 
 it("loads the exact server review and requires acknowledgement before one final submission",async()=>{
   const f=fixture();f.initial.draft.step="review";f.initial.draft.reachedStep="review";mount(f);

@@ -1,2 +1,5 @@
-import { RealWorkspace } from "@/features/auth/real-workspace";
-export default function Page() { return <RealWorkspace role="professional"/>; }
+import { redirect } from "next/navigation";
+
+export default function Page() {
+  redirect("/app/dashboard");
+}

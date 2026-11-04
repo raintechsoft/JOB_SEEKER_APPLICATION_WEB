@@ -3,11 +3,14 @@ import type { HttpClient } from "../api/client";
 import { ApiError, fieldErrors, errorMessage } from "../api/client";
 import {
   validateMedia,
+  validatePostMediaContent,
+  withResolvedMediaMime,
   setMediaPolicy,
   type MediaPurpose,
   type MediaPolicy,
 } from "@/lib/validation/profile";
 import { uploadManager, uploadBytes, wait } from "./upload-manager";
+import { createSignalHub, processingWaiter, type SignalHub } from "../realtime/signal-hub";
 import type { components } from "@/types/generated/api";
 export type UploadedAsset = components["schemas"]["ManagedAsset"];
 type Status = {
@@ -83,6 +86,7 @@ const hex = (bytes: Uint8Array) =>
 export function createMediaService(
   http: HttpClient,
   getUser?: () => Promise<{ user: { id: string } }>,
+  hub: SignalHub = createSignalHub(),
 ): MediaService {
   let policyRequest: Promise<MediaPolicy> | undefined;
   const policy = () =>
@@ -101,8 +105,13 @@ export function createMediaService(
   return {
     policy,
     upload(file, purpose, organization, options = {}) {
-      const issue = validateMedia(file, purpose, Number.MAX_SAFE_INTEGER);
-      if (issue) return Promise.reject(new Error(issue));
+      const resolved = withResolvedMediaMime(file, purpose);
+      const issue = validateMedia(
+        resolved ?? file,
+        purpose,
+        Number.MAX_SAFE_INTEGER,
+      );
+      if (issue || !resolved) return Promise.reject(new Error(issue ?? "Choose a supported file type."));
       if (organization) z.uuid().parse(organization);
       const scope = purpose + ":" + (organization ?? "");
       const previous = sameFiles.get(file)?.get(scope);
@@ -111,13 +120,17 @@ export function createMediaService(
         initiationKey = crypto.randomUUID(),
         manifestKey: string | undefined;
       const promise = uploadManager.add(
-        file,
+        resolved,
         async (signal, progress) => {
           signal.throwIfAborted();
           const p = await policy();
           signal.throwIfAborted();
-          const invalid = validateMedia(file, purpose);
+          const invalid = validateMedia(resolved, purpose);
           if (invalid) throw new Error(invalid);
+          if (purpose === "post_image") {
+            const content = await validatePostMediaContent(resolved);
+            if (content) throw new Error(content);
+          }
           const session = getUser
             ? await getUser()
             : (await http.get<{ data: { user: { id: string } } }>("auth/me"))
@@ -382,6 +395,10 @@ export function createMediaService(
             }
             signal.throwIfAborted();
             progress(95, true);
+            const waiter=processingWaiter<Status>({hub,type:"media.changed",id:assetId!,field:"assetId",signal,
+              read:async()=>(await retry(()=>http.get<{data:Status}>(`media/${assetId}`,undefined,{signal}))).data,
+              terminal:row=>!!row.asset||!!row.failureCode||["rejected","cancelled","deleting"].includes(row.state)||Date.parse(row.expiresAt)<=Date.now()});
+            try {
             const completed = (
               await retry(() =>
                 http.post<{ data: UploadedAsset | Status }>(
@@ -389,30 +406,19 @@ export function createMediaService(
                 ),
               )
             ).data;
+              signal.throwIfAborted();
             if ("url" in completed) {
               if (manifestKey) forget(manifestKey);
               return completed;
             }
-            for (;;) {
-              signal.throwIfAborted();
-              current = (
-                await retry(() =>
-                  http.get<{ data: Status }>(`media/${assetId}`),
-                )
-              ).data;
-              if (current.asset) {
+              waiter.start();
+              const verified=await waiter.result;
+              if (verified.asset) {
                 if (manifestKey) forget(manifestKey);
-                return current.asset;
+                return verified.asset;
               }
-              if (
-                ["rejected", "cancelled", "deleting"].includes(current.state) ||
-                current.failureCode
-              )
-                throw new Error(
-                  "The file could not be verified. Retry or choose another file.",
-                );
-              await wait(2000, signal);
-            }
+              throw new Error("The file could not be verified or expired. Retry or choose another file.");
+            } finally { waiter.dispose(); }
           } catch (e) {
             if (signal.aborted && assetId) {
               void http.post(`media/${assetId}/abort`).catch(() => undefined);

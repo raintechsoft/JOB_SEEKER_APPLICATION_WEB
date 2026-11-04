@@ -3,12 +3,10 @@
 import { InfoBadge } from "@/components/ui/info-badge";
 
 import { QueryFeedback } from "@/components/ui/query-view";
-import { Skeleton } from "@/components/ui/skeleton";
-import { apiConfig } from "@/services/api/config";
+import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import type { ComparisonPerson } from "@/services/talent/talent.service";
 import { formatShortDate } from "@/lib/utils/date";
 import { devCopy } from "@/lib/env/app-env";
@@ -17,9 +15,49 @@ import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState, LinkButton, PageHeading, Tags } from "@/components/ui/primitives";
+import { ScrollableTabs } from "@/components/ui/scrollable-tabs";
+import { SuggestionCardGrid } from "@/components/suggestions/suggestion-card";
 import { TalentCard } from "@/components/talent/talent-card";
 import { useProjectDialogs } from "@/features/work/dialogs";
+import { COMPARE_CANDIDATES_ENABLED, RECRUITER_INVITES_ENABLED } from "@/lib/feature-flags";
 import { useCompareToggle, useContactCandidate, useShortlistDialogs } from "./dialogs";
+
+/** Matches Shortlists: tab row, list actions, then suggestion cards. */
+function ShortlistsSkeleton() {
+  return (
+    <LoadingRegion label="Loading shortlists">
+      <div className="scrollable-tabs" style={{ marginBottom: 18 }}>
+        <div className="scrollable-tabs-list" style={{ gap: 8, paddingBottom: 12 }}>
+          {[132, 156, 148, 140].map((width, i) => (
+            <Skeleton key={i} style={{ width, height: 18, borderRadius: 6, flex: "0 0 auto" }} />
+          ))}
+        </div>
+      </div>
+      <div className="row between wrap" style={{ marginBottom: 20 }}>
+        <Skeleton style={{ width: 180, height: 14, borderRadius: 6 }} />
+        <div className="row" style={{ gap: 10 }}>
+          <Skeleton style={{ width: 64, height: 14, borderRadius: 6 }} />
+          <Skeleton style={{ width: 56, height: 14, borderRadius: 6 }} />
+        </div>
+      </div>
+      <SuggestionCardGrid>
+        {Array.from({ length: 8 }, (_, i) => (
+          <div className="suggestion-card is-skeleton" key={i}>
+            <span className="suggestion-card-main">
+              <Skeleton className="suggestion-card-cover" />
+              <span className="suggestion-card-photo">
+                <Skeleton className="suggestion-skeleton-photo" />
+              </span>
+              <Skeleton className="suggestion-skeleton-line is-name" />
+              <Skeleton className="suggestion-skeleton-line" />
+            </span>
+            <Skeleton className="suggestion-skeleton-action" />
+          </div>
+        ))}
+      </SuggestionCardGrid>
+    </LoadingRegion>
+  );
+}
 
 export function StatCard({ label, value, description, icon, loading = false }: { label: string; value: ReactNode; description: string; icon: IconName; loading?: boolean }) {
   return (
@@ -36,165 +74,48 @@ export function StatCard({ label, value, description, icon, loading = false }: {
   );
 }
 
-export function OverviewScreen() {
-  const router = useRouter();
-  const setMessaging = useUiStore((s) => s.setMessaging);
-  const directory = useServiceQuery(["talent", "public-people"], s => s.talent.listPublicPeople());
-  const shortlists = useServiceQuery(["shortlists"], s => s.talent.listShortlists());
-  const suggestions = useServiceQuery(["recommendations", "talent"], s => s.talent.getRecommendedTalent());
-  // Talent pools (E8.f1): topics shared with the organization's open jobs; a chip narrows the suggestions to one.
-  const [pool, setPool] = useState<number | null>(null);
-  const pools = [...new Map((suggestions.data ?? []).filter(p => p.pool).map(p => [p.pool!.topic, p.pool!.name])).entries()];
-  const shown = (suggestions.data ?? []).filter(p => pool === null || p.pool?.topic === pool);
-  const messages = useServiceQuery(["talent", "overview", "inbox"], s => s.messaging.getInbox("recruiter", { q: "", filter: "all", selectedId: null }));
-  const savedCount = shortlists.data ? apiConfig.dataSource === "mock" ? shortlists.data.reduce((sum, list) => sum + list.candidates.length, 0) : new Set(shortlists.data.flatMap(list => list.candidates)).size : undefined;
-  const value = (count: number | undefined, failed: boolean) => count ?? (failed ? "—" : <Skeleton style={{ width: 64, height: 36 }} />);
-  const conversations = messages.data?.threads.slice(0, 6).map(t => ({ id: t.id, person: t.contact, lastMessage: t.lastMessage?.text ?? "" }));
-  return (
-    <>
-      <PageHeading
-        title="Good people. Great possibilities."
-        subtitle=""
-        actions={
-          <LinkButton href="/recruiter/discover" variant="primary" icon="search">
-            Discover talent
-          </LinkButton>
-        }
-      />
-          <div className="stats">
-            <StatCard label="Talent to explore" loading={!directory.data && !directory.isError} value={value(directory.data?.length, directory.isError)} description={devCopy("Fictional demo professionals", "Professionals in the directory")} icon="users" />
-            <StatCard label="Saved candidates" loading={!shortlists.data && !shortlists.isError} value={value(savedCount, shortlists.isError)} description="Across your shortlists" icon="bookmark" />
-            <StatCard label="Your shortlists" loading={!shortlists.data && !shortlists.isError} value={value(shortlists.data?.length, shortlists.isError)} description="Curated for your team" icon="folder" />
-            <StatCard label="Conversations" loading={!messages.data && !messages.isError} value={value(messages.data?.threads.length, messages.isError)} description={devCopy("Local demo messages", "Active conversations")} icon="message" />
-          </div>
-          {directory.isError && <p role="alert">The directory count could not be loaded. <Button onClick={() => directory.refetch()}>Retry count</Button></p>}
-          <div className="card" style={{ background: "#eeecfa", marginBottom: 27 }}>
-            <div className="row between wrap">
-              <div>
-                <span className="eyebrow">A DIFFERENT WAY TO DISCOVER</span>
-                <h2 style={{ margin: "10px 0" }}>The right skills. The work to show it.</h2>
-                <p className="small muted">Explore a candidate’s projects, process, and recorded professional activity.</p>
-              </div>
-              <LinkButton href="/recruiter/discover" icon="arrow">
-                Start a search
-              </LinkButton>
-            </div>
-          </div>
-          <div className="section-head">
-            <div>
-              <h2 style={{ fontSize: 18 }}>People to get to know</h2>
-              <p className="small muted" style={{ marginTop: 6 }}>
-                {devCopy("A selection from our demo directory, ordered by recent recorded activity.", "Suggestions based on skills in your accessible open jobs, with recently updated profiles as a fallback.")}
-              </p>
-            </div>
-            <LinkButton href="/recruiter/discover" variant="text" icon="arrow">
-              View all talent
-            </LinkButton>
-          </div>
-          {pools.length > 0 && (
-            <div className="row wrap talent-pools" aria-label="Talent pools from your open jobs">
-              <button type="button" className={"tag" + (pool === null ? " purple" : "")} aria-pressed={pool === null} onClick={() => setPool(null)}>All suggestions</button>
-              {pools.map(([topic, name]) => (
-                <button type="button" key={topic} className={"tag" + (pool === topic ? " purple" : "")} aria-pressed={pool === topic} onClick={() => setPool(pool === topic ? null : topic)}>{name} pool</button>
-              ))}
-            </div>
-          )}
-          <div className="grid cols3">
-            <QueryFeedback data={suggestions.data} error={suggestions.isError} retry={suggestions.refetch} layout="cards" label="Loading suggested professionals" />
-            {suggestions.data?.length === 0 && <p>No suggestions yet. Explore the talent directory to find people.</p>}
-            {shown.map((p) => (
-              <TalentCard key={p.id} person={p} />
-            ))}
-          </div>
-          <div className="grid cols2" style={{ marginTop: 24 }}>
-            <section className="card">
-              <div className="card-head">
-                <h2>Your shortlists</h2>
-                <LinkButton href="/recruiter/shortlists" variant="text sm" icon="arrow">
-                  Manage
-                </LinkButton>
-              </div>
-              <QueryFeedback data={shortlists.data} error={shortlists.isError} retry={shortlists.refetch} label="Loading shortlists" />
-              {shortlists.data?.length === 0 && <p>Create a shortlist to keep candidates together.</p>}
-              {shortlists.data?.map((s) => (
-                <Link key={s.id} href="/recruiter/shortlists" className="settings-row">
-                  <span className="row">
-                    <Icon name="folder" />
-                    <strong style={{ fontSize: 12 }}>{s.name}</strong>
-                  </span>
-                  <span className="tag">{s.candidates.length} candidates</span>
-                </Link>
-              ))}
-            </section>
-            <section className="card">
-              <div className="card-head">
-                <h2>Recent conversations</h2>
-                <LinkButton href="/recruiter/messages" variant="text sm" icon="arrow">
-                  Open messages
-                </LinkButton>
-              </div>
-              <QueryFeedback data={messages.data} error={messages.isError} retry={messages.refetch} label="Loading recent conversations" />
-              {conversations?.length === 0 && <p>Your recent conversations will appear here.</p>}
-              {conversations?.map((c) => (
-                <button
-                  type="button"
-                  key={c.id}
-                  style={{ width: "100%", textAlign: "left" }}
-                  className="settings-row"
-                  onClick={() => {
-                    setMessaging({ conversation: c.id });
-                    router.push("/recruiter/messages");
-                  }}
-                >
-                  <Avatar person={c.person} />
-                  <div className="grow">
-                    <h3>{c.person.name}</h3>
-                    <p>{c.lastMessage.slice(0, 60)}…</p>
-                  </div>
-                  <Icon name="chevron" />
-                </button>
-              ))}
-            </section>
-          </div>
-    </>
-  );
-}
-
 export function ShortlistsScreen() {
   const run = useServiceAction();
   const dialogs = useShortlistDialogs();
   const tab = useUiStore((s) => s.shortlistTab);
-  const compared = useUiStore((s) => s.compared);
   const setUi = useUiStore((s) => s.setUi);
-  const toggleCompare = useCompareToggle();
-  const { data: lists, isError: listError, refetch: retryLists } = useServiceQuery(["shortlists"], (s) => s.talent.listShortlists());
+  const { data: lists, isError: listError, error: listCause, refetch: retryLists } = useServiceQuery(["shortlists"], (s) => s.talent.listShortlists());
   const s = lists?.find((x) => x.id === tab) ?? lists?.[0];
   return (
     <>
       <PageHeading
-        title="Good people, kept in mind."
-        subtitle="Keep the talent you’d like to get to know a little better."
+        title="Shortlist"
+        subtitle=""
         actions={
           <>
             <Button variant="primary" icon="plus" onClick={() => dialogs.edit()}>
               New shortlist
             </Button>
-            <LinkButton href="/recruiter/compare" icon="compare">
-              Compare candidates
-            </LinkButton>
+            {COMPARE_CANDIDATES_ENABLED ? (
+              <LinkButton href="/recruiter/compare" icon="compare">
+                Compare candidates
+              </LinkButton>
+            ) : null}
           </>
         }
       />
-      <QueryFeedback data={lists} error={listError} retry={retryLists} layout="cards" label="Loading shortlists" />
+      {lists === undefined && (listError ? <QueryFeedback data={lists} error={listError} cause={listCause} retry={retryLists} layout="cards" label="Loading shortlists" /> : <ShortlistsSkeleton />)}
       {lists && (
         <>
-          <div className="tabs">
-            {lists.map((x) => (
-              <button type="button" key={x.id} onClick={() => setUi({ shortlistTab: x.id })} className={x.id === s?.id ? "active" : ""}>
-                {x.name} <span className="tag">{x.candidates.length}</span>
-              </button>
-            ))}
-          </div>
+          <ScrollableTabs
+            label="Shortlists"
+            value={s?.id ?? lists[0]?.id ?? ""}
+            onChange={(id) => setUi({ shortlistTab: id })}
+            tabs={lists.map((x) => ({
+              id: x.id,
+              label: (
+                <>
+                  {x.name}
+                  <span className="scrollable-tab-count">{x.candidates.length}</span>
+                </>
+              ),
+            }))}
+          />
           {s ? (
             <>
               <div className="row between wrap" style={{ marginBottom: 20 }}>
@@ -205,52 +126,57 @@ export function ShortlistsScreen() {
                   <Button variant="text sm" icon="edit" disabled={s.canEdit===false} onClick={() => dialogs.edit(s.id, s.name,s.version)}>
                     Rename
                   </Button>
-                  {s.version&&<Button variant="text sm" icon="users" disabled={s.canEdit===false} onClick={()=>dialogs.share(s)}>Sharing</Button>}
+                  {RECRUITER_INVITES_ENABLED && s.version ? (
+                    <Button variant="text sm" icon="users" disabled={s.canEdit === false} onClick={() => dialogs.share(s)}>
+                      Sharing
+                    </Button>
+                  ) : null}
                   <Button variant="text sm" icon="trash" disabled={s.canEdit===false} onClick={() => dialogs.remove(s.id)}>
                     Delete list
                   </Button>
                 </div>
               </div>
-              <div className="grid cols3 talent-grid">
-                {s.people.length ? (
-                  s.people.map((p) => (
-                    <div key={p.id}>
-                      <TalentCard person={p} />
-                      <div className="row between" style={{ padding: "12px 4px" }}>
-                        <label className="check-row small">
-                          <input type="checkbox" checked={compared.includes(p.id)} onChange={() => toggleCompare(p.id)} />
-                          Compare
-                        </label>
+              {s.people.length ? (
+                <SuggestionCardGrid>
+                  {s.people.map((p) => (
+                    <TalentCard
+                      key={p.id}
+                      person={p}
+                      action={
                         <Button
-                          variant="text sm"
+                          unstyled
+                          type="button"
                           icon="close"
-                          disabled={s.canEdit===false}
+                          className="suggestion-card-follow"
+                          disabled={s.canEdit === false}
                           onClick={async () => {
                             const ok = await run((sv) => sv.talent.removeFromShortlist(s.id, p.id));
-                            if (ok !== undefined) toast(ok ? "Candidate removed from shortlist." : "Saved for this page only. Browser storage is full or unavailable.");
+                            if (ok !== undefined) toast(ok ? "Candidate removed from shortlist." : devCopy("Saved for this page only. Browser storage is full or unavailable.", "Candidate removed from shortlist."));
                           }}
                         >
                           Remove
                         </Button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <EmptyState
-                    title="A place for promising connections."
-                    description="Explore the directory and save someone to this shortlist."
-                    action={
-                      <LinkButton href="/recruiter/discover" variant="primary" icon="search">
-                        Discover talent
-                      </LinkButton>
-                    }
-                  />
-                )}
-              </div>
+                      }
+                    />
+                  ))}
+                </SuggestionCardGrid>
+              ) : (
+                <EmptyState
+                  icon="bookmark"
+                  title="A place for promising connections"
+                  description="Explore the directory and save someone to this shortlist."
+                  action={
+                    <LinkButton href="/recruiter/discover" variant="primary" icon="search">
+                      Discover talent
+                    </LinkButton>
+                  }
+                />
+              )}
             </>
           ) : (
             <EmptyState
-              title="Start your first shortlist."
+              icon="folder"
+              title="Start your first shortlist"
               description="A little organization for your next hire."
               action={
                 <Button variant="primary" icon="plus" onClick={() => dialogs.edit()}>
@@ -271,7 +197,21 @@ export function CompareScreen() {
   const toggleCompare = useCompareToggle();
   const contact = useContactCandidate();
   const projects = useProjectDialogs();
-  const { data: people, isError: peopleError, refetch: retryPeople } = useServiceQuery(["talent", "compare", compared], (s) => s.talent.compare(compared));
+  const { data: people, isError: peopleError, error: peopleCause, refetch: retryPeople } = useServiceQuery(["talent", "compare", compared], (s) => s.talent.compare(compared), { enabled: COMPARE_CANDIDATES_ENABLED });
+  if (!COMPARE_CANDIDATES_ENABLED) {
+    return (
+      <EmptyState
+        icon="compare"
+        title="Comparison is unavailable"
+        description="Candidate comparison is temporarily turned off."
+        action={
+          <LinkButton href="/recruiter/shortlists" variant="primary" icon="bookmark">
+            Back to shortlists
+          </LinkButton>
+        }
+      />
+    );
+  }
   const rows: [string, (p: ComparisonPerson) => ReactNode][] = [
     ["Location", (p) => p.location],
     [
@@ -342,11 +282,12 @@ export function CompareScreen() {
           </>
         }
       />
-      <QueryFeedback data={people} error={peopleError} retry={retryPeople} layout="table" label="Loading comparison" />
+      <QueryFeedback data={people} error={peopleError} cause={peopleCause} retry={retryPeople} layout="table" label="Loading comparison" />
       {people &&
         (people.length < 2 ? (
           <EmptyState
-            title="Choose at least two people."
+            icon="compare"
+            title="Choose at least two people"
             description="Select candidates from your shortlists or the directory."
             action={
               <Button variant="primary" icon="compare" onClick={dialogs.chooseCompare}>

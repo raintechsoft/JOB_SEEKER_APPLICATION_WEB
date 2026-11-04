@@ -3,8 +3,9 @@
 import { Button } from "@/components/ui/primitives";
 
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useRef, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {authEntryHref,continuationFromParams,navigateToAuthContinuation} from "./auth-continuation";
 import { create } from "zustand";
 import type { OtpChallenge } from "@/services/registration/registration.service";
 import { OTP_RESEND_AFTER_MS } from "@/services/registration/registration.service";
@@ -119,7 +120,7 @@ export function EmployerRegistrationScreen() {
     const code = readOtpCode(formRef.current);
     const c = useRegistration.getState().challenge;
     if (!c || c.kind !== kind) {
-      fail("Request a new OTP to continue.");
+      fail("Request a new code to continue.");
       return false;
     }
     const checked = otpSchema.safeParse({ code });
@@ -198,10 +199,12 @@ export function EmployerRegistrationScreen() {
         if (phoneVerified !== phone || emailVerified !== d.email) return fail("Verify your mobile number and email ID before creating an account.");
         if (real) {
           if (!intentId) return fail("Start with your mobile number again.");
-          await services.auth.employerFinalize(intentId, { company_name: company.companyName, industry: company.industry, employees: company.employees, designation: company.designation, hiring_for: company.hiringFor, pincode: company.pincode, address: company.address });
+          const session=await services.auth.employerFinalize(intentId, { company_name: company.companyName, industry: company.industry, employees: company.employees, designation: company.designation, hiring_for: company.hiringFor, pincode: company.pincode, address: company.address });
           cache.clear();
+          cache.setQueryData(["auth","session"],session);
           set({ intentId: null, draft: EMPTY, challenge: null, phoneVerified: "", emailVerified: "", error: "" });
-          router.push("/recruiter/dashboard");
+          const continuation=continuationFromParams(new URLSearchParams(window.location.search));
+          if(continuation)navigateToAuthContinuation(continuation,session,path=>router.push(path));else router.push("/recruiter/dashboard");
           return;
         }
         const result = await run((s) => s.registration.registerEmployer({ ...d }));
@@ -324,7 +327,7 @@ export function EmployerRegistrationScreen() {
             {step === 3 && (
               <>
                 <p className="er-lead">
-                  We have sent an OTP to your email ID
+                  We sent a 6-digit code to your email
                   <br />
                   <strong>{maskedEmail(draft)}</strong>
                 </p>
@@ -369,9 +372,7 @@ export function EmployerRegistrationScreen() {
                   Back
                 </Button>
               ) : (
-                <Link className="er-text" href="/employer/login">
-                  Already registered? Login
-                </Link>
+                <Suspense fallback={<Link className="er-text" href="/employer/login">Already registered? Sign in</Link>}><EmployerLoginLink/></Suspense>
               )}
               <Button loading={busy} loadingLabel="Please wait" variant="primary" type="submit" disabled={busy}>
                 {step === 4 ? "Create account" : step === 1 || step === 3 ? "Verify & continue" : step === 0 ? "Submit" : "Continue"}
@@ -383,4 +384,9 @@ export function EmployerRegistrationScreen() {
       </div>
     </main>
   );
+}
+
+function EmployerLoginLink(){
+  const params=useSearchParams();
+  return <Link className="er-text" href={authEntryHref("/employer/login",continuationFromParams(params))}>Already registered? Sign in</Link>;
 }

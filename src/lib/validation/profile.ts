@@ -171,6 +171,13 @@ export function validationFields(error: z.ZodError): Record<string, string> {
 }
 
 export type MediaPurpose = keyof typeof mediaDefaults.rules;
+export type PostMediaLimits = {
+  maxPages: number;
+  maxWords: number;
+  maxImagePixels: number;
+  maxGifFrames: number;
+  maxGifPixels: number;
+};
 export type MediaPolicy = {
   rules: Record<MediaPurpose, [number, string[], string[]]>;
   fileConcurrency: number;
@@ -178,11 +185,46 @@ export type MediaPolicy = {
   retries: number;
   postMaxItems: number;
   postTotalBytes: number;
+  postLimits?: PostMediaLimits;
   jobTotalBytes: number;
+};
+const defaultPostLimits: PostMediaLimits = (
+  mediaDefaults as { postLimits?: PostMediaLimits }
+).postLimits ?? {
+  maxPages: 300,
+  maxWords: 1_000_000,
+  maxImagePixels: 36_000_000,
+  maxGifFrames: 500,
+  maxGifPixels: 36_152_320,
+};
+const extensionMime: Record<string, string[]> = {
+  png: ["image/png"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  webp: ["image/webp"],
+  gif: ["image/gif"],
+  heic: ["image/heic", "image/heif"],
+  heif: ["image/heif", "image/heic"],
+  pdf: ["application/pdf"],
+  doc: ["application/msword"],
+  docx: [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ],
+  ppt: ["application/vnd.ms-powerpoint"],
+  pptx: [
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ],
+  rtf: ["application/rtf", "text/rtf"],
+  txt: ["text/plain"],
+  mp4: ["video/mp4", "application/mp4"],
+  mov: ["video/quicktime"],
+  webm: ["video/webm", "application/webm"],
+  mkv: ["video/x-matroska", "video/mkv"],
 };
 let policy: MediaPolicy = {
   ...mediaDefaults,
   rules: mediaDefaults.rules as unknown as MediaPolicy["rules"],
+  postLimits: defaultPostLimits,
 };
 export const mediaRules = Object.fromEntries(
   Object.entries(policy.rules).map(([key, [max, extensions, types]]) => [
@@ -201,24 +243,130 @@ export function setMediaPolicy(next: MediaPolicy) {
       throw new Error("Invalid media policy.");
     mediaRules[key] = { max: rule[0], extensions: rule[1], types: rule[2] };
   }
-  policy = next;
+  policy = {
+    ...next,
+    postLimits: next.postLimits ?? policy.postLimits ?? defaultPostLimits,
+  };
+}
+export function mediaSizeLabel(bytes: number): string {
+  return bytes >= 1048576
+    ? `${Math.round(bytes / 1048576)} MB`
+    : `${bytes / 1024} KB`;
+}
+export function resolveMediaMime(
+  file: File,
+  purpose: MediaPurpose,
+): string | null {
+  const rule = mediaRules[purpose];
+  const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
+  if (!(rule.extensions as readonly string[]).includes(extension)) return null;
+  if ((rule.types as readonly string[]).includes(file.type)) return file.type;
+  const candidates = extensionMime[extension] ?? [];
+  const match = candidates.find((type) =>
+    (rule.types as readonly string[]).includes(type),
+  );
+  return !file.type && match ? match : null;
+}
+export function withResolvedMediaMime(
+  file: File,
+  purpose: MediaPurpose,
+): File | null {
+  const mime = resolveMediaMime(file, purpose);
+  if (!mime) return null;
+  return mime === file.type
+    ? file
+    : new File([file], file.name, {
+        type: mime,
+        lastModified: file.lastModified,
+      });
 }
 export function validateMedia(
   file: File | null,
   purpose: MediaPurpose,
   sizeLimit = mediaRules[purpose].max,
 ): string | null {
-  const rule = mediaRules[purpose];
   if (!file || !file.size) return "Choose a nonempty file.";
   if ([...file.name].length > 180 || /[\\/\u0000-\u001f]/.test(file.name))
     return "Rename the file using at most 180 characters without path separators or control characters.";
   if (file.size > sizeLimit)
-    return `Choose a file up to ${sizeLimit / 1024} KB.`;
-  const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
-  if (
-    !(rule.extensions as readonly string[]).includes(extension) ||
-    !(rule.types as readonly string[]).includes(file.type)
-  )
-    return "Choose a supported file type.";
+    return `Choose a file up to ${mediaSizeLabel(sizeLimit)}.`;
+  if (!resolveMediaMime(file, purpose)) return "Choose a supported file type.";
+  return null;
+}
+function gifFrameCount(bytes: Uint8Array): number | null {
+  const header = String.fromCharCode(...bytes.slice(0, 6));
+  if (header !== "GIF87a" && header !== "GIF89a") return null;
+  let i = 6;
+  let frames = 0;
+  while (i < bytes.length) {
+    const marker = bytes[i++];
+    if (marker === 0x3b) break;
+    if (marker === 0x2c) {
+      frames++;
+      if (i + 9 > bytes.length) return null;
+      i += 8;
+      const packed = bytes[i++];
+      if (packed & 0x80) {
+        const table = 3 * (2 << (packed & 0x07));
+        i += table;
+      }
+      i++;
+      while (i < bytes.length) {
+        const size = bytes[i++];
+        if (!size) break;
+        i += size;
+      }
+    } else if (marker === 0x21) {
+      i++;
+      while (i < bytes.length) {
+        const size = bytes[i++];
+        if (!size) break;
+        i += size;
+      }
+    }
+  }
+  return frames;
+}
+async function imageMetrics(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
+  if (typeof createImageBitmap !== "function") return null;
+  try {
+    const bitmap = await Promise.race([
+      createImageBitmap(file),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 250)),
+    ]);
+    if (!bitmap) return null;
+    const metrics = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return metrics;
+  } catch {
+    return null;
+  }
+}
+export async function validatePostMediaContent(
+  file: File,
+): Promise<string | null> {
+  const limits = getMediaPolicy().postLimits ?? defaultPostLimits;
+  const mime = resolveMediaMime(file, "post_image");
+  if (!mime) return "Choose a supported file type.";
+  if (mime.startsWith("image/") && mime !== "image/heic" && mime !== "image/heif") {
+    if (mime === "image/gif") {
+      const frames = gifFrameCount(new Uint8Array(await file.arrayBuffer()));
+      if (frames === null || frames < 1) return "Choose a valid GIF file.";
+      if (frames > limits.maxGifFrames)
+        return "Choose a GIF with at most 500 frames.";
+    }
+    const metrics = await imageMetrics(file);
+    if (metrics) {
+      if (metrics.width * metrics.height > limits.maxImagePixels)
+        return "Choose an image up to 36 megapixels.";
+      if (
+        mime === "image/gif" &&
+        metrics.width * metrics.height > limits.maxGifPixels
+      )
+        return "Choose a GIF within the pixel limit.";
+    }
+  }
   return null;
 }

@@ -1,4 +1,6 @@
 "use client";
+import { useSocialQuery } from "@/hooks/use-social-query";
+import {useAuthAction} from "@/features/auth/use-auth-action";
 import { ContentSkeleton } from "@/components/ui/skeleton";
 
 import Link from "next/link";
@@ -6,13 +8,14 @@ import { useCallback, useRef, useState } from "react";
 import type { Role } from "@/types/domain";
 import type { NetworkPerson } from "@/services/feed/feed.service";
 import { track } from "@/lib/analytics";
-import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
+import { useServiceAction } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
-import { Icon } from "@/components/ui/icon";
-import { Avatar, LinkButton } from "@/components/ui/primitives";
+import { Avatar, EmptyState, LinkButton } from "@/components/ui/primitives";
+import { ErrorState } from "@/components/ui/state-views";
 import { DevOnly } from "@/components/ui/dev-only";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { organizationProfileHref, recruiterProfileHref } from "@/lib/routing/profiles";
 
 type Tab = "following" | "followers";
@@ -20,9 +23,9 @@ type Tab = "following" | "followers";
 function NetworkPanel({ role }: { role: Role }) {
   const [tab, setTab] = useState<Tab>("following");
   const run = useServiceAction();
-  const { data, isError, refetch } = useServiceQuery(["network", role], (s) => s.feed.getNetwork(role));
+  const { data, isError, error, refetch } = useSocialQuery(["network", role], (s, scope) => s.feed.getNetwork(role, scope));
   const tabsRef = useRef<HTMLDivElement>(null);
-  if (isError) return <p role="alert">Your network could not be loaded. <button type="button" onClick={()=>void refetch()}>Try again</button></p>;
+  if (isError) return <ErrorState compact error={error} title="Your network couldn’t load" description="Something interrupted the request. Please try again." onRetry={() => void refetch()} />;
   if (!data) return <ContentSkeleton label="Loading your network" />;
   const count = data.following.length + data.companies.length;
   const isFollowing = tab === "following";
@@ -91,7 +94,7 @@ function NetworkPanel({ role }: { role: Role }) {
               <li className="network-row" key={c.id}>
                 {href ? <Link className="network-avatar" href={href} aria-label={"View " + c.name + " profile"}><CompanyAvatar company={c} /></Link> : <CompanyAvatar company={c} />}
                 <div className="network-person">
-                  {href ? <Link href={href}>{c.name}</Link> : <strong>{c.name}</strong>}
+                  <span className="network-company-name">{href ? <Link href={href}>{c.name}</Link> : <strong>{c.name}</strong>}<VerifiedCompanyMark company={c} /></span>
                   <p>{c.industry || "Organization"}</p>
                 </div>
                 <button type="button" className="btn sm network-follow is-following" aria-label={"Unfollow " + c.name} aria-pressed="true" onClick={() => follow(c.id, true)}>
@@ -102,11 +105,7 @@ function NetworkPanel({ role }: { role: Role }) {
             })}
         </ul>
         {!(isFollowing ? count : data.followers.length) && (
-          <div className="network-empty">
-            <Icon name="users" />
-            <h3>{isFollowing ? "Your network starts here" : "No followers yet"}</h3>
-            <p>{isFollowing ? "Follow people to keep up with their work." : "People who follow you will appear here."}</p>
-          </div>
+          <EmptyState compact icon="users" title={isFollowing ? "Your network starts here" : "No followers yet"} description={isFollowing ? "Follow people to keep up with their work." : "People who follow you will appear here."} action={isFollowing ? <LinkButton href={role === "recruiter" ? "/recruiter/discover" : "/app/discover"} variant="sm" icon="search" onClick={() => modal.close()}>Discover people</LinkButton> : undefined} />
         )}
       </section>
       <footer className="network-footer">
@@ -123,10 +122,13 @@ function NetworkPanel({ role }: { role: Role }) {
 
 /** "Manage following" sheet with Following / Followers tabs. */
 export function useNetworkSheet() {
+  const gate = useAuthAction();
   const open = useCallback((role: Role, trigger?: HTMLElement) => {
     trigger?.closest("details")?.removeAttribute("open");
+    void gate.run("view_following", () => {
     modal.show("Your network", <NetworkPanel role={role} />, "following");
     requestAnimationFrame(() => document.getElementById("network-tab-following")?.focus());
-  }, []);
+    }, {workspace:role,anchor:trigger});
+  }, [gate]);
   return { open };
 }

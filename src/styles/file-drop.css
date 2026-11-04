@@ -59,6 +59,8 @@
 }
 .file-drop:hover:not(.is-disabled) .file-drop-button { border-color: #315ef4; color: #315ef4; }
 .file-drop-hint { color: #626b76; font-size: 12px; line-height: 1.5; }
+.onboarding-cv-upload { display: grid; gap: 12px; text-align: left; }
+.onboarding-cv-upload h3 { margin: 0; font-size: 16px; font-weight: 650; color: #202a36; }
 
 /* Selected resume card (application documents). */
 .resume-file-card {
@@ -87,6 +89,9 @@
 .resume-file-badge.is-pdf { background: #c8102e; }
 .resume-file-badge.is-doc, .resume-file-badge.is-docx { background: #2b579a; }
 .resume-file-badge.is-rtf { background: #6b7280; }
+.resume-file-badge.is-png,
+.resume-file-badge.is-jpg,
+.resume-file-badge.is-jpeg { background: #315ef4; }
 .resume-file-meta { display: grid; gap: 2px; flex: 1; min-width: 0; }
 .resume-file-meta strong { overflow: hidden; color: #202a36; font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .resume-file-meta small { color: #626b76; font-size: 13px; }

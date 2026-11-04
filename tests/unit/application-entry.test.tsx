@@ -30,15 +30,15 @@ function Wrap({children,role="professional"}:{children:React.ReactNode;role?:"pr
 }
 function Apply({job=id}:{job?:string}) {const actions=useJobActions();return <button onClick={()=>actions.apply(job)}>Apply test job</button>;}
 
-it("routes the shared Apply action to the same typed page with its search return context",()=>{
+it("routes the shared Apply action to the same typed page after resolving its workspace",async()=>{
   render(<Wrap><Apply/></Wrap>);fireEvent.click(screen.getByRole("button",{name:"Apply test job"}));
-  expect(navigation.push).toHaveBeenCalledWith(target);
+  await waitFor(()=>expect(navigation.push).toHaveBeenCalledWith(target));
   expect(useModalStore.getState().open).toBe(false);
 });
-it("keeps the existing application modal while the live-entry switch is disabled",()=>{
+it("keeps the existing application modal after account checks while the live-entry switch is disabled",async()=>{
   vi.stubEnv("NEXT_PUBLIC_APPLICATION_WIZARD_ENABLED","false");
   render(<Wrap><Apply/></Wrap>);fireEvent.click(screen.getByRole("button",{name:"Apply test job"}));
-  expect(navigation.push).not.toHaveBeenCalled();expect(useModalStore.getState().open).toBe(true);
+  expect(navigation.push).not.toHaveBeenCalled();await waitFor(()=>expect(useModalStore.getState().open).toBe(true));
 });
 it("rejects malformed Apply identifiers before navigation",()=>{
   render(<Wrap><Apply job="../login"/></Wrap>);fireEvent.click(screen.getByRole("button",{name:"Apply test job"}));

@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useFormAction } from "@/hooks/use-form-action";
 import { onboardingSchema } from "@/lib/validation/onboarding";
 import { validateMedia, validationFields } from "@/lib/validation/profile";
-import { errorMessage } from "@/services/api/client";
-import { Avatar, Button, Tags } from "@/components/ui/primitives";
+import { FileDrop } from "@/components/ui/file-drop";
+import { Avatar, Button, LinkButton, Tags } from "@/components/ui/primitives";
+import { StatePanel } from "@/components/ui/state-panel";
+import { ErrorState } from "@/components/ui/state-views";
 import { TextAreaField, TextField } from "@/components/ui/field";
 import { ScreenFallback } from "@/components/ui/feedback";
 
@@ -25,12 +26,12 @@ export function RealOnboardingScreen() {
   const { execute, pending } = useFormAction(setErrors);
   const cache = useQueryClient();
   const router = useRouter();
-  if (session.isError) return <main className="onboarding"><p role="alert">{errorMessage(session.error)}</p><Link href="/login">Sign in</Link></main>;
-  if (!session.data) return <ScreenFallback layout="form" />;
-  if (!session.data.user.email_verified) return <main className="onboarding"><Link href="/verify-email">Verify your email to continue</Link></main>;
-  if (!professional) return <main className="onboarding"><h1>Let’s meet your team.</h1><p>Your organization account is ready. Complete its company profile to introduce your team.</p><Link href="/recruiter/company">Complete company profile</Link></main>;
-  if (profile.isError) return <main className="onboarding"><p role="alert">{errorMessage(profile.error)}</p><Button onClick={() => void profile.refetch()}>Try again</Button></main>;
-  if (!profile.data) return <ScreenFallback layout="form" />;
+  if (session.isError) return <main id="main" className="onboarding"><ErrorState error={session.error} onRetry={() => session.refetch()} title="We couldn’t check your account" description="Something interrupted the request. Please try again." /></main>;
+  if (!session.data) return <ScreenFallback layout="form" label="Loading your account" />;
+  if (!session.data.user.email_verified) return <main id="main" className="onboarding"><StatePanel icon="mail" tone="info" title="Verify your email to continue" description="Confirm your email address with a 6-digit code, then come back here to set up your profile." actions={<LinkButton href="/verify-email" variant="primary" icon="mail">Verify email</LinkButton>} /></main>;
+  if (!professional) return <main id="main" className="onboarding"><StatePanel icon="building" tone="info" title="Let’s meet your team" description="Your organization account is ready. Complete its company profile to introduce your team." actions={<LinkButton href="/recruiter/company" variant="primary">Complete company profile</LinkButton>} /></main>;
+  if (profile.isError) return <main id="main" className="onboarding"><ErrorState error={profile.error} onRetry={() => profile.refetch()} title="Your profile couldn’t load" description="Something interrupted the request. Please try again." /></main>;
+  if (!profile.data) return <ScreenFallback layout="form" label="Loading your profile" />;
   const view = profile.data;
   const p = view.person;
   const step = stage ?? Math.min(view.onboardingStep ?? 0, 3);
@@ -62,18 +63,43 @@ export function RealOnboardingScreen() {
           <TextField label="Professional headline" name="headline" defaultValue={p.headline} error={errors.headline} required maxLength={200} />
           <TextField label="Location" name="location" defaultValue={p.location} error={errors.location} required maxLength={200} />
           <TextField label="Years of experience" name="years" type="number" defaultValue={p.years} error={errors.years} min={0} max={60} step={0.1} required />
-        </div> : step === 1 ? <div className="upload-zone">
-          <h3>Your experience is a good starting point.</h3><p>Select a PDF, Word or RTF CV, up to 2 MB. You can also continue without uploading.</p>
-          <input type="file" aria-label="Select your CV" accept=".pdf,.doc,.docx,.rtf" onChange={async (event) => {
-            const file = event.target.files?.[0]; event.target.value = "";
-            if (!file) return;
-            const error = validateMedia(file, "resume");
-            if (error) { setErrors({ resume: error }); return; }
-            setUploading(true); setErrors({});
-            await execute(async (services) => { const result = await services.profile.uploadResume(file); if (!result.ok) throw new Error(result.error); });
-            setUploading(false);
-          }} />
-          {view.details.resume && <p role="status">{view.details.resume.name} uploaded.</p>}
+        </div> : step === 1 ? <div className="onboarding-cv-upload">
+          <h3>Your experience is a good starting point.</h3>
+          <p className="muted small">You can continue without uploading.</p>
+          <FileDrop
+            id="onboarding-cv"
+            section="onboarding"
+            use="cv"
+            label="Onboarding CV"
+            prompt="Drop your CV here"
+            promptHint="or choose a PDF, Word, or RTF file"
+            buttonLabel="Choose CV"
+            changeLabel="Replace CV"
+            icon="file"
+            accept=".pdf,.doc,.docx,.rtf"
+            disabled={uploading}
+            invalid={!!errors.resume}
+            fileName={uploading ? "Uploading…" : view.details.resume?.name}
+            hint="PDF, Word, or RTF · up to 2 MB"
+            describedBy={view.details.resume ? "onboarding-cv-status" : undefined}
+            onFiles={async (files) => {
+              const file = files?.[0];
+              if (!file) return;
+              const error = validateMedia(file, "resume");
+              if (error) { setErrors({ resume: error }); return; }
+              setUploading(true); setErrors({});
+              try {
+                const ok = await execute(async (services) => {
+                  const result = await services.profile.uploadResume(file);
+                  if (!result.ok) throw new Error(result.error);
+                });
+                if (ok) await cache.invalidateQueries({ queryKey: ["profile"] });
+              } finally {
+                setUploading(false);
+              }
+            }}
+          />
+          {view.details.resume && <p id="onboarding-cv-status" role="status">{view.details.resume.name} uploaded.</p>}
           <p className="small muted">Resume parsing is not available. Review and enter your background in the next step.</p>
         </div> : step === 2 ? <div className="stack">
           <TextAreaField label="Key skills (comma separated)" name="skills" defaultValue={p.skills.join(", ")} error={errors.skills} required maxLength={3000} />

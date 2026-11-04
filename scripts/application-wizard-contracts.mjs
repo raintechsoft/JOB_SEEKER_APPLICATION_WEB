@@ -82,6 +82,8 @@ endpoint(`${base}/jobs/{job}/applications`, "post", "ApplicationSubmit", "Applic
 endpoint(`${base}/me/application-drafts/{draft}/documents`, "get", null, "ApplicationDocumentContext", "A4");
 // Removes a resume from the owner's library; storage deletion happens only when nothing else uses the file.
 schemas.ResumeLibraryRemoval = object({deleted: boolean});
+schemas.ResumeLibrary = object({items: array(ref("ApplicationResume"), 20)});
+endpoint(`${base}/me/resume-library`, "get", null, "ResumeLibrary", "A4");
 endpoint(`${base}/me/resume-library/{asset}`, "delete", null, "ResumeLibraryRemoval", "A4");
 endpoint(`${base}/me/application-drafts/{draft}/review`, "get", null, "ApplicationReview", "A6");
 endpoint(`${base}/me/applications/{application}/receipt`, "get", null, "ApplicationReceipt", "A6");

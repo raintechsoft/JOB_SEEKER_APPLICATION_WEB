@@ -2,7 +2,8 @@
 
 import { InfoBadge } from "@/components/ui/info-badge";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { AvatarSkeleton, CardSkeleton, LoadingRegion, Skeleton, TextSkeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { postPublications } from "@/services/media/post-publication-manager";
@@ -15,6 +16,7 @@ import { devCopy } from "@/lib/env/app-env";
 import { readAsDataUrl, readImage } from "@/lib/utils/files";
 import { apiConfig } from "@/services/api/config";
 import {
+  emptyQuickJob,
   postDraftValuesSchema,
   postMediaKind,
   postPublishSchema,
@@ -22,24 +24,68 @@ import {
   postTextSchema,
   validatePostFiles,
 } from "@/lib/validation/social";
+import { JOB_RULES } from "@/lib/validation/job";
+import { withResolvedMediaMime } from "@/lib/validation/profile";
 import { errorMessage } from "@/services/api/client";
 import { useServiceQuery, useServices } from "@/hooks/use-services";
 import { toast } from "@/stores/toast-store";
 import { useUiStore } from "@/stores/ui-store";
 import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
-import { SelectField, TextAreaField } from "@/components/ui/field";
-import { ScreenError, ScreenFallback } from "@/components/ui/feedback";
+import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
+import { ScreenError } from "@/components/ui/feedback";
+import { ErrorState } from "@/components/ui/state-views";
+import { CatalogMultiPicker } from "@/components/ui/skill-picker";
 import { FeedCard } from "@/features/feed/feed-card";
 import { MediaImage } from "@/components/ui/media-image";
 import {
+  findLinks,
   linkPreviewContract,
   type LinkPreview,
 } from "@/lib/validation/link-preview";
 import { useLinkPreview } from "./use-link-preview";
 import { ComposerLinkPreview } from "./composer-link-preview";
 
-const STEPS = ["Post details", "Media & project", "Review & publish"];
+const CREATE_STEPS = ["Post details", "Media & project", "Review & publish"];
+const EDIT_STEPS = ["Post details", "Media & project", "Review & save"];
+
+function postDraftFromEntry(entry: FeedEntry): PostDraft {
+  const media =
+    entry.attachments?.length
+      ? entry.attachments.map((item) => ({ ...item }))
+      : [
+          ...(entry.image
+            ? [{ type: "image" as const, src: entry.image, alt: entry.imageAlt || "", name: "image", bytes: undefined }]
+            : []),
+          ...(entry.video
+            ? [{ type: "video" as const, src: entry.video, alt: "", name: "video", bytes: undefined }]
+            : []),
+        ];
+  return {
+    id: entry.id,
+    title: "",
+    body: entry.body,
+    project: entry.project?.id || "",
+    media,
+    videoUrl: entry.video || "",
+    commentsEnabled: entry.commentsEnabled !== false,
+    previewDismissedUrls: entry.linkPreview ? [] : findLinks(entry.body).map((link) => link.key),
+    quickJob: entry.linkedJob
+      ? {
+          enabled: true,
+          title: entry.linkedJob.title,
+          locations: entry.linkedJob.location
+            ? entry.linkedJob.location.split(" · ").map((part) => part.trim()).filter(Boolean)
+            : [],
+          employment: entry.linkedJob.employment,
+          arrangement: entry.linkedJob.arrangement,
+        }
+      : undefined,
+    step: 0,
+    reached: 2,
+    version: entry.version,
+  };
+}
 
 function previewEntry(
   d: PostDraft,
@@ -84,6 +130,20 @@ function previewEntry(
     likes: 0,
     commentCount: 0,
     comments: [],
+    commentsEnabled: d.commentsEnabled !== false,
+    linkedJob:
+      d.quickJob?.enabled && d.quickJob.title
+        ? {
+            id: "preview-job",
+            title: d.quickJob.title,
+            location: d.quickJob.locations.join(" · "),
+            arrangement: d.quickJob.arrangement || "",
+            employment: d.quickJob.employment || "",
+            ownedByViewer: true,
+            applied: false,
+            open: true,
+          }
+        : undefined,
     viewer: {
       liked: false,
       saved: false,
@@ -101,19 +161,29 @@ function Editor({
   identity,
   projects,
   projectsLoading = false,
+  edit,
 }: {
   role: Role;
   initial: PostDraft;
   identity: PersonSummary;
   projects: Project[];
   projectsLoading?: boolean;
+  edit?: { postId: string; version: number; linkPreview?: LinkPreview };
 }) {
   const cache = useQueryClient();
   const services = useServices();
   const router = useRouter();
   const setFeed = useUiStore((s) => s.setFeed);
+  const editing = !!edit;
+  const steps = editing ? EDIT_STEPS : CREATE_STEPS;
   // Posts are caption-only; a title saved by an older editor is cleared rather than published unseen.
-  const [untitled] = useState(() => ({ ...initial, title: "" }));
+  // Comments stay on unless the author explicitly turns them off.
+  const [untitled] = useState(() => ({
+    ...initial,
+    title: "",
+    commentsEnabled: initial.commentsEnabled !== false,
+    quickJob: initial.quickJob ?? (role === "recruiter" ? emptyQuickJob() : undefined),
+  }));
   const [d, setD] = useState(untitled);
   const latestDraft = useRef(untitled);
   const [error, setError] = useState("");
@@ -121,11 +191,14 @@ function Editor({
   const publishing = useRef(false);
   const previewsTransferred = useRef(false);
   const [creationKey] = useState(() => crypto.randomUUID());
+  const editVersion = useRef(edit?.version ?? initial.version ?? 1);
   const [saveStatus, setSaveStatus] = useState(
-    devCopy(
-      "Your draft stays in this browser.",
-      "Your draft is saved as you write.",
-    ),
+    editing
+      ? "Changes save when you confirm on the last step."
+      : devCopy(
+          "Your draft stays in this browser.",
+          "Your draft is saved as you write.",
+        ),
   );
   const fileInput = useRef<HTMLInputElement>(null);
   const bodyField = useRef<HTMLTextAreaElement>(null);
@@ -141,6 +214,7 @@ function Editor({
   const real = apiConfig.dataSource === "http";
   const persist = useCallback(
     async (next: PostDraft) => {
+      if (editing) return true;
       if (real) {
         const parsed = postDraftValuesSchema.safeParse({
           ...next,
@@ -177,15 +251,15 @@ function Editor({
         return false;
       }
     },
-    [real, role, services],
+    [editing, real, role, services],
   );
   useEffect(() => {
-    if (!real || publishing.current) return;
+    if (editing || !real || publishing.current) return;
     const timer = window.setTimeout(() => {
       if (!publishing.current) void persist(d);
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [d, persist, real]);
+  }, [d, editing, persist, real]);
   useEffect(() => {
     mounted.current = true;
     const urls = previewUrls.current;
@@ -214,6 +288,7 @@ function Editor({
           key,
         ].slice(-linkPreviewContract.dismissedMax),
       }),
+    initial: edit?.linkPreview,
   });
   const go = (n: number) => {
     if (busy) return toast("Wait for the media to finish loading.");
@@ -241,22 +316,23 @@ function Editor({
   };
   const addFiles = async (files: File[]) => {
     if (!files.length || busy) return;
-    const validation = validatePostFiles(files, d.media);
+    const validation = await validatePostFiles(files, d.media);
     if (validation) {
       setError(validation);
       return;
     }
     if (real) {
       const items = files.map((file) => {
-        const src = URL.createObjectURL(file);
-        selectedFiles.current.set(src, file);
+        const upload = withResolvedMediaMime(file, "post_image") ?? file;
+        const src = URL.createObjectURL(upload);
+        selectedFiles.current.set(src, upload);
         previewUrls.current[src] = src;
         return {
-          type: postMediaKind(file),
+          type: postMediaKind(upload),
           src,
           alt: "",
-          name: file.name,
-          bytes: file.size,
+          name: upload.name,
+          bytes: upload.size,
         };
       });
       setLocalPreviews({ ...previewUrls.current });
@@ -308,9 +384,11 @@ function Editor({
     }
     if (d.step < 2) {
       if (d.step === 1) {
+        // Quick-job title/location fields live on the review step; do not block media → review.
         const result = postSelectionSchema.safeParse({
           ...d,
           attachments: d.media,
+          quickJob: undefined,
         });
         if (!result.success) {
           setError(result.error.issues[0].message);
@@ -327,7 +405,9 @@ function Editor({
       attachments: d.media,
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0].message);
+      const message = parsed.error.issues[0].message;
+      setError(message);
+      toast(message);
       return;
     }
     if (
@@ -339,10 +419,16 @@ function Editor({
       setError("Reselect the local files before publishing.");
       return;
     }
+    const publicationId = editing ? edit!.postId : d.id;
     if (
       postPublications
         .getSnapshot()
-        .some((task) => task.draftId === d.id && task.state !== "cancelled")
+        .some(
+          (task) =>
+            task.draftId === publicationId &&
+            task.state !== "cancelled" &&
+            task.state !== "completed",
+        )
     ) {
       setError(
         "This post already has a background upload. Follow its progress or retry it there.",
@@ -365,11 +451,11 @@ function Editor({
     let savedText = false;
     previewsTransferred.current = true;
     postPublications.start(
-      d.id,
-      "Your post",
+      publicationId,
+      editing ? "Your changes" : "Your post",
       async (groupId, signal, markPublishing) => {
         signal.throwIfAborted();
-        if (real && !savedText) {
+        if (real && !editing && !savedText) {
           const textDraft = {
             ...frozen,
             media: frozen.media.filter((item) => !item.src.startsWith("blob:")),
@@ -403,7 +489,7 @@ function Editor({
           ...resolved,
           attachments: media,
         });
-        if (real && !stored) {
+        if (real && !editing && !stored) {
           if (!(await services.jobPosts.storePostDraft(role, resolved)))
             throw new Error(
               "Your draft could not be saved. Retry this post upload.",
@@ -412,13 +498,54 @@ function Editor({
         }
         signal.throwIfAborted();
         markPublishing();
+        if (editing) {
+          const expectedVersion = editVersion.current;
+          const ok = await services.feed.updatePost(role, edit!.postId, {
+            title: "",
+            body: values.body,
+            project: values.project,
+            attachments: values.attachments,
+            commentsEnabled: values.commentsEnabled !== false,
+            version: expectedVersion,
+            previewUrl: previewUrl ?? "",
+            ...(role === "recruiter" && values.quickJob
+              ? { quickJob: values.quickJob }
+              : {}),
+          });
+          if (!ok)
+            throw new Error(
+              "Your changes could not be saved. Retry when ready; your selected files are kept.",
+            );
+          // Server bumps version on every successful PATCH; keep the ref in sync so a
+          // retry after a late client failure does not resend the spent revision.
+          if (editVersion.current === expectedVersion) editVersion.current = expectedVersion + 1;
+          signal.throwIfAborted();
+          track("post_edited", {
+            mediaCount: media.length,
+            hasProject: !!resolved.project,
+          });
+          void cache
+            .invalidateQueries({
+              predicate: (query) =>
+                ["feed", "feed-entry", "activity"].includes(
+                  String(query.queryKey[0]),
+                ),
+            })
+            .catch(() => undefined);
+          toast("Changes saved.");
+          return home + "?post=" + encodeURIComponent(edit!.postId);
+        }
         const result = await services.feed.createPost(role, {
           // Posts have no title field; a title left in an older draft is not published.
           title: "",
           body: values.body,
           project: values.project,
           attachments: values.attachments,
+          commentsEnabled: values.commentsEnabled !== false,
           ...(previewUrl ? { previewUrl } : {}),
+          ...(role === "recruiter" && values.quickJob
+            ? { quickJob: values.quickJob }
+            : {}),
           creationKey,
           ...(real
             ? {
@@ -465,9 +592,9 @@ function Editor({
   return (
     <div className="post-editor">
       <header className="job-wizard-top">
-        <div>
+        <div className="post-editor-title">
           <span className="eyebrow">SHARE YOUR STORY</span>
-          <h1>Create a post</h1>
+          <h1>{editing ? "Edit post" : "Create a post"}</h1>
         </div>
         <LinkButton href={home} icon="arrow">
           Back to feed
@@ -475,9 +602,9 @@ function Editor({
       </header>
       <div className="post-editor-layout">
         <aside className="card job-wizard-stepper post-editor-stepper">
-          <h2>Create a post</h2>
-          <nav aria-label="Post creation steps">
-            {STEPS.map((name, i) => (
+          <h2>{editing ? "Edit post" : "Create a post"}</h2>
+          <nav aria-label={editing ? "Post edit steps" : "Post creation steps"}>
+            {steps.map((name, i) => (
               <button
                 type="button"
                 key={name}
@@ -501,16 +628,10 @@ function Editor({
         <section className="card job-wizard-content post-editor-content">
           <div className="wizard-stage-heading">
             <span>
-              STEP {d.step + 1} OF {STEPS.length}
+              STEP {d.step + 1} OF {steps.length}
             </span>
             <div className="wizard-stage-title-row">
-              <h2>{STEPS[d.step]}</h2>
-              {real && (
-                <InfoBadge label="Post visibility information">
-                  Published posts follow your profile visibility. Keep your
-                  profile public to share them with the community.
-                </InfoBadge>
-              )}
+              <h2>{steps[d.step]}</h2>
             </div>
           </div>
           <form
@@ -571,7 +692,7 @@ function Editor({
                       ref={fileInput}
                       id="post-editor-files"
                       type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/rtf,text/plain,.doc,.docx,.pdf,.txt,.rtf,.mp4,.webm"
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm,video/x-matroska,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,.png,.jpg,.jpeg,.webp,.gif,.heic,.heif,.pdf,.doc,.docx,.ppt,.pptx,.mp4,.mov,.webm,.mkv"
                       multiple
                       hidden
                       onChange={(e) => {
@@ -677,9 +798,11 @@ function Editor({
                       }
                     </ol>
                     <p className="post-upload-help">
-                      Images, MP4/WebM video, and documents (PDF, Word, RTF,
-                      TXT). Preview immediately; files upload with your post
-                      when you publish. New selections are added at the end.
+                      Images (PNG, JPEG, WEBP, GIF, HEIC), video (MP4, MOV,
+                      WEBM, MKV), and documents (PDF, DOC/DOCX, PPT/PPTX) up to
+                      50 MB each. Preview immediately; files upload when you
+                      publish. GIFs are not used for profile or background
+                      photos.
                     </p>
                   </div>
                   {role === "professional" && (
@@ -746,6 +869,124 @@ function Editor({
                       </Button>
                     </div>
                   </div>
+                  {role === "recruiter" ? (
+                    <div className="stack gap-md post-quick-job">
+                      <div className="settings-row post-comments-toggle">
+                        <div>
+                          <h3>Quick job post</h3>
+                          <p>
+                            Keep this as a social post and also open applications for a linked role.
+                          </p>
+                        </div>
+                        <label className="switch">
+                          <input
+                            type="checkbox"
+                            checked={!!d.quickJob?.enabled}
+                            disabled={busy}
+                            aria-label="Quick job post"
+                            onChange={(event) =>
+                              update({
+                                quickJob: {
+                                  ...(d.quickJob ?? emptyQuickJob()),
+                                  enabled: event.target.checked,
+                                },
+                              })
+                            }
+                          />
+                          <span />
+                        </label>
+                      </div>
+                      {d.quickJob?.enabled ? (
+                        <div className="stack gap-sm">
+                          <TextField
+                            label="Job title"
+                            name="quickJobTitle"
+                            required
+                            maxLength={JOB_RULES.text.title}
+                            value={d.quickJob.title}
+                            disabled={busy}
+                            onChange={(event) =>
+                              update({
+                                quickJob: {
+                                  ...d.quickJob!,
+                                  title: event.target.value,
+                                },
+                              })
+                            }
+                          />
+                          <div
+                            className="post-quick-job-locations"
+                            {...(busy ? { inert: true } : {})}
+                          >
+                            <CatalogMultiPicker
+                              catalog="location"
+                              name="quickJobLocations"
+                              label="Job locations"
+                              variant="floating"
+                              value={d.quickJob.locations}
+                              max={JOB_RULES.lists.locations}
+                              onChange={(values) =>
+                                update({
+                                  quickJob: {
+                                    ...d.quickJob!,
+                                    locations: values,
+                                  },
+                                })
+                              }
+                            />
+                          </div>
+                          <SelectField
+                            required
+                            label="Employment type"
+                            name="quickJobEmployment"
+                            value={d.quickJob.employment}
+                            options={["", ...JOB_RULES.employment]}
+                            disabled={busy}
+                            onChange={(event) =>
+                              update({
+                                quickJob: {
+                                  ...d.quickJob!,
+                                  employment: event.target.value,
+                                },
+                              })
+                            }
+                          />
+                          <SelectField
+                            required
+                            label="Work arrangement"
+                            name="quickJobArrangement"
+                            value={d.quickJob.arrangement}
+                            options={["", ...JOB_RULES.arrangements]}
+                            disabled={busy}
+                            onChange={(event) =>
+                              update({
+                                quickJob: {
+                                  ...d.quickJob!,
+                                  arrangement: event.target.value,
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <div className="settings-row post-comments-toggle">
+                    <div>
+                      <h3>Allow comments</h3>
+                      <p>Comments are on by default. Turn this off to publish without comments or replies.</p>
+                    </div>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={d.commentsEnabled !== false}
+                        disabled={busy}
+                        aria-label="Allow comments on this post"
+                        onChange={(event) => update({ commentsEnabled: event.target.checked })}
+                      />
+                      <span />
+                    </label>
+                  </div>
                   <DevOnly>
                     <InfoBadge label="Publishing information">
                       Your post will appear in the public demo feed in this
@@ -767,28 +1008,32 @@ function Editor({
               </LinkButton>
             )}
             <span />
-            <Button
-              variant="text sm"
-              icon="file"
-              disabled={busy}
-              onClick={async () => {
-                if (await persist(d))
-                  toast("Draft saved. Resume it from Create a post.");
-              }}
-            >
-              Save draft
-            </Button>
+            {!editing && (
+              <Button
+                variant="text sm"
+                icon="file"
+                disabled={busy}
+                onClick={async () => {
+                  if (await persist(d))
+                    toast("Draft saved. Resume it from Create a post.");
+                }}
+              >
+                Save draft
+              </Button>
+            )}
             <Button
               variant="primary"
               form="post-editor-form"
               type="submit"
               loading={busy && d.step === 2}
-              loadingLabel="Publishing post"
+              loadingLabel={editing ? "Saving changes" : "Publishing post"}
               disabled={busy}
             >
-              <Icon name={d.step === 2 ? "send" : "arrow"} />
+              <Icon name={d.step === 2 ? (editing ? "check" : "send") : "arrow"} />
               {d.step === 2
-                ? devCopy("Publish demo post", "Publish post")
+                ? editing
+                  ? "Save changes"
+                  : devCopy("Publish demo post", "Publish post")
                 : "Next"}
             </Button>
           </div>
@@ -808,7 +1053,7 @@ function Editor({
             onClickCapture={(e) => {
               if (
                 (e.target as Element).closest(
-                  "[data-carousel-control],video,.post-document",
+                  "[data-carousel-control],video,.post-document,.post-doc-viewer",
                 )
               )
                 return;
@@ -829,10 +1074,61 @@ function Editor({
   );
 }
 
+/** Editor chrome (title, back link, steps, preview column) shown while the draft and identity load. */
+function PostEditorFrame({ role, children }: { role: Role; children: ReactNode }) {
+  const home = role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard";
+  return (
+    <div className="post-editor">
+      <header className="job-wizard-top">
+        <div className="post-editor-title">
+          <span className="eyebrow">SHARE YOUR STORY</span>
+          <h1>Create a post</h1>
+        </div>
+        <LinkButton href={home} icon="arrow">
+          Back to feed
+        </LinkButton>
+      </header>
+      <div className="post-editor-layout">
+        <aside className="card job-wizard-stepper post-editor-stepper">
+          <h2>Create a post</h2>
+          <nav aria-label="Post creation steps">
+            {CREATE_STEPS.map((name, i) => (
+              <button type="button" key={name} disabled>
+                <span>{i + 1}</span>
+                <strong>{name}</strong>
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <section className="card job-wizard-content post-editor-content">{children}</section>
+        <aside className="post-preview-column" aria-label="Live post preview">
+          <div className="post-preview-heading">
+            <span>
+              <Icon name="eye" />
+              Live preview
+            </span>
+          </div>
+          <LoadingRegion label="Loading post preview">
+            <CardSkeleton media />
+          </LoadingRegion>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 export function PostEditorScreen({ role }: { role: Role }) {
-  const mode = useSearchParams().get("mode") || "post";
-  const draftQuery = useServiceQuery(["post-draft", role, mode], (s) =>
-    s.jobPosts.getPostDraft(role, mode),
+  const params = useSearchParams();
+  const mode = params.get("mode") || "post";
+  const editId = params.get("id") || "";
+  const editing = !!editId;
+  const draftQuery = useServiceQuery(["post-draft", role, mode], (s) => s.jobPosts.getPostDraft(role, mode), {
+    enabled: !editing,
+  });
+  const entryQuery = useServiceQuery(
+    ["feed-entry", role, editId, "edit"],
+    (s) => s.feed.getEntry(role, editId),
+    { enabled: editing, staleTime: 0 },
   );
   const identityQuery = useServiceQuery(
     ["feed", "identity", role],
@@ -850,36 +1146,79 @@ export function PostEditorScreen({ role }: { role: Role }) {
             ownerId: apiConfig.dataSource === "http" ? "me" : "p0",
           }),
   );
-  const draft = draftQuery.data,
-    identity = identityQuery.data,
-    projects = projectQuery.data;
-  if (draftQuery.isError || identityQuery.isError)
+  const identity = identityQuery.data;
+  const projects = projectQuery.data;
+  const entry = entryQuery.data;
+  const editable = !!entry && entry.viewer.own && entry.type === "post";
+  const draft = editing ? (editable ? postDraftFromEntry(entry) : undefined) : draftQuery.data;
+  const editDenied = editing && entryQuery.isSuccess && !editable;
+  const loadError = editing
+    ? entryQuery.isError
+      ? entryQuery.error
+      : editDenied
+        ? new Error("You can only edit your own posts.")
+        : null
+    : draftQuery.isError
+      ? draftQuery.error
+      : null;
+  const waiting = editing ? entryQuery.isPending : draftQuery.isPending;
+  const showError = !!(identityQuery.isError || loadError);
+  if (showError || !identity || waiting || !draft)
     return (
-      <ScreenError
-        onRetry={() => {
-          void draftQuery.refetch();
-          void identityQuery.refetch();
-          void projectQuery.refetch();
-        }}
-      />
+      <PostEditorFrame role={role}>
+        {showError ? (
+          <ScreenError
+            compact
+            error={identityQuery.error ?? loadError}
+            title={editing ? "This post couldn’t be opened for editing" : "The post editor couldn’t open"}
+            description={editing ? "Only your own posts can be edited here. Try again from your feed." : "Something interrupted the request. Please try again."}
+            homeHref={role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard"}
+            homeLabel="Back to feed"
+            onRetry={() => {
+              void (editing ? entryQuery.refetch() : draftQuery.refetch());
+              void identityQuery.refetch();
+              void projectQuery.refetch();
+            }}
+          />
+        ) : (
+          <LoadingRegion label={editing ? "Loading post" : "Loading post editor"}>
+            <div className="stack">
+              <div className="skeleton-lines"><Skeleton style={{ width: "25%" }} /><Skeleton style={{ width: "45%", height: 28 }} /></div>
+              <div className="skeleton-identity"><AvatarSkeleton /><TextSkeleton lines={2} /></div>
+              <div className="skeleton-lines"><Skeleton style={{ width: "20%" }} /><Skeleton style={{ height: 200 }} /></div>
+            </div>
+          </LoadingRegion>
+        )}
+      </PostEditorFrame>
     );
-  if (!draft || !identity) return <ScreenFallback layout="form" />;
   // The editor seeds its local state once; later refetches of the stored draft do not reset it.
   return (
     <>
       {projectQuery.isError && (
-        <p role="alert">
-          Project options could not be loaded.{" "}
-          <Button onClick={() => projectQuery.refetch()}>Retry</Button>
-        </p>
+        <ErrorState
+          compact
+          error={projectQuery.error}
+          title="Project options couldn’t load"
+          description="You can still write your post. Try again to link it to a project."
+          onRetry={() => void projectQuery.refetch()}
+        />
       )}
       <Editor
-        key={role}
+        key={editing ? "edit-" + editId : "create-" + role}
         role={role}
         initial={draft}
         identity={identity}
         projects={projects ?? []}
         projectsLoading={projectQuery.isPending}
+        edit={
+          editing
+            ? {
+                postId: editId,
+                version: entry!.version ?? 1,
+                linkPreview: entry!.linkPreview,
+              }
+            : undefined
+        }
       />
     </>
   );

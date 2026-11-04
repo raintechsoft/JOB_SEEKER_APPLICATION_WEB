@@ -5,8 +5,7 @@ import { InfoBadge } from "@/components/ui/info-badge";
 import { usePathname,useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {apiConfig} from "@/services/api/config";
-import {ApiError,errorMessage} from "@/services/api/client";
-import type {AuthSession} from "@/services/auth/auth.service";
+import {useAuthAction} from "@/features/auth/use-auth-action";
 import type {JobDetail} from "@/services/jobs/jobs.service";
 import type {ProfileService} from "@/services/profile/profile.service";
 import { useState } from "react";
@@ -22,7 +21,10 @@ import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-serv
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Button, LinkButton } from "@/components/ui/primitives";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { DevOnly } from "@/components/ui/dev-only";
+import { ErrorState } from "@/components/ui/state-views";
+import { ContentSkeleton } from "@/components/ui/skeleton";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { JobDetailsSideSheet } from "./job-details-sheet";
 import {applicationWizardPath} from "@/lib/domain/application-wizard";
@@ -34,8 +36,9 @@ function SavedApplication({ jobId }: { jobId: Id }) {
   const a = data.application;
   return (
     <div className="stack">
-      <h3>
-        {data.job.title} · {data.company.name}
+      <h3 className="job-page-company-line">
+        <span>{data.job.title} · {data.company.name}</span>
+        <VerifiedCompanyMark company={data.company} />
       </h3>
       <p className="small muted">
         {a.name} · {a.email}
@@ -50,11 +53,14 @@ function SavedApplication({ jobId }: { jobId: Id }) {
   );
 }
 
+const RECRUITMENT_LABELS: Record<string, string> = { location: "Location / city", locality: "Locality", expectedSalaryLpa: "Expected salary", noticeDays: "Notice period", joiningDays: "Joining time", industry: "Industry", designation: "Designation", department: "Department", preferredLocations: "Preferred locations", phone: "Phone" };
+
 function ApplyForm({ jobId }: { jobId: Id }) {
-  const { data,isError } = useServiceQuery(["job", jobId, "professional"], (s) => s.jobs.getJob(jobId, "professional"));
-  const { data: profile,isError:profileError } = useServiceQuery(["profile"], (s) => s.profile.getProfile());
-  if(isError||profileError)return <p role="alert">The application could not be loaded. Check that your professional profile is ready and try again.</p>;
-  if (!data || !profile) return null;
+  const jobQuery = useServiceQuery(["job", jobId, "professional"], (s) => s.jobs.getJob(jobId, "professional"));
+  const profileQuery = useServiceQuery(["profile"], (s) => s.profile.getProfile());
+  const { data } = jobQuery, { data: profile } = profileQuery;
+  if (jobQuery.isError || profileQuery.isError) return <ErrorState compact error={jobQuery.error ?? profileQuery.error} title="The application couldn’t open" description="Check that your professional profile is ready, then try again." onRetry={() => { if (jobQuery.isError) void jobQuery.refetch(); if (profileQuery.isError) void profileQuery.refetch(); }} />;
+  if (!data || !profile) return <ContentSkeleton layout="form" label="Loading application" />;
   return <ApplicationFields initialJob={data} initialProfile={profile}/>;
 }
 
@@ -90,8 +96,9 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
         toast(devCopy("Demo application saved locally. Nothing was sent to an employer.", "Application submitted."));
       }}
     >
-      <h3>
-        {job.title} · {company.name}
+      <h3 className="job-page-company-line">
+        <span>{job.title} · {company.name}</span>
+        <VerifiedCompanyMark company={company} />
       </h3>
       {errors._form && <p role="alert">{errors._form}</p>}
       <TextField label="Name" name="name" defaultValue={me.name} required error={errors.name} maxLength={150} />
@@ -117,7 +124,7 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
         ),
       )}
       {job.applicationInstructions && <p className="notice">{job.applicationInstructions}</p>}
-      {Object.entries(errors).filter(([key])=>key.startsWith("recruitmentDetails.")||key==="portfolio").map(([key,error])=><p key={key} role="alert">{key.replace("recruitmentDetails.","")}: {error}</p>)}
+      {Object.entries(errors).filter(([key])=>key.startsWith("recruitmentDetails.")||key==="portfolio").map(([key,error])=><p key={key} role="alert" className="error">{RECRUITMENT_LABELS[key.replace("recruitmentDetails.","")] ? `${RECRUITMENT_LABELS[key.replace("recruitmentDetails.","")]}: ${error}` : error}</p>)}
       <details className="application-shared-details">
         <summary>Recruiting details for this application</summary>
         <p className="small muted">Only details entered here are shared with this application. Private profile salary, notice, phone, and address are not copied.</p>
@@ -154,6 +161,7 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
 
 /** Opening jobs, saving and applying — shared by the feed, job rail, applications and organization pages. */
 export function useJobActions() {
+  const gate=useAuthAction();
   const run = useServiceAction();
   const services = useServices();
   const queryClient = useQueryClient();
@@ -172,6 +180,7 @@ export function useJobActions() {
     }
   };
   const apply = (id: Id) => {
+    void gate.run("apply",()=>{
     if (applicationWizardEnabled()) {
       try {
         const destination = applicationWizardPath(id, window.location.pathname + window.location.search);
@@ -180,26 +189,19 @@ export function useJobActions() {
       } catch { toast("This job is unavailable.", "error"); }
       return;
     }
-    const session = queryClient.getQueryData<AuthSession>(["auth", "session"]);
-    if (session && !session.user.email_verified) {
-      router.push("/verify-email");
-      return;
-    }
     if (cachedJob(id)?.application) {
       modal.show(devCopy("Your saved demo application", "Your application"), <SavedApplication jobId={id} />);
       return;
     }
     track("job_application_started", { jobId: id });
     modal.show("A first step toward your next chapter.", <ApplyForm jobId={id} />);
-    if (apiConfig.dataSource === "http" && !session) {
-      void services.auth.me().then((fresh) => { if (!fresh.user.email_verified) router.push("/verify-email"); }).catch((error) => {
-        if (error instanceof ApiError && error.status === 401) router.push("/login?next=" + encodeURIComponent("/jobs/" + id));
-        else toast(errorMessage(error));
-      });
-    }
+    },{target:{kind:"job",id}});
   };
   const toggleSave = async (saveRole: Role, id: Id, kind: "job" | "post" = "post") => {
-    const previous = kind === "job" ? cachedJob(id) : undefined;
+    const desired=kind==="job"?!cachedJob(id)?.saved:undefined;
+    return gate.run(kind==="job"?"save_job":"save_post",async()=>{
+    const previous = kind === "job" ? await services.jobs.getJob(id,saveRole) ?? cachedJob(id) : undefined;
+    if(previous&&previous.saved===desired){rememberJob(id,previous);return;}
     if (previous) rememberJob(id, { ...previous, saved: !previous.saved });
     const result = await run((s) => kind === "job" && saveRole === "professional" && s.jobs.toggleSave ? s.jobs.toggleSave(id) : s.feed.toggleSave(saveRole, id), { refresh: false });
     if (!result) {
@@ -214,13 +216,13 @@ export function useJobActions() {
       track("post_saved", { postId: id, saved: result.saved });
       void queryClient.invalidateQueries({ predicate: (query) => ["feed", "feed-saved-count"].includes(String(query.queryKey[0])) });
     }
-    toast(!result.persisted ? "Saved for this page only. Browser storage is full or unavailable." : result.saved ? (kind==="job"?"Job saved. Find it in your applications workspace.":"Saved. Find it in your Saved feed.") : kind==="job"?"Removed from saved jobs.":"Removed from saved posts.");
+    toast(!result.persisted ? "Saved for this page only. Browser storage is full or unavailable." : result.saved ? (kind==="job"?"Job saved. Find it in your applications workspace.":"Saved. Find it in your Saved feed.") : kind==="job"?"Removed from saved jobs.":"Removed from saved posts.", !result.persisted ? "error" : undefined);
+    },{workspace:kind==="job"?"professional":saveRole,target:{kind:kind==="job"?"job":"entry",id}});
   };
   const view = (id: Id, surface = "feed") => {
     track("job_viewed", { jobId: id, surface });
     modal.show("Job details", <JobDetailsSideSheet id={id} role={role} onApply={() => apply(id)} onSave={() => void toggleSave("professional", id, "job")} onOpenJob={(next) => view(next, "job-page")} />, "following");
     void queryClient.prefetchQuery({ queryKey: jobQueryKey(id), queryFn: () => services.jobs.getJob(id, role) });
-    if (role === "professional") void queryClient.prefetchQuery({ queryKey: ["profile"], queryFn: () => services.profile.getProfile() });
     if (apiConfig.dataSource !== "http") void services.jobs.markSeen(id);
   };
   return { view, apply, toggleSave, role };

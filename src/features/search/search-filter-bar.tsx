@@ -95,7 +95,7 @@ export function SearchFilterBar({ role, scope, pending = false, onCategory, sele
   </aside>;
 }
 
-export function SearchSubFilterBar({ role, scope, options, pending = false, onApply }: Omit<Props, "onCategory" | "query">) {
+export function SearchSubFilterBar({ role, scope, options, pending = false, onApply, publicMode=false }: Omit<Props, "onCategory" | "query"> & {publicMode?:boolean}) {
   const [filterError,setFilterError]=useState("");
   const apply=(next:SearchOptions)=>{
     const messages=Object.values(compensationQueryErrors(next));
@@ -103,8 +103,8 @@ export function SearchSubFilterBar({ role, scope, options, pending = false, onAp
     const accepted=onApply(next);setFilterError(accepted?"":"Check the selected filters before searching.");return accepted;
   };
   const layout = filterLayouts[scope];
-  const session = useServiceQuery(["auth", "session"], service => service.auth.me(), { enabled: apiConfig.dataSource === "http" });
-  const identity = session.data?.selected_identity_id;
+  const session = useServiceQuery(["auth", "session"], service => service.auth.me(), { enabled: !publicMode && apiConfig.dataSource === "http" });
+  const identity = publicMode ? undefined : session.data?.selected_identity_id;
   const fieldKeys = Object.keys(options).filter(key => key !== "sort" && key !== "selected" && isSet(options[key as keyof SearchOptions])) as (keyof SearchFilters)[];
   const describe = (key: keyof SearchFilters, value: unknown) => key === "author" ? value === identity ? "Me" : "Selected author" : key === "contentType" ? CONTENT_TYPE_LABELS[String(value)] ?? String(value) : key === "days" ? DAY_VALUE_LABELS[String(value)] ?? String(value) : String(value);
   const controls = [...layout.quick, ...layout.more];

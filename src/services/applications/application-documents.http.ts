@@ -17,6 +17,9 @@ export function createApplicationDocumentService(http: HttpClient, media: MediaS
       z.uuid().parse(draftId);
       return (await http.get<{data: ApplicationDocumentContext}>(`me/application-drafts/${draftId}/documents`)).data;
     },
+    async listResumes() {
+      return (await http.get<{data: components["schemas"]["ResumeLibrary"]}>("me/resume-library")).data.items;
+    },
     async uploadResume(files: readonly File[]) {
       const issue = validateApplicationResume(files);
       if (issue) throw new Error(issue);

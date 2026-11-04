@@ -23,6 +23,16 @@ tests/*
 !tests/setup.ts
 !tests/unit/
 tests/unit/*
+!tests/unit/realtime-r3.test.ts
+!tests/unit/realtime-r4.test.ts
+!tests/unit/realtime-r5.test.ts
+!tests/unit/realtime-review.test.tsx
+!tests/unit/live-feed-recovery.test.tsx
+!tests/unit/realtime-transport.test.ts
+!tests/unit/realtime-session-isolation.test.ts
+!tests/unit/notification-inbox-controls.test.tsx
+!tests/unit/notifications-sheet.test.tsx
+!tests/unit/messaging-http.test.ts
 !tests/unit/media-upload.test.ts
 !tests/unit/media-video.test.tsx
 !tests/unit/profile-photo.test.tsx
@@ -43,6 +53,7 @@ tests/unit/*
 !tests/unit/job-editor-v2-ui.test.tsx
 !tests/unit/job-j4-discovery.test.tsx
 !tests/unit/application-wizard-contract.test.ts
+!tests/unit/public-browsing.test.ts
 !tests/unit/application-drafts-http.test.ts
 !tests/unit/application-contact.test.tsx
 !tests/unit/application-documents.test.tsx

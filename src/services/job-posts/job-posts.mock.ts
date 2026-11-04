@@ -170,7 +170,7 @@ export const mockJobPostsService: JobPostsService = {
     const stored = db.postEditorDrafts[role];
     if (stored) return clone(stored);
     const project = mode === "project" && role === "professional" ? projectsFor(db, "p0").find((p) => p.visibility === "Public")?.id || "" : "";
-    return { id: uid(), title: "", body: "", project, media: [], videoUrl: "", step: 0, reached: 0 } satisfies PostDraft;
+    return { id: uid(), title: "", body: "", project, media: [], videoUrl: "", commentsEnabled: true, step: 0, reached: 0 } satisfies PostDraft;
   },
 
   async storePostDraft(role, draft) {

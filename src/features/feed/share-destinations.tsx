@@ -1,6 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
+import {useQuery} from "@tanstack/react-query";
+import {z} from "zod";
+import {useServices} from "@/hooks/use-services";
+import {apiConfig} from "@/services/api/config";
+import {PUBLIC_QUERY_OPTIONS,publicShareUrl} from "@/features/public-browsing/public-routing";
 import type { Id, Role } from "@/types/domain";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { Icon } from "@/components/ui/icon";
@@ -8,7 +13,9 @@ import { postShareUrl } from "./share-links";
 
 export function ShareDestinations({ role, postId }: { role: Role; postId: Id }) {
   const hydrated = useHydrated();
-  const url = hydrated ? postShareUrl(role, postId, window.location.origin) : "";
+  const services=useServices();
+  const publicEntry=useQuery({...PUBLIC_QUERY_OPTIONS,queryKey:["public-browsing","share-eligibility",postId],queryFn:({signal})=>services.publicBrowsing.entry(postId,{signal}),enabled:hydrated&&apiConfig.dataSource==="http"&&z.uuid().safeParse(postId).success});
+  const url = hydrated ? publicEntry.data?publicShareUrl(publicEntry.data.path,window.location.origin):postShareUrl(role, postId, window.location.origin) : "";
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState("");
   const [copying, setCopying] = useState(false);
@@ -55,6 +62,6 @@ export function ShareDestinations({ role, postId }: { role: Role; postId: Id }) 
       </div>
       <button type="button" className="post-share-more" aria-label="More sharing options" disabled={!url || sharing} onClick={() => void systemShare()}><Icon name="more" /><span>More</span></button>
     </div>
-   
+    {message&&<p role="status">{message}</p>}
   </section>;
 }

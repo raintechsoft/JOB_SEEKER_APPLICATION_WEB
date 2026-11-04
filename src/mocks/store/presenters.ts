@@ -4,13 +4,13 @@ import { displayJobCompany } from "@/lib/domain/jobs";
 import { PORTRAITS } from "../data/professionals";
 import { ME_ID, person, RECRUITER_ID, recruiterIdentity } from "./selectors";
 
-function personFollowerCount(db: DemoDatabase, id: Id) {
+export function personFollowerCount(db: DemoDatabase, id: Id) {
   if (id === ME_ID) return db.social.followers.length;
   if (id === RECRUITER_ID) return db.recruiterSocial.followers.length;
   return [db.social, db.recruiterSocial].filter((graph) => graph.following.includes(id)).length;
 }
 
-function companyFollowerCount(db: DemoDatabase, id: Id) {
+export function companyFollowerCount(db: DemoDatabase, id: Id) {
   return [db.social, db.recruiterSocial].filter((graph) => graph.followingCompanies.includes(id)).length;
 }
 
@@ -42,13 +42,14 @@ export function companySummary(db: DemoDatabase, c: Company): CompanySummary {
     description: own ? org.description : c.summary,
     companySize: own ? org.companySize : undefined,
     followerCount: companyFollowerCount(db, c.id),
+    verified: own ? org.verificationStatus === "Verified" : c.status === "Demo verified",
   };
 }
 
 export function jobCompany(db: DemoDatabase, job: Job): CompanySummary {
   const company = db.companies.find((c) => c.id === job.company) ?? db.companies[0];
   const shown = displayJobCompany(job, company);
-  if (shown.confidential) return { id: company.id, name: shown.name, industry: shown.industry, confidential: true };
+  if (shown.confidential) return { id: company.id, name: shown.name, industry: shown.industry, confidential: true, verified: false };
   return { ...companySummary(db, company), name: shown.name };
 }
 

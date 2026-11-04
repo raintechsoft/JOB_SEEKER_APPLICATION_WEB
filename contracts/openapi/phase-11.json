@@ -8766,6 +8766,68 @@
         }
       }
     },
+    "/me/communications/{identity}/conversations/{conversation}/delivered": {
+      "patch": {
+        "operationId": "phase6_patch__me_communications_identity_conversations_conversation_delivered",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "conversation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "messageIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "messageIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/communications/{identity}/conversations/{conversation}/flags": {
       "patch": {
         "operationId": "phase6_patch__me_communications_identity_conversations_conversation_flags",
@@ -8957,6 +9019,32 @@
                 }
               }
             }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "phase6_delete__me_communications_identity_notifications",
+        "summary": "Clear every in-app notification for this identity (read and unread).",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ActorContext"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
           },
           "default": {
             "$ref": "#/components/responses/Error"
@@ -22485,6 +22573,13 @@
               "maxLength": 2048
             },
             "maxItems": 10
+          },
+          "commentsEnabled": {
+            "type": "boolean",
+            "description": "When false, viewers cannot add comments or replies on the published post."
+          },
+          "quickJob": {
+            "$ref": "#/components/schemas/QuickJobPost"
           }
         },
         "required": [
@@ -22497,6 +22592,54 @@
           "videoUrl",
           "step",
           "reached"
+        ],
+        "additionalProperties": false
+      },
+      "QuickJobPost": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 20
+          },
+          "employment": {
+            "type": "string",
+            "enum": [
+              "Full-time",
+              "Part-time",
+              "Contract",
+              "Internship",
+              ""
+            ]
+          },
+          "arrangement": {
+            "type": "string",
+            "enum": [
+              "On-site",
+              "Hybrid",
+              "Remote",
+              ""
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "title",
+          "locations",
+          "employment",
+          "arrangement"
         ],
         "additionalProperties": false
       },
@@ -22552,6 +22695,13 @@
               }
             ],
             "description": "URL from body whose stored server preview should be shown. An unfetched or unavailable URL publishes without a preview."
+          },
+          "commentsEnabled": {
+            "type": "boolean",
+            "description": "When false, viewers cannot add comments or replies on this post."
+          },
+          "quickJob": {
+            "$ref": "#/components/schemas/QuickJobPost"
           }
         },
         "required": [
@@ -22792,6 +22942,48 @@
             ],
             "additionalProperties": false
           },
+          "linkedJob": {
+            "type": "object",
+            "description": "Present when a recruiter quick-job post links a real hiring job for Apply.",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "arrangement": {
+                "type": "string"
+              },
+              "employment": {
+                "type": "string"
+              },
+              "ownedByViewer": {
+                "type": "boolean"
+              },
+              "applied": {
+                "type": "boolean"
+              },
+              "open": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "location",
+              "arrangement",
+              "employment",
+              "ownedByViewer",
+              "applied",
+              "open"
+            ],
+            "additionalProperties": false
+          },
           "likes": {
             "type": "integer",
             "minimum": 0
@@ -22855,6 +23047,10 @@
             "minimum": 0,
             "description": "Total comments visible to the current viewer, independent of pagination."
           },
+          "commentsEnabled": {
+            "type": "boolean",
+            "description": "False when the author disabled comments on this post. Jobs and work updates remain true."
+          },
           "repost": {
             "anyOf": [
               {
@@ -22902,7 +23098,8 @@
           "likes",
           "comments",
           "viewer",
-          "commentCount"
+          "commentCount",
+          "commentsEnabled"
         ],
         "additionalProperties": false
       },
@@ -23591,6 +23788,43 @@
             "type": "integer",
             "minimum": 1
           },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sent",
+                  "delivered",
+                  "seen"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deliveredAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seenAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "attachments": {
             "type": "array",
             "items": {
@@ -23606,6 +23840,9 @@
           "own",
           "time",
           "sequence",
+          "status",
+          "deliveredAt",
+          "seenAt",
           "attachments"
         ],
         "additionalProperties": false
@@ -23671,6 +23908,14 @@
             "type": "integer",
             "minimum": 0
           },
+          "peerDeliveredSequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "peerReadSequence": {
+            "type": "integer",
+            "minimum": 0
+          },
           "nextBefore": {
             "anyOf": [
               {
@@ -23692,6 +23937,8 @@
           "flags",
           "canSend",
           "readSequence",
+          "peerDeliveredSequence",
+          "peerReadSequence",
           "nextBefore"
         ],
         "additionalProperties": false
@@ -23907,7 +24154,8 @@
             "enum": [
               "messages",
               "applications",
-              "job_alerts"
+              "job_alerts",
+              "network"
             ]
           },
           "title": {
@@ -24004,7 +24252,8 @@
             "enum": [
               "messages",
               "applications",
-              "job_alerts"
+              "job_alerts",
+              "network"
             ]
           },
           "channel": {

@@ -8,7 +8,7 @@ import { feedSearchSchema } from "@/lib/validation/social";
 
 /**
  * Applies `?view=` and `?post=` from the URL to the session feed state, as the prototype did on render:
- * `post` shows the full "For you" list so the permalinked post can be highlighted.
+ * `post` shows the full Home list so the permalinked post can be highlighted.
  */
 export function useFeedParams(role: Role) {
   const params = useSearchParams();
@@ -23,7 +23,7 @@ export function useFeedParams(role: Role) {
       setFeed({ filter: "all", query: parsed.success ? parsed.data : "", visible: 12 });
     }
     if (view !== null) {
-      if (view === "reposts") setFeed({ filter: "reposts", query: "", visible: 12 });
+      if (view === "reposts" || view === "following") setFeed({ filter: view, query: "", visible: 12 });
       else if (role === "professional") setFeed({ filter: view === "saved" || view === "jobs" ? view : "all" });
       else setFeed({ filter: view === "saved" ? "saved" : "all" });
     }

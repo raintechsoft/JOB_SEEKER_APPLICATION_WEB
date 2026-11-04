@@ -49,7 +49,7 @@ api.paths[`${b}/people`].get.parameters.find(p=>p.name==="q").required=true;
 route(`${b}/feed`,"get","SocialFeedPage",null,{filter:{enum:["all","following","jobs","saved","reposts"]},sort:{enum:["recent","popular"]},q:{...str,maxLength:200},cursor:str,limit:{...int,minimum:1,maximum:40}});
 route(`${b}/activity`,"get","SocialActivity");route(`${b}/network`,"get","SocialNetwork");route(`${b}/draft`,"post","PostDraft");route(`${b}/draft`,"patch","PostDraft","PostDraft");
 route(`${b}/posts`,"post",obj({id:uuid,version:rev}),"PostPublish",{},201);
-route(`${b}/posts/{post}`,"patch",null,obj({version:rev,title:{...str,maxLength:150},body:{...str,maxLength:3000}}));route(`${b}/posts/{post}`,"delete",null,obj({version:rev}));
+route(`${b}/posts/{post}`,"patch",null,obj({version:rev,title:{...str,maxLength:150},body:{...str,maxLength:3000},project:values.project,attachments:values.media,commentsEnabled:bool,previewUrl:{anyOf:[str,{const:""}]}}));route(`${b}/posts/{post}`,"delete",null,obj({version:rev}));
 route(`${b}/entries/{item}`,"get","SocialEntry");route(`${b}/entries/{item}/{kind}`,"patch",obj({enabled:bool}),obj({enabled:bool}));
 const intent=api.paths[`${b}/entries/{item}/{kind}`].patch;
 intent.parameters.find(p=>p.name==="kind").schema={type:"string",enum:["liked","saved","reposted"]};

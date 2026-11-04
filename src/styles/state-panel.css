@@ -1,0 +1,40 @@
+/* Shared empty, error, access and not-found states (components/ui/state-panel.tsx). */
+.state-panel{display:flex;flex-direction:column;align-items:center;gap:0;padding:48px 24px;text-align:center;background:#fff;border:1px solid #e4e9ef;border-radius:12px;min-width:0}
+.state-panel-icon{display:grid;place-items:center;width:64px;height:64px;margin-bottom:18px;border-radius:50%;background:#f1f4f8;color:#5b6778}
+.state-panel-icon .icon{width:28px;height:28px;stroke-width:1.6}
+.state-panel.is-info .state-panel-icon{background:#edf3ff;color:#315ef4}
+.state-panel.is-warning .state-panel-icon{background:#fff5e6;color:#b45309}
+.state-panel.is-danger .state-panel-icon{background:#fdecec;color:#c2410c}
+body.professional-theme .state-panel-title,.state-panel-title{margin:0 0 8px;font-size:18px;font-weight:650;line-height:1.35;color:#202a36}
+body.professional-theme .state-panel-text,.state-panel-text{max-width:440px;margin:0 auto;font-size:14px;line-height:1.6;color:#626b76;overflow-wrap:anywhere}
+.state-panel-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:22px}
+.state-panel.is-compact{padding:28px 18px;border-radius:10px}
+.state-panel.is-compact .state-panel-icon{width:46px;height:46px;margin-bottom:12px}
+.state-panel.is-compact .state-panel-icon .icon{width:22px;height:22px}
+body.professional-theme .state-panel.is-compact .state-panel-title,.state-panel.is-compact .state-panel-title{font-size:15px}
+body.professional-theme .state-panel.is-compact .state-panel-text,.state-panel.is-compact .state-panel-text{font-size:13px}
+.state-panel.is-compact .state-panel-actions{margin-top:16px}
+/* Inside cards, sheets and lists the panel sits flat on the surrounding surface. */
+.card>.state-panel,.modal .state-panel,.sheet .state-panel{border:0;background:transparent}
+@media(max-width:680px){.state-panel{padding:36px 18px}.state-panel-icon{width:54px;height:54px}}
+/* Grid and list containers that hosted the older .empty block. */
+.project-record-grid>.state-panel,.suggestion-card-grid>.state-panel{grid-column:1/-1}
+.state-inline-note{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 12px;padding:10px 14px;border-radius:8px;background:#fff7e6;color:#8a5a00;font-size:13px}
+.state-inline-note .link{padding:0;border:0;background:none;color:#315ef4;font:inherit;font-weight:600;cursor:pointer}
+.state-page{display:grid;place-items:center;min-height:60vh}.state-page>.state-panel{width:100%;max-width:560px}
+/* Recruiter response card: the submitted resume is a clearly visible action. */
+body.professional-theme .response-candidate-profile .response-resume-download {
+  border-color: #315ef4;
+  background: #edf3ff;
+  color: #315ef4;
+  font-weight: 600;
+}
+body.professional-theme .response-candidate-profile .response-resume-download:hover {
+  background: #dfe8ff;
+}
+/* In-browser document viewer (submitted resumes). Fills the side sheet; download is optional. */
+.document-viewer { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; height: 100%; }
+.document-viewer-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.document-viewer-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; color: #202a36; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.document-viewer-name .icon { width: 18px; height: 18px; flex-shrink: 0; color: #d93025; }
+.document-viewer-frame { display: block; flex: 1; width: 100%; min-height: 70vh; border: 1px solid #e4e9ef; border-radius: 10px; background: #f1f4f8; }

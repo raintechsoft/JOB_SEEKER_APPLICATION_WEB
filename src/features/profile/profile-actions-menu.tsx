@@ -1,22 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Icon } from "@/components/ui/icon";
 import "./profile-actions-menu.css";
 
 export function ProfileActionsMenu({
-  slug,
+  previewHref,
   onCopy,
   onImprove,
+  onEdit,
+  editLabel = "Edit basic profile",
 }: {
-  slug: string;
+  previewHref: string;
   onCopy: () => Promise<void>;
-  onImprove: () => void;
+  /** Omitted once the profile is complete, which hides "Improve profile". */
+  onImprove?: () => void;
+  /** Opens the basic profile editor; shown as a pencil button beside the options menu. */
+  onEdit?: () => void;
+  editLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +82,17 @@ export function ProfileActionsMenu({
           setOpen(false);
       }}
     >
+      {onEdit && (
+        <button
+          type="button"
+          className="iconbtn profile-edit-trigger"
+          aria-label={editLabel}
+          title={editLabel}
+          onClick={onEdit}
+        >
+          <Icon name="edit" />
+        </button>
+      )}
       <button
         ref={trigger}
         type="button"
@@ -82,14 +100,14 @@ export function ProfileActionsMenu({
         aria-label="Profile options"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-controls={open ? "profile-options-menu" : undefined}
+        aria-controls={open ? menuId : undefined}
         onClick={() => (open ? setOpen(false) : show())}
       >
         <Icon name="more" />
       </button>
       {open && (
         <div
-          id="profile-options-menu"
+          id={menuId}
           className="profile-overflow-menu"
           role="menu"
           aria-label="Profile options"
@@ -97,10 +115,10 @@ export function ProfileActionsMenu({
           <Link
             role="menuitem"
             tabIndex={-1}
-            href={`/professionals/${slug}`}
+            href={previewHref}
             onClick={() => setOpen(false)}
           >
-            <Icon name="external" />
+            <Icon name="eye" />
             Preview public profile
           </Link>
           <button
@@ -116,19 +134,21 @@ export function ProfileActionsMenu({
             <Icon name="copy" />
             Copy profile link
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            onClick={() => {
-              setOpen(false);
-              trigger.current?.focus();
-              onImprove();
-            }}
-          >
-            <Icon name="spark" />
-            Improve profile
-          </button>
+          {onImprove && (
+            <button
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                setOpen(false);
+                trigger.current?.focus();
+                onImprove();
+              }}
+            >
+              <Icon name="spark" />
+              Improve profile
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { z } from "zod";
+import {useAuthAction} from "@/features/auth/use-auth-action";
 import type { Role } from "@/types/domain";
 import { apiConfig } from "@/services/api/config";
 import { useServiceAction } from "@/hooks/use-services";
@@ -10,6 +11,7 @@ import { formatFollowers } from "@/lib/utils/text";
 import { searchResultLabel, type SearchResult } from "@/services/search/search.service";
 import { toast } from "@/stores/toast-store";
 import { Button } from "@/components/ui/primitives";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { SearchResultMark } from "./result-mark";
 import { SearchHighlight } from "./highlight";
 
@@ -47,7 +49,7 @@ function SearchResultCopyBody({ result, query, detailed, surface = "dropdown" }:
   if (result.kind === "company") {
     const line = searchMetaLine([companyMetaLine(result), followers]);
     return <>
-      <strong><SearchHighlight text={result.title} query={query} /></strong>
+      <strong className="search-company-name"><SearchHighlight text={result.title} query={query} /><VerifiedCompanyMark company={{ verified: result.verified }} /></strong>
       {line ? <span className="header-search-meta"><SearchHighlight text={line} query={query} /></span> : null}
     </>;
   }
@@ -55,7 +57,7 @@ function SearchResultCopyBody({ result, query, detailed, surface = "dropdown" }:
     const line = searchMetaLine([jobMetaLine(result), followers]);
     return <>
       <strong><SearchHighlight text={result.title} query={query} /></strong>
-      {line ? <span className="header-search-meta"><SearchHighlight text={line} query={query} /></span> : null}
+      {line ? <span className="header-search-meta application-company-line"><SearchHighlight text={line} query={query} /><VerifiedCompanyMark company={{ verified: result.verified, name: result.companyName }} /></span> : null}
     </>;
   }
   return <>
@@ -88,6 +90,7 @@ export function SearchFollowButton({
   ownCompanyId?: string;
 }) {
   const run = useServiceAction();
+  const gate = useAuthAction();
   const company = result.kind === "company";
   const following = company ? followingCompanies.includes(result.id) : followingPeople.includes(result.id);
   if (!canFollowSearchResult(result, ownPersonId, ownCompanyId)) return null;
@@ -97,6 +100,7 @@ export function SearchFollowButton({
       toast("This profile cannot be followed.", "error");
       return;
     }
+    await gate.run(company?"follow_company":"follow_person",async()=>{
     const next = await run((s) => (company ? s.feed.toggleFollowCompany(role, id) : s.feed.toggleFollow(role, id)), { invalidate: ["network", "feed"] });
     if (next === undefined) return;
     if (company) {
@@ -106,6 +110,7 @@ export function SearchFollowButton({
     }
     track("person_followed", { personId: id, following: next });
     toast(next ? "Following updated." : "Unfollowed.");
+    },{workspace:role,target:{kind:company?"company":"person",id}});
   };
   return <span className="header-search-follow-slot"><Button unstyled type="button" icon={following ? "check" : "plus"} className={"header-search-follow" + (following ? " is-following" : "")} aria-pressed={following} aria-label={(following ? "Unfollow " : "Follow ") + result.title} onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }} onClick={event => { event.preventDefault(); event.stopPropagation(); return toggleFollow(); }}>{following ? "Following" : "Follow"}</Button></span>;
 }

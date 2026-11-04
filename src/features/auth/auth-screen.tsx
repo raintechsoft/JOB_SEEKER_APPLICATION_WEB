@@ -24,6 +24,7 @@ import { clearIdentityState } from "./clear-identity-state";
 import { GoogleReturnNotice, GoogleSignInButton } from "./google-sign-in";
 import {applicationSignInReturn} from "@/features/applications/application-wizard-policy";
 import {navigateToApplication} from "@/features/applications/application-signin-return";
+import {authEntryHref,continuationFromParams,legacyAuthReturn,navigateToAuthContinuation,navigateToLegacyReturn} from "./auth-continuation";
 
 export function SignInForm({ role }: { role: Role }) {
   const router = useRouter();
@@ -37,14 +38,18 @@ export function SignInForm({ role }: { role: Role }) {
       noValidate
       onSubmit={submit(async (values) => {
         if (apiConfig.dataSource === "http") {
-          const next = new URLSearchParams(window.location.search).get("next");
+          const params = new URLSearchParams(window.location.search), next = params.get("next"), intent=continuationFromParams(params);
           // Sent here by an admin page: sign in without entering a workspace (an admin may have none), then go back.
-          const admin = !!next && /^\/admin\/[a-z-]+$/.test(next);
+          const admin = role === "professional" && !intent && !!next && /^\/admin\/[a-z-]+$/.test(next);
           const session = await services.auth.login(values, admin ? "admin" : role === "recruiter" ? "employer" : "professional");
           clearIdentityState(); cache.clear();
+          cache.setQueryData(["auth","session"],session);
+          if(intent){navigateToAuthContinuation(intent,session,path=>router.push(path));return;}
           if(admin){router.push(next);return;}
           const application=role==="professional"?applicationSignInReturn(next):null;
           if(application&&session.user.email_verified){navigateToApplication(application);return;}
+          const legacy=legacyAuthReturn(next,session);
+          if(legacy){if(session.user.email_verified)navigateToLegacyReturn(legacy,path=>router.push(path));else router.push("/verify-email?next="+encodeURIComponent(legacy));return;}
           router.push(session.user.email_verified ? next?.startsWith("/accept-invitation?")?next:application??authDestination(session,role) : application?"/verify-email?next="+encodeURIComponent(application):authDestination(session,role));
           return;
         }
@@ -61,7 +66,7 @@ export function SignInForm({ role }: { role: Role }) {
       </AuthField>
       <AuthError name="root" message={errors.root?.message} />
       <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Signing in…"}>
-        {"LOGIN"}
+        {"Sign in"}
       </Button>
       <Link className="small muted" href="/forgot-password">Forgot password?</Link>
     </form>
@@ -83,6 +88,9 @@ export function SignUpForm({ role }: { role: Role }) {
         if (apiConfig.dataSource === "http") {
           const session = await services.auth.register(v);
           clearIdentityState(); cache.clear();
+          cache.setQueryData(["auth","session"],session);
+          const intent=continuationFromParams(new URLSearchParams(window.location.search));
+          if(intent){navigateToAuthContinuation(intent,session,path=>router.push(path));return;}
           const next=role==="professional"?applicationSignInReturn(new URLSearchParams(window.location.search).get("next")):null;
           if(next&&session.user.email_verified){navigateToApplication(next);return;}
           router.push(next?(session.user.email_verified?next:"/verify-email?next="+encodeURIComponent(next)):authDestination(session));
@@ -90,7 +98,7 @@ export function SignUpForm({ role }: { role: Role }) {
         }
         await services.workspace.signUp(role, v.name.trim());
         setOnboarding({ role, step: 0 });
-        router.push("/onboarding");
+        router.push(role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard");
       })}
     >
       <AuthField name="name" message={errors.name?.message}>
@@ -104,7 +112,7 @@ export function SignUpForm({ role }: { role: Role }) {
       </AuthField>
       <AuthError name="root" message={errors.root?.message} />
       <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Creating account…"}>
-        {"SUBMIT"}
+        {"Create account"}
       </Button>
     </form>
   );
@@ -124,6 +132,7 @@ export function AuthScreen({ signup = false, roleParam, employer = false }: { si
 
 function AuthLayout({ signup, role }: { signup: boolean; role: Role }) {
   const params=useSearchParams();
+  const intent=continuationFromParams(params);
   const application=role==="professional"?applicationSignInReturn(params.get("next")):null;
   const run = useServiceAction();
   const router = useRouter();
@@ -157,11 +166,11 @@ function AuthLayout({ signup, role }: { signup: boolean; role: Role }) {
             )}
             {!(recruiter && !signup) && (
               <p className="auth-switch-link">
-                {signup ? "Already Registered?" : "New around here?"} <Link href={(signup ? "/login" : "/signup") + "?role=" + role+(application?"&next="+encodeURIComponent(application):"")}>{signup ? "Login" : "Create a profile"}</Link>
+                {signup ? "Already registered?" : "New around here?"} <Link href={intent?authEntryHref(signup?"/login":"/signup",intent):(signup ? "/login" : "/signup") + "?role=" + role+(application?"&next="+encodeURIComponent(application):"")}>{signup ? "Sign in" : "Create a profile"}</Link>
               </p>
             )}
             {recruiter && !signup ? (
-              <Link className="btn auth-create-employer" href="/employer/register">
+              <Link className="btn auth-create-employer" href={authEntryHref("/employer/register",intent)}>
                 Don’t have a registered email? Create account <Icon name="arrow" />
               </Link>
             ) : (

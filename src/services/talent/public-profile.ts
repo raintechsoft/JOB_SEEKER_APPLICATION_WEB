@@ -1,4 +1,4 @@
-import type { DemoDatabase, Id, IsoDate, Professional } from "@/types/domain";
+import type { DemoDatabase, Id, IsoDate, Professional, ProfileRecord, ProfileSkill } from "@/types/domain";
 import { PORTRAITS } from "@/mocks/data/professionals";
 
 export interface CredentialRecord {
@@ -15,6 +15,39 @@ export interface PublicCredentials {
   contact: { email?: string; phone?: string };
 }
 
+export type PublicSkillRecord = {
+  id: string;
+  name: string;
+  category?: string;
+  level?: string;
+  years?: string;
+  featured?: boolean;
+};
+
+export type PublicTimelineRecord = {
+  id: string;
+  title?: string;
+  degree?: string;
+  company?: string;
+  institution?: string;
+  type?: string;
+  start?: string;
+  end?: string;
+  current?: boolean;
+  public?: boolean;
+  location?: string;
+  arrangement?: string;
+  field?: string;
+  description?: string;
+  responsibilities?: string;
+  achievements?: string;
+  coursework?: string;
+  grade?: string;
+  skills?: string;
+  companyLogo?: string | null;
+  projects?: string[];
+};
+
 /** Professional fields that may be shown on public pages, portfolios and talent search. */
 export interface PublicProfessional {
   id: Id;
@@ -25,9 +58,15 @@ export interface PublicProfessional {
   location: string;
   years: number;
   skills: string[];
+  /** Structured key skills for the public profile layout; falls back to `skills` names. */
+  skillRecords?: PublicSkillRecord[];
   summary: string;
   experience: string;
   education: string;
+  /** Public employment timeline records (own-profile layout). */
+  employmentRecords?: PublicTimelineRecord[];
+  /** Public education timeline records (own-profile layout). */
+  educationRecords?: PublicTimelineRecord[];
   interests: string;
   arrangement: string;
   available: boolean;
@@ -40,6 +79,7 @@ export interface PublicProfessional {
   color: string;
   lastActive: IsoDate;
   credentials: PublicCredentials;
+  followerCount: number;
 }
 
 const KINDS = {
@@ -52,6 +92,57 @@ const KINDS = {
 } as const;
 
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+
+function publicSkillRecords(skills: ProfileSkill[] | undefined): PublicSkillRecord[] {
+  return (skills ?? []).map((s) => ({
+    id: s.id,
+    name: s.name,
+    category: s.category || undefined,
+    level: s.level || undefined,
+    years: s.years || undefined,
+    featured: !!s.featured,
+  }));
+}
+
+function publicTimelineRecords(
+  records: ProfileRecord[] | undefined,
+  kind: "employment" | "education",
+): PublicTimelineRecord[] {
+  return (records ?? [])
+    .filter((r) => r.public)
+    .map((r) => {
+      const base: PublicTimelineRecord = {
+        id: r.id,
+        type: str(r.type),
+        start: str(r.start),
+        end: str(r.end),
+        current: !!r.current,
+        location: str(r.location),
+        arrangement: str(r.arrangement),
+        description: str(r.description),
+        skills: str(r.skills),
+      };
+      if (kind === "employment") {
+        return {
+          ...base,
+          title: str(r.title),
+          company: str(r.company),
+          responsibilities: str(r.responsibilities),
+          achievements: str(r.achievements),
+          companyLogo: str(r.companyLogo) ?? null,
+          projects: Array.isArray(r.projects) ? r.projects.map(String) : [],
+        };
+      }
+      return {
+        ...base,
+        degree: str(r.degree),
+        institution: str(r.institution),
+        field: str(r.field),
+        coursework: str(r.coursework),
+        grade: str(r.grade),
+      };
+    });
+}
 
 export function publicCredentials(p: Professional): PublicCredentials {
   const d = p.professionalDetails;
@@ -69,7 +160,8 @@ export function publicCredentials(p: Professional): PublicCredentials {
   return { groups, breaks, contact };
 }
 
-export function toPublicProfessional(p: Professional): PublicProfessional {
+export function toPublicProfessional(p: Professional, followerCount = 0): PublicProfessional {
+  const details = p.professionalDetails;
   return {
     id: p.id,
     slug: p.slug,
@@ -79,9 +171,12 @@ export function toPublicProfessional(p: Professional): PublicProfessional {
     location: p.location,
     years: p.years,
     skills: p.skills,
+    skillRecords: publicSkillRecords(details?.skills),
     summary: p.summary,
     experience: p.experience,
     education: p.education,
+    employmentRecords: publicTimelineRecords(details?.employment, "employment"),
+    educationRecords: publicTimelineRecords(details?.education, "education"),
     interests: p.interests,
     arrangement: p.arrangement,
     available: p.available,
@@ -93,6 +188,7 @@ export function toPublicProfessional(p: Professional): PublicProfessional {
     color: p.color,
     lastActive: p.lastActive,
     credentials: publicCredentials(p),
+    followerCount: p.followerCount ?? followerCount,
   };
 }
 

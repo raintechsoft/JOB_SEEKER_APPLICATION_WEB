@@ -5,6 +5,7 @@ import { cn, initials } from "@/lib/utils/text";
 import { Icon, type IconName } from "./icon";
 import { MediaImage } from "./media-image";
 import { InfoBadge } from "./info-badge";
+import { StatePanel } from "./state-panel";
 export { Button, IconButton } from "./button";
 
 export function Brand({ href = "/" }: { href?: string }) {
@@ -85,23 +86,18 @@ export function Badge({ children, tone = "green", style }: { children: ReactNode
   );
 }
 
-export function EmptyState({ title, description, action }: { title: ReactNode; description: ReactNode; action?: ReactNode }) {
-  return (
-    <div className="empty">
-      <Icon name="folder" />
-      <h3>{title}</h3>
-      <p>{description}</p>
-      {action}
-    </div>
-  );
+/** Empty data with a next step; choose an icon describing what is missing. */
+export function EmptyState({ title, description, action, icon = "inbox", compact }: { title: ReactNode; description: ReactNode; action?: ReactNode; icon?: IconName; compact?: boolean }) {
+  return <StatePanel icon={icon} title={title} description={description} actions={action} compact={compact} />;
 }
 
 export function PageHeading({ title, subtitle, actions }: { title: ReactNode; subtitle: ReactNode; actions?: ReactNode }) {
+  const hasSubtitle = subtitle != null && subtitle !== false && subtitle !== "";
   return (
-    <div className="page-heading">
+    <div className={"page-heading" + (hasSubtitle ? "" : " is-inline")}>
       <div>
         <h1>{title}</h1>
-        <p>{subtitle}</p>
+        {hasSubtitle ? <p>{subtitle}</p> : null}
       </div>
       {actions && <div className="row gap8 wrap">{actions}</div>}
     </div>

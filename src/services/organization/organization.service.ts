@@ -12,11 +12,18 @@ export interface OrganizationContext {
 export interface PublicOrganizationView {
   organization: PublicOrganization;
   openJobs: Job[];
+  viewer: PublicProfileViewer;
+}
+
+export interface PublicProfileViewer {
+  own: boolean;
+  following: boolean;
 }
 
 export interface PublicRecruiterView {
   recruiter: PublicRecruiter;
   organization: PublicOrganization;
+  viewer: PublicProfileViewer;
 }
 
 export type OrgResult = { ok: true } | { ok: false; error: string };

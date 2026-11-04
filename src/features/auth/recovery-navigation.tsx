@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServices } from "@/hooks/use-services";
 import { apiConfig } from "@/services/api/config";
+import { ScreenFallback } from "@/components/ui/feedback";
+import { ErrorState } from "@/components/ui/state-views";
 
 /** Reconciles active documents and cached navigation that may skip the server bridge. */
 export function RecoveryNavigation({ children }: { children: ReactNode }) {
@@ -12,7 +14,7 @@ export function RecoveryNavigation({ children }: { children: ReactNode }) {
   const previous = useRef<string | null>(null);
   const { auth } = useServices();
   const cache = useQueryClient();
-  const { mutate, isPending, isError, variables } = useMutation({
+  const { mutate, isPending, isError, error, variables } = useMutation({
     mutationFn: (screen: "code" | "password" | "other") => auth.recoveryNavigation(screen),
     onMutate: async (screen) => {
       // Refreshing the password step must not clear its still-valid server deadline.
@@ -58,7 +60,7 @@ export function RecoveryNavigation({ children }: { children: ReactNode }) {
   // Ordinary destinations stay visible while cleanup runs. Only the recovery
   // forms wait for confirmation, so a fast return cannot reuse cached permission.
   const recoveryPage = pathname === "/forgot-password" || pathname === "/reset-password";
-  if (recoveryPage && isPending) return null;
-  if (recoveryPage && isError) return <div className="stack"><p className="notice" role="alert">Your recovery request could not be confirmed. Please try again.</p><button className="btn primary" onClick={() => mutate(variables ?? "other")}>Retry</button></div>;
+  if (recoveryPage && isPending) return <ScreenFallback layout="form" label="Checking your recovery request" />;
+  if (recoveryPage && isError) return <div className="container section"><ErrorState error={error} onRetry={() => mutate(variables ?? "other")} title="We couldn’t confirm your recovery request" description="Your recovery request could not be confirmed. Please try again." /></div>;
   return children;
 }

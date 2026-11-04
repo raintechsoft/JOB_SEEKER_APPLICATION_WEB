@@ -1,10 +1,12 @@
 "use client";
+import { useSocialQuery } from "@/hooks/use-social-query";
 
 import { QueryFeedback } from "@/components/ui/query-view";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScreenError } from "@/components/ui/feedback";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PersonSummary } from "@/types/api";
 import type { Role } from "@/types/domain";
@@ -12,28 +14,33 @@ import type { FeedFilter } from "@/services/feed/feed.service";
 import { apiConfig } from "@/services/api/config";
 import { useServiceQuery } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
-import { Icon } from "@/components/ui/icon";
-import { Avatar, LinkButton } from "@/components/ui/primitives";
+import { useDismissableDetails } from "@/hooks/use-dismissable";
+import { Icon, type IconName } from "@/components/ui/icon";
+import { Avatar, Button, LinkButton } from "@/components/ui/primitives";
 import { MediaImage } from "@/components/ui/media-image";
 import { SuggestionCardGrid } from "@/components/suggestions/suggestion-card";
 import { TalentCard } from "@/components/talent/talent-card";
 import { DevOnly } from "@/components/ui/dev-only";
 import { FloatingSelect } from "@/components/ui/field";
+import {useAuthAction} from "@/features/auth/use-auth-action";
 import { ActivityHeatmap } from "./activity-heatmap";
 import { workspaceDialogs } from "@/features/workspace/dialogs";
 import { useNetworkSheet } from "./network-sheet";
+import { portfolioUiEnabled } from "@/features/portfolio/portfolio-ui-policy";
 
-/** Work Pulse is temporarily hidden from the home feed; set true to restore the monthly activity card. */
-export const SHOW_WORK_PULSE = false;
+import { workPulseUiEnabled } from "@/features/work/work-pulse-ui-policy";
+
+/** Work Pulse card on the home feed; follows the temporary Work Pulse UI policy. */
+export const SHOW_WORK_PULSE = workPulseUiEnabled();
 
 /** Left column of the professional feed: identity, profile strength, Work Pulse and shortcuts. */
 export function ProfileColumn() {
   const [showProfile, setShowProfile] = useState(false);
   const network = useNetworkSheet();
-  const { data, isError, refetch } = useServiceQuery(["feed", "summary"], (s) => s.workspace.getProfessionalSummary());
-  const networkQuery = useServiceQuery(["feed-network", "professional"], s => s.feed.getNetwork("professional"), { enabled: apiConfig.dataSource === "http" });
-  const savedQuery = useServiceQuery(["feed-saved-count", "professional"], s => s.feed.getFeed({ role: "professional", filter: "saved", sort: "recent", q: "", limit: 1 }), { enabled: apiConfig.dataSource === "http" });
-  if (!data) return <aside className="feed-profile-column" aria-label="Your profile and activity"><QueryFeedback data={data} error={isError} retry={refetch} label="Loading profile" /></aside>;
+  const { data, isError, error, refetch } = useServiceQuery(["feed", "summary"], (s) => s.workspace.getProfessionalSummary());
+  const networkQuery = useSocialQuery(["network", "professional"], (s, scope) => s.feed.getNetwork("professional", scope), { enabled: apiConfig.dataSource === "http" });
+  const savedQuery = useSocialQuery(["feed-saved-count", "professional"], (s, scope) => s.feed.getFeed({ role: "professional", filter: "saved", sort: "recent", q: "", limit: 1 }, scope), { enabled: apiConfig.dataSource === "http" });
+  if (!data) return <aside className="feed-profile-column" aria-label="Your profile and activity">{isError ? <ScreenError compact error={error} title="Your profile couldn’t load" description="Your profile summary is temporarily unavailable." onRetry={() => void refetch()} /> : <QueryFeedback data={data} error={isError} cause={error} retry={refetch} label="Loading profile" />}</aside>;
   const followingCount = apiConfig.dataSource === "http" ? networkQuery.data ? networkQuery.data.following.length + networkQuery.data.companies.length : undefined : data.followingCount;
   const savedCount = apiConfig.dataSource === "http" ? savedQuery.data?.total : data.savedCount;
   const p = data.person;
@@ -66,10 +73,12 @@ export function ProfileColumn() {
             <Link href="/app/profile">{p.name}</Link>
           </h2>
           <p className="feed-profile-headline" title={p.headline}>{p.headline}</p>
-          <p className="feed-location" title={p.location}>
-            <Icon name="location" />
-            <span>{p.location}</span>
-          </p>
+          {p.location?.trim() ? (
+            <p className="feed-location" title={p.location}>
+              <Icon name="location" />
+              <span>{p.location}</span>
+            </p>
+          ) : null}
         </div>
       </section>
       <button type="button" className="feed-mobile-profile-toggle" aria-expanded={showProfile} onClick={() => setShowProfile((v) => !v)}>
@@ -116,13 +125,15 @@ export function ProfileColumn() {
             {followingCount ?? (networkQuery.isError ? "—" : <Skeleton style={{ width: 28 }} />)} <Icon name="chevron" />
           </strong>
         </button>
-        <Link href="/app/portfolio">
-          <span>
-            <Icon name="layout" />
-            Your portfolio
-          </span>
-          <Icon name="arrowUp" />
-        </Link>
+        {portfolioUiEnabled() ? (
+          <Link href="/app/portfolio">
+            <span>
+              <Icon name="layout" />
+              Your portfolio
+            </span>
+            <Icon name="arrowUp" />
+          </Link>
+        ) : null}
         <Link href="/app/dashboard?view=saved">
           <span>
             <Icon name="bookmark" />
@@ -142,7 +153,6 @@ export function ProfileColumn() {
         </div>
       </DevOnly>
       <nav className="feed-footer">
-        <Link href="/how-it-works">About Skillora</Link>
         <DevOnly>
           <button type="button" onClick={workspaceDialogs.privacy}>
             Privacy & demo data
@@ -154,13 +164,90 @@ export function ProfileColumn() {
   );
 }
 
-export function useCompose(role: Role) {
-  const router = useRouter();
-  return (mode = "post") => router.push((role === "recruiter" ? "/recruiter" : "/app") + "/posts/new?mode=" + encodeURIComponent(mode));
+/** Floating chip that appears when live updates are waiting above the current feed head. */
+export function NewPostsButton({ show, onShow }: { show: boolean; onShow: () => void | Promise<unknown> }) {
+  if (!show) return null;
+  return (
+    <div className="feed-new-posts" role="status">
+      <Button
+        type="button"
+        onClick={() => {
+          const scrollToLatest = (behavior: ScrollBehavior = "auto") => {
+            const header = document.querySelector<HTMLElement>(".professional-header");
+            const list =
+              document.getElementById("feed-post-list") ??
+              document.querySelector<HTMLElement>(".feed-timeline [data-live-feed]") ??
+              document.querySelector<HTMLElement>(".feed-timeline");
+            const first = list?.querySelector<HTMLElement>("article, [id^='feed-']");
+            const target = first ?? list;
+            if (!target) {
+              window.scrollTo({ top: 0, behavior });
+              return;
+            }
+            const offset = (header?.offsetHeight ?? 0) + 16;
+            const top = window.scrollY + target.getBoundingClientRect().top - offset;
+            window.scrollTo({ top: Math.max(0, top), behavior });
+          };
+          // Scroll immediately; load the fresh head in parallel so the network wait is not felt as lag.
+          scrollToLatest("auto");
+          void Promise.resolve(onShow()).then(() => {
+            requestAnimationFrame(() => scrollToLatest("auto"));
+          });
+        }}
+      >
+        New posts
+        <Icon name="up" />
+      </Button>
+    </div>
+  );
 }
 
-export function NetworkPrompt({ people }: { people: PersonSummary[] }) {
-  const network = useNetworkSheet();
+/** Loads the next feed page when the list footer enters the viewport. */
+export function FeedInfiniteLoader({ loading, error, onLoad }: { loading: boolean; error?: boolean; onLoad: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const requested = useRef(false);
+  const load = useRef(onLoad);
+  load.current = onLoad;
+  useEffect(() => {
+    requested.current = false;
+  }, [loading, error]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || loading || error) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || requested.current) return;
+        requested.current = true;
+        load.current();
+      },
+      { rootMargin: "480px 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loading, error]);
+  if (error) {
+    return (
+      <div className="feed-load-more">
+        <Button icon="down" onClick={onLoad}>
+          See more posts
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="feed-load-more" ref={ref} aria-busy={loading || undefined} style={{ minHeight: 8 }}>
+      {loading ? "Loading more posts…" : <span className="sr-only">More posts will load as you continue.</span>}
+    </div>
+  );
+}
+
+export function useCompose(role: Role) {
+  const router = useRouter();
+  const gate=useAuthAction();
+  return (mode = "post") => {void gate.run("create_post",()=>router.push((role === "recruiter" ? "/recruiter" : "/app") + "/posts/new?mode=" + encodeURIComponent(mode)),{workspace:role});};
+}
+
+export function NetworkPrompt({ people, role = "professional" }: { people: PersonSummary[]; role?: Role }) {
   if (!people.length) return null;
   return (
     <section className="card feed-network-card">
@@ -174,13 +261,40 @@ export function NetworkPrompt({ people }: { people: PersonSummary[] }) {
       {/* The shared people card: cover, name, designation, Follow and a corner menu. Suggestions are never already followed. */}
       <SuggestionCardGrid>
         {people.map((p) => (
-          <TalentCard key={p.id} role="professional" person={{ id: p.id, slug: p.slug ?? "", name: p.name, headline: p.headline ?? "", picture: p.picture, cover: p.cover, color: p.color ?? "", location: "", years: 0, available: false, saved: false, following: false }} />
+          <TalentCard key={p.id} role={role} person={{ id: p.id, slug: p.slug ?? "", name: p.name, headline: p.headline ?? "", picture: p.picture, cover: p.cover, color: p.color ?? "", location: "", years: 0, available: false, saved: false, following: false }} />
         ))}
       </SuggestionCardGrid>
-      <button type="button" className="feed-network-all" onClick={() => network.open("professional")}>
+      <Link href={role === "recruiter" ? "/recruiter/discover" : "/app/discover"} className="feed-network-all">
         Explore people & companies <Icon name="arrow" />
-      </button>
+      </Link>
     </section>
+  );
+}
+
+function feedFilterIcon(id: FeedFilter): IconName {
+  if (id === "jobs") return "briefcase";
+  if (id === "saved") return "bookmark";
+  if (id === "following") return "users";
+  if (id === "reposts") return "repost";
+  return "spark";
+}
+
+function FeedFilterMenu({ tabs, filter, onFilter }: { tabs: [FeedFilter, string, boolean][]; filter: FeedFilter; onFilter: (f: FeedFilter) => void }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useDismissableDetails(ref, { closeOnAction: true });
+  return (
+    <details className={"feed-filter-menu" + (filter !== "all" ? " has-filter" : "")} ref={ref}>
+      <summary className="iconbtn" aria-label="Feed filters">
+        <Icon name="more" />
+      </summary>
+      <div className="feed-filter-list" role="group" aria-label="Feed filters">
+        {tabs.map(([id, label]) => (
+          <Button key={id} variant="text sm" icon={feedFilterIcon(id)} aria-pressed={filter === id} className={filter === id ? "active" : undefined} onClick={() => onFilter(id)}>
+            {label}
+          </Button>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -189,7 +303,7 @@ export function FeedToolbar({ tabs, onFilter }: { tabs: [FeedFilter, string, boo
   const setFeed = useUiStore((s) => s.setFeed);
   return (
     <div className="feed-toolbar">
-      <div role="tablist" aria-label="Feed filters">
+      <div className="feed-filter-tabs" role="tablist" aria-label="Feed filters">
         {tabs.map(([id, label, withIcon]) => (
           <button type="button" key={id} role="tab" aria-selected={filter === id} onClick={() => onFilter(id)} className={filter === id ? "active" : ""}>
             {withIcon && id === "jobs" && <Icon name="briefcase" />}
@@ -206,12 +320,13 @@ export function FeedToolbar({ tabs, onFilter }: { tabs: [FeedFilter, string, boo
           value={sort}
           onChange={(e) => setFeed({ sort: e.target.value as "recent" | "popular" | "recommended" })}
           options={[
-            { value: "recommended", label: "For you" },
             { value: "recent", label: "Recent" },
+            { value: "recommended", label: "For you" },
             { value: "popular", label: "Most liked" },
           ]}
         />
       </label>
+      <FeedFilterMenu tabs={tabs} filter={filter} onFilter={onFilter} />
     </div>
   );
 }

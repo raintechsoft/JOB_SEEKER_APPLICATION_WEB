@@ -18,10 +18,13 @@ import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-serv
 import { modal, useModalStore } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
+import { MediaImage } from "@/components/ui/media-image";
 import { Badge, Button, EmptyState } from "@/components/ui/primitives";
 import { DevOnly } from "@/components/ui/dev-only";
-import { CheckRow, SelectField, TextAreaField, TextField } from "@/components/ui/field";
+import { SelectField, TextAreaField, TextField, ToggleRow } from "@/components/ui/field";
 import { confirmAction, FormError } from "@/components/ui/feedback";
+import { ErrorState } from "@/components/ui/state-views";
+import { ContentSkeleton } from "@/components/ui/skeleton";
 import { ProjectCard } from "@/components/work/project-card";
 import { UpdateItem } from "@/components/work/pulse";
 import "./project-cover.css";
@@ -50,6 +53,12 @@ function ProjectCoverField({
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   const coverSrc = preview || (isSafeMediaSrc(existingCover) ? existingCover : "");
   const hasCover = Boolean(selected || existingCover);
+  const coverFallback = (
+    <span className="project-cover-record-icon"><Icon name="image" /></span>
+  );
+  const coverPreview = coverSrc ? (
+    <MediaImage src={coverSrc} alt="" loading="eager" fallback={coverFallback} />
+  ) : coverFallback;
 
   function takeFiles(list: FileList | null) {
     if (!list?.length) return;
@@ -64,7 +73,7 @@ function ProjectCoverField({
     <div className="project-cover-field">
       {hasCover && (
         <div className="project-cover-record">
-          {coverSrc ? <img src={coverSrc} alt="" /> : <span className="project-cover-record-icon"><Icon name="image" /></span>}
+          {coverPreview}
           <div>
             <strong>{selected?.name ?? "Current cover"}</strong>
             <p>{selected ? `${Math.max(1, Math.round(selected.size / 1024))} KB` : "Saved cover image"}</p>
@@ -87,11 +96,20 @@ function ProjectCoverField({
         }}
       >
         <div className="project-cover-main">
-          <div className="project-cover-art" aria-hidden="true">
-            <div className="project-cover-sheet">
-              <Icon name="image" />
-              <span>COVER</span>
-            </div>
+          <div className={`project-cover-art${coverSrc ? " has-cover" : ""}`} aria-hidden="true">
+            {coverSrc ? (
+              <MediaImage src={coverSrc} alt="" loading="eager" className="project-cover-sheet-image" fallback={
+                <div className="project-cover-sheet">
+                  <Icon name="image" />
+                  <span>COVER</span>
+                </div>
+              } />
+            ) : (
+              <div className="project-cover-sheet">
+                <Icon name="image" />
+                <span>COVER</span>
+              </div>
+            )}
             <span className="project-cover-badge"><Icon name="upload" /></span>
           </div>
           <div className="project-cover-copy">
@@ -139,9 +157,10 @@ function ProjectCoverField({
 function ProjectDetails({ id }: { id: Id }) {
   const pathname = usePathname();
   const { data: own } = useServiceQuery(["profile"], (s) => s.profile.getProfile(), { enabled: pathname.startsWith("/app") });
-  const { data: project, isError, refetch } = useServiceQuery(["project", id], (s) => s.work.getProject(id), { keepPreviousData: false });
+  const { data: project, isError, error, refetch } = useServiceQuery(["project", id], (s) => s.work.getProject(id), { keepPreviousData: false });
   const dialogs = useProjectDialogs();
-  if (!project) return <QueryFeedback data={project} error={isError} retry={refetch} layout="cards" label="Loading project" />;
+  if (project === null) return <EmptyState compact icon="compass" title="This project isn’t available" description="It may have been removed or made private." />;
+  if (!project) return <QueryFeedback data={project} error={isError} cause={error} compact retry={refetch} layout="cards" label="Loading project" />;
   return (
     <>
       <ProjectCard project={project} />
@@ -237,7 +256,7 @@ export function ProjectForm({ project: initialProject }: { project: Project | nu
     let persisted = false;
     const ok = await action.execute(async (s) => { const result = await s.work.saveProject({ id: project?.id, version: project?.version, title: v.title, category: v.category, description: v.description, contribution: v.contribution, skills, url: v.url, repository: v.repository, start: v.start, date: v.date, visibility: v.visibility, featured: v.featured, coverFile: v.coverFile?.[0] ?? null }); if (!result.ok) throw new Error(result.error); persisted = result.persisted; });
     if (!ok) return;
-    toast(persisted ? "Project saved to your profile and portfolio." : STORAGE_FALLBACK);
+    toast(persisted ? "Project saved to your profile and portfolio." : STORAGE_FALLBACK, persisted ? undefined : "error");
     modal.close();
   });
 
@@ -266,7 +285,7 @@ export function ProjectForm({ project: initialProject }: { project: Project | nu
           <TextField label="Completion date" type="date" required max={today()} {...register("date")} error={form.formState.errors.date?.message ?? serverErrors.date} />
         </div>
         <SelectField required label="Visibility" options={["Public", "Private"]} {...register("visibility")} error={form.formState.errors.visibility?.message ?? serverErrors.visibility} />
-        <CheckRow {...register("featured")}>Feature this project in my portfolio</CheckRow>
+        <ToggleRow {...register("featured")}>Feature this project in my portfolio</ToggleRow>
         <div id="project-error">
           <FormError message={error} />
           {Object.entries(form.formState.errors).map(([key, value]) => key !== "coverFile" && value?.message && <p className="error" role="alert" key={key}>{String(value.message)}</p>)}
@@ -325,9 +344,13 @@ export function useProjectDialogs() {
 // ---------------------------------------------------------------------------------------------
 
 function UpdateForm({ update }: { update: WorkUpdate | null }) {
-  const { data: settings } = useServiceQuery(["settings"], (s) => s.workspace.getSettings(), { enabled: apiConfig.dataSource === "mock" });
-  const { data: projects } = useServiceQuery(["projects", "me", "all"], (s) => s.work.listProjects({ ownerId: "me" }));
-  if ((!settings && apiConfig.dataSource === "mock") || !projects) return null;
+  const pathname = usePathname();
+  const loadSettings = apiConfig.dataSource === "mock" || pathname.startsWith("/app");
+  const settingsQuery = useServiceQuery(["settings"], (s) => s.workspace.getSettings(), { enabled: loadSettings });
+  const projectsQuery = useServiceQuery(["projects", "me", "all"], (s) => s.work.listProjects({ ownerId: "me" }));
+  const settings = settingsQuery.data, projects = projectsQuery.data;
+  if ((loadSettings && !settings && settingsQuery.isError) || (!projects && projectsQuery.isError)) return <ErrorState compact error={projectsQuery.error ?? settingsQuery.error} title="The update form couldn’t open" description="Something interrupted the request. Please try again." onRetry={() => { if (projectsQuery.isError) void projectsQuery.refetch(); if (settingsQuery.isError) void settingsQuery.refetch(); }} />;
+  if ((loadSettings && !settings) || !projects) return <ContentSkeleton layout="form" label="Loading update form" />;
   return <UpdateFormFields update={update} defaultVisibility={settings?.updatesPublic ? "Public" : "Private"} projects={projects} />;
 }
 
@@ -377,10 +400,11 @@ export function UpdateFormFields({ update: initialUpdate, defaultVisibility, pro
 }
 
 function UpdateDetails({ id }: { id: Id }) {
-  const { data: update, isError, refetch } = useServiceQuery(["update", id], (s) => s.work.getUpdate(id), { keepPreviousData: false });
+  const { data: update, isError, error, refetch } = useServiceQuery(["update", id], (s) => s.work.getUpdate(id), { keepPreviousData: false });
   const { data: project } = useServiceQuery(["project", update?.project], (s) => s.work.getProject(update!.project), { enabled: !!update?.project });
   const projects = useProjectDialogs();
-  if (!update) return <QueryFeedback data={update} error={isError} retry={refetch} label="Loading update" />;
+  if (update === null) return <EmptyState compact icon="compass" title="This update isn’t available" description="It may have been removed or made private." />;
+  if (!update) return <QueryFeedback data={update} error={isError} cause={error} compact retry={refetch} label="Loading update" />;
   return (
     <>
       <UpdateItem update={update} />
@@ -397,23 +421,26 @@ function UpdateDetails({ id }: { id: Id }) {
 }
 
 function PulseDay({ ownerId, date }: { ownerId: Id; date: IsoDate }) {
-  const pathname = usePathname();
-  const inWorkspace = pathname.startsWith("/app");
-  const { data, isError, refetch } = useServiceQuery(["updates", ownerId, date, inWorkspace], (s) => s.work.listUpdates(ownerId, { date, publicOnly: !inWorkspace }), { keepPreviousData: false });
+  // Create/edit only on the signed-in user's Work Pulse (`ownerId === "me"`).
+  // Another person's profile pulse (UUID owner) is view-only — never offer recording
+  // an update onto the viewer's own account from that context.
+  const canManage = ownerId === "me";
+  const { data, isError, error, refetch } = useServiceQuery(["updates", ownerId, date, canManage], (s) => s.work.listUpdates(ownerId, { date, publicOnly: !canManage }), { keepPreviousData: false });
   const dialogs = useUpdateDialogs();
-  if (!data) return <QueryFeedback data={data} error={isError} retry={refetch} label="Loading recorded updates" />;
+  if (!data) return <QueryFeedback data={data} error={isError} cause={error} compact retry={refetch} label="Loading recorded updates" />;
   return data.length ? (
     <>
       {data.map((u) => (
-        <UpdateItem key={u.id} update={u} manage={inWorkspace && ownerId === "me"} />
+        <UpdateItem key={u.id} update={u} manage={canManage} />
       ))}
     </>
   ) : (
     <EmptyState
-      title="A little space in your story."
-      description="No visible updates were recorded on this day."
+      icon="calendar"
+      title={canManage ? "A little space in your story" : "No updates this day"}
+      description={canManage ? "No visible updates were recorded on this day." : "No public updates were recorded on this day."}
       action={
-        inWorkspace ? (
+        canManage ? (
           <Button variant="primary" icon="plus" onClick={() => dialogs.create()}>
             Add a work update
           </Button>

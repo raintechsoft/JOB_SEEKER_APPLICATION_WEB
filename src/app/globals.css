@@ -10,9 +10,14 @@
 @import "../styles/tokens.css";
 @import "../styles/app.css";
 @import "../styles/loading.css";
+@import "../styles/state-panel.css";
+@import "../styles/header-frame.css";
+@import "../styles/post-media.css";
+@import "../styles/profile-editor.css";
 @import "../styles/info-badge.css";
 @import "../styles/profile-photo.css";
 @import "../styles/profile-cover.css";
+@import "../styles/public-profile-header.css";
 @import "../styles/comment-actions.css";
 @import "../styles/people-search.css";
 @import "../styles/post-share.css";
@@ -20,6 +25,8 @@
 @import "../styles/activity-heatmap.css";
 @import "../styles/job-details-sheet.css";
 @import "../styles/suggestion-card.css";
+@import "../styles/scrollable-tabs.css";
+@import "../styles/pagination.css";
 @import "../styles/talent-discover.css";
 @import "../styles/file-drop.css";
 @import "../styles/saved-opportunities.css";

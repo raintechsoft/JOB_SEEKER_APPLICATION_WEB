@@ -1,10 +1,11 @@
 "use client";
 
 import { ScreenFallback } from "@/components/ui/feedback";
+import { LoadingRegion, Skeleton, TextSkeleton } from "@/components/ui/skeleton";
 
 import { useEffect, useRef } from "react";
 import { devCopy } from "@/lib/env/app-env";
-import { useServiceAction, useServiceQuery } from "@/hooks/use-services";
+import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { useUiStore } from "@/stores/ui-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
@@ -12,10 +13,16 @@ import { Button, EmptyState, IconButton, LinkButton, PageHeading } from "@/compo
 import { TextField } from "@/components/ui/field";
 import { QueryView, QueryFeedback } from "@/components/ui/query-view";
 import { PortfolioSite } from "@/components/portfolio/portfolio-site";
-import { NotFoundState } from "@/features/talent/candidate-screen";
+import { NotFoundState, PrivateState } from "@/features/talent/candidate-screen";
+
+/** Signed-in owner without a portfolio record yet: point back to the builder's source, the profile. */
+function MissingPortfolio() {
+  return <EmptyState icon="layout" title="Your portfolio isn’t set up yet" description="Your portfolio is built from your profile and projects. Add a project to get started." action={<LinkButton href="/app/projects" variant="primary">Add a project</LinkButton>} />;
+}
 import { useSharePortfolio } from "./share-dialog";
 import { usePortfolioAutosave } from "./use-portfolio-autosave";
 import { portfolioShareContext } from "@/services/work/work.http";
+import { EditorUpdateNotice } from "@/components/ui/editor-update-notice";
 
 export function PortfolioBuilderScreen() {
   const run = useServiceAction();
@@ -23,7 +30,7 @@ export function PortfolioBuilderScreen() {
   const previewMobile = useUiStore((s) => s.previewMobile);
   const setUi = useUiStore((s) => s.setUi);
   const query = useServiceQuery(["portfolio", "me"], (s) => s.portfolio.getPortfolio("me"));
-  const { data: projects, isError: projectsError, refetch: retryProjects } = useServiceQuery(["projects", "me", "all"], (s) => s.work.listProjects({ ownerId: "me" }));
+  const { data: projects, isError: projectsError, error: projectsCause, refetch: retryProjects } = useServiceQuery(["projects", "me", "all"], (s) => s.work.listProjects({ ownerId: "me" }));
   const formRef = useRef<HTMLFormElement>(null);
   const autosave = usePortfolioAutosave(query.data);
   useEffect(() => { if (!autosave.dirty && !autosave.pending) formRef.current?.reset(); }, [query.data, autosave.dirty, autosave.pending]);
@@ -32,6 +39,31 @@ export function PortfolioBuilderScreen() {
     const f = new FormData(formRef.current!);
     return { title: String(f.get("title") || "").trim(), headline: String(f.get("headline") || "").trim(), slug: String(f.get("slug") || "").trim(), theme: String(f.get("theme") || ""), public: f.has("public") };
   };
+
+  const featuredProjects = (
+    <>
+      <h3 style={{ fontSize: 12, margin: "20px 0 12px" }}>Featured projects</h3>
+      <QueryFeedback data={projects} error={projectsError} cause={projectsCause} compact retry={retryProjects} label="Loading portfolio projects" />
+      {projects?.length === 0 && <EmptyState compact icon="folder" title="No projects yet" description="Add a project to feature it in your portfolio." action={<LinkButton href="/app/projects" variant="sm">Add a project</LinkButton>} />}
+      {projects?.map((pr) => (
+        <label className="check-row" style={{ marginBottom: 12, fontSize: 10 }} key={pr.id}>
+          <input type="checkbox" checked={pr.featured} onChange={(e) => run((sv) => sv.work.setProjectFeatured(pr.id, e.target.checked))} />
+          {pr.title}
+        </label>
+      ))}
+    </>
+  );
+  const previewToolbar = (
+    <div className="row between" style={{ marginBottom: 13 }}>
+      <span className="eyebrow" style={{ fontSize: 9 }}>
+        LIVE PREVIEW
+      </span>
+      <div className="row gap8">
+        <IconButton icon="monitor" label="Desktop preview" extra={previewMobile ? "" : "saved"} onClick={() => setUi({ previewMobile: false })} />
+        <IconButton icon="phone" label="Mobile preview" extra={previewMobile ? "saved" : ""} onClick={() => setUi({ previewMobile: true })} />
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -49,16 +81,45 @@ export function PortfolioBuilderScreen() {
           </>
         }
       />
-      <QueryView query={query} fallback={<ScreenFallback layout="cards" />}>
+      <QueryView
+        query={query}
+        fallback={
+          // Featured projects and the preview toolbar don't depend on the portfolio; only its settings and preview wait.
+          <div className="builder">
+            <section className="card controls">
+              <div className="card-head">
+                <h2>Make it yours</h2>
+                <Icon name="sliders" />
+              </div>
+              <LoadingRegion label="Loading portfolio settings">
+                <div className="stack" style={{ gap: 15 }}>
+                  {[0, 1, 2].map((i) => <Skeleton key={i} style={{ display: "block", height: 46 }} />)}
+                  <TextSkeleton lines={2} />
+                </div>
+                <hr className="divider" />
+                <TextSkeleton lines={4} />
+              </LoadingRegion>
+              {featuredProjects}
+            </section>
+            <div>
+              {previewToolbar}
+              <div className={"builder-preview " + (previewMobile ? "mobile" : "")}>
+                <ScreenFallback layout="cards" label="Loading portfolio preview" />
+              </div>
+            </div>
+          </div>
+        }
+      >
         {(view) =>
-          view && (
+          !view ? <MissingPortfolio /> : (
             <div className="builder">
               <section className="card controls">
                 <div className="card-head">
                   <h2>Make it yours</h2>
                   <Icon name="sliders" />
                 </div>
-                <form
+                  <EditorUpdateNotice changed={autosave.conflict} reload={autosave.reload} />
+                  <form
                   id="portfolio-config"
                   ref={formRef}
                   className="stack"
@@ -83,7 +144,7 @@ export function PortfolioBuilderScreen() {
                   </label>
                   {autosave.errors._form && <p role="alert">{autosave.errors._form}</p>}
                   <p role="status">{autosave.pending ? "Saving…" : autosave.dirty ? "Unsaved changes" : "All changes saved"}</p>
-                  <Button variant="primary sm" type="submit" loading={autosave.pending}>
+                  <Button variant="primary sm" type="submit" loading={autosave.pending} disabled={autosave.conflict}>
                     Save portfolio
                   </Button>
                 </form>
@@ -100,25 +161,10 @@ export function PortfolioBuilderScreen() {
                     <IconButton icon="down" label={"Move " + s.name + " down"} disabled={autosave.pending || autosave.dirty || i === view.config.sections.length - 1} onClick={() => run((sv) => sv.portfolio.moveSection(i, 1))} />
                   </div>
                 ))}
-                <h3 style={{ fontSize: 12, margin: "20px 0 12px" }}>Featured projects</h3>
-                <QueryFeedback data={projects} error={projectsError} retry={retryProjects} label="Loading portfolio projects" />
-                {projects?.map((pr) => (
-                  <label className="check-row" style={{ marginBottom: 12, fontSize: 10 }} key={pr.id}>
-                    <input type="checkbox" checked={pr.featured} onChange={(e) => run((sv) => sv.work.setProjectFeatured(pr.id, e.target.checked))} />
-                    {pr.title}
-                  </label>
-                ))}
+                {featuredProjects}
               </section>
               <div>
-                <div className="row between" style={{ marginBottom: 13 }}>
-                  <span className="eyebrow" style={{ fontSize: 9 }}>
-                    LIVE PREVIEW
-                  </span>
-                  <div className="row gap8">
-                    <IconButton icon="monitor" label="Desktop preview" extra={previewMobile ? "" : "saved"} onClick={() => setUi({ previewMobile: false })} />
-                    <IconButton icon="phone" label="Mobile preview" extra={previewMobile ? "saved" : ""} onClick={() => setUi({ previewMobile: true })} />
-                  </div>
-                </div>
+                {previewToolbar}
                 <div className={"builder-preview " + (previewMobile ? "mobile" : "")} id="portfolio-live">
                   <PortfolioSite view={autosave.preview ? { ...view, config: { ...view.config, ...autosave.preview } } : view} builder />
                 </div>
@@ -153,23 +199,25 @@ export function PortfolioPreviewScreen() {
           </>
         }
       />
-      <QueryView query={query} fallback={<ScreenFallback layout="cards" />}>{(view) => view && <PortfolioSite view={view} />}</QueryView>
+      <QueryView query={query} fallback={<ScreenFallback layout="cards" label="Loading portfolio preview" />}>{(view) => (view ? <PortfolioSite view={view} /> : <MissingPortfolio />)}</QueryView>
     </>
   );
 }
 
 export function PublicPortfolioScreen({ slug }: { slug: string }) {
+  const services = useServices(), token = portfolioShareContext();
+  useEffect(()=>services.realtime?.hub.watchPortfolio(token),[services,token]);
   const query = useServiceQuery(["portfolio", "slug", slug, portfolioShareContext()], (s) => s.portfolio.getPortfolioBySlug(slug), { keepPreviousData: false });
   return (
-    <QueryView query={query} fallback={<ScreenFallback layout="cards" />}>
+    <QueryView query={query} fallback={<ScreenFallback layout="cards" label="Loading portfolio" />}>
       {(view) =>
         !view ? (
           <main id="main" className="container section">
-            <NotFoundState />
+            <NotFoundState what="portfolio" />
           </main>
         ) : !view.config.public && !view.accessGranted ? (
           <main id="main" className="container section">
-            <EmptyState title="This portfolio is private." description={devCopy("Its owner has turned off visibility in this browser prototype.", "Its owner has turned off visibility.")} action={<LinkButton href="/talent">Explore talent</LinkButton>} />
+            <PrivateState what="portfolio" description={devCopy("Its owner has turned off visibility in this browser prototype.", "Its owner has turned off visibility. Explore other professionals in the directory.")} />
           </main>
         ) : (
           <main id="main" style={{ padding: "30px 16px 60px" }}>

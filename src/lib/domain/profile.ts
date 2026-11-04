@@ -2,12 +2,12 @@ import type { Professional, ProfessionalDetails } from "@/types/domain";
 import { safeUrl } from "@/lib/utils/url";
 
 export const ACCOMPLISHMENT_TYPES = {
-  onlineProfiles: "Online profiles",
+  onlineProfiles: "Public profile",
   workSamples: "Work samples",
   publications: "Publications & research",
   presentations: "Presentations",
   patents: "Patents",
-  certifications: "Certifications",
+  certifications: "Certificates",
 } as const;
 
 export type AccomplishmentType = keyof typeof ACCOMPLISHMENT_TYPES;
@@ -30,7 +30,7 @@ export function profileCompletion(p: Professional, details: ProfessionalDetails 
     { label: "Employment", weight: 15, done: d ? d.employment.length > 0 : !!p.experience, section: "employment" },
     { label: "Education", weight: 10, done: d ? d.education.length > 0 : !!p.education, section: "education" },
     { label: "Project", weight: 15, done: projectCount > 0, section: "projects" },
-    { label: "Professional link", weight: 10, done: d ? d.onlineProfiles.some((r) => !!safeUrl(String(r.url ?? ""))) : !!safeUrl(p.website), section: "accomplishments" },
+    { label: "Professional link", weight: 10, done: d ? d.onlineProfiles.some((r) => !!safeUrl(String(r.url ?? ""))) : !!safeUrl(p.website), section: "onlineProfiles" },
     { label: "Career preferences", weight: 10, done: d ? !!(d.career.roles || d.career.interests) : !!p.interests, section: "career" },
   ];
   return { percent: items.reduce((n, i) => n + (i.done ? i.weight : 0), 0), items };

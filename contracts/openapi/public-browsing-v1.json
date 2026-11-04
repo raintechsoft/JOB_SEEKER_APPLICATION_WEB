@@ -1,0 +1,1908 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Skillora public browsing",
+    "version": "1.0.0-g2",
+    "description": "G2 public read APIs are implemented behind the default-disabled PUBLIC_BROWSING_ENABLED release gate."
+  },
+  "x-live": false,
+  "x-semantic-rules": [
+    "Current source/author/company/project/moderation eligibility before projection and pagination",
+    "Public-safe comment authors and parent thread context",
+    "Category-specific filters and exact compensation units",
+    "Matching resource IDs, paths, response scope and entry/comment ownership",
+    "No private portfolio tokens in discovery",
+    "Opaque scope-bound expiring cursors",
+    "No exposure/history/analytics writes for guest reads"
+  ],
+  "paths": {
+    "/api/v1/public/feed": {
+      "get": {
+        "operationId": "publicBrowse_PublicFeedPage",
+        "security": [],
+        "x-implementation-phase": "G2",
+        "x-implemented": true,
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "posts",
+                "jobs",
+                "updates"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "recent",
+              "default": "recent"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4096,
+              "pattern": "^[A-Za-z0-9+/_=.-]+$",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whitelisted public projection; no viewer identity or private account data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicFeedPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Untrusted application origin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or ineligible content; do not reveal private resource existence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported or invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Public read limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Public browsing is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/feed/refresh": {
+      "get": {
+        "operationId": "publicBrowse_PublicFeedRefresh",
+        "security": [],
+        "x-implementation-phase": "R4",
+        "x-implemented": true,
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 36,
+              "maxLength": 1479,
+              "description": "One to forty unique, comma-separated lowercase UUIDs. Inaccessible entries are omitted."
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "posts",
+                "jobs",
+                "updates"
+              ],
+              "default": "all"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whitelisted public projection; no viewer identity or private account data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicFeedRefresh"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Untrusted application origin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or ineligible content; do not reveal private resource existence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported or invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Public read limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Public browsing is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/feed/{entry}": {
+      "get": {
+        "operationId": "publicBrowse_PublicEntry",
+        "security": [],
+        "x-implementation-phase": "G2",
+        "x-implemented": true,
+        "parameters": [
+          {
+            "name": "entry",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whitelisted public projection; no viewer identity or private account data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicEntry"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Untrusted application origin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or ineligible content; do not reveal private resource existence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported or invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Public read limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Public browsing is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/feed/{entry}/comments": {
+      "get": {
+        "operationId": "publicBrowse_PublicCommentsPage",
+        "security": [],
+        "x-implementation-phase": "G2",
+        "x-implemented": true,
+        "parameters": [
+          {
+            "name": "entry",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4096,
+              "pattern": "^[A-Za-z0-9+/_=.-]+$",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "focus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whitelisted public projection; no viewer identity or private account data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicCommentsPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Untrusted application origin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or ineligible content; do not reveal private resource existence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported or invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Public read limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Public browsing is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/search": {
+      "get": {
+        "operationId": "publicBrowse_PublicSearchPage",
+        "security": [],
+        "x-implementation-phase": "G2",
+        "x-implemented": true,
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+              "minLength": 2
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "posts",
+                "companies",
+                "people",
+                "jobs",
+                "updates"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "recent",
+                "salary_asc",
+                "salary_desc"
+              ],
+              "default": "relevance"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4096,
+              "pattern": "^[A-Za-z0-9+/_=.-]+$",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "selected",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(person|company|post|job|update):[0-9a-fA-F-]{36}$"
+            }
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "skill",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "industry",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "companyType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Privately held",
+                "Public company",
+                "Nonprofit",
+                "Government",
+                "Partnership",
+                "Self-employed",
+                "Other"
+              ]
+            }
+          },
+          {
+            "name": "arrangement",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "On-site",
+                "Hybrid",
+                "Remote"
+              ]
+            }
+          },
+          {
+            "name": "employment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Full-time",
+                "Part-time",
+                "Contract",
+                "Internship",
+                "Apprenticeship",
+                "Consultancy",
+                "Deputation",
+                "Empanelment"
+              ]
+            }
+          },
+          {
+            "name": "education",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Any graduate",
+                "Any qualification",
+                "Undergraduate",
+                "Diploma",
+                "Bachelor’s degree",
+                "Master’s degree",
+                "Doctorate",
+                "Class 8",
+                "Class 10 / SSLC",
+                "Class 12 / HSC",
+                "ITI",
+                "CA",
+                "CMA",
+                "CS",
+                "Professional qualification"
+              ]
+            }
+          },
+          {
+            "name": "contentType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "text",
+                "image",
+                "video",
+                "project"
+              ]
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          },
+          {
+            "name": "experienceMin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 60
+            }
+          },
+          {
+            "name": "experienceMax",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 60
+            }
+          },
+          {
+            "name": "salaryMin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000000,
+              "multipleOf": 0.01
+            }
+          },
+          {
+            "name": "salaryMax",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000000000000,
+              "multipleOf": 0.01
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INR",
+                "USD",
+                "EUR",
+                "GBP"
+              ]
+            }
+          },
+          {
+            "name": "compensationPeriod",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hour",
+                "day",
+                "week",
+                "month",
+                "year",
+                "case",
+                "duty",
+                "engagement"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whitelisted public projection; no viewer identity or private account data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicSearchPage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Untrusted application origin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or ineligible content; do not reveal private resource existence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unsupported or invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Public read limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Public browsing is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicBrowseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GuestAction": {
+        "type": "string",
+        "enum": [
+          "browse",
+          "search",
+          "read_entry",
+          "read_comments",
+          "view_profile",
+          "view_job",
+          "view_portfolio",
+          "copy_link",
+          "native_share",
+          "like",
+          "comment",
+          "reply",
+          "repost",
+          "save_post",
+          "follow_person",
+          "follow_company",
+          "create_post",
+          "message",
+          "report",
+          "block",
+          "hide",
+          "share_followers",
+          "view_following",
+          "view_saved",
+          "view_messages",
+          "view_notifications",
+          "view_settings",
+          "save_job",
+          "apply",
+          "create_job_alert",
+          "view_applications",
+          "shortlist",
+          "compare_candidates",
+          "post_job",
+          "edit_post",
+          "delete_post",
+          "pin_comment",
+          "delete_comment",
+          "edit_job",
+          "change_application_status"
+        ]
+      },
+      "PublicFeedQuery": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "type": "string",
+            "enum": [
+              "all",
+              "posts",
+              "jobs",
+              "updates"
+            ],
+            "default": "all"
+          },
+          "sort": {
+            "type": "string",
+            "const": "recent",
+            "default": "recent"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 40,
+            "default": 20
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096,
+            "pattern": "^[A-Za-z0-9+/_=.-]+$",
+            "minLength": 1
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "PublicCommentsQuery": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 20
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096,
+            "pattern": "^[A-Za-z0-9+/_=.-]+$",
+            "minLength": 1
+          },
+          "focus": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "PublicSearchQuery": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 2
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "posts",
+              "companies",
+              "people",
+              "jobs",
+              "updates"
+            ],
+            "default": "all"
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "relevance",
+              "recent",
+              "salary_asc",
+              "salary_desc"
+            ],
+            "default": "relevance"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 40,
+            "default": 20
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096,
+            "pattern": "^[A-Za-z0-9+/_=.-]+$",
+            "minLength": 1
+          },
+          "selected": {
+            "type": "string",
+            "pattern": "^(person|company|post|job|update):[0-9a-fA-F-]{36}$"
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "skill": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "companyType": {
+            "type": "string",
+            "enum": [
+              "Privately held",
+              "Public company",
+              "Nonprofit",
+              "Government",
+              "Partnership",
+              "Self-employed",
+              "Other"
+            ]
+          },
+          "arrangement": {
+            "type": "string",
+            "enum": [
+              "On-site",
+              "Hybrid",
+              "Remote"
+            ]
+          },
+          "employment": {
+            "type": "string",
+            "enum": [
+              "Full-time",
+              "Part-time",
+              "Contract",
+              "Internship",
+              "Apprenticeship",
+              "Consultancy",
+              "Deputation",
+              "Empanelment"
+            ]
+          },
+          "education": {
+            "type": "string",
+            "enum": [
+              "Any graduate",
+              "Any qualification",
+              "Undergraduate",
+              "Diploma",
+              "Bachelor’s degree",
+              "Master’s degree",
+              "Doctorate",
+              "Class 8",
+              "Class 10 / SSLC",
+              "Class 12 / HSC",
+              "ITI",
+              "CA",
+              "CMA",
+              "CS",
+              "Professional qualification"
+            ]
+          },
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image",
+              "video",
+              "project"
+            ]
+          },
+          "author": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365
+          },
+          "experienceMin": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 60
+          },
+          "experienceMax": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 60
+          },
+          "salaryMin": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000000000,
+            "multipleOf": 0.01
+          },
+          "salaryMax": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000000000,
+            "multipleOf": 0.01
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "INR",
+              "USD",
+              "EUR",
+              "GBP"
+            ]
+          },
+          "compensationPeriod": {
+            "type": "string",
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month",
+              "year",
+              "case",
+              "duty",
+              "engagement"
+            ]
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "additionalProperties": false
+      },
+      "PublicMedia": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "document"
+            ]
+          },
+          "mime": {
+            "type": "string",
+            "maxLength": 120,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 180,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "alt": {
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "downloadPath": {
+            "type": "string",
+            "pattern": "^/api/v1/media/[0-9a-fA-F-]{36}/download$"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 199
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "mime",
+          "name",
+          "alt",
+          "downloadPath"
+        ],
+        "additionalProperties": false
+      },
+      "PublicExternalVideo": {
+        "type": "object",
+        "properties": {
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 199
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "pattern": "^https://(?!(?:[^/]+\\.)?(?:local|localhost|internal|test|invalid|example)/)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,63}/[^\\x00-\\x20\\x7f\\\\?#]*\\.(?:[mM][pP]4|[wW][eE][bB][mM])$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 180,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "alt": {
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          }
+        },
+        "required": [
+          "position",
+          "url",
+          "name",
+          "alt"
+        ],
+        "additionalProperties": false
+      },
+      "PublicAuthor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "professional",
+              "recruiter"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "headline": {
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "profilePath": {
+            "type": "string",
+            "maxLength": 512,
+            "pattern": "^/(?:feed/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|jobs/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|professionals/[a-z0-9]+(?:-[a-z0-9]+)*|organizations/[a-z0-9]+(?:-[a-z0-9]+)*|recruiters/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|portfolio/[a-z0-9]+(?:-[a-z0-9]+)*)$"
+          },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicMedia"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "headline",
+          "profilePath",
+          "picture"
+        ],
+        "additionalProperties": false
+      },
+      "PublicCompany": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "profilePath": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "pattern": "^/(?:feed/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|jobs/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|professionals/[a-z0-9]+(?:-[a-z0-9]+)*|organizations/[a-z0-9]+(?:-[a-z0-9]+)*|recruiters/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|portfolio/[a-z0-9]+(?:-[a-z0-9]+)*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidential": {
+            "type": "boolean"
+          },
+          "logo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicMedia"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "profilePath",
+          "confidential",
+          "logo",
+          "verified"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "confidential": {
+                  "const": true
+                }
+              },
+              "required": [
+                "confidential"
+              ]
+            },
+            "then": {
+              "properties": {
+                "id": {
+                  "type": "null"
+                },
+                "profilePath": {
+                  "type": "null"
+                },
+                "logo": {
+                  "type": "null"
+                },
+                "verified": {
+                  "const": false
+                },
+                "name": {
+                  "const": "Confidential company"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PublicJobSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "arrangement": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "employment": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "compensationLabel": {
+            "type": "string",
+            "maxLength": 1000,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "acceptingApplications": {
+            "type": "boolean"
+          },
+          "closesAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publicPath": {
+            "type": "string",
+            "maxLength": 512,
+            "pattern": "^/(?:feed/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|jobs/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|professionals/[a-z0-9]+(?:-[a-z0-9]+)*|organizations/[a-z0-9]+(?:-[a-z0-9]+)*|recruiters/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|portfolio/[a-z0-9]+(?:-[a-z0-9]+)*)$"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "location",
+          "arrangement",
+          "employment",
+          "compensationLabel",
+          "acceptingApplications",
+          "closesAt",
+          "publicPath"
+        ],
+        "additionalProperties": false
+      },
+      "PublicEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "post",
+              "job",
+              "update"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 512,
+            "pattern": "^/(?:feed/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|jobs/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|professionals/[a-z0-9]+(?:-[a-z0-9]+)*|organizations/[a-z0-9]+(?:-[a-z0-9]+)*|recruiters/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|portfolio/[a-z0-9]+(?:-[a-z0-9]+)*)$"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 20000,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicAuthor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "company": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicCompany"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMedia"
+            },
+            "maxItems": 200
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "likes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "comments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reposts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "likes",
+              "comments",
+              "reposts"
+            ],
+            "additionalProperties": false
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicJobSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "externalVideos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicExternalVideo"
+            },
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "path",
+          "title",
+          "body",
+          "publishedAt",
+          "author",
+          "company",
+          "media",
+          "counts",
+          "job"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "job"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "properties": {
+                "job": {
+                  "$ref": "#/components/schemas/PublicJobSummary"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "job": {
+                  "type": "null"
+                },
+                "author": {
+                  "$ref": "#/components/schemas/PublicAuthor"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PublicComment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/PublicAuthor"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pinned": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "entryId",
+          "parentId",
+          "author",
+          "text",
+          "createdAt",
+          "pinned"
+        ],
+        "additionalProperties": false
+      },
+      "PublicSearchResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "person",
+              "company",
+              "post",
+              "job",
+              "update"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$",
+            "minLength": 1
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 1000,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 512,
+            "pattern": "^/(?:feed/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|jobs/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|professionals/[a-z0-9]+(?:-[a-z0-9]+)*|organizations/[a-z0-9]+(?:-[a-z0-9]+)*|recruiters/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|portfolio/[a-z0-9]+(?:-[a-z0-9]+)*)$"
+          },
+          "picture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicMedia"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "subtitle",
+          "path",
+          "picture"
+        ],
+        "additionalProperties": false
+      },
+      "PublicBrowseError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "not_found",
+              "validation_failed",
+              "rate_limited",
+              "request_failed",
+              "forbidden"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 300,
+            "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "pattern": "^[^\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]*$"
+                  }
+                }
+              },
+              {
+                "type": "array",
+                "maxItems": 0
+              }
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "PublicFeedPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicEntry"
+            },
+            "maxItems": 40
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096,
+                "pattern": "^[A-Za-z0-9+/_=.-]+$",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "PublicFeedRefreshQuery": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 1479,
+            "description": "One to forty unique, comma-separated lowercase UUIDs. Inaccessible entries are omitted."
+          },
+          "filter": {
+            "type": "string",
+            "enum": [
+              "all",
+              "posts",
+              "jobs",
+              "updates"
+            ],
+            "default": "all"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "additionalProperties": false
+      },
+      "PublicFeedRefresh": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PublicEntry"
+        },
+        "maxItems": 40
+      },
+      "PublicCommentsPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicComment"
+            },
+            "maxItems": 50
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096,
+                "pattern": "^[A-Za-z0-9+/_=.-]+$",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "PublicSearchPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicSearchResult"
+            },
+            "maxItems": 40
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096,
+                "pattern": "^[A-Za-z0-9+/_=.-]+$",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "posts",
+              "companies",
+              "people",
+              "jobs",
+              "updates"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "total",
+          "scope"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

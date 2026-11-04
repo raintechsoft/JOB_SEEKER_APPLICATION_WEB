@@ -69,7 +69,7 @@ export function ResetPasswordForm({ expiresAt, onExpired }: { expiresAt: string;
         <TextField label="Confirm new password" type="password" autoComplete="new-password" required {...props("password_confirmation")} />
       </AuthField>
       <AuthError name="root" message={errors.root?.message} />
-      <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Saving…"}>{"RESET PASSWORD"}</Button>
+      <Button loading={isSubmitting} variant="primary" type="submit" disabled={isSubmitting} loadingLabel={"Saving…"}>{"Reset password"}</Button>
     </form>
   );
 }

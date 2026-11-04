@@ -1,9 +1,10 @@
 "use client";
+import { useSocialQuery } from "@/hooks/use-social-query";
 
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Role } from "@/types/domain";
 import { ACTIVITY_SECTIONS, type ActivityData, type ActivitySection } from "@/services/activity/activity.service";
@@ -14,6 +15,7 @@ import { FeedCard } from "@/features/feed/feed-card";
 import { useCompose } from "@/features/feed/feed-parts";
 
 const ICONS: Record<ActivitySection, IconName> = { posts: "edit", comments: "message", videos: "monitor", images: "image", reactions: "like" };
+const ACTIVITY_SECTION_KEYS = Object.keys(ACTIVITY_SECTIONS) as ActivitySection[];
 
 function useActivityParams() {
   const params = useSearchParams();
@@ -23,13 +25,17 @@ function useActivityParams() {
   return { tab, limit };
 }
 
+function activityBase(role: Role) {
+  return role === "recruiter" ? "/recruiter/activity" : "/app/updates";
+}
+
 function Sidebar({ role, tab, counts }: { role: Role; tab: ActivitySection; counts: Record<ActivitySection, number> }) {
-  const base = role === "recruiter" ? "/recruiter/activity" : "/app/updates";
+  const base = activityBase(role);
   return (
     <aside className="card application-sidebar activity-sidebar">
       <h2>All activity</h2>
       <nav aria-label="Activity sections">
-        {(Object.keys(ACTIVITY_SECTIONS) as ActivitySection[]).map((k) => (
+        {ACTIVITY_SECTION_KEYS.map((k) => (
           <Link key={k} href={base + "?tab=" + k} className={tab === k ? "active" : ""} aria-current={tab === k ? "page" : undefined}>
             <span className="application-section-label">
               <Icon name={ICONS[k]} />
@@ -43,21 +49,58 @@ function Sidebar({ role, tab, counts }: { role: Role; tab: ActivitySection; coun
   );
 }
 
+/** Compact ⋯ menu for Posts / Comments / Videos / Images / Reactions on small screens. */
+function ActivitySectionMenu({ role, tab }: { role: Role; tab: ActivitySection }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const base = activityBase(role);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+  return (
+    <div className={"activity-section-menu" + (open ? " is-open" : "")} ref={root}>
+      <button type="button" className="iconbtn activity-section-trigger" aria-label="Activity sections" aria-expanded={open} aria-haspopup="true" onClick={() => setOpen((value) => !value)}>
+        <Icon name="more" />
+      </button>
+      <div className="activity-section-menu-list" role="menu" aria-label="Activity sections">
+        {ACTIVITY_SECTION_KEYS.map((k) => (
+          <Link key={k} href={base + "?tab=" + k} role="menuitem" className={tab === k ? "active" : undefined} aria-current={tab === k ? "page" : undefined} onClick={() => setOpen(false)}>
+            {ACTIVITY_SECTIONS[k]}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const counts = (d: ActivityData): Record<ActivitySection, number> => ({ posts: d.posts.length, comments: d.commentCount, videos: d.videos.length, images: d.images.length, reactions: d.reactions.length });
 
 const EMPTY: Record<ActivitySection, [string, string]> = {
-  posts: ["Your story starts here.", "Your work updates, text posts, media, and project posts will appear here."],
-  comments: ["Join the conversation.", "Comments you leave on posts will appear here with the original post."],
-  videos: ["Your videos, in one place.", "Video posts you publish will appear here."],
-  images: ["Let your work be seen.", "Your image posts will appear here."],
-  reactions: ["The posts that caught your attention.", "Posts you like in the feed will appear here."],
+  posts: ["Your story starts here", "Your work updates, text posts, media, and project posts will appear here."],
+  comments: ["Join the conversation", "Comments you leave on posts will appear here with the original post."],
+  videos: ["Your videos, in one place", "Video posts you publish will appear here."],
+  images: ["Let your work be seen", "Your image posts will appear here."],
+  reactions: ["The posts that caught your attention", "Posts you like in the feed will appear here."],
 };
+const EMPTY_ICON: Record<ActivitySection, IconName> = { posts: "edit", comments: "message", videos: "camera", images: "image", reactions: "like" };
 
 export function ProfessionalActivityScreen() {
   const { tab, limit } = useActivityParams();
   const run = useServiceAction();
   const compose = useCompose("professional");
-  const { data, isError, refetch } = useServiceQuery(["activity", "professional"], (s) => s.activity.getProfessionalActivity());
+  const { data, isError, error, refetch } = useSocialQuery(["activity", "professional"], (s, scope) => s.activity.getProfessionalActivity(scope));
   const { data: shell } = useServiceQuery(["shell", "professional"], (s) => s.workspace.getProfessionalShell());
   const me = shell?.person;
   const items = data ? (tab === "comments" ? data.comments : data[tab]) : [];
@@ -97,7 +140,10 @@ export function ProfessionalActivityScreen() {
         <Sidebar role="professional" tab={tab} counts={data ? counts(data) : { posts: 0, comments: 0, videos: 0, images: 0, reactions: 0 }} />
         <div className="activity-content">
           <div className="activity-content-heading">
-            <h2>{ACTIVITY_SECTIONS[tab]}</h2>
+            <div className="activity-content-title-row">
+              <h2>{ACTIVITY_SECTIONS[tab]}</h2>
+              <ActivitySectionMenu role="professional" tab={tab} />
+            </div>
             <div className="activity-section-meta">
               <span>
                 {total} {tab}
@@ -106,7 +152,7 @@ export function ProfessionalActivityScreen() {
             </div>
           </div>
           <section className="activity-stream feed-post-list" aria-label={"Your " + ACTIVITY_SECTIONS[tab].toLowerCase()}>
-            <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
+            <QueryFeedback data={data} error={isError} cause={error} retry={refetch} layout="feed" />
             {data &&
               (items.length ? (
                 items.slice(0, limit).map((item) => {
@@ -146,7 +192,7 @@ export function ProfessionalActivityScreen() {
                 })
               ) : (
                 <div className="card activity-empty">
-                  <EmptyState title={EMPTY[tab][0]} description={EMPTY[tab][1]} action={emptyAction} />
+                  <EmptyState icon={EMPTY_ICON[tab]} title={EMPTY[tab][0]} description={EMPTY[tab][1]} action={emptyAction} />
                 </div>
               ))}
           </section>
@@ -166,7 +212,7 @@ export function ProfessionalActivityScreen() {
 export function RecruiterActivityScreen() {
   const { tab, limit } = useActivityParams();
   const compose = useCompose("recruiter");
-  const { data, isError, refetch } = useServiceQuery(["activity", "recruiter"], (s) => s.activity.getRecruiterActivity());
+  const { data, isError, error, refetch } = useSocialQuery(["activity", "recruiter"], (s, scope) => s.activity.getRecruiterActivity(scope));
   const list = data ? (tab === "comments" ? data.comments.map((g) => g.post) : data[tab]) : [];
   const commentIds = (postId: string) => data?.comments.find((g) => g.post.id === postId)?.comments.map((c) => c.id) ?? [];
   return (
@@ -184,7 +230,10 @@ export function RecruiterActivityScreen() {
         <Sidebar role="recruiter" tab={tab} counts={data ? counts(data) : { posts: 0, comments: 0, videos: 0, images: 0, reactions: 0 }} />
         <div className="activity-content">
           <div className="activity-content-heading">
-            <h2>{ACTIVITY_SECTIONS[tab]}</h2>
+            <div className="activity-content-title-row">
+              <h2>{ACTIVITY_SECTIONS[tab]}</h2>
+              <ActivitySectionMenu role="recruiter" tab={tab} />
+            </div>
             <div className="activity-section-meta">
               <span>
                 {list.length} {ACTIVITY_SECTIONS[tab].toLowerCase()}
@@ -193,7 +242,7 @@ export function RecruiterActivityScreen() {
             </div>
           </div>
           <section className="activity-stream feed-post-list">
-            <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
+            <QueryFeedback data={data} error={isError} cause={error} retry={refetch} layout="feed" />
             {data &&
               (list.length ? (
                 list.slice(0, limit).map((entry) => (
@@ -209,7 +258,8 @@ export function RecruiterActivityScreen() {
               ) : (
                 <div className="card activity-empty">
                   <EmptyState
-                    title="Your activity will appear here."
+                    icon={EMPTY_ICON[tab]}
+                    title="Your activity will appear here"
                     description={tab === "posts" ? "Share a team update or post a job." : "Your " + ACTIVITY_SECTIONS[tab].toLowerCase() + " will be collected here as you participate."}
                     action={
                       tab === "posts" ? (

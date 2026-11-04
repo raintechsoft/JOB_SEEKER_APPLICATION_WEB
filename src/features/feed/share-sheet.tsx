@@ -1,15 +1,17 @@
 "use client";
+import { useSocialQuery } from "@/hooks/use-social-query";
+import {useAuthAction} from "@/features/auth/use-auth-action";
 
 import { useCallback, useMemo, useState } from "react";
 import type { Id, Role } from "@/types/domain";
 import type { NetworkPerson } from "@/services/feed/feed.service";
 import { devCopy } from "@/lib/env/app-env";
 import { parseShareFollowers } from "@/lib/validation/social";
-import { useServiceQuery } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
 import { Icon } from "@/components/ui/icon";
-import { Avatar, Button } from "@/components/ui/primitives";
+import { Avatar, Button, EmptyState } from "@/components/ui/primitives";
+import { ErrorState } from "@/components/ui/state-views";
 import { ContentSkeleton } from "@/components/ui/skeleton";
 import { TextField } from "@/components/ui/field";
 import { filterFollowers } from "./share-followers";
@@ -21,7 +23,7 @@ export function ShareFollowersPanel({ role, postId }: { role: Role; postId: Id }
 }
 
 function ShareFollowersForm({ role, postId }: { role: Role; postId: Id }) {
-  const { data, isError, refetch } = useServiceQuery(["network", role], (s) => s.feed.getNetwork(role));
+  const { data, isError, error: loadError, refetch } = useSocialQuery(["network", role], (s, scope) => s.feed.getNetwork(role, scope));
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState("");
@@ -36,14 +38,7 @@ function ShareFollowersForm({ role, postId }: { role: Role; postId: Id }) {
   };
 
   if (isError) {
-    return (
-      <p role="alert">
-        Your followers could not be loaded.{" "}
-        <button type="button" onClick={() => void refetch()}>
-          Try again
-        </button>
-      </p>
-    );
+    return <ErrorState compact error={loadError} title="Your followers couldn’t load" description="You can still copy the post link below." onRetry={() => void refetch()} />;
   }
   if (!data) return <ContentSkeleton label="Loading your followers" />;
 
@@ -95,11 +90,7 @@ function ShareFollowersForm({ role, postId }: { role: Role; postId: Id }) {
         </p>
       )}
       {followers.length === 0 ? (
-        <div className="network-empty">
-          <Icon name="users" />
-          <h3>No followers yet</h3>
-          <p>People who follow you will appear here so you can share a post with them.</p>
-        </div>
+        <EmptyState compact icon="users" title="No followers yet" description="People who follow you will appear here so you can share a post with them." />
       ) : (
         <ul className="share-followers-list">
           {visible.map((person) => (
@@ -107,7 +98,7 @@ function ShareFollowersForm({ role, postId }: { role: Role; postId: Id }) {
           ))}
         </ul>
       )}
-      {followers.length > 0 && visible.length === 0 && <p className="share-followers-empty">No followers match your search.</p>}
+      {followers.length > 0 && visible.length === 0 && <EmptyState compact icon="search" title="No followers match your search" description="Try another name or clear the search." action={<Button variant="sm" icon="close" onClick={() => setQuery("")}>Clear search</Button>} />}
       {link && <TextField label="Follower share link" name="link" value={link} readOnly onClick={(event) => event.currentTarget.select()} />}
       {followers.length > 0 && (
         <footer className="share-followers-footer">
@@ -136,9 +127,12 @@ function FollowerRow({ person, checked, disabled, onToggle }: { person: NetworkP
 }
 
 export function useShareSheet() {
-  const open = useCallback((role: Role, postId: Id) => {
-    modal.show("Share", <ShareFollowersPanel role={role} postId={postId} />, "following");
+  const gate = useAuthAction();
+  const open = useCallback((role: Role | undefined, postId: Id) => {
+    void gate.run("share_followers", context => {
+    modal.show("Share", <ShareFollowersPanel role={context.role} postId={postId} />, "following");
     requestAnimationFrame(() => document.getElementById("share-followers-search")?.focus());
-  }, []);
+    }, {workspace:role,target:{kind:"entry",id:postId}});
+  }, [gate]);
   return { open };
 }

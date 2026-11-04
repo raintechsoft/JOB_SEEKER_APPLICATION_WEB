@@ -13,6 +13,7 @@ export interface JobDraftContext {
 }
 
 export interface JobPostsService {
+  draftState?(key:string,draft:JobDraft,scope?:import("../realtime/realtime.http").ReadScope):Promise<{changed:boolean}>;
   rebaseJobDraft?(key:string,draft:JobDraft,latestJobVersion:number):Promise<JobDraft>;
   /** `null` when an id is given but the job is not in the recruiter's company. */
   openJobDraft(jobId: Id | null, creationKey?:string): Promise<JobDraftContext | null>;

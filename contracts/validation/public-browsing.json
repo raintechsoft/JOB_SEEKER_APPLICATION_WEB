@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "phase": "G2",
+  "live": false,
+  "home": "/",
+  "feedPath": "/",
+  "searchPath": "/search",
+  "entryPath": "/feed/{entry}",
+  "feedFilters": [
+    "all",
+    "posts",
+    "jobs",
+    "updates"
+  ],
+  "searchScopes": [
+    "all",
+    "posts",
+    "companies",
+    "people",
+    "jobs",
+    "updates"
+  ],
+  "searchSorts": [
+    "relevance",
+    "recent",
+    "salary_asc",
+    "salary_desc"
+  ],
+  "limits": {
+    "defaultPageSize": 20,
+    "pageSize": 40,
+    "commentPageSize": 50,
+    "cursor": 4096,
+    "returnPath": 4096,
+    "queryMin": 2,
+    "queryMax": 200,
+    "title": 150,
+    "body": 20000,
+    "comment": 1000,
+    "media": 200
+  },
+  "intentTtlSeconds": 900,
+  "cursorPattern": "^[A-Za-z0-9+/_=.-]+$",
+  "externalVideoUrlPattern": "^https://(?!(?:[^/]+\\.)?(?:local|localhost|internal|test|invalid|example)/)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,63}/[^\\x00-\\x20\\x7f\\\\?#]*\\.(?:[mM][pP]4|[wW][eE][bB][mM])$",
+  "publicActions": [
+    "browse",
+    "search",
+    "read_entry",
+    "read_comments",
+    "view_profile",
+    "view_job",
+    "view_portfolio"
+  ],
+  "accountActions": [
+    "copy_link",
+    "native_share",
+    "like",
+    "comment",
+    "reply",
+    "repost",
+    "save_post",
+    "follow_person",
+    "follow_company",
+    "create_post",
+    "message",
+    "report",
+    "block",
+    "hide",
+    "share_followers",
+    "view_following",
+    "view_saved",
+    "view_messages",
+    "view_notifications",
+    "view_settings"
+  ],
+  "professionalActions": [
+    "save_job",
+    "apply",
+    "create_job_alert",
+    "view_applications"
+  ],
+  "recruiterActions": [
+    "shortlist",
+    "compare_candidates",
+    "post_job"
+  ],
+  "permissionActions": {
+    "edit_post": "edit_post",
+    "delete_post": "delete_post",
+    "pin_comment": "pin_comment",
+    "delete_comment": "delete_comment",
+    "edit_job": "edit_job",
+    "change_application_status": "change_application_status"
+  },
+  "permissionWorkspaces": {
+    "edit_job": "recruiter",
+    "change_application_status": "recruiter"
+  },
+  "promptActions": [
+    "sign_in"
+  ],
+  "promptCopy": {
+    "like": [
+      "Like this post?",
+      "Sign in to make your opinion count."
+    ],
+    "comment": [
+      "Join the conversation",
+      "Sign in to add a comment."
+    ],
+    "reply": [
+      "Reply to this comment?",
+      "Sign in to join the conversation."
+    ],
+    "repost": [
+      "Share this with your community",
+      "Sign in to repost this entry."
+    ],
+    "save_post": [
+      "Keep this post for later",
+      "Sign in to save posts."
+    ],
+    "save_job": [
+      "Save this opportunity",
+      "Sign in as a job seeker to save jobs."
+    ],
+    "apply": [
+      "Take the next step",
+      "Sign in as a job seeker to apply for this opportunity."
+    ],
+    "create_job_alert": [
+      "Stay up to date",
+      "Sign in as a job seeker to create job alerts."
+    ],
+    "follow_person": [
+      "Keep up with their work",
+      "Sign in to follow this person."
+    ],
+    "follow_company": [
+      "Keep up with this company",
+      "Sign in to follow this company."
+    ],
+    "create_post": [
+      "Share your work",
+      "Sign in to create a post."
+    ],
+    "message": [
+      "Start a conversation",
+      "Sign in to send a message."
+    ],
+    "shortlist": [
+      "Save this candidate",
+      "Sign in as an employer to manage candidate shortlists."
+    ],
+    "compare_candidates": [
+      "Compare candidates",
+      "Sign in as an employer to compare candidates."
+    ],
+    "post_job": [
+      "Find your next hire",
+      "Sign in as an employer to post a job."
+    ],
+    "copy_link": [
+      "Share this post",
+      "Sign in to copy and share links to posts."
+    ],
+    "native_share": [
+      "Share this post",
+      "Sign in to share posts with others."
+    ],
+    "default": [
+      "Make it yours",
+      "Sign in to use this account feature."
+    ]
+  }
+}

@@ -6,6 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal, useModalStore } from "@/stores/modal-store";
 import { Avatar, Button } from "@/components/ui/primitives";
+import { openNativePicker, ToggleRow } from "@/components/ui/field";
+import { FileDrop } from "@/components/ui/file-drop";
 import { MediaImage } from "@/components/ui/media-image";
 import {
   ApiError,
@@ -132,16 +134,6 @@ function JourneyContent({ slug, onAddEmployment, onEditEmployment }: Props) {
       setReplayLoading(false);
     }
   }
-  if (query.isPending)
-    return (
-      <section
-        id="profile-journey"
-        className="card profile-section-card journey"
-      >
-        <h2>Career journey</h2>
-        <p role="status">Loading your chapters…</p>
-      </section>
-    );
   if (query.isError)
     return (
       <section
@@ -926,6 +918,7 @@ function MemoryEditor({
                 min={selected?.start ? `${selected.start}-01` : "1800-01-01"}
                 max={maxMemoryDate(selected)}
                 onChange={(e) => patch({ date: e.target.value })}
+                onClick={(e) => openNativePicker(e.currentTarget)}
                 required
               />
             </label>
@@ -940,19 +933,23 @@ function MemoryEditor({
               />
             </label>
             <div className="journey-upload">
-              <label>
-                Add photos · up to four
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  onChange={(e) => {
-                    void upload(e.target.files);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-              <small>JPEG, PNG, or WebP · up to 1 MB each</small>
+              <FileDrop
+                id="journey-memory-photos"
+                section="career-journey"
+                use="memory-photos"
+                label="Career journey photos"
+                prompt="Drop photos for this memory"
+                promptHint="up to four images"
+                buttonLabel="Add photos"
+                changeLabel="Add more photos"
+                icon="image"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                disabled={pending || input.photos.length >= JOURNEY_RULES.photosMax}
+                fileName={input.photos.length ? `${input.photos.length} of ${JOURNEY_RULES.photosMax} photos added` : undefined}
+                hint="JPEG, PNG, or WebP · up to 1 MB each"
+                onFiles={(files) => void upload(files)}
+              />
             </div>
             <div className="journey-edit-photos">
               {input.photos.map((p, i) => (
@@ -1003,22 +1000,21 @@ function MemoryEditor({
                   <span className="journey-private-badge">Private</span>
                 </strong>
                 {selected.colleagues.map((c) => (
-                  <label key={c.id}>
-                    <input
-                      type="checkbox"
-                      checked={input.colleagueIds?.includes(c.id) ?? false}
-                      onChange={(e) =>
-                        patch({
-                          colleagueIds: e.target.checked
-                            ? [...(input.colleagueIds ?? []), c.id]
-                            : (input.colleagueIds ?? []).filter(
-                                (id) => id !== c.id,
-                              ),
-                        })
-                      }
-                    />
+                  <ToggleRow
+                    key={c.id}
+                    checked={input.colleagueIds?.includes(c.id) ?? false}
+                    onChange={(e) =>
+                      patch({
+                        colleagueIds: e.target.checked
+                          ? [...(input.colleagueIds ?? []), c.id]
+                          : (input.colleagueIds ?? []).filter(
+                              (id) => id !== c.id,
+                            ),
+                      })
+                    }
+                  >
                     {c.name}
-                  </label>
+                  </ToggleRow>
                 ))}
               </div>
             )}

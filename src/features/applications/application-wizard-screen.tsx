@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useServices, useServiceQuery } from "@/hooks/use-services";
 import { Button, LinkButton } from "@/components/ui/primitives";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { Icon } from "@/components/ui/icon";
 import { InfoBadge } from "@/components/ui/info-badge";
 import { ApplicationDocumentsStep } from "@/components/applications/application-documents-step";
@@ -14,7 +15,8 @@ import {
   applicationStepSchema,
   applicationWizardDraftValuesSchema,
 } from "@/lib/validation/application-wizard";
-import { ApiError, errorMessage } from "@/services/api/client";
+import { StatePanel } from "@/components/ui/state-panel";
+import { ErrorState } from "@/components/ui/state-views";
 import { modal, useModalStore } from "@/stores/modal-store";
 import { ApplicationWizardSkeleton } from "./application-wizard-skeleton";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,10 +44,8 @@ function ApplicationUnavailable({
   message?: string;
 }) {
   return (
-    <section className="card stack">
-      <h1>Application unavailable</h1>
-      <p>{message}</p>
-      <LinkButton href={returnTo}>Back to opportunities</LinkButton>
+    <section className="card">
+      <StatePanel icon="lock" tone="warning" role="status" title="Application unavailable" description={message} actions={<LinkButton href={returnTo} icon="briefcase">Back to opportunities</LinkButton>} />
     </section>
   );
 }
@@ -76,7 +76,7 @@ export function ApplicationWizardScreen({ jobId }: { jobId: string }) {
         message="Continue your application from the job details."
       />
     );
-  if (!session.data) return <ApplicationWizardSkeleton />;
+  if (!session.data) return <ApplicationWizardSkeleton returnTo={target} />;
   const identity = session.data.workspaces.find(
     (w) => w.id === session.data.selected_identity_id,
   );
@@ -159,32 +159,24 @@ function ApplicationWorkspace({
   }, [services, jobId, creationKey, attempt]);
   if (error)
     return (
-      <section className="card stack">
-        <h1>Application could not be opened</h1>
-        <p role="alert">{errorMessage(error)}</p>
-        <div className="row wrap">
-          {error instanceof ApiError && error.status === 401 ? (
-            <LinkButton
-              href={`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`}
-            >
-              Sign in
-            </LinkButton>
-          ) : (
-            <Button
-              onClick={() => {
-                opening.current = null;
-                setError(null);
-                setAttempt((n) => n + 1);
-              }}
-            >
-              Try again
-            </Button>
-          )}
-          <LinkButton href={returnTo}>Back to opportunities</LinkButton>
-        </div>
-      </section>
+      // The frame's header already links back to opportunities, so no secondary link here.
+      <ApplicationWizardSkeleton returnTo={returnTo}>
+        <ErrorState
+          error={error}
+          title="Your application couldn’t open"
+          description="Something interrupted the request. Please try again."
+          signInHref={`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+          homeHref={returnTo}
+          homeLabel="Back to opportunities"
+          onRetry={() => {
+            opening.current = null;
+            setError(null);
+            setAttempt((n) => n + 1);
+          }}
+        />
+      </ApplicationWizardSkeleton>
     );
-  if (!data) return <ApplicationWizardSkeleton />;
+  if (!data) return <ApplicationWizardSkeleton returnTo={returnTo} />;
   if (data.context.application)
     return <ExistingApplication />;
   if (
@@ -295,14 +287,19 @@ export function ApplicationEditor({
   }
   if (context.application)
     return <ExistingApplication submitted />;
-  if (!context.acceptingApplications)
-    return <ApplicationUnavailable returnTo={returnTo} />;
+  // Keep already-entered values visible when availability changes during editing.
+  // Initial entry to a closed job is still handled by ApplicationWizardScreen.
   return (
     <div className="application-wizard">
       <div className="job-wizard-top">
         <div>
           <h1>Apply for {context.title}</h1>
-          <p> {context.companyName && `at ${context.companyName}`}</p>
+          {context.companyName ? (
+            <p className="application-company-line">
+              <span>at {context.companyName}</span>
+              <VerifiedCompanyMark company={{ verified: context.companyVerified, name: context.companyName }} />
+            </p>
+          ) : null}
         </div>
         <Link href={returnTo} className="btn">
           Back to opportunities

@@ -2050,6 +2050,22 @@ export interface paths {
         patch: operations["phase6_patch__me_communications_identity_conversations_conversation_read"];
         trace?: never;
     };
+    "/me/communications/{identity}/conversations/{conversation}/delivered": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["phase6_patch__me_communications_identity_conversations_conversation_delivered"];
+        trace?: never;
+    };
     "/me/communications/{identity}/conversations/{conversation}/flags": {
         parameters: {
             query?: never;
@@ -2092,7 +2108,8 @@ export interface paths {
         get: operations["phase6_get__me_communications_identity_notifications"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Clear every in-app notification for this identity (read and unread). */
+        delete: operations["phase6_delete__me_communications_identity_notifications"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5186,6 +5203,18 @@ export interface components {
             reached: number;
             previewUrl?: string | "";
             previewDismissedUrls?: string[];
+            /** @description When false, viewers cannot add comments or replies on the published post. */
+            commentsEnabled?: boolean;
+            quickJob?: components["schemas"]["QuickJobPost"];
+        };
+        QuickJobPost: {
+            enabled: boolean;
+            title: string;
+            locations: string[];
+            /** @enum {string} */
+            employment: "Full-time" | "Part-time" | "Contract" | "Internship" | "";
+            /** @enum {string} */
+            arrangement: "On-site" | "Hybrid" | "Remote" | "";
         };
         PostPublish: {
             title: string;
@@ -5199,6 +5228,9 @@ export interface components {
             draftVersion?: number;
             /** @description URL from body whose stored server preview should be shown. An unfetched or unavailable URL publishes without a preview. */
             previewUrl?: string | "";
+            /** @description When false, viewers cannot add comments or replies on this post. */
+            commentsEnabled?: boolean;
+            quickJob?: components["schemas"]["QuickJobPost"];
         };
         SocialComment: {
             /** Format: uuid */
@@ -5260,6 +5292,18 @@ export interface components {
                 applied: boolean;
                 open: boolean;
             };
+            /** @description Present when a recruiter quick-job post links a real hiring job for Apply. */
+            linkedJob?: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                location: string;
+                arrangement: string;
+                employment: string;
+                ownedByViewer: boolean;
+                applied: boolean;
+                open: boolean;
+            };
             likes: number;
             comments: components["schemas"]["SocialComment"][];
             commentsNextCursor?: string | null;
@@ -5274,6 +5318,8 @@ export interface components {
             version?: number;
             /** @description Total comments visible to the current viewer, independent of pagination. */
             commentCount: number;
+            /** @description False when the author disabled comments on this post. Jobs and work updates remain true. */
+            commentsEnabled: boolean;
             repost?: {
                 author: components["schemas"]["SocialPerson"];
                 createdAt: string;
@@ -5420,6 +5466,9 @@ export interface components {
             own: boolean;
             time: string;
             sequence: number;
+            status: ("sent" | "delivered" | "seen") | null;
+            deliveredAt: string | null;
+            seenAt: string | null;
             attachments: components["schemas"]["MessageAttachment"][];
         };
         ConversationFlags: {
@@ -5439,6 +5488,8 @@ export interface components {
             flags: components["schemas"]["ConversationFlags"];
             canSend: boolean;
             readSequence: number;
+            peerDeliveredSequence: number;
+            peerReadSequence: number;
             nextBefore: number | null;
         };
         ThreadSummary: {
@@ -5491,7 +5542,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            category: "messages" | "applications" | "job_alerts";
+            category: "messages" | "applications" | "job_alerts" | "network";
             title: string;
             segments: {
                 text: string;
@@ -5510,7 +5561,7 @@ export interface components {
         };
         NotificationPreference: {
             /** @enum {string} */
-            category: "messages" | "applications" | "job_alerts";
+            category: "messages" | "applications" | "job_alerts" | "network";
             /** @enum {string} */
             channel: "in_app" | "email" | "sms";
             enabled: boolean;
@@ -10594,6 +10645,37 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    phase6_patch__me_communications_identity_conversations_conversation_delivered: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                conversation: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    messageIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     phase6_patch__me_communications_identity_conversations_conversation_flags: {
         parameters: {
             query?: never;
@@ -10692,6 +10774,30 @@ export interface operations {
                         data: components["schemas"]["Notifications"];
                     };
                 };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase6_delete__me_communications_identity_notifications: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Error"];
         };

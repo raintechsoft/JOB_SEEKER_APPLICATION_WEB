@@ -11,6 +11,24 @@ import {jobValuesToV2} from "@/lib/domain/job-v2-compatibility";
 const id="00000000-0000-4000-8000-000000000001",key="00000000-0000-4000-8000-000000000002";
 const auth=()=>({me:vi.fn().mockResolvedValue({selected_identity_id:"workspace",workspaces:[{id:"workspace",kind:"recruiter",organization:{id}}]})}) as unknown as AuthService;
 const draft=():JobDraft=>({id,existingId:"",step:0,reached:0,values:structuredClone(validJob),version:1,jobVersion:1,savedAt:""});
+it("checks remote draft versions through a read without reopening or replacing the editor",async()=>{
+  const client=createHttpClient("http://localhost:8000/api/v1"),service=createHttpJobPostsService(client,auth());
+  const post=vi.spyOn(client,"post").mockResolvedValue({data:{key,draft:draft(),editingPublished:false,companyName:"Test",companyId:id}});
+  const get=vi.spyOn(client,"get").mockResolvedValue({data:{version:2,jobVersion:1}});
+  const opened=(await service.openJobDraft(id))!,scope={signal:new AbortController().signal};
+  await expect(service.draftState!(key,opened.draft,scope)).resolves.toEqual({changed:true});
+  expect(get).toHaveBeenCalledWith(`organizations/${id}/hiring/drafts/${key}/state`,undefined,scope);expect(post).toHaveBeenCalledOnce();expect(opened.draft.version).toBe(1);
+});
+it("does not report an old snapshot as a conflict after this editor acknowledged a newer save",async()=>{
+  const client=createHttpClient("http://localhost:8000/api/v1"),service=createHttpJobPostsService(client,auth());
+  vi.spyOn(client,"post").mockResolvedValue({data:{key,draft:draft(),editingPublished:false,companyName:"Test",companyId:id}});
+  let resolve!:(value:unknown)=>void;vi.spyOn(client,"get").mockImplementation(()=>new Promise(r=>{resolve=r;}));
+  vi.spyOn(client,"patch").mockResolvedValue({data:{...draft(),version:2}});
+  const opened=(await service.openJobDraft(id))!,pending=service.draftState!(key,opened.draft);
+  await Promise.resolve();await Promise.resolve();await Promise.resolve();
+  await service.storeJobDraft(key,{...opened.draft,values:{...opened.draft.values,title:"Local saved edit"}});
+  resolve({data:{version:1,jobVersion:1}});await expect(pending).resolves.toEqual({changed:false});
+});
 it("invalid drafts, publishing, bulk operations and outreach never invoke mutation transport",async()=>{
   const client=createHttpClient("http://localhost:8000/api/v1"),post=vi.spyOn(client,"post"),patch=vi.spyOn(client,"patch"),session=auth();
   const jobPosts=createHttpJobPostsService(client,session),jobs=createHttpJobsService(client),recruiting=createHttpRecruitingService(client,session);

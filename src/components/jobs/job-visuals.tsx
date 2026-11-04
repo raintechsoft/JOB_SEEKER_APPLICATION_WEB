@@ -3,7 +3,7 @@ import { MediaImage } from "@/components/ui/media-image";
 import type { CompanySummary } from "@/types/api";
 import type { JobMedia, JobThumbnail } from "@/types/domain";
 import { JOB_THUMBNAIL_TEMPLATES } from "@/lib/domain/jobs";
-import { isInlineImage, safeVideoUrl } from "@/lib/utils/url";
+import { isInlineImage, isManagedMediaUrl, isSafeMediaSrc, safeVideoUrl } from "@/lib/utils/url";
 import { Icon } from "@/components/ui/icon";
 
 export function CompanyAvatar({ company }: { company: CompanySummary }) {
@@ -35,11 +35,15 @@ export interface JobVisualData {
   jobMedia?: JobMedia;
 }
 
+function isJobThumbnailSrc(src: string | undefined) {
+  return !!src && (isInlineImage(src) || isManagedMediaUrl(src) || isSafeMediaSrc(src));
+}
+
 /** Hiring announcement thumbnail: an uploaded image or one of four templates (prototype `jobArtwork`). */
 export function JobArtwork({ job }: { job: JobVisualData }) {
   const thumb = job.thumbnail;
   if (!thumb) return null;
-  if (thumb.image && isInlineImage(thumb.image))
+  if (isJobThumbnailSrc(thumb.image))
     return (
       <figure className="job-thumbnail-upload">
         <MediaImage src={thumb.image} alt={thumb.alt || job.title} loading="lazy" />

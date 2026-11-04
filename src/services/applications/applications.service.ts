@@ -1,3 +1,4 @@
+import type { ReadScope } from "../realtime/realtime.http";
 import type { ApplicationStatus, TrackingStatus, Id, IsoDate, Job, JobAlert, SeekerApplication } from "@/types/domain";
 
 export const APPLICATION_STATUSES: TrackingStatus[] = ["Applied", "In review", "Interview", "Offer", "Rejected", "Withdrawn"];
@@ -9,6 +10,8 @@ export interface JobRef {
   title: string;
   companyId: Id;
   companyName: string;
+  /** Confirmed from latest organization verification; missing/false means no badge. */
+  companyVerified?: boolean;
   location: string;
   arrangement: string;
   employment: string;
@@ -52,14 +55,14 @@ export interface ApplicationsOverview {
 }
 
 export interface ApplicationsService {
-  getOverview(): Promise<ApplicationsOverview>;
-  listApplications(query: { q: string; status: ApplicationStatus | "" }): Promise<ApplicationRecord[]>;
-  getApplicationResults(query: { q: string; status: ApplicationFilter }): Promise<ApplicationResults>;
-  listSavedJobs(query: { q: string; state?: SavedJobState }): Promise<SavedJobRecord[]>;
+  getOverview(scope?: ReadScope): Promise<ApplicationsOverview>;
+  listApplications(query: { q: string; status: ApplicationStatus | "" }, scope?: ReadScope): Promise<ApplicationRecord[]>;
+  getApplicationResults(query: { q: string; status: ApplicationFilter }, scope?: ReadScope): Promise<ApplicationResults>;
+  listSavedJobs(query: { q: string; state?: SavedJobState }, scope?: ReadScope): Promise<SavedJobRecord[]>;
   unsaveJobs(ids: Id[]): Promise<void>;
   archiveSavedJobs(ids: Id[], action: SavedJobAction): Promise<void>;
-  listAlerts(query: { q: string }): Promise<AlertRecord[]>;
-  getApplication(id: Id): Promise<ApplicationRecord | null>;
+  listAlerts(query: { q: string }, scope?: ReadScope): Promise<AlertRecord[]>;
+  getApplication(id: Id, scope?: ReadScope): Promise<ApplicationRecord | null>;
   updateTracking(id: Id, input: { followUp: IsoDate | ""; trackingNote: string; version?:number }): Promise<void>;
   withdraw(id: Id, version?:number): Promise<void>;
   remove(id: Id): Promise<void>;

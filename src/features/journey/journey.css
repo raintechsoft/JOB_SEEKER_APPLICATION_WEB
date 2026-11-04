@@ -461,14 +461,14 @@
   margin: 0;
   min-width: 0;
 }
-.journey-editor label {
+.journey-editor label:not(.toggle-row) {
   display: block;
   font-size: 12px;
   font-weight: 500;
   color: #58667c;
   margin-bottom: 15px;
 }
-.journey-editor label > input:not([type="checkbox"]):not([type="radio"]),
+.journey-editor label > input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
 .journey-editor select,
 .journey-editor textarea {
   display: block;
@@ -498,18 +498,20 @@
   color: var(--journey-blue);
 }
 .journey-upload {
-  background: #f6f8fd;
-  border: 1px dashed #d8e1f1;
-  padding: 15px;
-  border-radius: 9px;
   margin: 15px 0;
 }
-.journey-upload label {
-  margin-bottom: 6px;
+.journey-upload .file-drop-label {
+  margin-bottom: 8px;
+  color: #202a36;
+  font-size: 14px;
+  font-weight: 550;
 }
-.journey-upload small {
-  font-size: 10px;
-  color: #8a96a8;
+.journey-upload .file-drop {
+  display: flex;
+  margin-bottom: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
 }
 .journey-edit-photos {
   display: grid;
@@ -571,8 +573,9 @@
 .journey-following-list > .journey-muted {
   padding: 8px 12px;
 }
-.journey-colleague-picker label {
-  margin: 12px 0;
+.journey-colleague-picker .toggle-row {
+  margin: 0;
+  padding: 10px 0;
   font-weight: 400;
 }
 .journey-review-note {

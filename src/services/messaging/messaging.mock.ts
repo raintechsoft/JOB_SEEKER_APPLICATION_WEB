@@ -24,6 +24,8 @@ function conversationView(db: DemoDatabase, c: Conversation, role: Role): Conver
     self: self(db, role),
     messages: c.messages.map(message => ({...message, own: message.senderId ? message.senderId === mockIdentity(role) : message.sender === role})),
     canSend: !flag(c, "blockedBy", role) && !blockedInMock(db, role, contact(db, c, role).id),
+    peerDeliveredSequence: 0,
+    peerReadSequence: 0,
     flags: { starred: flag(c, "starredBy", role), muted: flag(c, "mutedBy", role), blocked: flag(c, "blockedBy", role), archived: flag(c, "archivedBy", role), jobLabel: flag(c, "jobLabelBy", role) },
   };
 }

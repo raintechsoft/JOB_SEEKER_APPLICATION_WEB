@@ -3523,6 +3523,9 @@
           "confidential": {
             "type": "boolean"
           },
+          "verified": {
+            "type": "boolean"
+          },
           "followerCount": {
             "type": "integer",
             "minimum": 0
@@ -4035,6 +4038,9 @@
           },
           "companyName": {
             "type": "string"
+          },
+          "companyVerified": {
+            "type": "boolean"
           },
           "location": {
             "type": "string"

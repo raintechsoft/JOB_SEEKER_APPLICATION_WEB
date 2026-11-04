@@ -26,6 +26,9 @@ import { createHttpSearchService } from "./search/search.http";
 import { createHttpJourneyService } from "./journey/journey.http";
 import {createHttpApplicationDraftService} from "./applications/application-wizard.http";
 import {createApplicationDocumentService} from "./applications/application-documents.http";
+import {createHttpPublicBrowsingService} from "./public-browsing/public-browsing.http";
+import {createRealtimeService} from "./realtime/realtime.http";
+import {createSignalHub} from "./realtime/signal-hub";
 
 
 /** Enable completed real domains; unimplemented domains never fall back to fixtures. */
@@ -39,10 +42,11 @@ export function createHttpServices(baseUrl: string): Services {
     get: (_target, method) => method === "then" ? undefined : async () => { throw new Error("This prototype-only operation is unavailable in real API mode."); },
   });
   const http = createHttpClient(baseUrl);
+  const signalHub=createSignalHub();
   const analytics=createHttpAnalyticsService(http);
   const interactions=createHttpInteractionsService(http);
-  const auth = createHttpAuthService(http, () => { uploadManager.clear(); profile.reset(); work.reset(); portfolio.reset(); jobPosts.reset(); jobs.reset(); applications.reset(); recruiting.reset(); talent.reset(); social.reset(); messaging.reset(); settings.reset();analytics.reset();interactions.reset(); },session=>{void analytics.attach(session);interactions.attach(session);});
-  const media = createMediaService(http, () => auth.me());
+  const auth = createHttpAuthService(http, () => { signalHub.emit({type:"context-ended"}); uploadManager.clear(); profile.reset(); work.reset(); portfolio.reset(); jobPosts.reset(); jobs.reset(); applications.reset(); recruiting.reset(); talent.reset(); social.reset(); messaging.reset(); settings.reset();analytics.reset();interactions.reset(); },session=>{void analytics.attach(session);interactions.attach(session);});
+  const media = createMediaService(http, () => auth.me(),signalHub);
   const applicationWizard = createHttpApplicationDraftService(http,()=>{jobs.reset();applications.reset();recruiting.reset();});
   const applicationDocuments = createApplicationDocumentService(http, media);
   const work = createHttpWorkService(http, media);
@@ -77,7 +81,7 @@ export function createHttpServices(baseUrl: string): Services {
   const personalization = createHttpPersonalizationService(http, (settings) => { if (!settings.personalize) interactions.setEnabled(false, null); else void auth.me().then((session) => interactions.setEnabled(true, session), () => undefined); });
   const talent = createHttpTalentService(http,auth,()=>recommendations.talent(),()=>messaging.getInbox("recruiter",{q:"",filter:"all",selectedId:null}));
   const search = createHttpSearchService(http, auth);
-  const enabled = { applicationWizard, applicationDocuments, journey:createHttpJourneyService(http,media), search, analytics, personalization, auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
+  const enabled = { realtime:createRealtimeService(http,auth,signalHub), publicBrowsing:createHttpPublicBrowsingService(http), applicationWizard, applicationDocuments, journey:createHttpJourneyService(http,media), search, analytics, personalization, auth, media, profile, organization, onboarding, workspace, talent, work, portfolio, jobPosts, jobs, applications, recruiting, feed: social.feed, activity: social.activity, recommendations, messaging, notifications, admin };
   return new Proxy(enabled, {
     get: (target, property) => Object.hasOwn(target, property) ? Reflect.get(target, property) : unavailable,
   }) as unknown as Services;

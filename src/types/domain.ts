@@ -49,6 +49,8 @@ export interface Professional {
   picture?: string;
   /** Landscape profile banner; empty or absent shows the default banner. */
   cover?: string;
+  /** Number of identities following this professional. */
+  followerCount?: number;
   professionalDetails?: ProfessionalDetails;
   locality?: string;
   industry?: string;
@@ -135,6 +137,9 @@ export interface Post {
   likes: number;
   kind: string;
   visibility?: Visibility;
+  commentsEnabled?: boolean;
+  /** When set, the feed card keeps post chrome and Apply targets this job. */
+  linkedJobId?: Id;
 }
 
 export interface Comment {
@@ -272,6 +277,8 @@ export interface JobAlert {
 
 export interface SocialGraph {
   blocked?: Id[];
+  /** Blocked public organizations (demo mode). */
+  blockedCompanies?: Id[];
   /** "Not interested" items (demo mode). */
   hidden?: Id[];
   commentReports?: {commentId:Id;reason:string;details:string;createdAt:string}[];
@@ -309,6 +316,8 @@ export interface MessageAttachment {
   image: boolean;
 }
 
+export type MessageStatus = "sent" | "delivered" | "seen";
+
 export interface Message {
   own?: boolean;
   senderId?: Id;
@@ -316,6 +325,10 @@ export interface Message {
   text: string;
   sender: Role;
   time: IsoDateTime;
+  sequence?: number;
+  status?: MessageStatus | null;
+  deliveredAt?: IsoDateTime | null;
+  seenAt?: IsoDateTime | null;
   attachments?: MessageAttachment[];
 }
 
@@ -491,6 +504,8 @@ export interface Organization {
   notifyTeam: boolean;
   weeklyDigest: boolean;
   verificationStatus: VerificationStatus;
+  /** Number of identities following this organization. */
+  followerCount?: number;
   updatedAt?: IsoDateTime;
   companyAddress?: string;
   pincode?: string;
@@ -515,6 +530,8 @@ export interface RecruiterMember {
   communicationPreference: string;
   privateMobile?: string;
   accountType?: string;
+  /** Number of identities following this recruiter. */
+  followerCount?: number;
 }
 
 export interface Invitation {
@@ -682,6 +699,14 @@ export type ProfileCollection =
 // Drafts
 // ---------------------------------------------------------------------------------------------
 
+export interface QuickJobPost {
+  enabled: boolean;
+  title: string;
+  locations: string[];
+  employment: string;
+  arrangement: string;
+}
+
 export interface PostDraft {
   version?: number;
   editorToken?: string;
@@ -693,6 +718,10 @@ export interface PostDraft {
   videoUrl: string;
   /** Links whose preview the author removed in this draft (comparison keys). */
   previewDismissedUrls?: string[];
+  /** When false, the published post rejects new comments and replies. */
+  commentsEnabled?: boolean;
+  /** Recruiter-only: publish a linked hiring job with this social post. */
+  quickJob?: QuickJobPost;
   step: number;
   reached: number;
 }

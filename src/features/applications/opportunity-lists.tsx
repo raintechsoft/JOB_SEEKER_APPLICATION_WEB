@@ -5,6 +5,7 @@ import type { ApplicationRecord, AlertRecord } from "@/services/applications/app
 import { Button, IconButton } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/icon";
 import { CompanyAvatar } from "@/components/jobs/job-visuals";
+import { VerifiedCompanyMark } from "@/components/organization/controls";
 import { useJobActions } from "@/features/feed/job-dialogs";
 import { useJobAlertDialogs } from "@/features/feed/job-alerts";
 import { formatLongDate } from "@/lib/utils/date";
@@ -32,7 +33,7 @@ export function AppliedOpportunities({ items, onEdit }: { items: ApplicationReco
         <CompanyAvatar company={{id:job?.companyId ?? application.job,name:companyName,confidential:companyName === "Confidential company"}} />
         <div className="saved-opportunity-copy">
           {job ? <button type="button" className="saved-opportunity-title" onClick={() => jobs.view(job.id,"applications")}>{title}</button> : <strong className="saved-opportunity-title">{title}</strong>}
-          <p>{companyName}{job?.location && ` · ${job.location}`}{job?.arrangement && ` (${job.arrangement})`}</p>
+          <p className="application-company-line"><span>{companyName}</span><VerifiedCompanyMark company={{ verified: job?.companyVerified, name: companyName }} />{job?.location && <span>{` · ${job.location}`}</span>}{job?.arrangement && <span>{` (${job.arrangement})`}</span>}</p>
           <time dateTime={application.createdAt}>Applied {formatLongDate(application.createdAt.slice(0,10))}</time>
           {application.followUp && <small className="opportunity-follow-up">Follow up {formatLongDate(application.followUp)}</small>}
         </div>
@@ -59,7 +60,7 @@ export function JobAlertsList({ items }: { items: AlertRecord[] }) {
         <p>{[alert.keywords,alert.location || "All locations",alert.arrangement === "Any" ? "Any work mode" : alert.arrangement,`Last ${alert.days} days`].filter(Boolean).join(" · ")}</p>
         {alert.enabled && alert.matches.length ? <details className="opportunity-alert-matches">
           <summary>{alert.matches.length} matching {alert.matches.length === 1 ? "opportunity" : "opportunities"}</summary>
-          <ul>{alert.matches.map(job => <li key={job.id}><button type="button" aria-label={`View ${job.title}`} onClick={() => jobs.view(job.id,"applications")}><strong>{job.title}</strong><span>{job.companyName}{job.location && ` · ${job.location}`}</span></button></li>)}</ul>
+          <ul>{alert.matches.map(job => <li key={job.id}><button type="button" aria-label={`View ${job.title}`} onClick={() => jobs.view(job.id,"applications")}><strong>{job.title}</strong><span className="application-company-line"><span>{job.companyName}</span><VerifiedCompanyMark company={{ verified: job.companyVerified, name: job.companyName }} />{job.location && <span>{` · ${job.location}`}</span>}</span></button></li>)}</ul>
         </details> : <small className="opportunity-follow-up">{alert.enabled ? "No matching opportunities" : "Alert paused"}</small>}
       </div>
     </div></td>

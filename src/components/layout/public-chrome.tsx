@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { Suspense, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import {authEntryHref,continuationFromParams} from "@/features/auth/auth-continuation";
 import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { Icon } from "@/components/ui/icon";
 import { Brand, IconButton, LinkButton } from "@/components/ui/primitives";
@@ -17,10 +18,7 @@ export function EmployerMenu({ variant = "public" }: { variant?: "public" | "aut
   if (variant === "auth") {
     const onEmployer = pathname.startsWith("/employer/");
     return (
-      <Link className="auth-role-switch" href={onEmployer ? "/login?role=professional" : "/employer/login"}>
-        {onEmployer ? "Job seeker login" : "Employer Login"}
-        <Icon name="arrow" />
-      </Link>
+      <Suspense fallback={<Link className="auth-role-switch" href={onEmployer?"/login":"/employer/login"}>{onEmployer?"Job seeker login":"Employer Login"}<Icon name="arrow"/></Link>}><AuthPortalSwitch employer={onEmployer}/></Suspense>
     );
   }
   return (
@@ -40,6 +38,11 @@ export function EmployerMenu({ variant = "public" }: { variant?: "public" | "aut
   );
 }
 
+function AuthPortalSwitch({employer}:{employer:boolean}){
+  const params=useSearchParams();
+  return <Link className="auth-role-switch" href={authEntryHref(employer?"/login":"/employer/login",continuationFromParams(params))}>{employer?"Job seeker login":"Employer Login"}<Icon name="arrow"/></Link>;
+}
+
 export function PublicNav() {
   // The menu belongs to the page it was opened on, so navigating closes it.
   const pathname = usePathname();
@@ -50,9 +53,7 @@ export function PublicNav() {
       <header className="public-nav">
         <Brand />
         <nav className="links" aria-label="Main navigation">
-          <Link href="/how-it-works">How it works</Link>
-          <Link href="/talent">Explore talent</Link>
-          <Link href="/signup?role=professional">For job seekers</Link>
+          <Link href="/">Explore feed</Link>
         </nav>
         <div className="nav-actions">
           <PublicAccountActions>
@@ -69,8 +70,7 @@ export function PublicNav() {
         </div>
       </header>
       <nav id="public-mobile" className="mobile-menu" aria-label="Mobile navigation" hidden={!open} style={{ display: open ? "flex" : "none" }}>
-        <Link href="/how-it-works">How it works</Link>
-        <Link href="/talent">Explore talent</Link>
+        <Link href="/">Explore feed</Link>
         <PublicAccountActions variant="mobile">
           <Link href="/login?role=professional">Login</Link>
           <Link href="/signup?role=professional">Register</Link>
@@ -91,8 +91,6 @@ export function PublicFooter() {
           Show what you do. Get discovered for your work.
         </span>
         <nav>
-          <Link href="/how-it-works">How it works</Link>
-          <Link href="/talent">Explore talent</Link>
           <DevOnly>
             <button type="button" onClick={workspaceDialogs.privacy}>
               Privacy & demo data

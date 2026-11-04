@@ -1,6 +1,6 @@
 import type { DemoDatabase, Id, Professional } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
-import { projectSummary } from "@/mocks/store/presenters";
+import { personFollowerCount, projectSummary } from "@/mocks/store/presenters";
 import { person, projectsFor, updatesFor } from "@/mocks/store/selectors";
 import { DAY_MS, today } from "@/lib/utils/date";
 import { uid } from "@/lib/utils/id";
@@ -9,21 +9,23 @@ import { publicProjects, toPublicProfessional } from "./public-profile";
 import type { CandidateView, DiscoverySection, TalentCardData, TalentInterests, TalentService, TalentSuggestion } from "./talent.service";
 
 const isSaved = (db: DemoDatabase, id: Id) => db.shortlists.some((s) => s.candidates.includes(id));
+const publicPerson = (db: DemoDatabase, p: Professional) => toPublicProfessional(p, personFollowerCount(db, p.id));
 
 export function talentCard(db: DemoDatabase, p: Professional): TalentCardData {
   const proj = projectsFor(db, p.id)[0];
-  return { ...toPublicProfessional(p), featuredProject: proj ? projectSummary(proj) : undefined, saved: isSaved(db, p.id), recentDays: buildPulse(db, p.id, 7).recentDays };
+  return { ...publicPerson(db, p), featuredProject: proj ? projectSummary(proj) : undefined, saved: isSaved(db, p.id), recentDays: buildPulse(db, p.id, { days: 7 }).recentDays };
 }
 
 function candidate(db: DemoDatabase, p: Professional): CandidateView {
   return {
-    person: toPublicProfessional(p),
+    person: publicPerson(db, p),
     projects: publicProjects(db, p.id),
     updates: updatesFor(db, p.id)
       .filter((u) => u.visibility === "Public")
       .slice(0, 4),
     portfolioSlug: db.portfolios[p.id].slug,
     saved: isSaved(db, p.id),
+    viewer: { own: false, following: false },
   };
 }
 
@@ -151,7 +153,7 @@ export const mockTalentService: TalentService = {
     return ids.map((id) => {
       const p = person(db, id);
       return {
-        ...toPublicProfessional(p),
+        ...publicPerson(db, p),
         featuredWork: projectsFor(db, p.id)
           .filter((pr) => pr.featured && pr.visibility === "Public")
           .map((pr) => ({ id: pr.id, title: pr.title })),
@@ -162,9 +164,8 @@ export const mockTalentService: TalentService = {
   },
 
   async listPublicPeople() {
-    return getDb()
-      .professionals.filter((p) => p.public)
-      .map(toPublicProfessional);
+    const db = getDb();
+    return db.professionals.filter((p) => p.public).map((p) => publicPerson(db, p));
   },
 
   async getRecommendedTalent() {
@@ -184,7 +185,7 @@ export const mockTalentService: TalentService = {
         .sort((a, b) => b.lastActive.localeCompare(a.lastActive))
         .slice(0, 3)
         .map((p) => talentCard(db, p)),
-      conversations: db.conversations.slice(0, 3).map((c) => ({ id: c.id, person: toPublicProfessional(person(db, c.candidate)), lastMessage: c.messages.at(-1)?.text ?? "" })),
+      conversations: db.conversations.slice(0, 3).map((c) => ({ id: c.id, person: publicPerson(db, person(db, c.candidate)), lastMessage: c.messages.at(-1)?.text ?? "" })),
     };
   },
 };

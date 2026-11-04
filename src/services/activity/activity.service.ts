@@ -1,5 +1,6 @@
 import type { Comment } from "@/types/domain";
 import type { FeedEntry } from "@/services/feed/feed.service";
+import type { ReadScope } from "../realtime/realtime.http";
 
 export const ACTIVITY_SECTIONS = { posts: "Posts", comments: "Comments", videos: "Videos", images: "Images", reactions: "Reactions" } as const;
 export type ActivitySection = keyof typeof ACTIVITY_SECTIONS;
@@ -21,6 +22,6 @@ export interface ActivityData {
 }
 
 export interface ActivityService {
-  getProfessionalActivity(): Promise<ActivityData>;
-  getRecruiterActivity(): Promise<ActivityData>;
+  getProfessionalActivity(scope?: ReadScope): Promise<ActivityData>;
+  getRecruiterActivity(scope?: ReadScope): Promise<ActivityData>;
 }

@@ -12,7 +12,7 @@ async function signup(page: Page) {
   await page.getByRole("textbox", { name: "Full name" }).fill("Photo Editor Tester");
   await page.getByRole("textbox", { name: "Email address" }).fill(email);
   await page.getByLabel(/^Password/).fill("photo editor test password");
-  await page.getByRole("button", { name: "SUBMIT", exact: true }).click();
+  await page.getByRole("button", { name: "Create account", exact: true }).click();
   const folder = resolve("../api/storage/app/private/test-deliveries");
   let code = "";
   await expect.poll(() => {

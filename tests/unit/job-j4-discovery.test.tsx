@@ -77,8 +77,9 @@ it("invalid direct/contextual pay queries cause no session reads or transport",a
 
 it("sends the explicit payment period, currency and classifications through typed job transport",async()=>{
   const http=createHttpClient("http://localhost:8000/api/v1"),get=vi.spyOn(http,"get").mockResolvedValue({data:[],meta:{total:0}});
-  await createHttpJobsService(http).listOpportunities({q:"Engineer",page:1,...pay,education:"ITI",employment:"Apprenticeship",sort:"salary_asc"});
-  expect(get).toHaveBeenCalledWith("jobs",expect.objectContaining({...pay,education:"ITI",employment:"Apprenticeship",sort:"salary_asc"}));
+  const scope={signal:new AbortController().signal};
+  await createHttpJobsService(http).listOpportunities({q:"Engineer",page:1,...pay,education:"ITI",employment:"Apprenticeship",sort:"salary_asc"},scope);
+  expect(get).toHaveBeenCalledWith("jobs",expect.objectContaining({...pay,education:"ITI",employment:"Apprenticeship",sort:"salary_asc"}),scope);
 });
 
 it("the compensation menu blocks reversed values and applies complete context once",()=>{

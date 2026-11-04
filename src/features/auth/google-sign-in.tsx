@@ -11,6 +11,7 @@ import { devCopy } from "@/lib/env/app-env";
 import { authDestination } from "./auth-navigation";
 import { clearIdentityState } from "./clear-identity-state";
 import {rememberApplicationSignInReturn,takeApplicationSignInReturn,navigateToApplication} from "@/features/applications/application-signin-return";
+import {continuationFromParams,encodeAuthContinuation,navigateToAuthContinuation,rememberAuthContinuation,takeAuthContinuation} from "./auth-continuation";
 
 /** Job-seeker Google sign-in needs the real API and the public flag; Laravel holds the credentials. */
 export const googleSignInEnabled = () => apiConfig.dataSource === "http" && process.env.NEXT_PUBLIC_GOOGLE_SIGN_IN_ENABLED === "true";
@@ -49,9 +50,12 @@ export function useGoogleReturn(): { completing: boolean } {
       .then((session) => {
         clearIdentityState();
         cache.clear();
+        cache.setQueryData(["auth","session"],session);
+        const continuation=takeAuthContinuation();
         const next=takeApplicationSignInReturn();
+        if(continuation){navigateToAuthContinuation(continuation,session,path=>router.replace(path));return;}
         if(next&&session.user.email_verified){navigateToApplication(next);return;}
-        router.replace(session.user.email_verified&&next?next:authDestination(session,"professional"));
+        router.replace(session.user.email_verified&&next?next:authDestination(session));
       })
       .catch((e) => {
         setFailed(true);
@@ -65,9 +69,10 @@ export function useGoogleReturn(): { completing: boolean } {
     // Backing out at Google is the user's own choice, so the page simply returns to the form.
     if (code !== "cancelled") toast(GOOGLE_ERRORS[code] ?? GOOGLE_ERRORS.failed, "error");
     // Drop the code so a refresh does not repeat the toast.
-    const rest = new URLSearchParams(params.toString());
-    rest.delete("google_error");
+    const rest = new URLSearchParams(params.get("role")==="professional"?{role:"professional"}:undefined);
     const next=takeApplicationSignInReturn();
+    const continuation=takeAuthContinuation()??continuationFromParams(params),raw=continuation&&encodeAuthContinuation(continuation);
+    if(raw)rest.set("continue",raw);
     if(next)rest.set("next",next);
     router.replace(`${window.location.pathname}${rest.size ? `?${rest}` : ""}`);
   }, [code, params, router]);
@@ -84,6 +89,7 @@ export function GoogleSignInButton() {
     }
     setPending(true);
     rememberApplicationSignInReturn(new URLSearchParams(window.location.search).get("next"));
+    rememberAuthContinuation(continuationFromParams(new URLSearchParams(window.location.search)));
     // A full navigation: Google's consent page cannot run inside the SPA or a fetch.
     window.location.assign(googleRedirectUrl());
   };

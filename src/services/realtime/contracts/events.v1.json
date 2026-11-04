@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "phase": "R6",
+  "runtimeIntegrated": "partial",
+  "runtimePhases": ["R2", "R3", "R4", "R5", "R6"],
+  "wireEvent": "skillora.changed.v1",
+  "maxSignalBytes": 2048,
+  "description": "Closed change hints. REST remains authoritative. Logical audience is checked against the receiving subscription; it is never a client-selected permission.",
+  "definitions": {
+    "uuid": { "type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "sequence": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+  },
+  "events": [
+    {
+      "type": "portfolio-access.changed", "audience": "portfolio", "phase": "R6",
+      "data": {},
+      "meaning": "A portfolio share holder's permitted view changed. Fixed, revocable token-authorized subscription; no token, resource ID or content in the signal."
+    },
+    {
+      "type": "messaging.changed", "audience": "identity", "phase": "R3",
+      "data": {},
+      "meaning": "The recipient's messaging availability changed. Refresh their inbox, active history and count without revealing a blocked or unavailable conversation ID."
+    },
+    {
+      "type": "conversation.updated", "audience": "identity", "phase": "R3",
+      "data": { "conversationId": "uuid" },
+      "meaning": "Messages, reads, flags, thread creation or availability changed. No message text or read pointer is transported."
+    },
+    {
+      "type": "conversation.receipt", "audience": "identity", "phase": "R3",
+      "data": { "conversationId": "uuid", "kind": ["delivered", "seen"], "throughSequence": "sequence" },
+      "meaning": "A peer acknowledged delivery or seen through a sequence. No message text, names or attachments."
+    },
+    {
+      "type": "notifications.changed", "audience": "identity", "phase": "R3",
+      "data": {},
+      "meaning": "A recipient notification was inserted, read, seen or deleted. Re-read both new and unread counts; never increment them from a signal."
+    },
+    {
+      "type": "feed.changed", "audience": "identity", "phase": "R4",
+      "data": { "change": ["refresh", "availability"] },
+      "meaning": "The authorized identity feed changed. New entries wait behind a refresh banner; availability changes require immediate revalidation."
+    },
+    {
+      "type": "post.changed", "audience": "identity", "phase": "R4",
+      "data": { "entryId": "uuid" },
+      "meaning": "An already-authorized feed entry or its reactions/reposts changed; applies to post, job and work-update cards."
+    },
+    {
+      "type": "comments.changed", "audience": "identity", "phase": "R4",
+      "data": { "entryId": "uuid" },
+      "meaning": "A comment/reply or pin changed. Refresh visible comments and authoritative count without transporting comment content."
+    },
+    {
+      "type": "network.changed", "audience": "identity", "phase": "R4",
+      "data": {},
+      "meaning": "The identity's follows, saves, hides or blocks changed. Does not identify a private follower or blocker."
+    },
+    {
+      "type": "public.changed", "audience": "public", "phase": "R4",
+      "data": { "surface": ["feed", "jobs", "people", "companies", "projects", "updates", "portfolios"], "change": ["refresh", "availability"] },
+      "meaning": "Generic public projection change only. No source/actor IDs, per-user counters or private existence signals. R5/R6 add publishers for their public surfaces."
+    },
+    {
+      "type": "application.changed", "audience": "identity", "phase": "R5",
+      "data": { "applicationId": "uuid", "jobId": "uuid" },
+      "meaning": "Submission, recruiter stage, withdrawal or permitted tracking changed for this applicant or an authorized reviewer. No answers, status, notes or contact values."
+    },
+    {
+      "type": "application-drafts.changed", "audience": "identity", "phase": "R5",
+      "data": {},
+      "meaning": "Owner drafts changed, were submitted, discarded or expired. Preserve unsaved edits and require a new review when the saved revision changed."
+    },
+    {
+      "type": "hiring.changed", "audience": "identity", "phase": "R5",
+      "data": {},
+      "meaning": "An active authorized reviewer's hiring workspace changed or lost access to a source. No resource IDs, applicant status, notes, private drafts or assignment details are carried. Recheck current permissions before displaying refreshed lists or editors."
+    },
+    {
+      "type": "job.changed", "audience": "identity", "phase": "R5",
+      "data": { "jobId": "uuid" },
+      "meaning": "An authorized job changed, including closing time, assignment or availability. Does not expose confidential jobs to other organization members."
+    },
+    {
+      "type": "job-tracker.changed", "audience": "identity", "phase": "R5",
+      "data": {},
+      "meaning": "Owner saved/archived opportunities or alert configuration changed. Job-alert matches separately signal notifications."
+    },
+    {
+      "type": "profile.changed", "audience": "identity", "phase": "R6",
+      "data": {},
+      "meaning": "The recipient's profile, resume library, avatar or career records changed; public projections receive a separate generic public hint."
+    },
+    {
+      "type": "organization.changed", "audience": "identity", "phase": "R6",
+      "data": {},
+      "meaning": "The selected organization's permitted profile/team/recruiter context changed. Access loss also invokes server revocation."
+    },
+    {
+      "type": "work.changed", "audience": "identity", "phase": "R6",
+      "data": {},
+      "meaning": "The owner's projects, work updates, pulse or activity changed. Published projections receive public hints only when eligible."
+    },
+    {
+      "type": "portfolio.changed", "audience": "identity", "phase": "R6",
+      "data": {},
+      "meaning": "Owner portfolio settings or grants changed. Never transport a share token, access code or private portfolio contents."
+    },
+    {
+      "type": "recruiting.changed", "audience": "identity", "phase": "R6",
+      "data": {},
+      "meaning": "Authorized shared shortlists or recruiting context changed; recipient selection respects ownership, assignments and shared-list permissions."
+    },
+    {
+      "type": "settings.changed", "audience": "identity", "phase": "R6",
+      "data": {},
+      "meaning": "Account-owned settings changed in another tab/device. Does not turn on analytics, embeddings, ML or external delivery."
+    },
+    {
+      "type": "access.changed", "audience": "identity", "phase": "R2",
+      "data": {},
+      "meaning": "Clear and recheck selected access. Advisory UI hint only; server-side session/membership revocation must work if this hint is dropped or ignored."
+    },
+    {
+      "type": "export.changed", "audience": "identity", "phase": "R6",
+      "data": { "exportId": "uuid" },
+      "meaning": "An owned export changed state. Its status/download API rechecks current scope. No filename, object key or download URL."
+    },
+    {
+      "type": "media.changed", "audience": "identity", "phase": "R6",
+      "data": { "assetId": "uuid" },
+      "meaning": "An owned upload changed processing/verification state. No object key, signed URL, scan content or approval assertion."
+    },
+    {
+      "type": "administration.changed", "audience": "account", "phase": "R6",
+      "data": { "section": ["accounts", "verifications", "reports", "deliveries", "overview"] },
+      "meaning": "Generic operational change for currently authorized administrators only, using a server-derived account subscription that does not require a selected workspace. No report/evidence/recipient data."
+    }
+  ]
+}

@@ -1,22 +1,23 @@
 "use client";
 
 import { QueryFeedback } from "@/components/ui/query-view";
+import { ScreenError } from "@/components/ui/feedback";
 
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FeedFilter } from "@/services/feed/feed.service";
-import { useServiceQuery } from "@/hooks/use-services";
+import { useLiveFeed } from "@/hooks/use-live-feed";
 import { useUiStore } from "@/stores/ui-store";
 import { Button, EmptyState } from "@/components/ui/primitives";
 import { FeedCard } from "./feed-card";
-import { FeedToolbar, NetworkPrompt, ProfileColumn } from "./feed-parts";
+import { FeedInfiniteLoader, FeedToolbar, NetworkPrompt, NewPostsButton, ProfileColumn } from "./feed-parts";
 import { JobsPanel } from "./jobs-panel";
 import { useNetworkSheet } from "./network-sheet";
 import { useFeedParams } from "./use-feed-params";
 import { PermalinkEntry } from "./permalink-entry";
 
 const TABS: [FeedFilter, string, boolean][] = [
-  ["all", "For you", true],
+  ["all", "Home", true],
   ["following", "Following", true],
   ["jobs", "Jobs", true],
   ["saved", "Saved", true],
@@ -31,10 +32,12 @@ export function ProfessionalFeedScreen() {
   const highlight = useSearchParams().get("post");
   const network = useNetworkSheet();
   useFeedParams("professional");
-  const { data, isError, refetch } = useServiceQuery(["feed", "professional", feed.filter, feed.sort, feed.visible], (s) => s.feed.getFeed({ role: "professional", filter: feed.filter, sort: feed.sort, q: "", limit: feed.visible }));
+  const { data, isError, error, refetch, newPosts, showNewPosts, placeholderHeight, hasNextPage, fetchNextPage, isFetchingNextPage, isFetchNextPageError } = useLiveFeed({ role: "professional", filter: feed.filter, sort: feed.sort, q: "", limit: 12 });
 
+  const scrolled = useRef<string | null>(null);
   useEffect(() => {
-    if (!highlight || !data) return;
+    if (!highlight || !data || scrolled.current === highlight) return;
+    scrolled.current = highlight;
     requestAnimationFrame(() => document.getElementById("feed-" + highlight)?.scrollIntoView({ block: "start" }));
   }, [highlight, data]);
 
@@ -53,17 +56,18 @@ export function ProfessionalFeedScreen() {
       <ProfileColumn />
       <section className="feed-timeline" aria-label="Professional community feed">
         <FeedToolbar tabs={TABS} onFilter={setFilter} />
-        <div id="feed-post-list" className="feed-post-list">
-          {isError && <p role="alert">The feed could not be loaded. <Button onClick={()=>void refetch()}>Try again</Button></p>}
+        <NewPostsButton show={newPosts} onShow={showNewPosts} />
+        <div id="feed-post-list" className="feed-post-list" data-live-feed aria-busy={isFetchingNextPage || undefined} style={{ minHeight: placeholderHeight }}>
+          {isError && data && <p role="status" className="state-inline-note">Couldn’t refresh the feed. Showing the last loaded posts. <button type="button" className="link" onClick={() => void refetch()}>Try again</button></p>}
           {highlight && data && !data.items.some((entry)=>entry.id===highlight) && <PermalinkEntry key={highlight} id={highlight} role="professional" />}
-          <QueryFeedback data={data} error={isError} retry={refetch} layout="feed" />
+          {isError && !data ? <ScreenError error={error} title="The feed couldn’t load" description="Check your connection and try again." onRetry={() => void refetch()} /> : <QueryFeedback data={data} error={isError} cause={error} retry={refetch} layout="feed" />}
           {data && (
             <>
               {data.items.length ? (
                 data.items.map((entry, i) => (
                   <Fragment key={entry.id}>
                     <FeedCard entry={entry} role="professional" position={i} highlighted={entry.id === highlight} />
-                    {i === 2 && feed.filter === "all" && !feed.query && <NetworkPrompt people={data.suggestions} />}
+                    {i === 2 && feed.filter === "all" && !feed.query && <NetworkPrompt people={data.suggestions} role="professional" />}
                   </Fragment>
                 ))
               ) : (
@@ -77,12 +81,8 @@ export function ProfessionalFeedScreen() {
                   }
                 />
               )}
-              {data.total > data.items.length ? (
-                <div className="feed-load-more">
-                  <Button icon="down" onClick={() => setFeed({ visible: feed.visible + 12 })}>
-                    See more posts
-                  </Button>
-                </div>
+              {hasNextPage ? (
+                <FeedInfiniteLoader loading={isFetchingNextPage} error={isFetchNextPageError} onLoad={() => void fetchNextPage()} />
               ) : data.items.length ? (
                 <div className="feed-end">You’re all caught up for now. A little more work, a little more possibility.</div>
               ) : null}

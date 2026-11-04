@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useServiceQuery } from "@/hooks/use-services";
 import { Icon } from "@/components/ui/icon";
+import { ErrorState } from "@/components/ui/state-views";
 import type { Role } from "@/types/domain";
 import {
   activityCalendarContract,
@@ -149,12 +150,7 @@ export function ActivityHeatmap({ role }: { role: Role }) {
         </tbody>
       </table>
       {query.isError ? (
-        <p className="activity-status error" role="alert">
-          Activity for {title} could not be loaded.{" "}
-          <button type="button" className="activity-retry" onClick={() => void query.refetch()}>
-            Retry
-          </button>
-        </p>
+        <ErrorState compact error={query.error} title={`Activity for ${title} couldn’t load`} description="Something interrupted the request. Please try again." onRetry={() => void query.refetch()} />
       ) : (
         <p className="activity-status" aria-live="polite">
           {data ? data.total ? <><strong>{data.total}</strong> {data.total === 1 ? "activity" : "activities"} in {title}</> : <>No activity recorded in {title}</> : <span className="sr-only">Loading activity for {title}</span>}
