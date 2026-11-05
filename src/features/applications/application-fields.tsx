@@ -383,9 +383,6 @@ export function ApplicationDraftReview({ editor }: { editor: Editor }) {
         ) : (
           <p className="application-review-empty">No resume selected.</p>
         )}
-        <p className="application-review-note">
-          {values.documents.includePortfolio ? `Portfolio included: ${docs.portfolio.title}${docs.portfolio.sections.length ? ` (${docs.portfolio.sections.join(", ")})` : ""}` : "Portfolio is not included."}
-        </p>
       </section>
 
       <section className="application-review-section" aria-labelledby="review-details">

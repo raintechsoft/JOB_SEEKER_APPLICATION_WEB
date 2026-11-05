@@ -32,17 +32,24 @@ export function createHttpRecruitingService(http:HttpClient,auth:AuthService):Re
     return result;
   };
   const listResponses=async(params:ResponseParams,scope?:ReadScope)=>{responseFiltersSchema.parse(params);const page=(await http.get<{data:components["schemas"]["ResponsesPage"]}>(`${await hiringPath(auth,scope)}/responses`,params,scope)).data;for(const row of page.items)responses.set(row.application.id,row);return page;};
-  const transition=async(ids:string[],status:string)=>{
+  /** Fresh server stages win. Same-stage ids stay (idempotent); illegal/withdrawn ids are skipped. */
+  const movableForStatus=async(ids:string[],status:string)=>{
     bulkIdsSchema.parse(ids);z.enum(["New","Reviewing","Shortlisted","Interview","Hired","Rejected"]).parse(status);
-    for(const id of ids){const a=await loadResponseApplication(id,true);
+    const movable:string[]=[];
+    for(const id of ids){
+      const a=await loadResponseApplication(id,true);
+      if(a.status===status){movable.push(id);continue;}
       const allowed=(RECRUITING_RULES.transitions[a.status] as string[]|undefined)?.includes(status);
-      if(a.status!==status&&(a.withdrawnAt||!allowed))throw new Error("This hiring transition is unavailable. Review the current stage.");}
+      if(!a.withdrawnAt&&allowed)movable.push(id);
+    }
+    if(!movable.length)throw new Error("This hiring transition is unavailable. Review the current stage.");
+    return movable;
   };
   return {
     reset(){responses.clear();jobs.clear();exportAttempts.clear();},getApplicant,getManagedJob,listResponses,
     async getHiringSummary(scope){return (await http.get<{data:components["schemas"]["HiringSummary"]}>(`${await hiringPath(auth,scope)}/summary`,undefined,scope)).data;},
-    async getReview(id,scope){const row=await getApplicant(id,scope);return {application:row.application,person:row.profile,jobTitle:row.jobTitle};},
-    async saveReview(id,input){const v=reviewSchema.parse(input);z.uuid().parse(id);await transition([id],v.status);await action("responses","review",[id],v,false);return true;},
+    async getReview(id,scope){const row=await getApplicant(id,scope);return {application:row.application,person:row.profile,jobTitle:row.jobTitle,profile:row.profile,sharing:row.sharing};},
+    async saveReview(id,input){const v=reviewSchema.parse(input);z.uuid().parse(id);await movableForStatus([id],v.status);await action("responses","review",[id],v,false);return true;},
     async listManagedJobs(query,scope){const q=managedJobsSchema.parse(query);const result=(await http.get<{data:components["schemas"]["ManagedJobsPage"]}>(`${await hiringPath(auth,scope)}/jobs`,q,scope)).data;result.items.forEach((row)=>jobs.set(row.id,row));return result;},
     async toggleJob(id){return (await action("jobs","toggle",[id])).status;},
     async repostJob(id){await action("jobs","repost",[id]);return true;},
@@ -50,7 +57,7 @@ export function createHttpRecruitingService(http:HttpClient,auth:AuthService):Re
     async saveCollaboration(ids,emails,note,versions){const v=collaborationSchema.parse({ids,emails,note});await action("jobs","collaboration",ids,{emails:v.emails,note:v.note,...(versions?{versions}:{})});},
     async deleteDraft(id){await action("jobs","delete",[id]);},
     async deleteDrafts(ids){bulkIdsSchema.parse(ids);return (await action("jobs","delete",ids)).count;},
-    async setStatus(ids,status){await transition(ids,status);return (await action("responses","status",ids,{status},false)).count;},
+    async setStatus(ids,status){const movable=await movableForStatus(ids,status);return (await action("responses","status",movable,{status},false)).count;},
     async saveNote(id,note){const v=z.string().trim().max(5000).parse(note);await action("responses","note",[id],{note:v});},
     async markViewed(id){return (await action("responses","viewed",[id])).candidate??null;},
     async remove(ids){await action("responses","remove",ids);},

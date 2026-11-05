@@ -4793,6 +4793,8 @@ export interface components {
                 id: string;
                 title: string;
                 skills: string[];
+                /** @description Active screening questions of the job; the recruiter's ideal answer is included only for private views. */
+                questions: components["schemas"]["ScreeningQuestion"][];
             }[];
             /** @enum {string} */
             sort: "newest" | "oldest" | "experience" | "salary" | "fit" | "relevance";

@@ -11,7 +11,6 @@ export function ApplicationSubmissionReview({editor}:{editor:ReturnType<typeof u
     <ApplicationDraftReview editor={editor}/>
     {editor.reviewLoading&&<section aria-busy="true" aria-label="Loading review"><Skeleton style={{display:"block",height:24,width:180,marginBottom:16}}/><Skeleton style={{display:"block",height:90}}/></section>}
     {review&&<>
-      {review.portfolio&&<section><h3>Shared portfolio: {review.portfolio.title}</h3>{review.portfolio.items.map(item=><div key={`${item.kind}:${item.id}`}><strong>{item.title}</strong><p className="application-preserve-text">{item.description}</p>{item.url&&<p>{item.url}</p>}</div>)}</section>}
       <label className="wizard-check"><input type="checkbox" required checked={editor.acknowledgedSharing} onChange={event=>editor.setAcknowledgedSharing(event.target.checked)}/>I confirm that I have reviewed and verified the details above, and agree to share this information and the selected documents with {editor.context.companyName}.<span aria-hidden="true"> *</span></label>
     </>}
     {!review&&!editor.reviewLoading&&!editor.submissionUncertain&&<Button disabled={editor.working} onClick={()=>void (editor.blocked?editor.reload():editor.reloadReview())}>Reload review</Button>}

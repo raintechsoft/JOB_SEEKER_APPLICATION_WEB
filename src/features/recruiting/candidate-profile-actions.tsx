@@ -6,6 +6,7 @@ import { SubmittedDocumentViewer } from "@/features/applications/application-sha
 import { useShortlistDialogs } from "@/features/talent/dialogs";
 import { Icon } from "@/components/ui/icon";
 import { Button, IconButton, LinkButton } from "@/components/ui/primitives";
+import { useServiceQuery } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
 import { applicantProfileHref, type ResponseItem } from "@/services/recruiting/recruiting.service";
 import type { Id } from "@/types/domain";
@@ -15,9 +16,11 @@ type Props = {
   onContact: () => void;
   onMessage: () => void;
   onMarkViewed: (id: Id) => void | Promise<void>;
+  /** Table cells use icons only; card/aside keeps labeled buttons. */
+  iconOnly?: boolean;
 };
 
-function openResume(item: ResponseItem) {
+export function openResume(item: ResponseItem) {
   const resume = item.sharing?.attachments.find((file) => file.kind === "resume");
   if (!resume) return;
   modal.show(
@@ -27,16 +30,25 @@ function openResume(item: ResponseItem) {
   );
 }
 
-export function CandidateProfileActions({ item, onContact, onMessage, onMarkViewed }: Props) {
+export function CandidateProfileActions({ item, onContact, onMessage, onMarkViewed, iconOnly = false }: Props) {
   const a = item.application;
   const p = item.profile;
   const profileHref = applicantProfileHref(item);
   const resume = item.sharing?.attachments.find((file) => file.kind === "resume");
   const shortlists = useShortlistDialogs();
+  const { data: lists } = useServiceQuery(["shortlists"], (s) => s.talent.listShortlists());
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const menuId = useId();
-  const candidateId = a.candidate || p.id;
+  // Profile id is the professional id used by messaging and shortlist membership writes.
+  const candidateId = p.id || a.candidate;
+  const membershipIds = new Set([p.id, a.candidate].filter(Boolean));
+  const saved = !!lists?.some(
+    (list) =>
+      list.candidates.some((id) => membershipIds.has(id)) ||
+      list.people?.some((person) => membershipIds.has(person.id)),
+  );
+  const saveLabel = saved ? "Manage saved lists for " + p.name : "Save " + p.name;
 
   useEffect(() => {
     if (!open) return;
@@ -64,32 +76,59 @@ export function CandidateProfileActions({ item, onContact, onMessage, onMarkView
   }
 
   return (
-    <div className="response-profile-actions">
+    <div className={"response-profile-actions" + (iconOnly ? " is-icon-only" : "")}>
       <div className="response-profile-actions-list">
-        <Button variant="sm" icon="phone" onClick={onContact}>
-          Contact
-        </Button>
-        <Button variant="text sm" icon="message" onClick={onMessage}>
-          Message
-        </Button>
-        <LinkButton variant="text sm" icon="user" href={profileHref} onClick={() => void onMarkViewed(a.id)}>
-          View profile
-        </LinkButton>
-        {resume ? (
-          <Button
-            variant="sm"
-            icon="eye"
-            className="response-resume-download"
-            onClick={() => openResume(item)}
-            aria-label={"View submitted resume: " + resume.name}
-            title={resume.name}
-          >
-            View resume
-          </Button>
-        ) : null}
-        <Button variant="text sm" icon="bookmark" onClick={saveProfile}>
-          Save
-        </Button>
+        {iconOnly ? (
+          <>
+            <IconButton icon="phone" label={"Contact " + p.name} onClick={onContact} />
+            <IconButton icon="message" label={"Message " + p.name} onClick={onMessage} />
+            <Link className="iconbtn" href={profileHref} aria-label={"View profile for " + p.name} title={"View profile for " + p.name} onClick={() => void onMarkViewed(a.id)}>
+              <Icon name="user" />
+            </Link>
+            <IconButton
+              icon="bookmark"
+              label={saveLabel}
+              extra={"response-save-btn" + (saved ? " is-saved" : "")}
+              iconClassName={saved ? "is-filled-bookmark" : undefined}
+              aria-pressed={saved}
+              onClick={saveProfile}
+            />
+          </>
+        ) : (
+          <>
+            <Button variant="sm" icon="phone" onClick={onContact}>
+              Contact
+            </Button>
+            <Button variant="text sm" icon="message" onClick={onMessage}>
+              Message
+            </Button>
+            <LinkButton variant="text sm" icon="user" href={profileHref} onClick={() => void onMarkViewed(a.id)}>
+              View profile
+            </LinkButton>
+            {resume ? (
+              <Button
+                variant="sm"
+                icon="eye"
+                className="response-resume-download"
+                onClick={() => openResume(item)}
+                aria-label={"View submitted resume: " + resume.name}
+                title={resume.name}
+              >
+                View resume
+              </Button>
+            ) : null}
+            <Button
+              variant={"text sm response-save-btn" + (saved ? " is-saved" : "")}
+              icon="bookmark"
+              className={saved ? "is-saved" : undefined}
+              aria-pressed={saved}
+              aria-label={saveLabel}
+              onClick={saveProfile}
+            >
+              {saved ? "Saved" : "Save"}
+            </Button>
+          </>
+        )}
       </div>
       <div className="response-profile-menu" ref={root}>
         <IconButton
@@ -121,15 +160,21 @@ export function CandidateProfileActions({ item, onContact, onMessage, onMarkView
               <Icon name="user" />
               View profile
             </Link>
-            {resume ? (
+            {!iconOnly && resume ? (
               <button type="button" role="menuitem" onClick={() => run(() => openResume(item))}>
                 <Icon name="eye" />
                 View resume
               </button>
             ) : null}
-            <button type="button" role="menuitem" onClick={() => run(saveProfile)}>
-              <Icon name="bookmark" />
-              Save
+            <button
+              type="button"
+              role="menuitem"
+              className={"response-save-btn" + (saved ? " is-saved" : "")}
+              aria-pressed={saved}
+              onClick={() => run(saveProfile)}
+            >
+              <Icon name="bookmark" className={saved ? "is-filled-bookmark" : undefined} />
+              {saved ? "Saved" : "Save"}
             </button>
           </div>
         ) : null}

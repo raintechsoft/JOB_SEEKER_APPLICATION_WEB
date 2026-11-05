@@ -75,8 +75,7 @@ export function applicationWizardStageSchema(context: ApplicationWizardValidatio
       const selected = value.documents.resumeAssetId;
       if (context.requirements.requireResume && !selected) issue(["documents", "resumeAssetId"], "This job requires a resume.");
       if (selected && !context.acceptedResumeAssetIds.includes(selected)) issue(["documents", "resumeAssetId"], "Wait for an accepted resume or choose another file.");
-      if (context.requirements.requirePortfolio && !value.documents.includePortfolio) issue(["documents", "includePortfolio"], "This job requires a portfolio.");
-      if (value.documents.includePortfolio && context.requirements.requirePortfolio && !context.portfolioReady) issue(["documents", "includePortfolio"], "Add a shareable project or work sample to your portfolio.");
+      // Portfolio module removed — never require or validate portfolio inclusion on apply.
     }
     if (last >= 2) {
       const pay = value.details.expectedCompensation;

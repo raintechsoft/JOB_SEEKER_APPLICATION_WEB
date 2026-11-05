@@ -17,6 +17,8 @@ export type PaginationProps = {
   id?: string;
   className?: string;
   summary?: ReactNode;
+  /** Optional middle slot (e.g. table horizontal scroll control). */
+  center?: ReactNode;
   previousHref?: string | null;
   nextHref?: string | null;
   onPageSizeChange: (size: number) => void;
@@ -32,6 +34,7 @@ export function Pagination({
   id = "pagination-page-size",
   className,
   summary,
+  center,
   previousHref,
   nextHref,
   onPageSizeChange,
@@ -44,6 +47,7 @@ export function Pagination({
   return (
     <nav className={cn("ui-pagination", className)} aria-label="Pagination">
       {summary ? <div className="ui-pagination-summary">{summary}</div> : null}
+      {center ? <div className="ui-pagination-center">{center}</div> : null}
       <div className="ui-pagination-controls">
         <label className="ui-pagination-size">
           <FloatingSelect

@@ -6,7 +6,7 @@ import {sharedPayLabel} from "@/features/applications/application-sharing-detail
 
 import { QueryFeedback } from "@/components/ui/query-view";
 
-import {useEffect,useId,useRef,useState,type ReactNode} from "react";
+import {useEffect,useId,useRef,useState,useSyncExternalStore,type ReactNode} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {outreachSchema} from "@/lib/validation/application";
 import {responseFiltersSchema,RECRUITING_RULES} from "@/lib/validation/recruiting";
@@ -40,11 +40,22 @@ import { CandidateProfileActions } from "./candidate-profile-actions";
 import { ResponseDataGrid } from "./response-data-grid";
 import { FloatingChatDock } from "@/features/messaging/floating-chat-dock";
 import { useApplicationsMessage } from "./use-applications-message";
+import { ApplicantSearchField, type ApplicantPick } from "./applicant-search-field";
+import { loadResponseTableFullscreen, saveResponseTableFullscreen, serverResponseTableFullscreen, subscribeResponseTableFullscreen } from "./response-table-prefs";
 
 const CARDS_BASE = "/recruiter/applications";
 const TABLE_BASE = "/recruiter/applications/table";
-/** @deprecated Prefer CARDS_BASE / TABLE_BASE; kept for filter clear links that land on cards. */
+/** @deprecated Prefer CARDS_BASE / TABLE_BASE; only "Manage jobs" style exits still use it. */
 const BASE = CARDS_BASE;
+
+/** Filters cleared, staying in the recruiter's current view (table keeps the table, cards keep cards). */
+function clearedResponsesHref(mode: ResponseCenterMode, job?: string) {
+  const q = new URLSearchParams();
+  if (mode === "cards") q.set("view", "responses");
+  if (job) q.set("job", job);
+  const s = q.toString();
+  return (mode === "table" ? TABLE_BASE : CARDS_BASE) + (s ? "?" + s : "");
+}
 
 export type ResponseCenterMode = "cards" | "table";
 
@@ -70,14 +81,26 @@ const VIEW_OPTIONS = [
   { id: "table" as const, label: "Table", icon: "grid" as const, href: (params: URLSearchParams) => tableHref(params) },
 ];
 
+const MOBILE_APPLICATIONS_VIEW = "(max-width: 680px)";
+
 function ResponseViewMenu({ mode, rows }: { mode: ResponseCenterMode; rows?: string }) {
   const router = useRouter();
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
+  const [hideTableOption, setHideTableOption] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  const options = hideTableOption ? VIEW_OPTIONS.filter((option) => option.id !== "table") : VIEW_OPTIONS;
   const active = mode === "table" ? "table" : rows === "compact" ? "compact" : "expand";
-  const activeLabel = VIEW_OPTIONS.find((option) => option.id === active)?.label ?? "Expand";
+  const activeLabel = (hideTableOption && active === "table" ? VIEW_OPTIONS.find((option) => option.id === "expand") : VIEW_OPTIONS.find((option) => option.id === active))?.label ?? "Expand";
+
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_APPLICATIONS_VIEW);
+    const sync = () => setHideTableOption(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -107,7 +130,7 @@ function ResponseViewMenu({ mode, rows }: { mode: ResponseCenterMode; rows?: str
       />
       {open ? (
         <div className="response-view-menu-panel" id={menuId} role="menu" aria-label="Applicant detail view">
-          {VIEW_OPTIONS.map((option) => (
+          {options.map((option) => (
             <button
               key={option.id}
               type="button"
@@ -170,18 +193,28 @@ function ResponseFilterFields({
   jobs = [],
   stage = "all",
   tabCounts,
+  applicantName,
+  mode = "cards",
 }: {
   q: ResponseParams;
   jobs?: { id: string; title: string }[];
   stage?: ResponseTab;
   tabCounts?: Partial<Record<ResponseTab, number>>;
+  /** Applying filters stays in the view the recruiter is using (table or cards). */
+  mode?: ResponseCenterMode;
+  /** Display name for an `applicant` already in the URL (ids only travel in the query string). */
+  applicantName?: string;
 }) {
   const router = useRouter();
+  const [jobId, setJobId] = useState(q.job || "");
+  const [applicantPick, setApplicantPick] = useState<ApplicantPick | null>(
+    q.applicant ? { id: q.applicant, name: applicantName || "Selected applicant" } : null,
+  );
   const setResponses = useUiStore((s) => s.setResponses);
   const params = useSearchParams();
-  const clearHref = BASE + "?view=responses";
+  const clearHref = clearedResponsesHref(mode);
   const num = (label: string, name: string, max?: number) => <TextField label={label} name={name} type="number" min={0} max={max} defaultValue={q[name] || ""} />;
-  const openKeywordMatch = () => modal.show(devCopy("AI filter · Keyword matching demo", "Keyword matching"), <AiFilterForm q={q} />, "project");
+  const openKeywordMatch = () => modal.show(devCopy("AI filter · Keyword matching demo", "Keyword matching"), <AiFilterForm q={q} mode={mode} />, "project");
   return (
     <div className="response-filter-fields is-sheet">
       {RESPONSE_KEYWORD_MATCHING_ENABLED ? (
@@ -213,7 +246,10 @@ function ResponseFilterFields({
             next.delete(key);
             if (get(key)) next.set(key, get(key));
           }
-          const query = get("q");
+          const applicant = get("applicant");
+          const query = applicant ? "" : get("q");
+          if (applicant) next.set("applicant", applicant);
+          else next.delete("applicant");
           if (query) next.set("q", query);
           else next.delete("q");
           if (job) next.set("job", job);
@@ -227,16 +263,17 @@ function ResponseFilterFields({
           const sort = get("sort") || q.sort || "newest";
           if (sort && sort !== "newest") next.set("sort", sort);
           else next.delete("sort");
-          next.set("view", "responses");
+          if (mode === "table") next.delete("view");
+          else next.set("view", "responses");
           next.delete("page");
           if (!isPrototype) {
             const checked = responseFiltersSchema.safeParse(Object.fromEntries(next));
             if (!checked.success) return toast(checked.error.issues[0].message);
           }
           setResponses({ selection: [] });
-          track("search_performed", { surface: "responses", hasQuery: !!(query || get("keywords")) });
+          track("search_performed", { surface: "responses", hasQuery: !!(query || applicant || get("keywords")) });
           modal.close();
-          router.push(BASE + "?" + next);
+          router.push((mode === "table" ? TABLE_BASE : CARDS_BASE) + "?" + next);
         }}
       >
         <Panel title="Response section">
@@ -251,13 +288,18 @@ function ResponseFilterFields({
           </div>
         </Panel>
         <Panel title="Search">
-          <TextField label="Search applicants" name="q" type="search" defaultValue={q.q || ""} maxLength={200} />
           <SelectField
             label="Filter by job"
             name="job"
-            defaultValue={q.job || ""}
+            value={jobId}
+            onChange={(event) => {
+              setJobId(event.target.value);
+              // A picked applicant belongs to the previous job scope.
+              setApplicantPick(null);
+            }}
             options={[{ value: "", label: "All job posts" }, ...jobs.map((j) => ({ value: j.id, label: j.title }))]}
           />
+          <ApplicantSearchField jobId={jobId} initialQuery={q.applicant ? "" : q.q || ""} pick={applicantPick} onPickChange={setApplicantPick} />
         </Panel>
         <div className="response-keywords">
           <TextAreaField label="CV / profile keywords" name="keywords" defaultValue={q.keywords || ""} maxLength={500} rows={2} />
@@ -366,7 +408,7 @@ function ResponseFilterFields({
   );
 }
 
-function AiFilterForm({ q }: { q: ResponseParams }) {
+function AiFilterForm({ q, mode = "cards" }: { q: ResponseParams; mode?: ResponseCenterMode }) {
   const run = useServiceAction();
   const router = useRouter();
   const setResponses = useUiStore((s) => s.setResponses);
@@ -382,7 +424,8 @@ function AiFilterForm({ q }: { q: ResponseParams }) {
         const f = new FormData(e.currentTarget);
         const get = (k: string) => String(f.get(k) || "").trim();
         const next = new URLSearchParams(q);
-        next.set("view", "responses");
+        if (mode === "table") next.delete("view");
+        else next.set("view", "responses");
         next.set("fit", "1");
         next.set("threshold", get("threshold"));
         next.set("stage", "all");
@@ -399,7 +442,7 @@ function AiFilterForm({ q }: { q: ResponseParams }) {
         if (!result) return;
         setResponses({ selection: [] });
         modal.close();
-        router.push(BASE + "?" + next);
+        router.push((mode === "table" ? TABLE_BASE : CARDS_BASE) + "?" + next);
         toast(result.matches + " keyword matches · " + result.shortlisted + devCopy(" responses shortlisted in this demo.", " responses shortlisted."));
       }}
     >
@@ -689,7 +732,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
             icon="check"
             aria-pressed={a.status === "Shortlisted"}
             disabled={!canMove("Shortlisted")}
-            onClick={() => actions.status([a.id], "Shortlisted")}
+            onClick={() => { if (a.status !== "Shortlisted") void actions.status([a.id], "Shortlisted"); }}
           >
             {a.status === "Shortlisted" ? "Shortlisted" : "Shortlist"}
           </Button>
@@ -698,7 +741,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
             icon="folder"
             aria-pressed={a.status === "Reviewing"}
             disabled={!canMove("Reviewing")}
-            onClick={() => actions.status([a.id], "Reviewing")}
+            onClick={() => { if (a.status !== "Reviewing") void actions.status([a.id], "Reviewing"); }}
           >
             {a.status === "Reviewing" ? "In review" : "Maybe"}
           </Button>
@@ -707,7 +750,7 @@ function CandidateCard({ item, q, selected, onSelect, actions }: { item: Respons
             icon="close"
             aria-pressed={a.status === "Rejected"}
             disabled={!canMove("Rejected")}
-            onClick={() => actions.status([a.id], "Rejected")}
+            onClick={() => { if (a.status !== "Rejected") void actions.status([a.id], "Rejected"); }}
           >
             {a.status === "Rejected" ? "Rejected" : "Reject"}
           </Button>
@@ -833,31 +876,71 @@ export function ResponseCenterScreen({ mode = "cards" }: { mode?: ResponseCenter
   const url = useResponseUrl(mode);
   const q = Object.fromEntries(params) as ResponseParams;
   const isTable = mode === "table";
+  // Persisted so filtering, clearing filters and reloads keep the full-screen table; cards ignore it.
+  const storedFullscreen = useSyncExternalStore(subscribeResponseTableFullscreen, loadResponseTableFullscreen, serverResponseTableFullscreen);
+  const tableFullscreen = isTable && storedFullscreen;
+  const setTableFullscreen = saveResponseTableFullscreen;
+  const [tableHScrollSlot, setTableHScrollSlot] = useState<HTMLDivElement | null>(null);
   const { selection } = useUiStore((s) => s.responses);
   const setResponses = useUiStore((s) => s.setResponses);
   const actions = useResponseActions();
   const { data: m,isError,error,refetch } = useHiringQuery(["responses", params.toString()], (s, scope) => s.recruiting.listResponses(q, scope));
+
+  useEffect(() => {
+    if (!isTable || !tableFullscreen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") saveResponseTableFullscreen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [isTable, tableFullscreen]);
+
+  // Table view is desktop-only; send mobile table URLs to the cards responses view.
+  useEffect(() => {
+    if (!isTable) return;
+    const media = window.matchMedia(MOBILE_APPLICATIONS_VIEW);
+    const redirect = () => {
+      if (media.matches) router.replace(cardsHref(params));
+    };
+    redirect();
+    media.addEventListener("change", redirect);
+    return () => media.removeEventListener("change", redirect);
+  }, [isTable, params, router]);
+
   // Stage/job/search are sheet filters; "no matches" is reserved for real narrowing beyond the default All section.
   const activeStage = (m?.stage ?? (q.stage as ResponseTab) ?? "all") as ResponseTab;
-  const filtered = !!(q.q || q.job || q.fit === "1" || (activeStage && activeStage !== "all") || RESPONSE_FILTER_KEYS.some((key) => q[key as keyof ResponseParams]));
+  const filtered = !!(q.q || q.applicant || q.job || q.fit === "1" || (activeStage && activeStage !== "all") || RESPONSE_FILTER_KEYS.some((key) => q[key as keyof ResponseParams]));
   const filterCount =
     RESPONSE_FILTER_KEYS.reduce((n, key) => n + (q[key as keyof ResponseParams] ? 1 : 0), 0) +
     (q.fit === "1" ? 1 : 0) +
     (q.q ? 1 : 0) +
+    (q.applicant ? 1 : 0) +
     (q.job ? 1 : 0) +
     (activeStage && activeStage !== "all" ? 1 : 0);
   const openFilterSheet = () =>
-    modal.show("Filters", <ResponseFilterFields q={q} jobs={m?.jobs ?? []} stage={activeStage} tabCounts={m?.tabCounts} />, "following");
+    modal.show(
+      "Filters",
+      <ResponseFilterFields
+        q={q}
+        jobs={m?.jobs ?? []}
+        stage={activeStage}
+        tabCounts={m?.tabCounts}
+        mode={mode}
+        applicantName={q.applicant ? m?.items.find((item) => (item.application.candidate || item.profile.id) === q.applicant)?.profile.name : undefined}
+      />,
+      "following",
+    );
   const visible = m?.items ?? [];
   const allChecked = visible.length > 0 && visible.every(({ application }) => selection.includes(application.id));
   const select = (id: Id, checked: boolean) => setResponses({ selection: checked ? [...new Set([...selection, id])] : selection.filter((x) => x !== id) });
   const from = m && m.total ? (m.page - 1) * m.pageSize + 1 + "–" + Math.min(m.page * m.pageSize, m.total) : 0;
   const bulk: [string, () => void, Parameters<typeof Button>[0]["icon"]][] = [
-    ["Shortlist", () => actions.status(selection, "Shortlisted"), "check"],
-    ["Maybe", () => actions.status(selection, "Reviewing"), "folder"],
-    ["Reject", () => actions.status(selection, "Rejected"), "close"],
     ["Email draft", () => actions.outreach(selection), "mail"],
-    ["Download", () => actions.exportCsv(selection), "download"],
     ["Remove", () => actions.remove(selection), "trash"],
   ];
   return (
@@ -865,130 +948,161 @@ export function ResponseCenterScreen({ mode = "cards" }: { mode?: ResponseCenter
       {q.job ? <FloatingChatDock jobId={q.job} /> : null}
       <div className="response-center-layout">
         <section className="response-center-content" aria-label={isTable ? "Applicant responses table" : "Applicant responses"}>
-          <div className="response-filter-toolbar">
-            <ResponseViewMenu mode={mode} rows={q.rows} />
-            <label className="response-sort-label">
-              <FloatingSelect label="Sort by" id="response-sort" aria-label="Sort responses" value={m?.sort ?? "newest"} onChange={(e) => router.push(url({ sort: e.target.value, page: "" }))} options={RESPONSE_SORT_OPTIONS} />
-            </label>
-            <Button className="response-filter-toggle" variant="sm" icon="sliders" onClick={openFilterSheet} aria-haspopup="dialog">
-              Filters{filterCount ? ` (${filterCount})` : ""}
-            </Button>
-            <Button className="response-post-job" variant="primary" icon="plus" onClick={() => router.push("/recruiter/jobs/new")}>
-              Post a job
-            </Button>
-          </div>
-          {RESPONSE_KEYWORD_MATCHING_ENABLED && q.fit === "1" && (
-            <div className="response-ai-summary">
-              <Icon name="spark" />
-              <div>
-                <strong>Keyword match filter is on · {q.threshold || 60}% minimum</strong>
-                <p>{q.fitTerms ? "Terms: " + q.fitTerms : "Uses the skills listed on each applicant’s job post."}{devCopy(" Matches use saved profile/project text and any supplied resume text. This is a local matching demo.", " Matches use the submitted profile and explicitly shared portfolio.")}</p>
-              </div>
-              <Button variant="text sm" icon="close" onClick={() => router.push(url({ fit: "", fitTerms: "", threshold: "", page: "" }))}>
-                Clear match filter
-              </Button>
-            </div>
-          )}
-          <div className="card response-bulk-toolbar">
-            <label>
-              <input
-                type="checkbox"
-                id="response-select-all"
-                checked={allChecked}
-                disabled={!visible.length}
-                onChange={(e) => {
-                  const ids = visible.map(({ application }) => application.id);
-                  setResponses({ selection: e.target.checked ? [...new Set([...selection, ...ids])] : selection.filter((id) => !ids.includes(id)) });
-                }}
-              />
-              Select all
-            </label>
-            <span className="response-selection-count">{selection.length ? selection.length + " selected" : ""}</span>
-            <div className="response-bulk-actions">
-              {bulk.map(([label, onClick, icon]) => (
-                <Button key={label} variant="text sm" icon={icon} disabled={!selection.length} onClick={onClick}>
-                  {label}
-                </Button>
-              ))}
-            </div>
-          </div>
-          <div className="response-candidate-list">
-          <QueryFeedback data={m} error={isError} cause={error} retry={refetch} label="Loading applicants" />
-            {m &&
-              (visible.length ? (
-                isTable ? (
-                  <ResponseDataGrid
-                    items={visible}
-                    selection={selection}
-                    allChecked={allChecked}
-                    onSelect={select}
-                    onSelectAll={(checked) => {
-                      const ids = visible.map(({ application }) => application.id);
-                      setResponses({ selection: checked ? [...new Set([...selection, ...ids])] : selection.filter((id) => !ids.includes(id)) });
-                    }}
-                    actions={actions}
-                    sort={m?.sort ?? q.sort ?? "newest"}
-                    onSortChange={(next) => router.push(url({ sort: next === "newest" ? "" : next, page: "" }))}
-                    filterParams={Object.fromEntries(params.entries())}
-                    onFilterPatch={(patch) => {
-                      const next: Record<string, string | number | null> = { page: "" };
-                      for (const [key, value] of Object.entries(patch)) next[key] = value.trim() ? value.trim() : "";
-                      router.push(url(next));
-                    }}
-                    total={m?.total}
-                  />
-                ) : (
-                  visible.map((item) => <CandidateCard key={item.application.id} item={item} q={q} selected={selection.includes(item.application.id)} onSelect={(c) => select(item.application.id, c)} actions={actions} />)
-                )
-              ) : (
-                <div className="card">
-                  {filtered ? (
-                    <EmptyState
-                      icon="search"
-                      title="No responses match these filters"
-                      description="Try different filters. Applicants missing optional profile details are excluded by active filters."
-                      action={
-                        <LinkButton href={BASE + "?view=responses" + (q.job ? "&job=" + q.job : "")} variant="primary">
-                          Clear filters
-                        </LinkButton>
-                      }
-                    />
-                  ) : m.stage !== "all" ? (
-                    <EmptyState
-                      icon="folder"
-                      title={"Nothing in " + RESPONSE_TABS[m.stage as ResponseTab] + " yet"}
-                      description="Responses move here as you review them."
-                      action={<LinkButton href={url({ stage: "all", page: "" })} variant="primary">View all responses</LinkButton>}
-                    />
-                  ) : (
-                    <EmptyState
-                      icon="inbox"
-                      title={q.job ? "No responses for this job yet" : "No responses yet"}
-                      description="Applications appear here as soon as candidates apply to your job posts."
-                      action={q.job ? <LinkButton href={url({ job: "", distance: "", page: "" })} variant="primary">View all job responses</LinkButton> : <LinkButton href={BASE} variant="primary" icon="briefcase">Manage jobs</LinkButton>}
-                    />
+          <div className={"response-table-workspace" + (isTable && tableFullscreen ? " is-table-fullscreen" : "")}>
+            {tableFullscreen ? null : (
+              <div className="response-filter-toolbar">
+                <div className="response-filter-toolbar-start">
+                  <ResponseViewMenu mode={mode} rows={q.rows} />
+                  <label className="response-sort-label">
+                    <FloatingSelect label="Sort by" id="response-sort" aria-label="Sort responses" value={m?.sort ?? "newest"} onChange={(e) => router.push(url({ sort: e.target.value, page: "" }))} options={RESPONSE_SORT_OPTIONS} />
+                  </label>
+                  {isTable ? null : (
+                    <Button className="response-filter-toggle" variant="sm" icon="sliders" onClick={openFilterSheet} aria-haspopup="dialog">
+                      Filters{filterCount ? ` (${filterCount})` : ""}
+                    </Button>
                   )}
                 </div>
-              ))}
+                <Button className="response-post-job" variant="primary" icon="plus" onClick={() => router.push("/recruiter/jobs/new")}>
+                  Post a job
+                </Button>
+              </div>
+            )}
+            {RESPONSE_KEYWORD_MATCHING_ENABLED && q.fit === "1" && !tableFullscreen ? (
+              <div className="response-ai-summary">
+                <Icon name="spark" />
+                <div>
+                  <strong>Keyword match filter is on · {q.threshold || 60}% minimum</strong>
+                  <p>{q.fitTerms ? "Terms: " + q.fitTerms : "Uses the skills listed on each applicant’s job post."}{devCopy(" Matches use saved profile/project text and any supplied resume text. This is a local matching demo.", " Matches use the submitted profile and explicitly shared portfolio.")}</p>
+                </div>
+                <Button variant="text sm" icon="close" onClick={() => router.push(url({ fit: "", fitTerms: "", threshold: "", page: "" }))}>
+                  Clear match filter
+                </Button>
+              </div>
+            ) : null}
+            {isTable ? null : (
+              <div className="card response-bulk-toolbar">
+                <label>
+                  <input
+                    type="checkbox"
+                    id="response-select-all"
+                    checked={allChecked}
+                    disabled={!visible.length}
+                    onChange={(e) => {
+                      const ids = visible.map(({ application }) => application.id);
+                      setResponses({ selection: e.target.checked ? [...new Set([...selection, ...ids])] : selection.filter((id) => !ids.includes(id)) });
+                    }}
+                  />
+                  Select all
+                </label>
+                <span className="response-selection-count">{selection.length ? selection.length + " selected" : ""}</span>
+                {selection.length ? (
+                  <div className="response-bulk-actions">
+                    {bulk.map(([label, onClick, icon]) => (
+                      <Button key={label} variant="text sm" icon={icon} onClick={onClick}>
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            )}
+            <div className="response-candidate-list">
+            <QueryFeedback data={m} error={isError} cause={error} retry={refetch} label="Loading applicants" />
+              {m &&
+                (visible.length ? (
+                  isTable ? (
+                    <ResponseDataGrid
+                      items={visible}
+                      selection={selection}
+                      allChecked={allChecked}
+                      onSelect={select}
+                      onSelectAll={(checked) => {
+                        const ids = visible.map(({ application }) => application.id);
+                        setResponses({ selection: checked ? [...new Set([...selection, ...ids])] : selection.filter((id) => !ids.includes(id)) });
+                      }}
+                      actions={actions}
+                      sort={m?.sort ?? q.sort ?? "newest"}
+                      onSortChange={(next) => router.push(url({ sort: next === "newest" ? "" : next, page: "" }))}
+                      filterParams={Object.fromEntries(params.entries())}
+                      onFilterPatch={(patch) => {
+                        const next: Record<string, string | number | null> = { page: "" };
+                        for (const [key, value] of Object.entries(patch)) next[key] = value.trim() ? value.trim() : "";
+                        router.push(url(next));
+                      }}
+                      fullscreen={tableFullscreen}
+                      onFullscreenChange={setTableFullscreen}
+                      filterCount={filterCount}
+                      onOpenFilters={openFilterSheet}
+                      bulkActions={bulk.map(([label, onClick, icon]) => ({ label, onClick, icon }))}
+                      hScrollPortal={tableHScrollSlot}
+                      rowNumberStart={(m.page - 1) * m.pageSize + 1}
+                      questions={q.job ? (m.jobs.find((job) => job.id === q.job)?.questions ?? []) : []}
+                    />
+                  ) : (
+                    visible.map((item) => <CandidateCard key={item.application.id} item={item} q={q} selected={selection.includes(item.application.id)} onSelect={(c) => select(item.application.id, c)} actions={actions} />)
+                  )
+                ) : (
+                  <div className="card">
+                    {filtered ? (
+                      <EmptyState
+                        icon="search"
+                        title="No responses match these filters"
+                        description="Try different filters. Applicants missing optional profile details are excluded by active filters."
+                        action={
+                          <LinkButton href={clearedResponsesHref(mode, q.job)} variant="primary">
+                            Clear filters
+                          </LinkButton>
+                        }
+                      />
+                    ) : m.stage !== "all" ? (
+                      <EmptyState
+                        icon="folder"
+                        title={"Nothing in " + RESPONSE_TABS[m.stage as ResponseTab] + " yet"}
+                        description="Responses move here as you review them."
+                        action={<LinkButton href={url({ stage: "all", page: "" })} variant="primary">View all responses</LinkButton>}
+                      />
+                    ) : (
+                      <EmptyState
+                        icon="inbox"
+                        title={q.job ? "No responses for this job yet" : "No responses yet"}
+                        description="Applications appear here as soon as candidates apply to your job posts."
+                        action={q.job ? <LinkButton href={url({ job: "", distance: "", page: "" })} variant="primary">View all job responses</LinkButton> : <LinkButton href={BASE} variant="primary" icon="briefcase">Manage jobs</LinkButton>}
+                      />
+                    )}
+                  </div>
+                ))}
+            </div>
+            <Pagination
+              id="response-page-size"
+              page={m?.page ?? 1}
+              pages={m?.pages ?? 1}
+              pageSize={m?.pageSize ?? 10}
+              pageSizeOptions={RECRUITING_RULES.pageSizes}
+              pageSizeLabel="Responses per page"
+              summary={"Showing " + from + " of " + (m?.total ?? 0) + " responses"}
+              center={
+                isTable ? (
+                  <div
+                    className="response-excel-hscroll-slot"
+                    ref={(node) => {
+                      setTableHScrollSlot((prev) => (prev === node ? prev : node));
+                    }}
+                  />
+                ) : null
+              }
+              previousHref={m && m.page > 1 ? url({ page: m.page - 1 }) : null}
+              nextHref={m && m.page < m.pages ? url({ page: m.page + 1 }) : null}
+              onPageSizeChange={(next) => router.push(url({ size: next, page: "" }))}
+            />
           </div>
-          <Pagination
-            id="response-page-size"
-            page={m?.page ?? 1}
-            pages={m?.pages ?? 1}
-            pageSize={m?.pageSize ?? 10}
-            pageSizeOptions={[10, 20, 40]}
-            pageSizeLabel="Responses per page"
-            summary={"Showing " + from + " of " + (m?.total ?? 0) + " responses"}
-            previousHref={m && m.page > 1 ? url({ page: m.page - 1 }) : null}
-            nextHref={m && m.page < m.pages ? url({ page: m.page + 1 }) : null}
-            onPageSizeChange={(next) => router.push(url({ size: next, page: "" }))}
-          />
-          <DevOnly>
-            <p className="response-local-note">
-              <Icon name="shield" />
-              Fictional and locally saved applications. Statuses, notes, match results, and outreach drafts stay in this browser. No external messages are sent.
-            </p>
-          </DevOnly>
+          {tableFullscreen ? null : (
+            <DevOnly>
+              <p className="response-local-note">
+                <Icon name="shield" />
+                Fictional and locally saved applications. Statuses, notes, match results, and outreach drafts stay in this browser. No external messages are sent.
+              </p>
+            </DevOnly>
+          )}
         </section>
       </div>
     </div>

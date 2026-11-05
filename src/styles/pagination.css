@@ -19,6 +19,25 @@
   color: #626b76;
 }
 
+.ui-pagination-center {
+  flex: 0 1 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Keep the center slot visually centered between summary and controls. */
+.ui-pagination:has(.ui-pagination-center) .ui-pagination-summary,
+.ui-pagination:has(.ui-pagination-center) .ui-pagination-controls {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ui-pagination:has(.ui-pagination-center) .ui-pagination-summary {
+  margin-right: 0;
+}
+
 .ui-pagination-controls {
   display: flex;
   flex-wrap: wrap;
@@ -66,6 +85,12 @@ body.professional-theme .ui-pagination-size .floating-field > select {
   .ui-pagination-summary {
     width: 100%;
     margin-right: 0;
+  }
+
+  .ui-pagination-center {
+    order: 3;
+    flex: 1 1 100%;
+    width: 100%;
   }
 
   .ui-pagination-controls {

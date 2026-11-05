@@ -9,8 +9,9 @@ export const responseFiltersSchema=z.record(z.string(),z.string()).superRefine((
   for(const[key,choices]of Object.entries({stage:rules.tabs,sort:rules.sorts,keywordMode:["any","all"],fit:["0","1"]}))if(v[key]&&!choices.includes(v[key]))error(key,"Choose an available option.");
   for(const[min,max]of [["expMin","expMax"],["salaryMin","salaryMax"]])if(v[min]&&v[max]&&Number(v[min])>Number(v[max]))error(max,"The maximum must be at least the minimum.");
   if(v.job&&!z.uuid().safeParse(v.job).success)error("job","Choose an available job.");
+  if(v.applicant&&!z.uuid().safeParse(v.applicant).success)error("applicant","Choose an applicant from the list.");
   if(v.distance&&!v.job)error("distance","Choose a job before filtering distance.");
-  for(const[key,min,max]of [["page",1,10000],["size",1,40],["threshold",0,100]] as const)if(v[key]&&(!/^\d+$/.test(v[key])||Number(v[key])<min||Number(v[key])>max))error(key,`Enter a whole number from ${min} to ${max}.`);
-  if(v.size&&!["10","20","40"].includes(v.size))error("size","Choose 10, 20 or 40 results.");
+  for(const[key,min,max]of [["page",1,10000],["size",1,Math.max(...rules.pageSizes)],["threshold",0,100]] as const)if(v[key]&&(!/^\d+$/.test(v[key])||Number(v[key])<min||Number(v[key])>max))error(key,`Enter a whole number from ${min} to ${max}.`);
+  if(v.size&&!rules.pageSizes.map(String).includes(v.size))error("size","Choose "+rules.pageSizes.slice(0,-1).join(", ")+" or "+rules.pageSizes.at(-1)+" results.");
 });
 export const managedJobsSchema=z.object({drafts:z.boolean(),q:z.string().max(200),statuses:z.array(z.enum(["Draft","Closed","Expired","Active"])).max(4),categories:z.array(z.enum(jobRules.employment)).max(jobRules.employment.length),location:z.string().max(200),days:z.number().int().min(0).max(730),sort:z.enum(["newest","oldest","responses","active","expired"]),page:z.number().int().min(1).max(10000),pageSize:z.number().int().min(1).max(100)});

@@ -4955,6 +4955,16 @@
             }
           },
           {
+            "name": "applicant",
+            "in": "query",
+            "required": false,
+            "description": "Candidate id; limits the list to that applicant's responses.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
             "name": "keywords",
             "in": "query",
             "required": false,

@@ -15,7 +15,6 @@ import { useFormAction } from "@/hooks/use-form-action";
 import type { Id, Role } from "@/types/domain";
 import { formatLocaleDate } from "@/lib/utils/date";
 import { devCopy } from "@/lib/env/app-env";
-import { isPrototype } from "@/lib/env/app-env";
 import { track } from "@/lib/analytics";
 import { useServiceAction, useServiceQuery, useServices } from "@/hooks/use-services";
 import { modal } from "@/stores/modal-store";
@@ -83,7 +82,7 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
             name: get("name"),
             email: get("email"),
             note: get("note"),
-            portfolio: f.has("portfolio"),
+            portfolio: false,
             answers,
             recruitmentDetails: { location: get("appLocation"), locality: get("appLocality"), expectedSalaryLpa: get("appSalary"), noticeDays: get("appNotice"), joiningDays: get("appJoining"), industry: get("appIndustry"), designation: get("appDesignation"), department: get("appDepartment"), preferredLocations: get("appPreferred"), phone: get("appPhone") },
         };
@@ -124,7 +123,7 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
         ),
       )}
       {job.applicationInstructions && <p className="notice">{job.applicationInstructions}</p>}
-      {Object.entries(errors).filter(([key])=>key.startsWith("recruitmentDetails.")||key==="portfolio").map(([key,error])=><p key={key} role="alert" className="error">{RECRUITMENT_LABELS[key.replace("recruitmentDetails.","")] ? `${RECRUITMENT_LABELS[key.replace("recruitmentDetails.","")]}: ${error}` : error}</p>)}
+      {Object.entries(errors).filter(([key])=>key.startsWith("recruitmentDetails.")).map(([key,error])=><p key={key} role="alert" className="error">{RECRUITMENT_LABELS[key.replace("recruitmentDetails.","")] ? `${RECRUITMENT_LABELS[key.replace("recruitmentDetails.","")]}: ${error}` : error}</p>)}
       <details className="application-shared-details">
         <summary>Recruiting details for this application</summary>
         <p className="small muted">Only details entered here are shared with this application. Private profile salary, notice, phone, and address are not copied.</p>
@@ -141,11 +140,6 @@ export function ApplicationFields({initialJob,initialProfile}:{initialJob:JobDet
           <TextField label="Phone for this application" name="appPhone" type="tel" />
         </div>
       </details>
-      <label className="check-row">
-        <input name="portfolio" type="checkbox" defaultChecked={isPrototype} required={job.requirePortfolio} />
-        {devCopy("Include my current portfolio in this demo application", "Include my current portfolio in this application")}
-        {job.requirePortfolio && <span aria-hidden="true">*</span>}
-      </label>
       <DevOnly>
         <InfoBadge label="Application sharing information">This fictional application is saved only in your browser. No CV, profile, or message is sent to an employer.</InfoBadge>
       </DevOnly>

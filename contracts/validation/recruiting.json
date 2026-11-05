@@ -104,5 +104,13 @@
     "diploma": "diploma",
     "doctorate": "doctor|ph\\.?d",
     "school": "class|school|secondary|higher secondary"
-  }
+  },
+  "pageSizes": [
+    10,
+    20,
+    40,
+    60,
+    100,
+    200
+  ]
 }

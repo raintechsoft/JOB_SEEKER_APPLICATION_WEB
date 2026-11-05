@@ -95,7 +95,7 @@ export function useApplicationEditor(initial:{context:ApplicationContext;draft:A
         const name=first==="contact.phone"?"contact.phone.nationalNumber":first==="details.expectedCompensation"?"details.expectedCompensation.currency":first;
         form.setFocus(name as Path<ApplicationWizardValues>);
         Array.from(document.querySelectorAll<HTMLElement>(".application-stage [name]")).find(element=>element.getAttribute("name")===name)?.focus();
-        if(name.startsWith("documents."))document.querySelector<HTMLElement>(name==="documents.includePortfolio"?'.application-stage input[name="documents.includePortfolio"]':".application-stage input[type=file]")?.focus();
+        if(name.startsWith("documents."))document.querySelector<HTMLElement>(".application-stage input[type=file]")?.focus();
       }
     });
   }
@@ -130,6 +130,7 @@ export function useApplicationEditor(initial:{context:ApplicationContext;draft:A
     if(inFlight.current){if(quiet)return false;await inFlight.current;}
     if(stopped.current||!mounted.current)return false;
     const base=copy(form.getValues()), raw=override??base;
+    raw.documents.includePortfolio=false;
     const checked=applicationWizardDraftValuesSchema.safeParse(raw);
     if(!checked.success){if(!quiet)report(Object.fromEntries(checked.error.issues.map(issue=>[issue.path.join(".")||"_form",issue.message])));return false;}
     const ctx=applicationValidationContext(contextRef.current,documentsRef.current,initial.accountEmail);
@@ -216,10 +217,10 @@ export function useApplicationEditor(initial:{context:ApplicationContext;draft:A
   function discardLocal() {
     form.reset(copy(saved.current.values));setAcknowledged(fingerprint(saved.current.values));setErrors({});setResetKey(key=>key+1);
   }
-  async function selectDocument(kind:"resume"|"portfolio",value:string|null|boolean) {
+  async function selectDocument(kind:"resume",value:string|null) {
     const values=copy(form.getValues());
-    if(kind==="resume")values.documents.resumeAssetId=value as string|null;
-    else values.documents.includePortfolio=!!value;
+    values.documents.resumeAssetId=value;
+    values.documents.includePortfolio=false;
     if(!await action(()=>persist("save",latestStep.current,values)))throw new Error("The document selection was not saved. Check the highlighted fields or reload the saved draft.");
   }
   async function visit(target:ApplicationStep) {

@@ -1,9 +1,11 @@
 import {
+  clampResponseTableWidth,
   defaultResponseTablePrefs,
+  isResponseTableColumnId,
   RESPONSE_TABLE_COLUMN_IDS,
   RESPONSE_TABLE_MANDATORY,
   responseTablePrefsSchema,
-  type ResponseTableColumnId,
+  type ResponseTableAnyColumnId,
   type ResponseTablePrefs,
 } from "./response-table-types";
 
@@ -13,8 +15,9 @@ export function responseTablePrefsKey(userId: string | undefined, identityId: st
   return PREFIX + (userId || "guest") + ":" + (identityId || "guest");
 }
 
-function knownId(id: string): id is ResponseTableColumnId {
-  return (RESPONSE_TABLE_COLUMN_IDS as readonly string[]).includes(id);
+/** Fixed columns and `q:<questionId>` columns (kept so a job's question layout survives reloads). */
+function knownId(id: string): id is ResponseTableAnyColumnId {
+  return isResponseTableColumnId(id);
 }
 
 /** Strip unknown columns and enforce mandatory visibility / pin edges. */
@@ -38,8 +41,11 @@ export function normalizeResponseTablePrefs(raw: unknown): ResponseTablePrefs {
   const columnWidths = { ...base.columnWidths };
   for (const [key, width] of Object.entries(value.columnWidths)) {
     if (!knownId(key) || !Number.isFinite(width)) continue;
-    columnWidths[key] = width;
+    columnWidths[key] = clampResponseTableWidth(key, width);
   }
+  // Icon-only actions + fixed status badge columns; never keep older compressed sizes.
+  columnWidths.actions = base.columnWidths.actions;
+  columnWidths.status = base.columnWidths.status;
 
   const pinnedLeft = ["select", "name", ...value.pinnedLeft.filter((id) => knownId(id) && id !== "select" && id !== "name" && id !== "actions")];
   const pinnedRight = [...value.pinnedRight.filter((id) => knownId(id) && id !== "select" && id !== "name" && id !== "actions"), "actions"];
@@ -84,3 +90,45 @@ export function clearResponseTablePrefs(userId?: string, identityId?: string) {
     /* ignore */
   }
 }
+
+/**
+ * Full-screen table state survives filter navigation and reloads. Device-level UI preference
+ * (not per user), kept outside the column prefs so "Reset layout" leaves it alone.
+ */
+const FULLSCREEN_KEY = "job_application_responses:fullscreen:v1";
+const fullscreenListeners = new Set<() => void>();
+
+export function loadResponseTableFullscreen(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(FULLSCREEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveResponseTableFullscreen(value: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    if (value) window.localStorage.setItem(FULLSCREEN_KEY, "1");
+    else window.localStorage.removeItem(FULLSCREEN_KEY);
+  } catch {
+    /* ignore quota / private mode */
+  }
+  for (const listener of fullscreenListeners) listener();
+}
+
+/** Subscribe for useSyncExternalStore: in-tab writes and cross-tab storage events. */
+export function subscribeResponseTableFullscreen(listener: () => void) {
+  fullscreenListeners.add(listener);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === FULLSCREEN_KEY) listener();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    fullscreenListeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+export const serverResponseTableFullscreen = () => false;

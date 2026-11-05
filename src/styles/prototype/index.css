@@ -11,7 +11,7 @@
 @import "./messaging.css";
 @import "./jobs-responses.css";
 @import "./job-wizard.css";
-@import "./response-center.css";
+@import "./response-center.css"; /* table toolbar + excel hscroll dock */
 @import "./post-editor.css";
 @import "./organization.css";
 @import "./feed-interactions.css";

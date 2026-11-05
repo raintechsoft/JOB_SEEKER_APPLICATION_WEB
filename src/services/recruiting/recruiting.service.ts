@@ -1,6 +1,6 @@
 import type { ReadScope } from "../realtime/realtime.http";
 import type { Paginated, PersonSummary } from "@/types/api";
-import type { HiringStage, Id, IsoDateTime, Job, ReceivedApplication } from "@/types/domain";
+import type { HiringStage, Id, IsoDateTime, Job, ReceivedApplication, ScreeningQuestion } from "@/types/domain";
 import type { JobStatus } from "@/lib/domain/jobs";
 import type {PortfolioView} from "../portfolio/portfolio.service";
 import type { components } from "@/types/generated/api";
@@ -26,6 +26,10 @@ export interface ReviewView {
   application: ReceivedApplication;
   person: PersonSummary & { headline: string };
   jobTitle: string;
+  /** Submission-time profile (education, contact, notice, joining, preferred locations), as in the responses list. */
+  profile?: ApplicantProfile;
+  /** Shared attachments (resume) and verification, when the application was submitted through the wizard. */
+  sharing?: ResponseItem["sharing"];
 }
 
 // ---- Jobs manager ---------------------------------------------------------------------------
@@ -108,7 +112,8 @@ export function applicantProfileHref(item: Pick<ResponseItem, "profile">) {
 export interface ResponsesPage extends Paginated<ResponseItem> {
   stage: ResponseTab;
   tabCounts: Record<ResponseTab, number>;
-  jobs: { id: Id; title: string; skills: string[] }[];
+  /** Published jobs with their screening questions (ideal answers stripped) so the table can add one column per question. */
+  jobs: { id: Id; title: string; skills: string[]; questions: ScreeningQuestion[] }[];
   sort: string;
 }
 

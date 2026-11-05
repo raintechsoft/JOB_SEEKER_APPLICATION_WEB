@@ -11,7 +11,7 @@ const resume = {id, name: "saved.pdf", mime: "application/pdf", bytes: 123, stat
 const uploaded = {id: other, url: `http://localhost:8000/api/v1/media/${other}/download`, name: "new.pdf", bytes: 123};
 const pdf = () => new File(["%PDF-1.4 synthetic"], "new.pdf", {type: "application/pdf"});
 const context = (): ApplicationDocumentContext => ({draftId: id, version: 1, requirements: {requireResume: false, requirePortfolio: false}, resume: null, savedResume: resume, library: [], resumeIssue: null, includePortfolio: false, portfolio: {title: "Portfolio", ready: false, sections: [], items: [], totalItems: 0}});
-const props = () => ({context: context(), service: {uploadResume: vi.fn().mockResolvedValue(uploaded), previewResume: vi.fn().mockResolvedValue(new Blob(["%PDF-1.4"], {type: "application/pdf"}))}, onResume: vi.fn().mockResolvedValue(undefined), onPortfolio: vi.fn().mockResolvedValue(undefined)});
+const props = () => ({context: context(), service: {uploadResume: vi.fn().mockResolvedValue(uploaded), previewResume: vi.fn().mockResolvedValue(new Blob(["%PDF-1.4"], {type: "application/pdf"}))}, onResume: vi.fn().mockResolvedValue(undefined)});
 
 beforeEach(() => {
   vi.stubGlobal("URL", Object.assign(URL, {createObjectURL: vi.fn().mockReturnValue("blob:synthetic-resume"), revokeObjectURL: vi.fn()}));
@@ -68,7 +68,7 @@ it("uploads as soon as a valid file is chosen, selects it and shows no preview",
   await waitFor(() => expect(p.onResume).toHaveBeenCalledWith(other));
   expect(screen.queryByTitle("Resume preview")).toBeNull();
   expect(URL.createObjectURL).not.toHaveBeenCalled();
-  expect(p.onPortfolio).not.toHaveBeenCalled();
+  expect(screen.queryByText("Include my current portfolio")).toBeNull();
 });
 
 it("rejects invalid files locally and shows the draft-save error after upload", async () => {
@@ -125,21 +125,14 @@ it("drops a file from the list quietly when the server keeps it for another use"
   expect(p.onResume).not.toHaveBeenCalled();
 });
 
-it("uses saved resume only when selected and derives portfolio readiness from server context", async () => {
+it("uses saved resume only when selected and does not offer portfolio inclusion", async () => {
   const p = props();
-  const view = render(<ApplicationDocumentsStep {...p}/>);
-  expect(screen.getByRole("checkbox")).toBeDisabled();
+  render(<ApplicationDocumentsStep {...p}/>);
+  expect(screen.queryByText("Include my current portfolio")).toBeNull();
+  expect(screen.queryByRole("heading", {name: "Portfolio"})).toBeNull();
   expect(p.onResume).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", {name: "Use saved.pdf for this application"}));
   await waitFor(() => expect(p.onResume).toHaveBeenCalledWith(id));
-  await waitFor(() => expect(screen.getByRole("checkbox")).not.toHaveAttribute("aria-busy"));
-  p.context = {...context(), portfolio: {title: "My Work", ready: true, sections: ["Featured projects"], items: [{id, kind: "project", title: "Example project", description: "Meaningful public work", url: null}], totalItems: 1}};
-  view.rerender(<ApplicationDocumentsStep {...p}/>);
-  await waitFor(() => expect(screen.getByRole("checkbox")).not.toBeDisabled());
-  fireEvent.click(screen.getByRole("checkbox"));
-  await waitFor(() => expect(p.onPortfolio).toHaveBeenCalledWith(true));
-  // The portfolio preview list is no longer shown in this step.
-  expect(screen.queryByText("Example project")).toBeNull();
 });
 
 it("does not attach a completed upload to a different draft after navigation", async () => {
@@ -159,15 +152,5 @@ it("preserves backend upload failure and never calls the draft selection callbac
   render(<ApplicationDocumentsStep {...p}/>);
   fireEvent.change(screen.getByLabelText("Upload another resume"), {target: {files: [pdf()]}});
   await screen.findByText("The file failed verification.");
-  expect(p.onResume).not.toHaveBeenCalled();
-});
-
-it("allows deselecting an optional portfolio after its previously shared work is no longer ready", async () => {
-  const p = props();
-  p.context.includePortfolio = true;
-  render(<ApplicationDocumentsStep {...p}/>);
-  expect(screen.getByRole("checkbox")).not.toBeDisabled();
-  fireEvent.click(screen.getByRole("checkbox"));
-  await waitFor(() => expect(p.onPortfolio).toHaveBeenCalledWith(false));
   expect(p.onResume).not.toHaveBeenCalled();
 });

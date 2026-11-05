@@ -1,3 +1,4 @@
+import { RECRUITING_RULES } from "@/lib/validation/recruiting";
 import jobRules from "../../../contracts/validation/job-v2.json";
 import type { Draft } from "immer";
 import { paginate } from "@/types/api";
@@ -97,7 +98,8 @@ export const mockRecruitingService: RecruitingService = {
     const a = receivedApplications(db).find((x) => x.id === id);
     if (!a) return null;
     const p = person(db, a.candidate);
-    return { application: a, person: { ...personSummary(p), name: a.name || p.name, headline: p.headline }, jobTitle: ownJobs(db).find((j) => j.id === a.job)?.title ?? "" };
+    const { text: _text, ...profile } = applicantProfile(db, a);
+    return { application: a, person: { ...personSummary(p), name: a.name || p.name, headline: p.headline }, jobTitle: ownJobs(db).find((j) => j.id === a.job)?.title ?? "", profile };
   },
 
   async saveReview(id, input) {
@@ -226,11 +228,12 @@ export const mockRecruitingService: RecruitingService = {
   async listResponses(params) {
     const db = getDb();
     const job = params.job || "";
+    const applicant = params.applicant || "";
     const search = params.q || "";
     const stage: ResponseTab = Object.hasOwn(RESPONSE_TABS, params.stage) ? (params.stage as ResponseTab) : "all";
     const jobs = ownJobs(db);
     const data = receivedApplications(db)
-      .filter((a) => !job || a.job === job)
+      .filter((a) => (!job || a.job === job) && (!applicant || a.candidate === applicant))
       .map((a) => ({ a, p: applicantProfile(db, a), j: jobs.find((x) => x.id === a.job) }))
       .filter(({ a, p, j }) => (!search || [p.name, p.headline, p.designation, j?.title].join(" ").toLowerCase().includes(search.toLowerCase())) && passesFilters(jobs.find((x) => x.id === a.job), p, params));
     const list = data.filter(({ a }) => stageMatch(a, stage));
@@ -238,14 +241,14 @@ export const mockRecruitingService: RecruitingService = {
     list.sort((x, y) =>
       sort === "experience" ? y.p.years - x.p.years : sort === "relevance" ? matchScore(y.j, y.p, params).score - matchScore(x.j, x.p, params).score : sort === "oldest" ? x.a.createdAt.localeCompare(y.a.createdAt) : y.a.createdAt.localeCompare(x.a.createdAt),
     );
-    const size = [10, 20, 40].includes(Number(params.size)) ? Number(params.size) : 10;
+    const size = RECRUITING_RULES.pageSizes.includes(Number(params.size)) ? Number(params.size) : 10;
     const page = paginate(
       list.map(({ a }) => responseItem(db, a, params)),
       Number(params.page) || 1,
       size,
     );
     const tabCounts = Object.fromEntries((Object.keys(RESPONSE_TABS) as ResponseTab[]).map((k) => [k, data.filter(({ a }) => stageMatch(a, k)).length])) as Record<ResponseTab, number>;
-    return { ...page, stage, tabCounts, jobs: jobs.filter((j) => !j.draft).map((j) => ({ id: j.id, title: j.title, skills: j.skills })), sort };
+    return { ...page, stage, tabCounts, jobs: jobs.filter((j) => !j.draft).map((j) => ({ id: j.id, title: j.title, skills: j.skills, questions: (j.screeningQuestions ?? []).map((sq) => ({ ...sq, ideal: "" })) })), sort };
   },
 
   async setStatus(ids, status) {

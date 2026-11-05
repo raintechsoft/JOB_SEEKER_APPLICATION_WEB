@@ -35,9 +35,9 @@ export function Button({ variant = "", icon, children, type = "button", classNam
   </button>;
 }
 
-type IconButtonProps = Omit<ComponentProps<"button">, "className" | "children"> & { icon: IconName; label: string; extra?: string; loading?: boolean };
+type IconButtonProps = Omit<ComponentProps<"button">, "className" | "children"> & { icon: IconName; label: string; extra?: string; iconClassName?: string; loading?: boolean };
 
-export function IconButton({ icon, label, extra, loading = false, type = "button", disabled, onClick, ...rest }: IconButtonProps) {
+export function IconButton({ icon, label, extra, iconClassName, loading = false, type = "button", disabled, onClick, ...rest }: IconButtonProps) {
   const { busy, click } = usePendingClick(onClick, loading);
-  return <button {...rest} type={type} className={cn("iconbtn", extra)} aria-label={label} title={label} aria-busy={busy || undefined} disabled={disabled || busy} onClick={click}>{busy ? <Spinner /> : <Icon name={icon} />}</button>;
+  return <button {...rest} type={type} className={cn("iconbtn", extra)} aria-label={label} title={label} aria-busy={busy || undefined} disabled={disabled || busy} onClick={click}>{busy ? <Spinner /> : <Icon name={icon} className={iconClassName} />}</button>;
 }

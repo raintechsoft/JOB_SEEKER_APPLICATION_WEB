@@ -441,14 +441,10 @@ export function ApplicationEditor({
                   context={editor.documents}
                   service={services.applicationDocuments}
                   onResume={(id) => editor.selectDocument("resume", id)}
-                  onPortfolio={(included) =>
-                    editor.selectDocument("portfolio", included)
-                  }
                   onBusyChange={setDocumentBusy}
                   beforeUpload={editor.validateLocal}
                   errors={{
                     resume: editor.errors["documents.resumeAssetId"],
-                    portfolio: editor.errors["documents.includePortfolio"],
                   }}
                 />
               )}

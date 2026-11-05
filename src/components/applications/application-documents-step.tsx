@@ -23,9 +23,8 @@ type Props = {
       Pick<ReturnType<typeof createApplicationDocumentService>, "removeResume">
     >;
   onResume: (id: string | null) => Promise<void>;
-  onPortfolio: (included: boolean) => Promise<void>;
   onBusyChange?: (busy: boolean) => void;
-  errors?: { resume?: string; portfolio?: string };
+  errors?: { resume?: string };
   beforeUpload?: () => boolean;
 };
 
@@ -38,7 +37,6 @@ function DocumentSelection({
   context,
   service,
   onResume,
-  onPortfolio,
   onBusyChange,
   errors,
   beforeUpload,
@@ -50,7 +48,6 @@ function DocumentSelection({
   const mounted = useRef(true);
   const selection = useRef(0);
   const errorId = useId();
-  const portfolioErrorId = useId();
   const inputId = useId();
   useEffect(() => {
     mounted.current = true;
@@ -219,33 +216,6 @@ function DocumentSelection({
         {errors?.resume && !error && (
           <p id={errorId} role="alert" className="field-error">
             {errors.resume}
-          </p>
-        )}
-      </div>
-      <div className="grid gap-3">
-        <h2 className="text-lg font-semibold">
-          Portfolio
-          {context.requirements.requirePortfolio && (
-            <span aria-hidden="true"> *</span>
-          )}
-        </h2>
-        <label className="flex items-center gap-2">
-          <input
-            name="documents.includePortfolio"
-            type="checkbox"
-            checked={context.includePortfolio}
-            disabled={
-              pending || (!context.portfolio.ready && !context.includePortfolio)
-            }
-            aria-invalid={!!errors?.portfolio}
-            aria-describedby={errors?.portfolio ? portfolioErrorId : undefined}
-            onChange={(e) => run(() => onPortfolio(e.target.checked))}
-          />
-          Include my current portfolio
-        </label>
-        {errors?.portfolio && (
-          <p id={portfolioErrorId} role="alert" className="field-error">
-            {errors.portfolio}
           </p>
         )}
       </div>

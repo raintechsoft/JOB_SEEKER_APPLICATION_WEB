@@ -20777,12 +20777,20 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "questions": {
+                  "description": "Active screening questions of the job; the recruiter's ideal answer is included only for private views.",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScreeningQuestion"
+                  }
                 }
               },
               "required": [
                 "id",
                 "title",
-                "skills"
+                "skills",
+                "questions"
               ],
               "additionalProperties": false
             }
