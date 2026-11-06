@@ -1,4 +1,5 @@
 "use client";
+import { useRetainedList } from "@/components/suggestions/use-retained-list";
 import { useSocialQuery } from "@/hooks/use-social-query";
 
 import { QueryFeedback } from "@/components/ui/query-view";
@@ -248,7 +249,9 @@ export function useCompose(role: Role) {
 }
 
 export function NetworkPrompt({ people, role = "professional" }: { people: PersonSummary[]; role?: Role }) {
-  if (!people.length) return null;
+  // Followed suggestions drop out of the next feed page; keep them on screen until the feed is reloaded.
+  const shown = useRetainedList(people, role);
+  if (!shown.length) return null;
   return (
     <section className="card feed-network-card">
       <div className="row between">
@@ -260,7 +263,7 @@ export function NetworkPrompt({ people, role = "professional" }: { people: Perso
       </div>
       {/* The shared people card: cover, name, designation, Follow and a corner menu. Suggestions are never already followed. */}
       <SuggestionCardGrid>
-        {people.map((p) => (
+        {shown.map((p) => (
           <TalentCard key={p.id} role={role} person={{ id: p.id, slug: p.slug ?? "", name: p.name, headline: p.headline ?? "", picture: p.picture, cover: p.cover, color: p.color ?? "", location: "", years: 0, available: false, saved: false, following: false }} />
         ))}
       </SuggestionCardGrid>

@@ -181,3 +181,8 @@ body.professional-theme .managed-job-actions .job-posting-meta {display:flex;ali
 @media(max-width:680px){.jobs-manager-layout>.page-heading {grid-column:1;grid-row:1;}.jobs-manager-layout>.jobs-manager-results {grid-column:1;grid-row:2;}}
 .jobs-manager-layout {grid-template-rows:min-content minmax(0,1fr);}
 @media(max-width:680px){.jobs-manager-layout {grid-template-rows:auto auto;}}
+
+/* Job opened from a feed card's "Manage job": same highlight as a focused feed post. */
+body.professional-theme .managed-job-card.is-highlighted {outline:2px solid #b3a0e0;outline-offset:3px;scroll-margin-top:105px;}
+body.professional-theme .managed-jobs-focus-note {display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:13px;color:#626b76;}
+body.professional-theme .managed-jobs-focus-note a {color:#315ef4;font-weight:600;}

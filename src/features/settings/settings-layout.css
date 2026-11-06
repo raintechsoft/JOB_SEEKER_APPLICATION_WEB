@@ -68,6 +68,27 @@
 }
 .settings-org-fieldset:disabled { opacity: 0.72; }
 .account-card .settings-link-card { border-bottom: 0; }
+.account-card .account-identity { min-width: 0; }
+.account-card .account-identity p { overflow-wrap: anywhere; }
+.account-card .settings-row > .btn {
+  flex-shrink: 0;
+  color: #315ef4;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  min-width: 36px;
+  padding: 8px;
+  justify-content: center;
+}
+.account-card .settings-row > .btn > .icon { color: #315ef4; }
+.account-card .settings-row > .btn:hover,
+.account-card .settings-row > .btn:focus-visible {
+  color: #2148c9;
+  background: #edf2ff;
+  border-color: transparent;
+}
+.account-card .settings-row > .btn:hover > .icon,
+.account-card .settings-row > .btn:focus-visible > .icon { color: #2148c9; }
 .account-card .form-actions {
   justify-content: flex-start;
   border-top: 0;

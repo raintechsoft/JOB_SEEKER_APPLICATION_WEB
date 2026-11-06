@@ -143,7 +143,7 @@ function AccountPanel({ role }: { role: Role }) {
       <h2>{devCopy("Demo account", "Account")}</h2>
       {failed ? <ScreenError compact error={error} title="Account details couldn’t load" description="Your saved details haven’t changed. Please try again." onRetry={() => void refetch()} /> : null}
       <div className="settings-row">
-        <div>
+        <div className="account-identity">
           {loaded ? (
             <>
               <h3>{name}</h3>
@@ -156,9 +156,7 @@ function AccountPanel({ role }: { role: Role }) {
             </LoadingRegion>
           )}
         </div>
-        <LinkButton href={professional ? "/app/profile" : "/recruiter/profile"} variant="sm" icon="edit">
-          Edit
-        </LinkButton>
+        <LinkButton href={professional ? "/app/profile" : "/recruiter/profile"} variant="sm" icon="edit" aria-label="Edit profile" />
       </div>
       {TEAM_WORKSPACE_ACCESS_ENABLED && apiConfig.dataSource === "http" && !professional ? (
         <SettingsLinkCard href="/recruiter/access" icon="users" title="Team and workspace access" description="Manage organization access for your team." />

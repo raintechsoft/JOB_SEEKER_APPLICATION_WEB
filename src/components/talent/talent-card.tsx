@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { TalentSuggestion } from "@/services/talent/talent.service";
 import { SuggestionCard } from "@/components/suggestions/suggestion-card";
 import type { SuggestionCardAction } from "@/components/suggestions/suggestion-card-menu";
@@ -29,9 +29,15 @@ export function TalentCard({ person: p, publicMode = false, role = "recruiter", 
   const { ref: watchRef, click: watchClick } = useInteractionTracking<HTMLDivElement>(publicMode ? null : { kind: "professional", id: p.id }, { surface: "talent", position: p.analyticsContext?.position, requestId: p.analyticsContext?.requestId });
   const setRef = (el: HTMLDivElement | null) => { ref.current = el; watchRef.current = el; };
   // Follow only where the list reports the current state, so the button never shows a guess.
-  const follow = !publicMode && !action && p.following !== undefined ? async () => {
-    const next = await run((s) => s.feed.toggleFollow(role, p.id), { invalidate: ["talent", "network", "feed"] });
+  // The card owns the state after a toggle: suggestion lists exclude followed people, so the
+  // list is not refetched here (only the network view); the card stays, reading "Following".
+  const [known, setKnown] = useState({ source: p.following, value: p.following });
+  if (known.source !== p.following) setKnown({ source: p.following, value: p.following });
+  const following = known.value;
+  const follow = !publicMode && !action && following !== undefined ? async () => {
+    const next = await run((s) => s.feed.toggleFollow(role, p.id), { invalidate: ["network"] });
     if (next === undefined) return;
+    setKnown({ source: p.following, value: next });
     track("person_followed", { personId: p.id, following: next });
     toast(next ? "You’re now following " + p.name + "." : "Unfollowed " + p.name + ".");
   } : undefined;
@@ -48,7 +54,7 @@ export function TalentCard({ person: p, publicMode = false, role = "recruiter", 
         person={p}
         coverUrl={p.cover || undefined}
         label={"View " + p.name + " profile"}
-        following={!!p.following}
+        following={!!following}
         onFollow={follow}
         action={action}
         menu={menu}

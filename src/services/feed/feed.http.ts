@@ -6,7 +6,7 @@ import type { ReadScope } from "../realtime/realtime.http";
 import type { AuthService } from "../auth/auth.service";
 import type { FeedEntry, FeedService } from "./feed.service";
 import type { ActivityData, ActivityService } from "../activity/activity.service";
-import { commentSchema, peopleSearchSchema, postDraftValuesSchema, postPublishSchema, postTextSchema, quickJobPublishSchema, socialFeedSchema, socialRoleSchema } from "@/lib/validation/social";
+import { commentSchema, peopleSearchSchema, postDraftValuesSchema, postPublishSchema, postTextSchema, quickJobPublishSchema, repostCommentarySchema, shareFollowersSchema, socialFeedSchema, socialRoleSchema } from "@/lib/validation/social";
 import { reportSchema } from "@/lib/validation/communication";
 import { linkPreviewRequestSchema, linkPreviewSchema, previewUrlInBody } from "@/lib/validation/link-preview";
 import { activityCalendarContract, daysInMonth, type ActivityCalendarMonth } from "@/lib/activity/activity-calendar";
@@ -98,6 +98,22 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
     },
     toggleLike: (role, id, enabled) => intent(role, id, "liked", enabled),
     setReposted: async (role, id, enabled) => { z.boolean().parse(enabled); return intent(role, id, "reposted", enabled); },
+    async createRepost(role, id, commentary) {
+      socialRoleSchema.parse(role); z.uuid().parse(id);
+      const value = commentary === null ? null : repostCommentarySchema.parse(commentary) || null;
+      const data = (await http.post<{ data: { id: string; rootId: string; enabled: boolean } }>(`${await base(role)}/entries/${id}/reposts`, { commentary: value })).data;
+      flags.set(`reposted:${data.rootId}`, true);
+      return { id: data.id, rootId: data.rootId };
+    },
+    async removeRepost(role, id) {
+      socialRoleSchema.parse(role); z.uuid().parse(id);
+      const data = (await http.delete<{ data: { enabled: boolean; removed: boolean } }>(`${await base(role)}/entries/${id}/reposts`)).data;
+      return data.removed;
+    },
+    async listReposts(role, id) {
+      socialRoleSchema.parse(role); z.uuid().parse(id);
+      return (await http.get<{ data: { items: components["schemas"]["RepostListing"]["items"]; total: number } }>(`${await base(role)}/entries/${id}/reposts`)).data;
+    },
     async toggleSave(role, id, enabled) { return { saved: await intent(role, id, "saved",enabled), persisted: true }; },
     async setHidden(role, id, type, hidden) {
       z.uuid().parse(id); z.enum(["post", "job", "update"]).parse(type);
@@ -114,6 +130,15 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
       for (const p of [...network.following, ...network.followers]) flags.set(`person:${p.id}`, p.following);
       for (const c of network.companies) flags.set(`company:${c.id}`, true);
       return network;
+    },
+    async shareWithFollowers(role, id, recipientIds) {
+      socialRoleSchema.parse(role); z.uuid().parse(id);
+      const value = shareFollowersSchema.parse({ selectedIds: recipientIds }).selectedIds;
+      // One key per distinct selection: a retry after a network failure never messages a follower twice.
+      const key = JSON.stringify(["share", role, id, [...value].sort()]); const shareKey = attempts.get(key) ?? crypto.randomUUID(); attempts.set(key, shareKey);
+      const result = (await http.post<{ data: components["schemas"]["SocialShareResult"] }>(`${await base(role)}/entries/${id}/shares`, { recipientIds: value, shareKey })).data;
+      attempts.delete(key);
+      return result;
     },
     async addComment(role, id, text, parentId) {
       socialRoleSchema.parse(role); z.uuid().parse(id); if (parentId) z.uuid().parse(parentId); const value = commentSchema.parse(text);
@@ -171,7 +196,7 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
     async updatePost(role, id, input) {
       socialRoleSchema.parse(role); z.uuid().parse(id); const version = rev(input.version ?? postVersions.get(id));
       const values = input.attachments !== undefined
-        ? postPublishSchema.parse({ title: input.title, body: input.body, project: input.project ?? "", attachments: input.attachments, commentsEnabled: input.commentsEnabled ?? true, ...(input.previewUrl !== undefined ? { previewUrl: input.previewUrl } : {}), ...(input.quickJob !== undefined ? { quickJob: input.quickJob } : {}) })
+        ? postPublishSchema.parse({ title: input.title, body: input.body, project: input.project ?? "", attachments: input.attachments, commentsEnabled: input.commentsEnabled ?? true, ...(input.mediaAspect !== undefined ? { mediaAspect: input.mediaAspect } : {}), ...(input.previewUrl !== undefined ? { previewUrl: input.previewUrl } : {}), ...(input.quickJob !== undefined ? { quickJob: input.quickJob } : {}) })
         : postTextSchema.parse(input);
       if (input.previewUrl !== undefined && !previewUrlInBody(z.string().parse(input.previewUrl), values.body)) throw new Error("The previewed link must appear in your story.");
       if (input.attachments === undefined && input.quickJob !== undefined) {
@@ -184,6 +209,7 @@ export function createHttpFeedService(http: HttpClient, auth: AuthService) {
       if (input.commentsEnabled !== undefined || ("commentsEnabled" in values && values.commentsEnabled !== undefined)) {
         payload.commentsEnabled = "commentsEnabled" in values ? values.commentsEnabled !== false : z.boolean().parse(input.commentsEnabled);
       }
+      if (input.mediaAspect !== undefined) payload.mediaAspect = input.mediaAspect ?? null;
       if (input.quickJob !== undefined) payload.quickJob = input.quickJob;
       await http.patch(`${await base(role)}/posts/${id}`, payload); return true;
     },

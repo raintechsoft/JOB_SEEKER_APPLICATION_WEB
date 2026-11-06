@@ -1,11 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import "@/styles/fonts.css";
-import "@/styles/auth-validation.css";
-import "@/styles/prototype/index.css";
-import "@/styles/toasts.css";
-import "./globals.css";
-import "@/styles/dropdowns.css";
+// One stylesheet entry (see app-styles.css): separate CSS imports here made Turbopack emit colliding chunks.
+import "./app-styles.css";
 import { AppProviders } from "@/providers/app-providers";
 import { BodyClassSync } from "@/components/layout/body-class-sync";
 import { bodyClassScript } from "@/lib/routing/body-classes";

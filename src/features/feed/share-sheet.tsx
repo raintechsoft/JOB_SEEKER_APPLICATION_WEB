@@ -3,9 +3,11 @@ import { useSocialQuery } from "@/hooks/use-social-query";
 import {useAuthAction} from "@/features/auth/use-auth-action";
 
 import { useCallback, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServices } from "@/hooks/use-services";
+import { errorMessage } from "@/services/api/client";
 import type { Id, Role } from "@/types/domain";
 import type { NetworkPerson } from "@/services/feed/feed.service";
-import { devCopy } from "@/lib/env/app-env";
 import { parseShareFollowers } from "@/lib/validation/social";
 import { modal } from "@/stores/modal-store";
 import { toast } from "@/stores/toast-store";
@@ -13,9 +15,7 @@ import { Icon } from "@/components/ui/icon";
 import { Avatar, Button, EmptyState } from "@/components/ui/primitives";
 import { ErrorState } from "@/components/ui/state-views";
 import { ContentSkeleton } from "@/components/ui/skeleton";
-import { TextField } from "@/components/ui/field";
 import { filterFollowers } from "./share-followers";
-import { postShareUrl } from "./share-links";
 import { ShareDestinations } from "./share-destinations";
 
 export function ShareFollowersPanel({ role, postId }: { role: Role; postId: Id }) {
@@ -23,11 +23,12 @@ export function ShareFollowersPanel({ role, postId }: { role: Role; postId: Id }
 }
 
 function ShareFollowersForm({ role, postId }: { role: Role; postId: Id }) {
+  const services = useServices();
+  const cache = useQueryClient();
   const { data, isError, error: loadError, refetch } = useSocialQuery(["network", role], (s, scope) => s.feed.getNetwork(role, scope));
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState("");
-  const [link, setLink] = useState("");
   const [pending, setPending] = useState(false);
   const followers = useMemo(() => data?.followers ?? [], [data]);
   const visible = useMemo(() => filterFollowers(followers, query), [followers, query]);
@@ -56,15 +57,21 @@ function ShareFollowersForm({ role, postId }: { role: Role; postId: Id }) {
           requestAnimationFrame(() => document.querySelector<HTMLInputElement>(".share-follower-row input")?.focus());
           return;
         }
-        const url = postShareUrl(role, postId, window.location.origin);
         setPending(true);
         try {
-          await navigator.clipboard.writeText(url);
-          toast(devCopy("Post link copied. Local-only content stays in this browser.", "Post link copied."));
+          // The server re-checks that every recipient still follows this identity and delivers the
+          // post link as a direct message; nothing is sent for invalid local input.
+          const result = await services.feed.shareWithFollowers(role, postId, parsed.data);
+          void cache.invalidateQueries({ predicate: (q) => ["messaging", "messaging-unread"].includes(String(q.queryKey[0])) });
+          if (result.shared.length === 0) {
+            setError("This post couldn’t be shared with the selected followers.");
+            return;
+          }
+          const count = result.shared.length;
+          toast(result.failed.length ? `Post shared with ${count} of ${parsed.data.length} followers.` : `Post shared with ${count} follower${count === 1 ? "" : "s"}.`);
           modal.close();
-        } catch {
-          setLink(url);
-          setError("Copy the post link below.");
+        } catch (shareError) {
+          setError(errorMessage(shareError));
         } finally {
           setPending(false);
         }
@@ -99,7 +106,6 @@ function ShareFollowersForm({ role, postId }: { role: Role; postId: Id }) {
         </ul>
       )}
       {followers.length > 0 && visible.length === 0 && <EmptyState compact icon="search" title="No followers match your search" description="Try another name or clear the search." action={<Button variant="sm" icon="close" onClick={() => setQuery("")}>Clear search</Button>} />}
-      {link && <TextField label="Follower share link" name="link" value={link} readOnly onClick={(event) => event.currentTarget.select()} />}
       {followers.length > 0 && (
         <footer className="share-followers-footer">
           <Button type="submit" variant="primary" loading={pending} disabled={pending}>

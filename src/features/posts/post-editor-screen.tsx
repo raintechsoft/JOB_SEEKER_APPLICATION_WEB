@@ -38,6 +38,20 @@ import { ErrorState } from "@/components/ui/state-views";
 import { CatalogMultiPicker } from "@/components/ui/skill-picker";
 import { FeedCard } from "@/features/feed/feed-card";
 import { MediaImage } from "@/components/ui/media-image";
+import { modal } from "@/stores/modal-store";
+import {
+  emptyPostMediaEditing,
+  exportCroppedImage,
+  isCroppableImage,
+  isPostAspectRatioId,
+  mimeFromName,
+  isDefaultCrop,
+  isPreviewableVideo,
+  mediaCropOf,
+  removePostMedia,
+  type PostMediaEditingState,
+} from "@/lib/media/post-crop";
+import { PostCropEditor, type PostCropEditorItem } from "./post-crop-editor";
 import {
   findLinks,
   linkPreviewContract,
@@ -69,6 +83,7 @@ function postDraftFromEntry(entry: FeedEntry): PostDraft {
     media,
     videoUrl: entry.video || "",
     commentsEnabled: entry.commentsEnabled !== false,
+    mediaAspect: entry.mediaAspect ?? null,
     previewDismissedUrls: entry.linkPreview ? [] : findLinks(entry.body).map((link) => link.key),
     quickJob: entry.linkedJob
       ? {
@@ -131,6 +146,7 @@ function previewEntry(
     commentCount: 0,
     comments: [],
     commentsEnabled: d.commentsEnabled !== false,
+    mediaAspect: d.mediaAspect ?? (d.media.length ? "original" : null),
     linkedJob:
       d.quickJob?.enabled && d.quickJob.title
         ? {
@@ -208,6 +224,55 @@ function Editor({
   const previewUrls = useRef<Record<string, string>>({});
   const selectedFiles = useRef(new Map<string, File>());
   const mounted = useRef(false);
+  /**
+   * Instagram-style cropping. One global ratio for the post, per-item zoom/focus keyed by a stable
+   * media id (never the src, which changes when a crop is exported, and never the index). The
+   * original File / preview stays in `originals` so a crop can be re-edited from the source.
+   */
+  const [mediaEditing, setMediaEditing] = useState<PostMediaEditingState>(() => ({
+    ...emptyPostMediaEditing(),
+    // The draft/post remembers the chosen ratio; the editor starts from it.
+    aspectRatio: isPostAspectRatioId(untitled.mediaAspect) ? untitled.mediaAspect : "original",
+  }));
+  const mediaEditingRef = useRef(mediaEditing);
+  const commitEditing = (next: PostMediaEditingState) => {
+    mediaEditingRef.current = next;
+    setMediaEditing(next);
+  };
+  type TileInfo = { id: string; editable: "image" | "video" | null };
+  type OriginalMedia = { file?: File; src: string; name: string; mime: string; type: "image" | "video" | "document" };
+  /** Media already in the draft (mock mode keeps data URLs) is editable again from its stored source. */
+  const [hydrated] = useState(() => {
+    const tiles: Record<string, TileInfo> = {};
+    const originals = new Map<string, OriginalMedia>();
+    for (const m of untitled.media) {
+      if (!(m.src.startsWith("data:") || m.src.startsWith("blob:"))) continue;
+      const mime = mimeFromName(m.name);
+      const id = crypto.randomUUID();
+      originals.set(id, { src: m.src, name: m.name, mime, type: m.type });
+      tiles[m.src] = {
+        id,
+        editable:
+          m.type === "image" && isCroppableImage({ type: m.type, src: m.src, name: m.name, mime })
+            ? "image"
+            : m.type === "video" && isPreviewableVideo({ type: m.type, src: m.src })
+              ? "video"
+              : null,
+      };
+    }
+    return { tiles, originals };
+  });
+  /** Current src -> stable id + what the crop editor can do with it. Mirrored in a ref for async work. */
+  const [tileInfo, setTileInfo] = useState<Record<string, TileInfo>>(hydrated.tiles);
+  const tileInfoRef = useRef<Record<string, TileInfo>>(hydrated.tiles);
+  const commitTiles = (next: Record<string, TileInfo>) => {
+    tileInfoRef.current = next;
+    setTileInfo(next);
+  };
+  const originals = useRef<Map<string, OriginalMedia>>(hydrated.originals);
+  const [processing, setProcessing] = useState<Record<string, boolean>>({});
+  const processingVersion = useRef(new Map<string, number>());
+  const processingChain = useRef<Promise<void>>(Promise.resolve());
   const home = role === "recruiter" ? "/recruiter/dashboard" : "/app/dashboard";
   const publicProjects = projects.filter((p) => p.visibility === "Public");
 
@@ -263,10 +328,15 @@ function Editor({
   useEffect(() => {
     mounted.current = true;
     const urls = previewUrls.current;
+    const originalsAtUnmount = originals.current;
     return () => {
       mounted.current = false;
       if (!previewsTransferred.current)
         for (const url of Object.values(urls)) URL.revokeObjectURL(url);
+      // Original (uncropped) previews are never handed to the publication task.
+      const kept = new Set(previewsTransferred.current ? Object.values(urls) : []);
+      for (const original of originalsAtUnmount.values())
+        if (original.src.startsWith("blob:") && !kept.has(original.src)) URL.revokeObjectURL(original.src);
     };
   }, []);
   const update = (patch: Partial<PostDraft>) => {
@@ -276,6 +346,149 @@ function Editor({
     setD(next);
     if (!real) void persist(next);
     return next;
+  };
+  /** Like update(), but based on the latest draft so async work never writes over newer edits. */
+  const updateLatest = (patch: Partial<PostDraft>) => {
+    const next = { ...latestDraft.current, ...patch };
+    latestDraft.current = next;
+    if (real) setSaveStatus("Unsaved changes");
+    setD(next);
+    if (!real) void persist(next);
+    return next;
+  };
+  const registerOriginal = (
+    src: string,
+    file: File | undefined,
+    type: "image" | "video" | "document",
+    name: string,
+    mime: string,
+    tiles: Record<string, TileInfo>,
+  ) => {
+    const id = crypto.randomUUID();
+    originals.current.set(id, { file, src, name, mime, type });
+    const editable =
+      type === "image" && isCroppableImage({ type, src, name, mime }) ? "image" : type === "video" && isPreviewableVideo({ type, src }) ? "video" : null;
+    tiles[src] = { id, editable };
+    return id;
+  };
+  const currentSrcOf = (id: string) => Object.entries(tileInfoRef.current).find(([, info]) => info.id === id)?.[0];
+  /** Replace a tile's preview + File with the processed output; the original stays untouched. */
+  const swapMediaSource = (id: string, nextSrc: string, nextFile: File) => {
+    const currentSrc = currentSrcOf(id);
+    if (!currentSrc || currentSrc === nextSrc) return;
+    const original = originals.current.get(id);
+    const tiles = { ...tileInfoRef.current };
+    const info = tiles[currentSrc];
+    delete tiles[currentSrc];
+    tiles[nextSrc] = info;
+    commitTiles(tiles);
+    if (real) {
+      selectedFiles.current.delete(currentSrc);
+      selectedFiles.current.set(nextSrc, nextFile);
+      if (currentSrc !== original?.src) URL.revokeObjectURL(currentSrc);
+      delete previewUrls.current[currentSrc];
+      previewUrls.current[nextSrc] = nextSrc;
+      setLocalPreviews({ ...previewUrls.current });
+    }
+    updateLatest({
+      media: latestDraft.current.media.map((m) => (m.src === currentSrc ? { ...m, src: nextSrc, name: nextFile.name, bytes: nextFile.size } : m)),
+    });
+  };
+  /**
+   * Export the given items from their ORIGINAL file with the current global ratio + their own crop.
+   * Runs sequentially in the background (tiles show "Cropping…"); publish waits for the chain.
+   */
+  const processItems = (ids: string[]) => {
+    const run = async () => {
+      for (const id of ids) {
+        const original = originals.current.get(id);
+        if (!original || original.type !== "image" || !isCroppableImage({ type: "image", src: original.src, name: original.name, mime: original.mime })) continue;
+        const version = (processingVersion.current.get(id) ?? 0) + 1;
+        processingVersion.current.set(id, version);
+        setProcessing((prev) => ({ ...prev, [id]: true }));
+        try {
+          const editing = mediaEditingRef.current;
+          const crop = mediaCropOf(editing, id);
+          let nextFile: File | undefined;
+          let nextSrc: string;
+          if (editing.aspectRatio === "original" && isDefaultCrop(crop)) {
+            // Untouched: publish the original bytes, no re-encode.
+            nextFile = original.file;
+            nextSrc = original.src;
+          } else {
+            const result = await exportCroppedImage({
+              source: original.file ?? original.src,
+              sourceName: original.name,
+              sourceMime: original.mime,
+              presetId: editing.aspectRatio,
+              crop,
+            });
+            nextFile = result.file;
+            nextSrc = real ? URL.createObjectURL(nextFile) : await readAsDataUrl(nextFile);
+          }
+          const stale = !mounted.current || processingVersion.current.get(id) !== version;
+          if (stale) {
+            if (real && nextSrc !== original.src && nextSrc.startsWith("blob:")) URL.revokeObjectURL(nextSrc);
+            continue;
+          }
+          if (nextFile) swapMediaSource(id, nextSrc, nextFile);
+        } catch (e) {
+          if (mounted.current) setError(e instanceof Error ? e.message : "The image could not be cropped. The original is kept.");
+        } finally {
+          if (mounted.current)
+            setProcessing((prev) => {
+              const next = { ...prev };
+              delete next[id];
+              return next;
+            });
+        }
+      }
+    };
+    const chained = processingChain.current.then(run, run);
+    processingChain.current = chained;
+    return chained;
+  };
+  const editableImageIds = () =>
+    latestDraft.current.media.map((m) => tileInfoRef.current[m.src]).filter((info): info is TileInfo => !!info && info.editable === "image").map((info) => info.id);
+  /** Instagram/profile-photo flow: picking media opens the editor right away on the first new image. */
+  const openEditorForNew = (ids: string[], tiles: Record<string, TileInfo>) => {
+    const first = ids.find((id) => Object.values(tiles).some((info) => info.id === id && info.editable === "image"));
+    if (first) openCropEditor(first);
+  };
+  const openCropEditor = (activeId: string) => {
+    const items: PostCropEditorItem[] = latestDraft.current.media
+      .map((m) => tileInfoRef.current[m.src])
+      .filter((info): info is TileInfo => !!info && info.editable !== null)
+      .map((info) => {
+        const original = originals.current.get(info.id)!;
+        return { id: info.id, src: original.src, type: info.editable as "image" | "video", name: original.name };
+      });
+    if (!items.length) return;
+    modal.show(
+      items.length > 1 ? "Edit media" : "Edit image",
+      <PostCropEditor
+        items={items}
+        activeId={activeId}
+        state={mediaEditingRef.current}
+        onCancel={() => modal.close()}
+        onApply={(next) => {
+          modal.close();
+          const prev = mediaEditingRef.current;
+          commitEditing(next);
+          const ratioChanged = prev.aspectRatio !== next.aspectRatio;
+          if (ratioChanged) updateLatest({ mediaAspect: next.aspectRatio });
+          const changed = editableImageIds().filter((id) => {
+            if (ratioChanged) return true;
+            const before = mediaCropOf(prev, id);
+            const after = mediaCropOf(next, id);
+            return before.zoom !== after.zoom || before.focus.x !== after.focus.x || before.focus.y !== after.focus.y;
+          });
+          if (changed.length) void processItems(changed);
+        }}
+      />,
+      // Centered 620px dialog (the profile photo editor's shell): wide enough for the crop stage.
+      "photo",
+    );
   };
   const link = useLinkPreview({
     role,
@@ -305,7 +518,8 @@ function Editor({
           attachments: d.media,
         });
         if (!parsed.success) {
-          setError(parsed.error.issues[0].message);
+          setError("");
+          toast(parsed.error.issues[0].message);
           return;
         }
       }
@@ -322,22 +536,30 @@ function Editor({
       return;
     }
     if (real) {
+      const tiles = { ...tileInfoRef.current };
+      const addedIds: string[] = [];
       const items = files.map((file) => {
         const upload = withResolvedMediaMime(file, "post_image") ?? file;
         const src = URL.createObjectURL(upload);
         selectedFiles.current.set(src, upload);
         previewUrls.current[src] = src;
+        const type = postMediaKind(upload);
+        addedIds.push(registerOriginal(src, upload, type, upload.name, upload.type, tiles));
         return {
-          type: postMediaKind(upload),
+          type,
           src,
           alt: "",
           name: upload.name,
           bytes: upload.size,
         };
       });
+      commitTiles(tiles);
       setLocalPreviews({ ...previewUrls.current });
-      update({ media: [...d.media, ...items] });
+      update({ media: [...d.media, ...items], mediaAspect: d.mediaAspect ?? mediaEditingRef.current.aspectRatio });
       setError("");
+      // New items pick up the post's current global ratio.
+      if (mediaEditingRef.current.aspectRatio !== "original") void processItems(addedIds);
+      openEditorForNew(addedIds, tiles);
       return;
     }
     setBusy(true);
@@ -354,6 +576,11 @@ function Editor({
         }),
       );
       if (!mounted.current) return;
+      const tiles = { ...tileInfoRef.current };
+      const addedIds = items.map((item, index) =>
+        registerOriginal(item.src, files[index], item.type, item.name, files[index].type || item.type, tiles),
+      );
+      commitTiles(tiles);
       if (real) {
         items.forEach((item, index) => {
           if (previewUrls.current[item.src])
@@ -362,9 +589,12 @@ function Editor({
         });
         setLocalPreviews({ ...previewUrls.current });
       }
-      const next = { ...d, media: [...d.media, ...items] };
+      const next = { ...d, media: [...d.media, ...items], mediaAspect: d.mediaAspect ?? mediaEditingRef.current.aspectRatio };
       latestDraft.current = next;
       setD(next);
+      // The editor reads the latest draft, so it opens only after the new items are in it.
+      if (mediaEditingRef.current.aspectRatio !== "original") void processItems(addedIds);
+      openEditorForNew(addedIds, tiles);
       if (!(await persist(next)))
         setError(
           "Your files are kept on this page. Retry saving the draft before leaving.",
@@ -379,7 +609,8 @@ function Editor({
     if (busy || publishing.current) return;
     const details = postTextSchema.safeParse(d);
     if (!details.success) {
-      setError(details.error.issues[0].message);
+      setError("");
+      toast(details.error.issues[0].message);
       return;
     }
     if (d.step < 2) {
@@ -391,7 +622,8 @@ function Editor({
           quickJob: undefined,
         });
         if (!result.success) {
-          setError(result.error.issues[0].message);
+          setError("");
+          toast(result.error.issues[0].message);
           return;
         }
       }
@@ -405,9 +637,8 @@ function Editor({
       attachments: d.media,
     });
     if (!parsed.success) {
-      const message = parsed.error.issues[0].message;
-      setError(message);
-      toast(message);
+      setError("");
+      toast(parsed.error.issues[0].message);
       return;
     }
     if (
@@ -438,9 +669,12 @@ function Editor({
     publishing.current = true;
     setBusy(true);
     setError("");
+    // A crop export may still be running; the published file must be the latest confirmed crop.
+    await processingChain.current.catch(() => {});
+    if (!mounted.current) return;
     const frozen: PostDraft = {
-      ...d,
-      media: d.media.map((item) => ({ ...item })),
+      ...latestDraft.current,
+      media: latestDraft.current.media.map((item) => ({ ...item })),
     };
     // Only the link is sent; Laravel references its own stored metadata and never waits on a fetch.
     const previewUrl = link.submitUrl;
@@ -506,6 +740,7 @@ function Editor({
             project: values.project,
             attachments: values.attachments,
             commentsEnabled: values.commentsEnabled !== false,
+            mediaAspect: values.mediaAspect ?? (values.attachments.length ? "original" : null),
             version: expectedVersion,
             previewUrl: previewUrl ?? "",
             ...(role === "recruiter" && values.quickJob
@@ -542,6 +777,7 @@ function Editor({
           project: values.project,
           attachments: values.attachments,
           commentsEnabled: values.commentsEnabled !== false,
+          mediaAspect: values.mediaAspect ?? (values.attachments.length ? "original" : null),
           ...(previewUrl ? { previewUrl } : {}),
           ...(role === "recruiter" && values.quickJob
             ? { quickJob: values.quickJob }
@@ -567,11 +803,13 @@ function Editor({
         void cache
           .invalidateQueries({
             predicate: (query) =>
-              ["feed", "post-draft", "activity"].includes(
-                String(query.queryKey[0]),
-              ),
+              ["feed", "activity"].includes(String(query.queryKey[0])),
           })
           .catch(() => undefined);
+        // The server deleted the draft with the publication. Drop the cached copy entirely:
+        // invalidating would still seed the next editor from the stale draft (old step and
+        // media) before the refetch lands, since the editor seeds its state once.
+        cache.removeQueries({ queryKey: ["post-draft"] });
         toast(
           devCopy(
             "Your demo post is now in your feed.",
@@ -593,7 +831,6 @@ function Editor({
     <div className="post-editor">
       <header className="job-wizard-top">
         <div className="post-editor-title">
-          <span className="eyebrow">SHARE YOUR STORY</span>
           <h1>{editing ? "Edit post" : "Create a post"}</h1>
         </div>
         <LinkButton href={home} icon="arrow">
@@ -686,7 +923,21 @@ function Editor({
                   <div className="post-media-upload">
                     <div className="post-upload-heading">
                       <strong>Post media</strong>
-                      <span>In selection order</span>
+                      <span className="post-upload-heading-end">
+                        {d.media.some((m) => tileInfo[m.src]?.editable) ? (
+                          <Button
+                            variant="sm"
+                            icon="edit"
+                            disabled={busy || Object.keys(processing).length > 0}
+                            onClick={() => {
+                              const first = d.media.map((m) => tileInfo[m.src]).find((info) => info?.editable);
+                              if (first) openCropEditor(first.id);
+                            }}
+                          >
+                            Edit media
+                          </Button>
+                        ) : null}
+                      </span>
                     </div>
                     <input
                       ref={fileInput}
@@ -758,6 +1009,30 @@ function Editor({
                           >
                             {i + 1}
                           </span>
+                          {tileInfo[m.src]?.editable ? (
+                            <button
+                              type="button"
+                              className={
+                                "post-media-crop" +
+                                (tileInfo[m.src].editable === "image" &&
+                                (mediaEditing.aspectRatio !== "original" || !isDefaultCrop(mediaCropOf(mediaEditing, tileInfo[m.src].id)))
+                                  ? " is-cropped"
+                                  : "")
+                              }
+                              aria-label={"Edit crop for " + (m.name || "media")}
+                              title="Edit crop"
+                              disabled={busy || !!processing[tileInfo[m.src].id]}
+                              onClick={() => openCropEditor(tileInfo[m.src].id)}
+                            >
+                              <Icon name="edit" />
+                              <span>Edit</span>
+                            </button>
+                          ) : null}
+                          {tileInfo[m.src] && processing[tileInfo[m.src].id] ? (
+                            <span className="post-media-processing" role="status">
+                              Cropping…
+                            </span>
+                          ) : null}
                           <button
                             type="button"
                             className="post-media-remove"
@@ -765,6 +1040,18 @@ function Editor({
                             title="Remove media"
                             onClick={() => {
                               const removed = d.media[i];
+                              const info = tileInfoRef.current[removed.src];
+                              if (info) {
+                                const original = originals.current.get(info.id);
+                                if (real && original && original.src !== removed.src && original.src.startsWith("blob:"))
+                                  URL.revokeObjectURL(original.src);
+                                originals.current.delete(info.id);
+                                processingVersion.current.set(info.id, (processingVersion.current.get(info.id) ?? 0) + 1);
+                                const tiles = { ...tileInfoRef.current };
+                                delete tiles[removed.src];
+                                commitTiles(tiles);
+                                commitEditing(removePostMedia(mediaEditingRef.current, info.id));
+                              }
                               selectedFiles.current.delete(removed.src);
                               if (removed && previewUrls.current[removed.src]) {
                                 URL.revokeObjectURL(
@@ -1081,7 +1368,6 @@ function PostEditorFrame({ role, children }: { role: Role; children: ReactNode }
     <div className="post-editor">
       <header className="job-wizard-top">
         <div className="post-editor-title">
-          <span className="eyebrow">SHARE YOUR STORY</span>
           <h1>Create a post</h1>
         </div>
         <LinkButton href={home} icon="arrow">

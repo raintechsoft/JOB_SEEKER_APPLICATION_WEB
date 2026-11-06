@@ -1,7 +1,8 @@
 "use client";
 
 import type { Role } from "@/types/domain";
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useDismissableDetails } from "@/hooks/use-dismissable";
 import { useServiceQuery } from "@/hooks/use-services";
 import { apiConfig } from "@/services/api/config";
 import { Icon } from "@/components/ui/icon";
@@ -79,20 +80,126 @@ function optionsFor(control: FilterControl, role: Role, scope: SearchScope, opti
   return { choices: withChoice(current, current, [ANY]), allowCustom: true };
 }
 
+function SearchCategoryList({ role, scope, pressed, pending, onCategory }: Pick<Props, "role" | "scope" | "pending" | "onCategory"> & { pressed: SearchScope }) {
+  return <div className="search-category-nav" role="group" aria-label="Search category">
+    {scopesFor(role).map(value => (
+      <button key={value} type="button" aria-pressed={value === pressed} disabled={pending} className="search-category-item" onClick={() => { if (value !== scope || (value === "all" && pressed !== "all")) onCategory(value); }}>
+        {searchLabels[value]}
+      </button>
+    ))}
+  </div>;
+}
+
 export function SearchFilterBar({ role, scope, pending = false, onCategory, selectionScope }: Pick<Props, "role" | "scope" | "pending" | "onCategory"> & { selectionScope?: SearchScope }) {
   const pressed = selectionScope && scopesFor(role).includes(selectionScope) ? selectionScope : scope;
+  const menu = useRef<HTMLDetailsElement>(null);
+  useDismissableDetails(menu, { closeOnAction: true });
   return <aside className="search-filter-sidebar">
     <div className="search-filter-bar" role="navigation" aria-label="Search categories" aria-busy={pending}>
-      <h2>Filters</h2>
-      <nav className="search-category-nav" aria-label="Search category">
-        {scopesFor(role).map(value => (
-          <button key={value} type="button" aria-pressed={value === pressed} disabled={pending} className="search-category-item" onClick={() => { if (value !== scope || (value === "all" && pressed !== "all")) onCategory(value); }}>
-            {searchLabels[value]}
-          </button>
-        ))}
-      </nav>
+      <div className="search-filter-heading">
+        <h2>Filters</h2>
+        <details ref={menu} className={"search-category-menu" + (pressed !== "all" ? " has-filter" : "")}>
+          <summary aria-label={`Search categories, ${searchLabels[pressed]} selected`}>
+            <Icon name="sliders" />
+          </summary>
+          <SearchCategoryList role={role} scope={scope} pressed={pressed} pending={pending} onCategory={onCategory} />
+        </details>
+      </div>
+      <div className="search-category-sidebar">
+        <SearchCategoryList role={role} scope={scope} pressed={pressed} pending={pending} onCategory={onCategory} />
+      </div>
     </div>
   </aside>;
+}
+
+function SubfilterScroller({ watch, pending = false, children }: { watch: string; pending?: boolean; children: ReactNode }) {
+  const track = useRef<HTMLDivElement>(null);
+  const drag = useRef({ active: false, moved: false, startX: 0, scrollLeft: 0 });
+  const [overflow, setOverflow] = useState({ left: false, right: false });
+
+  useEffect(() => {
+    const el = track.current;
+    if (!el) return;
+    const sync = () => {
+      setOverflow({
+        left: el.scrollLeft > 1,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1,
+      });
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth + 1) return;
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      if (!delta) return;
+      const max = el.scrollWidth - el.clientWidth;
+      const next = Math.min(max, Math.max(0, el.scrollLeft + delta));
+      if (next === el.scrollLeft) return;
+      event.preventDefault();
+      el.scrollLeft = next;
+    };
+    sync();
+    el.addEventListener("scroll", sync, { passive: true });
+    el.addEventListener("wheel", onWheel, { passive: false });
+    const resize = typeof ResizeObserver !== "undefined" ? new ResizeObserver(sync) : null;
+    resize?.observe(el);
+    if (el.firstElementChild) resize?.observe(el.firstElementChild);
+    window.addEventListener("resize", sync);
+    return () => {
+      el.removeEventListener("scroll", sync);
+      el.removeEventListener("wheel", onWheel);
+      resize?.disconnect();
+      window.removeEventListener("resize", sync);
+    };
+  }, [watch]);
+
+  function scrollFilters(direction: -1 | 1) {
+    const el = track.current;
+    if (!el) return;
+    const step = Math.max(160, Math.floor(el.clientWidth * 0.7));
+    el.scrollBy({ left: direction * step, behavior: "smooth" });
+  }
+
+  return <div className={"search-subfilter-bar" + (overflow.left ? " has-overflow-left" : "") + (overflow.right ? " has-overflow-right" : "")} role="group" aria-label="Search filters" aria-busy={pending}>
+    {overflow.left ? <button type="button" className="search-subfilter-arrow is-prev" aria-label="Show previous filters" onClick={() => scrollFilters(-1)}><Icon name="chevron" /></button> : null}
+    <div
+      ref={track}
+      className="search-subfilter-track"
+      onPointerDown={event => {
+        const el = track.current;
+        if (!el || event.pointerType === "touch" || event.button !== 0) return;
+        drag.current = { active: true, moved: false, startX: event.clientX, scrollLeft: el.scrollLeft };
+        el.setPointerCapture?.(event.pointerId);
+      }}
+      onPointerMove={event => {
+        const el = track.current;
+        if (!drag.current.active || !el) return;
+        const delta = event.clientX - drag.current.startX;
+        if (Math.abs(delta) > 4) {
+          drag.current.moved = true;
+          el.classList.add("is-dragging");
+        }
+        if (drag.current.moved) el.scrollLeft = drag.current.scrollLeft - delta;
+      }}
+      onPointerUp={event => {
+        const el = track.current;
+        if (el?.hasPointerCapture?.(event.pointerId)) el.releasePointerCapture(event.pointerId);
+        el?.classList.remove("is-dragging");
+        drag.current.active = false;
+        window.setTimeout(() => { drag.current.moved = false; }, 0);
+      }}
+      onPointerCancel={() => {
+        track.current?.classList.remove("is-dragging");
+        drag.current.active = false;
+        drag.current.moved = false;
+      }}
+      onClickCapture={event => {
+        if (!drag.current.moved) return;
+        event.preventDefault();
+        event.stopPropagation();
+        drag.current.moved = false;
+      }}
+    >{children}</div>
+    {overflow.right ? <button type="button" className="search-subfilter-arrow is-next" aria-label="Show more filters" onClick={() => scrollFilters(1)}><Icon name="chevron" /></button> : null}
+  </div>;
 }
 
 export function SearchSubFilterBar({ role, scope, options, pending = false, onApply, publicMode=false }: Omit<Props, "onCategory" | "query"> & {publicMode?:boolean}) {
@@ -109,7 +216,8 @@ export function SearchSubFilterBar({ role, scope, options, pending = false, onAp
   const describe = (key: keyof SearchFilters, value: unknown) => key === "author" ? value === identity ? "Me" : "Selected author" : key === "contentType" ? CONTENT_TYPE_LABELS[String(value)] ?? String(value) : key === "days" ? DAY_VALUE_LABELS[String(value)] ?? String(value) : String(value);
   const controls = [...layout.quick, ...layout.more];
   return <div className="search-subfilter-wrap">
-    <div className="search-subfilter-bar" role="group" aria-label="Search filters" aria-busy={pending} data-no-floating-label>
+    <SubfilterScroller watch={`${scope}:${controls.join(",")}:${pending}`} pending={pending}>
+    <div className="search-subfilter-controls" data-no-floating-label>
       <Dropdown
         label="Sort by"
         trigger="value"
@@ -135,6 +243,7 @@ export function SearchSubFilterBar({ role, scope, options, pending = false, onAp
         />;
       })}
     </div>
+    </SubfilterScroller>
     {filterError&&<p role="alert" className="small">{filterError}</p>}
     {!!fieldKeys.length && <div className="search-active-filters" role="group" aria-label="Active filters">
       {fieldKeys.map(key => <button className="search-active-filter" type="button" key={key} aria-label={`Remove ${labelFor(key,scope)} filter`} disabled={pending} onClick={() => apply(key==="currency"||key==="compensationPeriod"?withoutCompensation(options):Object.fromEntries(Object.entries(options).filter(([name]) => name !== key)))}>{labelFor(key,scope)}: {describe(key,options[key])}<Icon name="close" /></button>)}

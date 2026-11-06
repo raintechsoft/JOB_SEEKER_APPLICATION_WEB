@@ -93,10 +93,34 @@ export interface FeedEntry {
   comments: FeedComment[];
   /** False when the author disabled comments on this post. */
   commentsEnabled: boolean;
-  repost?: { author: PersonSummary; createdAt: IsoDateTime } | null;
+  /** Carousel frame ratio chosen when publishing ("original", "1:1", "4:5", "3:4", "1.91:1"); null/absent = per-slide frame. */
+  mediaAspect?: string | null;
+  /** Repost entries: who reposted, when, their optional commentary, the reposted repost and the chain to the original. Originals carry null. */
+  repost?: (RepostSummary & { parentId?: Id | null; chain?: RepostSummary[] }) | null;
+  /** Repost entries: the original entry's id. */
+  rootId?: Id;
+  /** Repost entries: where likes and comments attach (the original for a plain repost; the repost itself when it carries commentary). */
+  interactionId?: Id;
   /** Stored server metadata for a link in the body; absent for legacy or dismissed previews. */
   linkPreview?: LinkPreview;
   viewer: { liked: boolean; saved: boolean; following: boolean; own: boolean; reposted?: boolean; canRepost?: boolean };
+}
+
+/** One person's repost. `removed` marks a soft-deleted repost kept as a tombstone in a chain. */
+export interface RepostSummary {
+  id: Id;
+  author: PersonSummary | null;
+  createdAt: IsoDateTime;
+  commentary: string | null;
+  removed: boolean;
+}
+
+export interface RepostListItem {
+  id: Id;
+  author: PersonSummary;
+  createdAt: IsoDateTime;
+  commentary: string | null;
+  own: boolean;
 }
 
 export interface FeedPage extends Paginated<FeedEntry> {
@@ -107,6 +131,12 @@ export interface FeedPage extends Paginated<FeedEntry> {
 
 export interface NetworkPerson extends PersonSummary {
   following: boolean;
+}
+
+/** Followers who received the entry link and those who could not (blocked or unavailable). */
+export interface PostShareResult {
+  shared: Id[];
+  failed: Id[];
 }
 
 export interface Network {
@@ -127,6 +157,7 @@ export interface NewPostInput {
   /** Raw link from the body whose server preview should be shown; empty for none. */
   previewUrl?: string;
   commentsEnabled?: boolean;
+  mediaAspect?: string | null;
   quickJob?: import("@/types/domain").QuickJobPost;
 }
 
@@ -138,6 +169,12 @@ export interface FeedService {
   getEntry(role: Role, id: Id, scope?: ReadScope): Promise<FeedEntry | null>;
   toggleLike(role: Role, id: Id, enabled?: boolean): Promise<boolean>;
   setReposted(role: Role, id: Id, enabled: boolean): Promise<boolean>;
+  /** Independent repost of the original behind `id` (any id in a chain), optionally with commentary; idempotent per person and original. */
+  createRepost(role: Role, id: Id, commentary: string | null): Promise<{ id: Id; rootId: Id }>;
+  /** Remove only the viewer's own repost of the original behind `id`. */
+  removeRepost(role: Role, id: Id): Promise<boolean>;
+  /** People who reposted the original behind `id` (one per person, nested reposts counted once). */
+  listReposts(role: Role, id: Id): Promise<{ items: RepostListItem[]; total: number }>;
   toggleSave(role: Role, id: Id, enabled?: boolean): Promise<{ saved: boolean; persisted: boolean }>;
   /** "Not interested": hide a job, post or update from recommendations and the main feeds, or undo it. */
   setHidden(role: Role, id: Id, type: FeedEntry["type"], hidden: boolean): Promise<boolean>;
@@ -162,6 +199,8 @@ export interface FeedService {
   getBlockedOrganizations(role: Role): Promise<{organizationId: Id; company: CompanySummary}[]>;
   unblockOrganization(role: Role, organizationId: Id): Promise<void>;
   getNetwork(role: Role, scope?: ReadScope): Promise<Network>;
+  /** Sends the entry link to selected current followers as a direct message from the selected identity. */
+  shareWithFollowers(role: Role, id: Id, recipientIds: Id[]): Promise<PostShareResult>;
   createPost(role: Role, input: NewPostInput): Promise<{ id: Id } | null>;
   updatePost(role: Role, id: Id, input: {
     title: string;
@@ -171,6 +210,7 @@ export interface FeedService {
     project?: Id | "";
     attachments?: MediaItem[];
     commentsEnabled?: boolean;
+    mediaAspect?: string | null;
     quickJob?: import("@/types/domain").QuickJobPost;
   }): Promise<boolean>;
   /** Server-fetched metadata for a public link, or null when the page offers none. */

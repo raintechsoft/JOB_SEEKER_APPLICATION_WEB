@@ -39,3 +39,14 @@ describe("quick job post validation",()=>{
     expect(postPublishSchema.safeParse({title:"",body:"Hiring",project:"",attachments:[],quickJob}).success).toBe(true);
   });
 });
+
+describe("post media aspect",()=>{
+  it("accepts the crop editor ratios, null, or nothing, and rejects other values",()=>{
+    const input={title:"Work",body:"A story",project:"",attachments:[image]};
+    for(const mediaAspect of ["original","1:1","4:5","3:4","1.91:1",null]) expect(postPublishSchema.safeParse({...input,mediaAspect}).success).toBe(true);
+    expect(postPublishSchema.safeParse(input).success).toBe(true);
+    expect(postPublishSchema.safeParse({...input,mediaAspect:"2:3"}).success).toBe(false);
+    expect(postDraftValuesSchema.safeParse({...draft,mediaAspect:"4:5"}).success).toBe(true);
+    expect(postDraftValuesSchema.safeParse({...draft,mediaAspect:"16:9"}).success).toBe(false);
+  });
+});

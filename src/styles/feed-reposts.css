@@ -1,0 +1,31 @@
+/* Independent reposts: commentary above the embedded original, the chain to the original, the dialog. */
+body.professional-theme .feed-post .feed-repost-commentary {
+  margin: 10px 0 6px;
+  padding: 0;
+  border: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #202a36;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+body.professional-theme .feed-post .feed-repost-chain {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid #e4e9ef;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 13px;
+}
+body.professional-theme .feed-post .feed-repost-chain summary { cursor: pointer; color: #4a5361; font-weight: 600; }
+body.professional-theme .feed-post .feed-repost-chain ol { margin: 8px 0 0; padding: 0 0 0 16px; display: grid; gap: 8px; }
+body.professional-theme .feed-post .feed-repost-chain li p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+body.professional-theme .feed-post .feed-repost-chain .muted { color: #7b8491; }
+body.professional-theme .feed-post .feed-post-context time { color: #7b8491; }
+
+/* Repost dialog */
+.repost-dialog { display: grid; gap: 12px; }
+.repost-dialog-preview { display: flex; gap: 10px; padding: 10px 12px; border: 1px solid #e4e9ef; border-radius: 10px; background: #f8fafc; }
+.repost-dialog-preview-text { min-width: 0; font-size: 13px; }
+.repost-dialog-preview-text p { margin: 2px 0 0; color: #4a5361; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.repost-dialog-preview-text .muted { color: #7b8491; }

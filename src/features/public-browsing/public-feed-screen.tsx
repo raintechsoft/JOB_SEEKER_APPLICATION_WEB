@@ -1,28 +1,46 @@
 "use client";
 import Link from "next/link";
+import {useRef} from "react";
 import {useLivePublicFeed} from "@/hooks/use-live-feed";
 import {useRouter} from "next/navigation";
-import {Icon} from "@/components/ui/icon";
+import {useDismissableDetails} from "@/hooks/use-dismissable";
+import {Icon, type IconName} from "@/components/ui/icon";
 import {useQuery} from "@tanstack/react-query";
 import {useServices} from "@/hooks/use-services";
 import {useHydrated} from "@/hooks/use-hydrated";
 import {FeedSkeleton,CardSkeleton,LoadingRegion} from "@/components/ui/skeleton";
 import {PublicGuestColumn,PublicJobsRail} from "./public-feed-columns";
 import {NewPostsButton} from "@/features/feed/feed-parts";
-import {LinkButton} from "@/components/ui/primitives";
+import {Button, LinkButton} from "@/components/ui/primitives";
+import {useBrowseSession} from "./public-account-actions";
+import {authDestination} from "@/features/auth/auth-navigation";
 import {PublicEmpty,PublicFailure,PublicInvalid} from "./public-feedback";
 import {PublicEntryCard} from "./public-entry-card";
 import {readPublicFeed,readPublicEntry,PUBLIC_QUERY_OPTIONS,type PublicRouteInput} from "./public-routing";
 import type {PublicFeedQuery} from "@/lib/validation/public-browsing";
 
 const tabs=[['all','All'],['posts','Posts'],['jobs','Jobs'],['updates','Work updates']] as const;
+const filterIcon=(value:(typeof tabs)[number][0]):IconName=>value==="jobs"?"briefcase":value==="updates"?"pulse":"spark";
+function PublicFeedToolbar({filter,jobs}:{filter:(typeof tabs)[number][0];jobs:boolean}){
+  const router=useRouter(),menu=useRef<HTMLDetailsElement>(null);
+  useDismissableDetails(menu,{closeOnAction:true});
+  const select=(value:(typeof tabs)[number][0])=>router.push(value==="all"?"/":value==="jobs"&&jobs?"/jobs":`/?filter=${value}`);
+  return <div className="feed-toolbar">
+    <div className="feed-filter-tabs" role="tablist" aria-label="Feed filters">{tabs.map(([value,label])=><button type="button" key={value} role="tab" aria-selected={filter===value} className={filter===value?"active":""} onClick={()=>select(value)}>{value==="jobs"&&<Icon name="briefcase"/>}{label}</button>)}</div>
+    <span className="public-feed-sort"><Icon name="clock"/>Latest first</span>
+    <details ref={menu} className={"feed-filter-menu"+(filter!=="all"?" has-filter":"")}>
+      <summary className="iconbtn" aria-label="Feed filters"><Icon name="more"/></summary>
+      <div className="feed-filter-list" role="group" aria-label="Feed filters">{tabs.map(([value,label])=><Button key={value} variant="text sm" icon={filterIcon(value)} aria-pressed={filter===value} className={filter===value?"active":undefined} onClick={()=>select(value)}>{label}</Button>)}</div>
+    </details>
+  </div>;
+}
 /** Same three-column geometry and toolbar as the signed-in feed. */
 export function PublicFeedScreen({input,jobs=false}:{input:PublicRouteInput;jobs?:boolean}){
-  const router=useRouter(),parsed=readPublicFeed(jobs?{...input,filter:input.filter??"jobs"}:input);
+  const parsed=readPublicFeed(jobs?{...input,filter:input.filter??"jobs"}:input);
   const filter=parsed.success?parsed.data.filter:"all";
   return <div className="professional-feed-layout public-feed-layout"><PublicGuestColumn/><section className="feed-timeline" aria-label={jobs?"Open opportunities":"Public community feed"}>
     <h1 className="sr-only">{jobs?"Open opportunities":"Community feed"}</h1>
-    <div className="feed-toolbar"><div role="tablist" aria-label="Feed filters">{tabs.map(([value,label])=><button type="button" key={value} role="tab" aria-selected={filter===value} className={filter===value?"active":""} onClick={()=>router.push(value==='all'?'/':value==='jobs'&&jobs?'/jobs':`/?filter=${value}`)}>{value==="jobs"&&<Icon name="briefcase"/>}{label}</button>)}</div><span className="public-feed-sort"><Icon name="clock"/>Latest first</span></div>
+    <PublicFeedToolbar filter={filter} jobs={jobs}/>
     {!parsed.success||jobs&&parsed.data.filter!=="jobs"?<PublicInvalid title="These filters aren’t valid" reset={jobs?"/jobs":"/"}/>:<PublicFeedResults key={JSON.stringify(parsed.data)} query={parsed.data}/>}
   </section><PublicJobsRail/></div>;
 }
@@ -48,7 +66,13 @@ function PublicFeedEmpty({filter}:{filter:PublicFeedQuery["filter"]}){
 }
 export function PublicEntryScreen({id,input}:{id:string;input:PublicRouteInput}){
   const values=readPublicEntry(id,input);
-  return <div className="professional-feed-layout public-feed-layout"><PublicGuestColumn/><section className="feed-timeline" aria-label="Public post"><Link href="/" className="public-back-link">Back to feed</Link>{values?<PublicEntryResult key={id} id={values.id} focus={values.comments.focus}/>:<PublicInvalid title="This post link isn’t valid" message="Check the link, or head back to the feed to keep browsing." resetLabel="Back to feed"/>}</section><PublicJobsRail/></div>;
+  return <div className="professional-feed-layout public-feed-layout"><PublicGuestColumn/><section className="feed-timeline" aria-label="Public post"><div className="public-entry-toolbar"><Link href="/" className="public-back-link">Back to feed</Link>{values?<PublicEntryWorkspaceLink id={values.id}/>:null}</div>{values?<PublicEntryResult key={id} id={values.id} focus={values.comments.focus}/>:<PublicInvalid title="This post link isn’t valid" message="Check the link, or head back to the feed to keep browsing." resetLabel="Back to feed"/>}</section><PublicJobsRail/></div>;
+}
+/** A verified, signed-in viewer opens the same entry highlighted inside their own workspace feed. */
+function PublicEntryWorkspaceLink({id}:{id:string}){
+  const session=useBrowseSession();
+  if(!session||!session.user.email_verified)return null;
+  return <LinkButton href={`${authDestination(session)}?post=${encodeURIComponent(id)}`} variant="primary sm" icon="external">Open in your workspace</LinkButton>;
 }
 export function PublicEntryResult({id,focus,compact}:{id:string;focus?:string;compact?:boolean}){
   const {publicBrowsing}=useServices(),hydrated=useHydrated();

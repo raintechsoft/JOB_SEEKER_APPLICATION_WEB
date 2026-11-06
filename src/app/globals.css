@@ -14,6 +14,7 @@
 @import "../styles/state-panel.css";
 @import "../styles/header-frame.css";
 @import "../styles/post-media.css";
+@import "../styles/post-crop.css";
 @import "../styles/profile-editor.css";
 @import "../styles/info-badge.css";
 @import "../styles/profile-photo.css";
@@ -22,6 +23,8 @@
 @import "../styles/comment-actions.css";
 @import "../styles/people-search.css";
 @import "../styles/post-share.css";
+@import "../styles/shared-entry-card.css";
+@import "../styles/feed-reposts.css";
 @import "../styles/link-preview.css";
 @import "../styles/activity-heatmap.css";
 @import "../styles/job-details-sheet.css";

@@ -13,9 +13,13 @@ body.professional-theme .public-browse .mobile-workspace-search {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
   font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
+}
+@media (max-width: 850px) {
+  body.professional-theme .feed-toolbar .public-feed-sort { margin-left: 0; }
 }
 .public-feed-sort .icon {
   width: 15px;
@@ -103,12 +107,22 @@ body.professional-theme .public-browse .mobile-workspace-search {
 .public-guest-footer a {
   color: var(--muted);
 }
-.public-jobs-rail .rail-manage-alerts {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
+.public-jobs-rail .rail-job-list > .loading-region {
+  padding: 0 19px 8px;
 }
+.public-jobs-rail .rail-manage-alerts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 19px 16px;
+  text-align: center;
+  text-decoration: none;
+}
+.public-entry-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.public-entry-toolbar .public-back-link { margin-bottom: 0; }
 .public-back-link {
   display: inline-block;
   margin-bottom: 16px;

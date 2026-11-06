@@ -401,3 +401,10 @@ body.professional-theme .floating-chat-widget .message-composer > textarea:focus
     margin-bottom: 0;
   }
 }
+
+.floating-chat-history .message-entry-body > p a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}

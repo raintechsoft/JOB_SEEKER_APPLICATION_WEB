@@ -4,12 +4,15 @@ body.professional-theme .feed-action-icon {color:#667085;fill:none!important;str
 .feed-action-icon .feed-icon-surface {fill:#D5E7FC;stroke:none;}
 .feed-action-icon .feed-action-stroke {fill:none;stroke:currentColor;stroke-width:2.05;stroke-linecap:round;stroke-linejoin:round;}
 body.professional-theme .feed-post-actions>.is-liked>.feed-action-icon,
+body.professional-theme .feed-post-actions>.is-reposted>.feed-action-icon,
 body.professional-theme .feed-post-actions>[aria-expanded="true"]>.feed-action-icon,
 body.professional-theme .feed-post-actions>.is-sharing>.feed-action-icon {color:#202A36;}
 body.professional-theme .feed-post-actions>.is-liked,
+body.professional-theme .feed-post-actions>.is-reposted,
 body.professional-theme .feed-post-actions>[aria-expanded="true"],
 body.professional-theme .feed-post-actions>.is-sharing {color:#202A36;}
 body.professional-theme .feed-post-actions>.is-liked>.feed-action-icon .feed-action-stroke,
+body.professional-theme .feed-post-actions>.is-reposted>.feed-action-icon .feed-action-stroke,
 body.professional-theme .feed-post-actions>[aria-expanded="true"]>.feed-action-icon .feed-action-stroke,
 body.professional-theme .feed-post-actions>.is-sharing>.feed-action-icon .feed-action-stroke {stroke-width:2.65;}
 body.professional-theme .feed-post-actions>.is-saved>.feed-action-icon,

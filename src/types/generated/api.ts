@@ -1792,6 +1792,42 @@ export interface paths {
         patch: operations["phase5_patch__me_social_identity_entries_item_kind_"];
         trace?: never;
     };
+    "/me/social/{identity}/entries/{item}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Share an accessible entry with the selected identity’s current followers. Each recipient receives a direct message from the sender carrying the entry link; recipients must follow the sender, and blocked or unavailable contacts are reported in failed instead of aborting the batch. Sharing never broadens entry visibility. */
+        post: operations["phase5_post__me_social_identity_entries_item_shares"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/social/{identity}/entries/{item}/reposts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description People who reposted the original behind this entry (any id in the chain resolves to the original), newest first, limited to reposters the viewer may see. Counting policy: one active repost per person per original; nested reposts never count twice. */
+        get: operations["phase5_get__me_social_identity_entries_item_reposts"];
+        put?: never;
+        /** @description Create the selected identity's independent repost of the original behind this entry, optionally with commentary. Reposting a repost keeps it as parent and the same root. Idempotent per person and original: repeating returns the existing repost; new commentary updates only the person's own repost. Never modifies the original or anyone else's repost. */
+        post: operations["phase5_post__me_social_identity_entries_item_reposts"];
+        /** @description Remove only the selected identity's own repost of the original behind this entry (soft delete; reposts of it keep a tombstoned parent). The original and other people's reposts are untouched. */
+        delete: operations["phase5_delete__me_social_identity_entries_item_reposts"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/social/{identity}/entries/{item}/comments": {
         parameters: {
             query?: never;
@@ -5207,6 +5243,11 @@ export interface components {
             previewDismissedUrls?: string[];
             /** @description When false, viewers cannot add comments or replies on the published post. */
             commentsEnabled?: boolean;
+            /**
+             * @description Aspect ratio shared by every carousel slide (chosen in the crop editor). Omit or null to keep the per-slide frame.
+             * @enum {string|null}
+             */
+            mediaAspect?: "original" | "1:1" | "4:5" | "3:4" | "1.91:1" | null;
             quickJob?: components["schemas"]["QuickJobPost"];
         };
         QuickJobPost: {
@@ -5232,6 +5273,11 @@ export interface components {
             previewUrl?: string | "";
             /** @description When false, viewers cannot add comments or replies on this post. */
             commentsEnabled?: boolean;
+            /**
+             * @description Aspect ratio shared by every carousel slide (chosen in the crop editor). Omit or null to keep the per-slide frame.
+             * @enum {string|null}
+             */
+            mediaAspect?: "original" | "1:1" | "4:5" | "3:4" | "1.91:1" | null;
             quickJob?: components["schemas"]["QuickJobPost"];
         };
         SocialComment: {
@@ -5322,10 +5368,32 @@ export interface components {
             commentCount: number;
             /** @description False when the author disabled comments on this post. Jobs and work updates remain true. */
             commentsEnabled: boolean;
+            /**
+             * @description Aspect ratio the whole carousel frame uses; null for posts without a chosen ratio.
+             * @enum {string|null}
+             */
+            mediaAspect?: "original" | "1:1" | "4:5" | "3:4" | "1.91:1" | null;
+            /** @description Present on a repost entry: the reposter, time, optional commentary, the reposted repost (parentId) and the chain up to the original. Original entries carry null. */
             repost?: {
-                author: components["schemas"]["SocialPerson"];
+                /** Format: uuid */
+                id: string;
+                author: components["schemas"]["SocialPerson"] | null;
                 createdAt: string;
+                commentary: string | null;
+                removed: boolean;
+                parentId: string | null;
+                chain: components["schemas"]["RepostSummary"][];
             } | null;
+            /**
+             * Format: uuid
+             * @description Repost entries: the original entry's id.
+             */
+            rootId?: string;
+            /**
+             * Format: uuid
+             * @description Repost entries: the entry likes and comments attach to (the original for a plain repost, the repost itself when it carries commentary).
+             */
+            interactionId?: string;
             linkPreview?: components["schemas"]["LinkPreview"];
             recommendationReason?: string;
             analyticsContext?: components["schemas"]["AnalyticsContext"];
@@ -5366,6 +5434,10 @@ export interface components {
                 following: boolean;
             }[];
             companies: components["schemas"]["HiringCompany"][];
+        };
+        SocialShareResult: {
+            shared: string[];
+            failed: string[];
         };
         SocialActivity: {
             posts: components["schemas"]["SocialEntry"][];
@@ -5463,6 +5535,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             text: string;
+            /** @description Shared feed entry card; absent on client-side pending messages. */
+            entry?: components["schemas"]["SharedEntryCard"] | null;
             /** @enum {string} */
             sender: "professional" | "recruiter";
             own: boolean;
@@ -5472,6 +5546,32 @@ export interface components {
             deliveredAt: string | null;
             seenAt: string | null;
             attachments: components["schemas"]["MessageAttachment"][];
+        };
+        /** @description Feed-card preview of an entry shared inside a direct message, resolved for the viewer at read time: author header (name, headline, date), title, body and the first image or video. available=false means the entry is deleted, hidden or no longer visible to this viewer; the other fields are then empty. */
+        SharedEntryCard: {
+            /** Format: uuid */
+            id: string;
+            available: boolean;
+            type: ("post" | "update" | "job") | null;
+            title: string;
+            excerpt: string;
+            /** @description Post body or description with paragraph breaks, capped for the card. */
+            body: string;
+            publishedAt: string | null;
+            authorName: string;
+            /** @description Author headline or job title; company industry for jobs. */
+            authorHeadline: string;
+            authorPicture: string;
+            image: string;
+            imageAlt: string;
+            /** @description First image or video of the post, if any. */
+            media: {
+                /** @enum {string} */
+                type: "image" | "video";
+                src: string;
+                alt: string;
+            } | null;
+            mediaAspect: ("original" | "1:1" | "4:5" | "3:4" | "1.91:1") | null;
         };
         ConversationFlags: {
             starred: boolean;
@@ -6095,6 +6195,28 @@ export interface components {
         /** @description Career journey data (memories, colleagues, timeline). Detailed schema: to be completed by the API owner. */
         CareerJourneyData: {
             [key: string]: unknown;
+        };
+        /** @description One person's repost. `removed` marks a soft-deleted repost kept as a tombstone in a chain: its commentary is withheld. */
+        RepostSummary: {
+            /** Format: uuid */
+            id: string;
+            author: components["schemas"]["SocialPerson"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            commentary: string | null;
+            removed: boolean;
+        };
+        RepostListing: {
+            items: {
+                /** Format: uuid */
+                id: string;
+                author: components["schemas"]["SocialPerson"];
+                /** Format: date-time */
+                createdAt: string;
+                commentary: string | null;
+                own: boolean;
+            }[];
+            total: number;
         };
     };
     responses: {
@@ -10018,6 +10140,149 @@ export interface operations {
                     "application/json": {
                         data: {
                             enabled: boolean;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_post__me_social_identity_entries_item_shares: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Person ids from the identity's current followers (SocialNetwork.followers). */
+                    recipientIds: string[];
+                    /**
+                     * Format: uuid
+                     * @description Client-generated retry key; the same key never sends a recipient the entry twice.
+                     */
+                    shareKey: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SocialShareResult"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_get__me_social_identity_entries_item_reposts: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RepostListing"];
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_post__me_social_identity_entries_item_reposts: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    commentary: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            rootId: string;
+                            enabled: boolean;
+                        };
+                    };
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    phase5_delete__me_social_identity_entries_item_reposts: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional observed-account consistency check. A mismatched authenticated account returns 412; this header never grants access. */
+                "X-Skillora-User"?: components["parameters"]["ActorContext"];
+            };
+            path: {
+                identity: string;
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            enabled: boolean;
+                            removed: boolean;
                         };
                     };
                 };

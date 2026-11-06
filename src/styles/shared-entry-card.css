@@ -1,0 +1,89 @@
+/* Feed entry shared inside a message, laid out like the feed card (inbox + floating chat). */
+/* Message bubbles are width: fit-content, so the card declares its own width and the bubble grows to it. */
+.shared-feed-post-link { display: block; width: 440px; max-width: 100%; margin: 8px 0 2px; color: inherit; text-decoration: none; }
+.shared-feed-post-link:hover { text-decoration: none; }
+.shared-feed-post-link:focus-visible { outline: 2px solid #315ef4; outline-offset: 3px; border-radius: 14px; }
+body.professional-theme .shared-feed-post-link .card.feed-post.shared-feed-post {
+  margin: 0;
+  padding: 14px 16px 12px;
+  border: 1px solid #dde3ea;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: none;
+  cursor: pointer;
+  transition: border-color .12s ease, background-color .12s ease;
+}
+.shared-feed-post-link:hover .shared-feed-post { border-color: #c7d2e0; background: #fbfcfe; }
+.shared-feed-post .feed-post-header { margin: 0; padding: 0; }
+.shared-feed-post .feed-post-header .row { display: flex; align-items: center; gap: 12px; }
+.shared-feed-post .feed-post-header .grow { min-width: 0; }
+body.professional-theme .shared-feed-post .feed-post-header h2 { margin: 0; font-size: 15px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.professional-theme .shared-feed-post .feed-post-header .feed-post-byline { margin: 1px 0 0; font-size: 13px; color: #626b76; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.professional-theme .shared-feed-post .feed-post-header .feed-post-meta { margin: 1px 0 0; font-size: 12px; color: #7b8491; line-height: 1.3; }
+.shared-feed-post .feed-post-body { margin: 10px 0 0; padding: 0; }
+body.professional-theme .shared-feed-post .feed-post-body h3 { margin: 0 0 3px; font-size: 14px; line-height: 1.35; }
+body.professional-theme .shared-feed-post .feed-post-body > p.shared-feed-post-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #202a36;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.shared-feed-post-media {
+  position: relative;
+  width: 100%;
+  margin: 12px 0 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #eef2f7;
+  max-height: 420px;
+}
+.shared-feed-post-media img, .shared-feed-post-media video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.shared-feed-post-media[style*="auto"] img, .shared-feed-post-media[style*="auto"] video { height: auto; max-height: 420px; }
+.shared-feed-post-play {
+  position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px;
+  display: grid; place-items: center; border-radius: 50%; background: #202a36cc; color: #fff; pointer-events: none;
+}
+.shared-feed-post-play .icon { width: 20px; height: 20px; }
+.shared-feed-post-footer { margin-top: 10px; display: flex; justify-content: flex-end; }
+.shared-entry-cta { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 650; color: #315ef4; }
+.shared-entry-cta .icon { width: 14px; height: 14px; }
+
+/* Unavailable entry: neutral placeholder, never the old content. */
+.shared-entry-card.is-unavailable {
+  display: flex; gap: 0; margin: 8px 0 2px; max-width: 440px;
+  border: 1px solid #dde3ea; border-radius: 12px; background: #f8fafc; color: #6a7482; overflow: hidden;
+}
+.shared-entry-card.is-unavailable .shared-entry-thumb { flex: 0 0 56px; min-height: 64px; display: grid; place-items: center; background: #eef2f7; color: #8b95a1; border-right: 1px solid #e6ebf1; }
+.shared-entry-card.is-unavailable .shared-entry-thumb .icon { width: 22px; height: 22px; }
+.shared-entry-card.is-unavailable .shared-entry-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 10px 14px; }
+.shared-entry-card.is-unavailable strong { font-size: 13px; }
+.shared-entry-card.is-unavailable .shared-entry-excerpt { font-size: 12px; line-height: 1.45; }
+
+.message-entry.is-own .shared-feed-post { background: #fff; }
+.floating-chat-history .shared-feed-post-link { max-width: 100%; }
+.floating-chat-history .shared-feed-post-media { max-height: 260px; }
+body.professional-theme .floating-chat-history .shared-feed-post .feed-post-body > p.shared-feed-post-text { -webkit-line-clamp: 4; }
+
+/* Narrow cards (phones, 55%-wide bubbles): tighter type, fewer caption lines, shorter media. */
+/* Container width is the card content box (desktop card: ~360px), so this targets genuinely narrow bubbles. */
+@container feed-post (max-width: 330px) {
+  body.professional-theme .shared-feed-post .feed-post-body > p.shared-feed-post-text { font-size: 11px; -webkit-line-clamp: 3; line-height: 1.45; }
+  body.professional-theme .shared-feed-post .feed-post-body h3 { font-size: 13px; }
+  body.professional-theme .shared-feed-post .feed-post-header h2 { font-size: 14px; }
+  body.professional-theme .shared-feed-post .feed-post-header .feed-post-byline { font-size: 12px; }
+  body.professional-theme .shared-feed-post .feed-post-header .feed-post-meta { font-size: 11px; }
+  .shared-feed-post-media { max-height: 260px; }
+}
+@media (max-width: 680px) {
+  /* A 55%-wide bubble is too narrow for a feed card on phones; let the card take the row. */
+  body.messaging-page .message-entry:has(.shared-feed-post) { max-width: 92%; }
+  body.professional-theme .shared-feed-post .feed-post-body > p.shared-feed-post-text { font-size: 11px; -webkit-line-clamp: 3; }
+  body.professional-theme .shared-feed-post-link .card.feed-post.shared-feed-post { padding: 10px 12px 10px; }
+  .shared-feed-post-media { max-height: 240px; }
+}

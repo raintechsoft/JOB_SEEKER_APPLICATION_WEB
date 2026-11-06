@@ -7,7 +7,7 @@ import jobRules from "../../../contracts/validation/job-v2.json";
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Id } from "@/types/domain";
 import type { ManagedJob } from "@/services/recruiting/recruiting.service";
@@ -307,13 +307,18 @@ function JobMenu({ job }: { job: ManagedJob }) {
   );
 }
 
-function JobCard({ job, selected, onSelect }: { job: ManagedJob; selected: boolean; onSelect: (checked: boolean) => void }) {
+function JobCard({ job, selected, onSelect, highlighted = false }: { job: ManagedJob; selected: boolean; onSelect: (checked: boolean) => void; highlighted?: boolean }) {
   const run = useServiceAction();
   const router = useRouter();
   const link = BASE + "?job=" + job.id;
   const edit = () => router.push("/recruiter/jobs/new?id=" + encodeURIComponent(job.id));
+  const card = useRef<HTMLElement>(null);
+  // Opened from a feed card's "Manage job": bring the job into view once.
+  useEffect(() => {
+    if (highlighted) card.current?.scrollIntoView?.({ block: "center" });
+  }, [highlighted]);
   return (
-    <article className="card managed-job-card" data-job-id={job.id}>
+    <article ref={card} className={"card managed-job-card" + (highlighted ? " is-highlighted" : "")} data-job-id={job.id} aria-current={highlighted || undefined}>
       <label className="job-row-select">
         <input type="checkbox" checked={selected} onChange={(e) => onSelect(e.target.checked)} aria-label={"Select " + job.title} />
       </label>
@@ -534,6 +539,8 @@ export function JobsManagerScreen() {
   const { selected } = useUiStore((s) => s.jobsManager);
   const setJobsManager = useUiStore((s) => s.setJobsManager);
   const drafts = params.get("tab") === "drafts";
+  // ?job=<id> (feed card → Manage job): highlight that job; pin it on top when the page or filters hide it.
+  const focusId = params.get("job") || "";
   const size = [10, 20, 40, 60].includes(Number(params.get("size"))) ? Number(params.get("size")) : 10;
   const sortParam = params.get("sort") || "newest";
   const sort = (["newest", "oldest", "responses", "active", "expired"].includes(sortParam) ? sortParam : "newest") as "newest" | "oldest" | "responses" | "active" | "expired";
@@ -542,6 +549,12 @@ export function JobsManagerScreen() {
   const filtered = !!(query.q || query.statuses.length || query.categories.length || query.location || query.days);
   const filterCount = (query.q ? 1 : 0) + query.statuses.length + query.categories.length + (query.location ? 1 : 0) + (query.days ? 1 : 0);
   const visible = m?.items ?? [];
+  const focused = useHiringQuery(["jobs-manager", "focus", focusId], (s, scope) => s.recruiting.getManagedJob(focusId, scope), { enabled: !!focusId });
+  const pinned = focusId && focused.data && !visible.some((j) => j.id === focusId) ? focused.data : null;
+  // Same manager view without the focus (the url helper targets the responses pages).
+  const allJobsParams = new URLSearchParams(params);
+  allJobsParams.delete("job");
+  const allJobsHref = "/recruiter/jobs" + (allJobsParams.size ? "?" + allJobsParams.toString() : "");
   const allSelected = visible.length > 0 && visible.every((j) => selected.includes(j.id));
   const toggle = (id: Id, checked: boolean) => setJobsManager({ selected: checked ? [...new Set([...selected, id])] : selected.filter((x) => x !== id) });
   const selectedJobs = async () => (await Promise.all(selected.map((id) => services.recruiting.getManagedJob(id)))).filter((j): j is ManagedJob => !!j);
@@ -605,10 +618,17 @@ export function JobsManagerScreen() {
           </div>
           <div className="managed-jobs-list">
           <QueryFeedback data={m} error={isError} cause={error} retry={refetch} label="Loading managed jobs" />
+            {m && focusId && (pinned || visible.some((j) => j.id === focusId)) && (
+              <p className="managed-jobs-focus-note" role="status">
+                Showing the job you opened.
+                <Link href={allJobsHref}>Show all jobs</Link>
+              </p>
+            )}
+            {m && pinned && <JobCard key={"pinned-" + pinned.id} job={pinned} highlighted selected={selected.includes(pinned.id)} onSelect={(c) => toggle(pinned.id, c)} />}
             {m &&
               (visible.length ? (
-                visible.map((j) => <JobCard key={j.id} job={j} selected={selected.includes(j.id)} onSelect={(c) => toggle(j.id, c)} />)
-              ) : (
+                visible.map((j) => <JobCard key={j.id} job={j} highlighted={j.id === focusId} selected={selected.includes(j.id)} onSelect={(c) => toggle(j.id, c)} />)
+              ) : pinned ? null : (
                 <div className="card">
                   {filtered ? (
                     <EmptyState

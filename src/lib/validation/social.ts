@@ -10,6 +10,10 @@ import {
 } from "./profile";
 import { linkPreviewContract, previewUrlInBody } from "./link-preview";
 
+/** One ratio for the whole post carousel; null keeps the per-slide frame of older posts. */
+export const POST_MEDIA_ASPECTS = contract.mediaAspects as [string, ...string[]];
+const mediaAspectSchema = z.enum(POST_MEDIA_ASPECTS).nullable().optional();
+
 const text = (max: number) =>
   z
     .string()
@@ -75,6 +79,8 @@ export const postTextSchema = z.object({
   title: text(contract.titleMax),
   body: text(contract.bodyMax),
 });
+/** Optional thoughts on a repost; empty means a plain repost. */
+export const repostCommentarySchema = text(contract.repostCommentaryMax);
 export const commentSchema = text(contract.commentMax).min(
   1,
   "Write a comment.",
@@ -165,6 +171,7 @@ export const postDraftValuesSchema = z
     step: z.number().int().min(0).max(2),
     reached: z.number().int().min(0).max(2),
     commentsEnabled: z.boolean().default(true),
+    mediaAspect: mediaAspectSchema,
     quickJob: quickJobDraftSchema.optional(),
   })
   .superRefine((v, ctx) => {
@@ -203,6 +210,7 @@ const publicationSchema = (attachment: ReturnType<typeof mediaSchema>) =>
         ),
       previewUrl: text(linkPreviewContract.urlMax).optional(),
       commentsEnabled: z.boolean().default(true),
+      mediaAspect: mediaAspectSchema,
       quickJob: quickJobPublishSchema.optional(),
     })
     .superRefine((v, ctx) => {

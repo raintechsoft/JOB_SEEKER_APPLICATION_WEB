@@ -138,6 +138,8 @@ export interface Post {
   kind: string;
   visibility?: Visibility;
   commentsEnabled?: boolean;
+  /** Carousel frame ratio chosen at publish; null/absent keeps the per-slide frame. */
+  mediaAspect?: string | null;
   /** When set, the feed card keeps post chrome and Apply targets this job. */
   linkedJobId?: Id;
 }
@@ -275,6 +277,18 @@ export interface JobAlert {
   enabled: boolean;
 }
 
+export interface DemoRepost {
+  id: Id;
+  /** The original entry (post or work update). */
+  rootId: Id;
+  /** The repost that was reposted, when a repost was reposted. */
+  parentId: Id | null;
+  commentary: string | null;
+  createdAt: IsoDateTime;
+  /** Soft-deleted reposts stay as tombstones for chains that reference them. */
+  deletedAt?: IsoDateTime;
+}
+
 export interface SocialGraph {
   blocked?: Id[];
   /** Blocked public organizations (demo mode). */
@@ -282,7 +296,10 @@ export interface SocialGraph {
   /** "Not interested" items (demo mode). */
   hidden?: Id[];
   commentReports?: {commentId:Id;reason:string;details:string;createdAt:string}[];
+  /** Legacy demo field; superseded by `reposts`. */
   repostDates?: Record<Id, IsoDateTime>;
+  /** Independent reposts by this identity (demo twin of the API's reposts table). */
+  reposts?: DemoRepost[];
   following: Id[];
   followingCompanies: Id[];
   liked: Id[];
@@ -318,6 +335,27 @@ export interface MessageAttachment {
 
 export type MessageStatus = "sent" | "delivered" | "seen";
 
+/** Feed-card preview of an entry shared in a message; fields are empty when it is unavailable. */
+export interface SharedEntryCard {
+  id: Id;
+  available: boolean;
+  type: "post" | "update" | "job" | null;
+  title: string;
+  excerpt: string;
+  /** Body or description with paragraph breaks, capped for the card. */
+  body: string;
+  publishedAt: IsoDateTime | null;
+  authorName: string;
+  /** Headline or job title; company industry for jobs. */
+  authorHeadline: string;
+  authorPicture: string;
+  image: string;
+  imageAlt: string;
+  /** First image or video of the post. */
+  media: { type: "image" | "video"; src: string; alt: string } | null;
+  mediaAspect: string | null;
+}
+
 export interface Message {
   own?: boolean;
   senderId?: Id;
@@ -330,6 +368,10 @@ export interface Message {
   deliveredAt?: IsoDateTime | null;
   seenAt?: IsoDateTime | null;
   attachments?: MessageAttachment[];
+  /** Shared feed entry card, resolved for the viewer; absent on pending client messages. */
+  entry?: SharedEntryCard | null;
+  /** Demo data only: the feed entry a share message carries. */
+  sharedEntryId?: Id;
 }
 
 export interface Conversation {
@@ -720,6 +762,8 @@ export interface PostDraft {
   previewDismissedUrls?: string[];
   /** When false, the published post rejects new comments and replies. */
   commentsEnabled?: boolean;
+  /** Aspect ratio applied to every media item (crop editor); persisted with the post. */
+  mediaAspect?: string | null;
   /** Recruiter-only: publish a linked hiring job with this social post. */
   quickJob?: QuickJobPost;
   step: number;

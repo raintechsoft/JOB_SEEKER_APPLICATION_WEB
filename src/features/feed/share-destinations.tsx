@@ -9,7 +9,7 @@ import {PUBLIC_QUERY_OPTIONS,publicShareUrl} from "@/features/public-browsing/pu
 import type { Id, Role } from "@/types/domain";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { Icon } from "@/components/ui/icon";
-import { postShareUrl } from "./share-links";
+import { externalSharePayload, postShareUrl } from "./share-links";
 
 export function ShareDestinations({ role, postId }: { role: Role; postId: Id }) {
   const hydrated = useHydrated();
@@ -45,7 +45,7 @@ export function ShareDestinations({ role, postId }: { role: Role; postId: Id }) 
     shareLock.current = true; setSharing(true);
     try {
       // Call during the original click; awaiting a request first loses browser user activation.
-      await navigator.share({ title: "Post on Skillora", url });
+      await navigator.share(externalSharePayload(publicEntry.data ?? null, url));
       // Opening a composer is not confirmation that the user sent or published anything.
     } catch (error) {
       if (!(error && typeof error === "object" && "name" in error && error.name === "AbortError")) setMessage("System sharing couldn’t open. Copy the link instead.");

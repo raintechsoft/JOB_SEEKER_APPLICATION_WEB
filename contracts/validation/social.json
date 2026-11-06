@@ -2,6 +2,7 @@
   "titleMax": 150,
   "bodyMax": 3000,
   "commentMax": 1000,
+  "repostCommentaryMax": 1000,
   "mediaMax": 200,
   "imageBytesMax": 104857600,
   "totalImageBytesMax": 2147483648,
@@ -23,5 +24,12 @@
   ],
   "pageMax": 40,
   "shareFollowersMax": 50,
-  "searchMax": 200
+  "searchMax": 200,
+  "mediaAspects": [
+    "original",
+    "1:1",
+    "4:5",
+    "3:4",
+    "1.91:1"
+  ]
 }

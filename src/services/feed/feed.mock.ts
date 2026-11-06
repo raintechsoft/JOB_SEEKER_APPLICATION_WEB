@@ -1,12 +1,12 @@
 import type { Draft } from "immer";
-import type { DemoDatabase, Id, Job, Post, Role, SocialGraph, WorkUpdate } from "@/types/domain";
+import type { DemoDatabase, DemoRepost, Id, Job, Post, Role, SocialGraph, WorkUpdate } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
 import { companySummary, feedPerson, jobCompany, personSummary, projectSummary } from "@/mocks/store/presenters";
 import { currentRecruiter, homeCompany, isJobOpen, me, ME_ID, person, RECRUITER_ID, socialFor } from "@/mocks/store/selectors";
 import { uid } from "@/lib/utils/id";
 import type { FeedEntry, FeedQuery, FeedService, Network } from "./feed.service";
 import { reportSchema } from "@/lib/validation/communication";
-import { peopleSearchSchema } from "@/lib/validation/social";
+import { peopleSearchSchema, repostCommentarySchema, shareFollowersSchema } from "@/lib/validation/social";
 import { activityCalendarContract, activityLevel, currentPeriod, daysInMonth, isoDate, periodKey, type ActivityType } from "@/lib/activity/activity-calendar";
 
 type RawItem = (Post & { type: "post" }) | (Job & { type: "job"; owner?: undefined }) | (WorkUpdate & { type: "update"; body: string; createdAt: string; likes: number; kind: string; media: ""; image: "" });
@@ -32,15 +32,73 @@ function sourceVisible(db: DemoDatabase, role: Role, item: RawItem) {
   return !blockedInMock(db, role, item.owner) && item.visibility !== "Private" && (item.owner === RECRUITER_ID || person(db, item.owner).public);
 }
 
-function networkRepost(db: DemoDatabase, role: Role, id: Id, preferOwn = true) {
-  const viewer = identityId(role), following = socialFor(db, role).following;
-  const actors: [Id, SocialGraph][] = [[ME_ID, db.social], [RECRUITER_ID, db.recruiterSocial]];
-  const reposts = actors.flatMap(([actor, graph]) => {
-    const createdAt = graph.repostDates?.[id];
-    if (!createdAt || actor !== viewer && (!following.includes(actor) || actor === ME_ID && !person(db, actor).public)) return [];
-    return [{ author: feedPerson(db, actor), createdAt }];
-  }).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.author.id.localeCompare(a.author.id));
-  return (preferOwn ? reposts.find(repost => repost.author.id === viewer) : undefined) ?? reposts[0] ?? null;
+/* ---- Independent reposts (demo twin of the API's reposts table) ---- */
+const ACTORS = (db: DemoDatabase): [Id, SocialGraph][] => [[ME_ID, db.social], [RECRUITER_ID, db.recruiterSocial]];
+const activeReposts = (graph: SocialGraph) => (graph.reposts ?? []).filter((r) => !r.deletedAt);
+function findRepost(db: DemoDatabase, id: Id): { actor: Id; repost: DemoRepost } | undefined {
+  for (const [actor, graph] of ACTORS(db)) {
+    const repost = (graph.reposts ?? []).find((r) => r.id === id);
+    if (repost) return { actor, repost };
+  }
+  return undefined;
+}
+/** The viewer's own reposts are always visible; others' when the reposter is visible and not blocked. */
+function reposterVisible(db: DemoDatabase, role: Role, actor: Id) {
+  if (actor === identityId(role)) return true;
+  if (actor === RECRUITER_ID) return !companyBlockedInMock(db, role, homeCompany(db).id);
+  return person(db, actor).public && !blockedInMock(db, role, actor);
+}
+function ownActiveRepost(db: DemoDatabase, role: Role, rootId: Id) {
+  return activeReposts(socialFor(db, role)).find((r) => r.rootId === rootId);
+}
+function repostChain(db: DemoDatabase, repost: DemoRepost) {
+  const chain = [];
+  let next = repost.parentId;
+  const seen = new Set<Id>();
+  while (next && !seen.has(next) && chain.length < 20) {
+    seen.add(next);
+    const found = findRepost(db, next);
+    if (!found) break;
+    chain.push({ id: found.repost.id, author: feedPerson(db, found.actor), createdAt: found.repost.createdAt, commentary: found.repost.deletedAt ? null : found.repost.commentary, removed: !!found.repost.deletedAt });
+    next = found.repost.parentId;
+  }
+  return chain;
+}
+/** A repost entry: the original's content and author, the repost's own id, time and attribution. */
+function repostEntry(db: DemoDatabase, role: Role, actor: Id, repost: DemoRepost, root: RawItem): FeedEntry {
+  const inner = toFeedEntry(db, role, root);
+  const s = socialFor(db, role);
+  const withThoughts = repost.commentary !== null;
+  return {
+    ...inner,
+    id: repost.id,
+    createdAt: repost.createdAt,
+    rootId: root.id,
+    interactionId: withThoughts ? repost.id : root.id,
+    repost: { id: repost.id, author: feedPerson(db, actor), createdAt: repost.createdAt, commentary: repost.commentary, removed: false, parentId: repost.parentId, chain: repostChain(db, repost) },
+    viewer: { ...inner.viewer, own: actor === identityId(role), ...(withThoughts ? { liked: s.liked.includes(repost.id) } : {}) },
+    ...(withThoughts ? { likes: 0, comments: [], commentCount: 0 } : {}),
+  };
+}
+/** Repost entries visible to the viewer whose original is among `roots`, subject to the feed filter. */
+function repostEntries(db: DemoDatabase, query: FeedQuery, roots: RawItem[]): FeedEntry[] {
+  if (query.filter === "jobs" || query.filter === "saved") return [];
+  const viewer = identityId(query.role), s = socialFor(db, query.role), byId = new Map(roots.map((r) => [r.id, r]));
+  const q = query.q.trim().toLowerCase();
+  const out: FeedEntry[] = [];
+  for (const [actor, graph] of ACTORS(db)) {
+    if (!reposterVisible(db, query.role, actor)) continue;
+    if (query.filter === "reposts" && actor !== viewer) continue;
+    if (query.filter === "following" && actor !== viewer && !s.following.includes(actor)) continue;
+    for (const repost of activeReposts(graph)) {
+      const root = byId.get(repost.rootId);
+      if (!root) continue;
+      if (q && !searchText(db, query.role, root).includes(q)) continue;
+      if (!q && ["all", "following"].includes(query.filter) && s.hidden?.includes(root.id)) continue;
+      out.push(repostEntry(db, query.role, actor, repost, root));
+    }
+  }
+  return out;
 }
 
 const updateAsItem = (u: WorkUpdate): RawItem => ({ ...u, body: u.description, type: "update", createdAt: u.date + "T09:00:00", likes: 0, kind: "Work update", media: "", image: "" });
@@ -93,7 +151,8 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
     comments,
     commentCount: comments.length,
     commentsEnabled: item.type === "post" ? item.commentsEnabled !== false : true,
-    repost: networkRepost(db, role, item.id),
+    mediaAspect: item.type === "post" ? item.mediaAspect ?? null : null,
+    repost: null,
     project: project ? projectSummary(project) : undefined,
   };
   if (item.type === "job") {
@@ -136,7 +195,7 @@ export function toFeedEntry(db: DemoDatabase, role: Role, item: RawItem): FeedEn
     attachments: item.type === "post" ? item.attachments : undefined,
     visibility: item.visibility,
     author: feedPerson(db, item.owner),
-    viewer: { liked: s.liked.includes(item.id), saved: s.saved.includes(item.id), following: s.following.includes(item.owner), own: item.owner === viewerId, reposted: !!s.repostDates?.[item.id], canRepost: item.owner === viewerId || item.visibility !== "Private" },
+    viewer: { liked: s.liked.includes(item.id), saved: s.saved.includes(item.id), following: s.following.includes(item.owner), own: item.owner === viewerId, reposted: !!ownActiveRepost(db, role, item.id), canRepost: item.owner === viewerId || item.visibility !== "Private" },
   };
   if (item.type === "post" && item.linkedJobId) {
     const job = db.social.jobs.find((j) => j.id === item.linkedJobId);
@@ -175,23 +234,24 @@ function filterItems(db: DemoDatabase, query: FeedQuery) {
   let list: RawItem[];
   if (query.role === "professional") {
     list = professionalItems(db);
-    if (query.filter !== "saved") list = list.filter((p) => p.type === "job" || p.owner === ME_ID || !!networkRepost(db, query.role, p.id) || p.owner === RECRUITER_ID || (s.following.includes(p.owner) && person(db, p.owner).public));
-    if (query.filter === "following") list = list.filter((p) => !!networkRepost(db, query.role, p.id) || (p.type === "job" ? s.followingCompanies.includes(p.company) : s.following.includes(p.owner)));
+    if (query.filter !== "saved") list = list.filter((p) => p.type === "job" || p.owner === ME_ID || p.owner === RECRUITER_ID || (s.following.includes(p.owner) && person(db, p.owner).public));
+    if (query.filter === "following") list = list.filter((p) => (p.type === "job" ? s.followingCompanies.includes(p.company) : s.following.includes(p.owner)));
     if (query.filter === "jobs") list = list.filter((p) => p.type === "job");
   } else {
     list = recruiterItems(db);
-    if (query.filter === "following") list = list.filter((p) => !!networkRepost(db, query.role, p.id) || (p.type === "job" ? s.followingCompanies.includes(p.company) : s.following.includes(p.owner)));
+    if (query.filter === "following") list = list.filter((p) => (p.type === "job" ? s.followingCompanies.includes(p.company) : s.following.includes(p.owner)));
     if (query.filter === "jobs") list = list.filter((p) => p.type === "job" && p.company === homeCompany(db).id);
   }
   list = list.filter(item => sourceVisible(db, query.role, item));
-  if (query.filter === "reposts") list = list.filter(item => !!s.repostDates?.[item.id]);
+  // Reposts are separate entries (see repostEntries); the Reposts view lists none of the originals.
+  if (query.filter === "reposts") list = [];
   if (query.filter === "saved") list = list.filter((p) => s.saved.includes(p.id));
   const q = query.q.trim().toLowerCase();
   if (q) list = list.filter((p) => searchText(db, query.role, p).includes(q));
   // "Not interested" items leave the main feeds; saved, reposts and searches still show them.
   else if (["all", "jobs", "following"].includes(query.filter)) list = list.filter((p) => !s.hidden?.includes(p.id));
   const score = (p: RawItem) => (p.likes || 0) + Number(s.liked.includes(p.id));
-  const time = (item: RawItem) => [item.createdAt, networkRepost(db, query.role, item.id, false)?.createdAt ?? ""].sort().at(-1)!;
+  const time = (item: RawItem) => item.createdAt;
   if (query.sort === "popular") list.sort((a, b) => score(b) - score(a));
   else if (query.sort === "recommended") {
     const rank = recommendation(db, query.role);
@@ -222,7 +282,12 @@ export const mockFeedService: FeedService = {
     const db = getDb();
     const list = filterItems(db, query);
     const rank = recommendation(db, query.role);
-    const ranked = list.map((item) => ({ ...toFeedEntry(db, query.role, item), ...(query.sort === "recommended" ? { recommendationReason: rank(item).reason } : {}) }));
+    const sources = (query.role === "professional" ? professionalItems(db) : recruiterItems(db)).filter((item) => sourceVisible(db, query.role, item));
+    const reposts = repostEntries(db, query, sources).map((entry) => ({ entry, item: sources.find((i) => i.id === entry.rootId)! }));
+    const merged = [...list.map((item) => ({ entry: toFeedEntry(db, query.role, item), item })), ...reposts];
+    const scoreOf = ({ entry, item }: { entry: FeedEntry; item: RawItem }) => query.sort === "popular" ? entry.likes + Number(entry.viewer.liked) : query.sort === "recommended" ? rank(item).score : 0;
+    merged.sort((a, b) => scoreOf(b) - scoreOf(a) || b.entry.createdAt.localeCompare(a.entry.createdAt) || b.entry.id.localeCompare(a.entry.id));
+    const ranked = merged.map(({ entry, item }) => ({ ...entry, ...(query.sort === "recommended" ? { recommendationReason: rank(item).reason } : {}) }));
     const offset = query.cursor && /^\d+$/.test(query.cursor) ? Number(query.cursor) : 0;
     const items = ranked.slice(offset, offset + query.limit);
     const nextCursor = offset + query.limit < ranked.length ? String(offset + query.limit) : null;
@@ -233,8 +298,13 @@ export const mockFeedService: FeedService = {
 
   async getEntry(role, id) {
     const db = getDb();
-    const item = (role === "professional" ? professionalItems(db) : recruiterItems(db)).find((p) => p.id === id && sourceVisible(db, role, p));
-    return item ? toFeedEntry(db, role, item) : null;
+    const sources = role === "professional" ? professionalItems(db) : recruiterItems(db);
+    const item = sources.find((p) => p.id === id && sourceVisible(db, role, p));
+    if (item) return toFeedEntry(db, role, item);
+    const found = findRepost(db, id);
+    if (!found || found.repost.deletedAt || !reposterVisible(db, role, found.actor)) return null;
+    const root = sources.find((p) => p.id === found.repost.rootId && sourceVisible(db, role, p));
+    return root ? repostEntry(db, role, found.actor, found.repost, root) : null;
   },
 
   async toggleLike(role, id, enabled) {
@@ -250,15 +320,52 @@ export const mockFeedService: FeedService = {
   },
 
   async setReposted(role, id, enabled) {
+    if (enabled) await mockFeedService.createRepost(role, id, null);
+    else await mockFeedService.removeRepost(role, id);
+    return enabled;
+  },
+
+  async createRepost(role, id, commentary) {
     const entry = await mockFeedService.getEntry(role, id);
-    if (!entry || enabled && !entry.viewer.canRepost) throw new Error("This post is not available for reposting.");
+    if (!entry || !entry.viewer.canRepost) throw new Error("This post is not available for reposting.");
+    const value = commentary === null ? null : repostCommentarySchema.parse(commentary) || null;
+    const rootId = entry.rootId ?? entry.id;
+    // Reposting someone else's repost keeps it as parent; your own repost counts as a direct repost.
+    const parentId = entry.repost && !entry.viewer.own ? entry.repost.id : null;
+    let result = { id: "", rootId };
     const persisted = commit((db) => {
-      const dates = graph(db, role).repostDates ??= {};
-      if (enabled) dates[id] ??= new Date().toISOString();
-      else delete dates[id];
+      const g = graph(db, role);
+      g.reposts ??= [];
+      const existing = g.reposts.find((r) => r.rootId === rootId && !r.deletedAt);
+      if (existing) {
+        if (value !== null && value !== existing.commentary) existing.commentary = value;
+        result = { id: existing.id, rootId };
+        return;
+      }
+      const repost: DemoRepost = { id: uid(), rootId, parentId, commentary: value, createdAt: new Date().toISOString() };
+      g.reposts.push(repost);
+      result = { id: repost.id, rootId };
     }, { rollbackOnFailure: true });
     if (!persisted) throw new Error("Your repost could not be saved. Please try again.");
-    return enabled;
+    return result;
+  },
+
+  async removeRepost(role, id) {
+    const db = getDb();
+    const rootId = findRepost(db, id)?.repost.rootId ?? id;
+    let removed = false;
+    commit((d) => {
+      const mine = (graph(d, role).reposts ?? []).find((r) => r.rootId === rootId && !r.deletedAt);
+      if (mine) { mine.deletedAt = new Date().toISOString(); removed = true; }
+    });
+    return removed;
+  },
+
+  async listReposts(role, id) {
+    const db = getDb();
+    const rootId = findRepost(db, id)?.repost.rootId ?? id;
+    const items = ACTORS(db).filter(([actor]) => reposterVisible(db, role, actor)).flatMap(([actor, graph]) => activeReposts(graph).filter((r) => r.rootId === rootId).map((r) => ({ id: r.id, author: feedPerson(db, actor), createdAt: r.createdAt, commentary: r.commentary, own: actor === identityId(role) }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return { items, total: items.length };
   },
 
   async setHidden(role, id, _type, hidden) {
@@ -407,6 +514,38 @@ export const mockFeedService: FeedService = {
     };
   },
 
+  async shareWithFollowers(role, id, recipientIds) {
+    const db = getDb();
+    const s = socialFor(db, role);
+    const self = identityId(role);
+    const targets = shareFollowersSchema.parse({ selectedIds: recipientIds }).selectedIds;
+    if (targets.some((target) => !s.followers.includes(target))) throw new Error("Choose followers from your current list.");
+    // Posts, work updates and jobs are all feed entries; the thread renders a live card for them.
+    const entry = db.social.posts.find((p) => p.id === id) ?? db.updates.find((u) => u.id === id) ?? db.social.jobs.find((j) => j.id === id);
+    if (!entry) throw new Error("This post is no longer available.");
+    const title = entry.title.trim();
+    const text = title ? `Shared a post with you: \u201c${title}\u201d` : "Shared a post with you.";
+    const shared: Id[] = [];
+    const failed: Id[] = [];
+    commit((d) => {
+      for (const target of targets) {
+        if (blockedInMock(db, role, target)) {
+          failed.push(target);
+          continue;
+        }
+        const ids = [self, target].sort() as [Id, Id];
+        let conversation = d.conversations.find((x) => x.peerIds?.join(":") === ids.join(":"));
+        if (!conversation) {
+          conversation = { id: uid(), peerIds: ids, candidate: target, name: feedPerson(db, target).name, company: "", messages: [], unread: false };
+          d.conversations.unshift(conversation);
+        }
+        conversation.messages.push({ id: uid(), text, sender: role, senderId: self, time: new Date().toISOString(), attachments: [], sharedEntryId: id });
+        shared.push(target);
+      }
+    });
+    return { shared, failed };
+  },
+
   async createPost(role, input) {
     const id = uid();
     const image = input.attachments.find((m) => m.type === "image");
@@ -429,6 +568,7 @@ export const mockFeedService: FeedService = {
       likes: 0,
       kind: input.attachments.length ? "Media post" : input.project ? "Project showcase" : "Professional update",
       commentsEnabled: input.commentsEnabled,
+      mediaAspect: input.mediaAspect ?? null,
       linkedJobId,
     };
     const ok = commit(
@@ -501,6 +641,7 @@ export const mockFeedService: FeedService = {
       p.body = input.body;
       if (input.project !== undefined) p.project = input.project;
       if (input.commentsEnabled !== undefined) p.commentsEnabled = input.commentsEnabled;
+      if (input.mediaAspect !== undefined) p.mediaAspect = input.mediaAspect ?? null;
       if (input.attachments !== undefined) {
         p.attachments = input.attachments.map((m) => ({ ...m }));
         const image = input.attachments.find((m) => m.type === "image");

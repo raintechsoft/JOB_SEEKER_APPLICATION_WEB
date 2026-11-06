@@ -96,7 +96,7 @@ function CodeArt() {
 
 /** Media for posts and updates (prototype `feedArtwork`). */
 export function FeedArtwork({ entry, onViewProject, localPreview = false }: { entry: FeedEntry; onViewProject: (id: string) => void; localPreview?:boolean }) {
-  if (entry.attachments?.length) return <PostCarousel items={entry.attachments} id={entry.id} localPreview={localPreview} />;
+  if (entry.attachments?.length) return <PostCarousel items={entry.attachments} id={entry.id} localPreview={localPreview} aspect={entry.mediaAspect ?? null} />;
   if (entry.video) {
     const url = safeUrl(entry.video);
     return url ? (

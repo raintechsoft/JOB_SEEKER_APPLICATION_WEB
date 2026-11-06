@@ -7,6 +7,7 @@ import type { PostDraft, Role } from "@/types/domain";
 import { PostEditorScreen } from "@/features/posts/post-editor-screen";
 import { uploadManager } from "@/services/media/upload-manager";
 import { UploadTray } from "@/features/workspace/upload-tray";
+import { useModalStore } from "@/stores/modal-store";
 
 const navigation = vi.hoisted(() => ({ push: vi.fn(), params: "" }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation, useSearchParams: () => new URLSearchParams(navigation.params) }));
@@ -33,10 +34,11 @@ function setup(role: Role = "professional", initial = draft) {
   const storePostDraft = vi.fn().mockResolvedValue(true);
   const createPost = vi.fn().mockResolvedValue({ id: "published" });
   const person = { id, name: "Post author", headline: "Designer", picture: "" };
-  const services = { jobPosts: { getPostDraft: vi.fn().mockResolvedValue(structuredClone(initial)), storePostDraft }, workspace: { getProfessionalShell: vi.fn().mockResolvedValue({ person }), getRecruiterShell: vi.fn().mockResolvedValue({ identity: person }) }, work: { listProjects: vi.fn().mockResolvedValue([]) }, media: { upload }, feed: { createPost } } as unknown as Services;
+  const getPostDraft = vi.fn().mockResolvedValue(structuredClone(initial));
+  const services = { jobPosts: { getPostDraft, storePostDraft }, workspace: { getProfessionalShell: vi.fn().mockResolvedValue({ person }), getRecruiterShell: vi.fn().mockResolvedValue({ identity: person }) }, work: { listProjects: vi.fn().mockResolvedValue([]) }, media: { upload }, feed: { createPost } } as unknown as Services;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = render(<ServicesContext.Provider value={services}><QueryClientProvider client={client}><PostEditorScreen role={role} /><UploadTray/></QueryClientProvider></ServicesContext.Provider>);
-  return { ...view, upload, storePostDraft, createPost };
+  return { ...view, upload, storePostDraft, createPost, getPostDraft, client };
 }
 const file = (name: string, type = "image/png") => new File(["synthetic image bytes"], name, { type });
 async function addFiles(files: File[], expectCount = files.length) {
@@ -53,6 +55,8 @@ async function addFiles(files: File[], expectCount = files.length) {
       ),
     );
   }
+  // Adding images opens the media editor; these flows continue without editing (no modal host here).
+  await act(async () => { useModalStore.getState().close(); });
 }
 
 
@@ -64,8 +68,12 @@ it.each(["professional","recruiter"] as const)("previews local %s files and publ
   expect(screen.queryByRole("button",{name:"Upload selected files"})).not.toBeInTheDocument();
   expect(document.querySelectorAll('.post-carousel-slide')).toHaveLength(1);
   expect(document.querySelector('.post-carousel-slide:not([hidden]) img')).toHaveAttribute('src','blob:first.png');
-  fireEvent.click(screen.getByRole('button',{name:'Next media'}));
-  expect(document.querySelector('.post-carousel-slide:not([hidden]) img')).toHaveAttribute('src','blob:second.png');
+  fireEvent.click(screen.getByRole('button',{name:'Show media 2'}));
+  await waitFor(() => {
+    const visible = document.querySelectorAll('.post-carousel-slide:not([hidden]) img:not(.post-carousel-backdrop)');
+    expect(visible).toHaveLength(1);
+    expect(visible[0]).toHaveAttribute('src','blob:second.png');
+  });
   await publish();
   await waitFor(()=>expect(createPost).toHaveBeenCalledOnce());
   expect(createPost.mock.calls[0][1].attachments.map((item:{src:string})=>item.src)).toEqual([source(1),source(2)]);
@@ -166,4 +174,15 @@ it("loads an existing post for edit and saves via updatePost without createPost"
   expect(updatePost.mock.calls[0][1]).toBe(id);
   expect(updatePost.mock.calls[0][2]).toMatchObject({ body: "Existing caption", version: 3, attachments: [] });
   expect(navigation.push).toHaveBeenCalledWith("/app/dashboard");
+});
+
+it("drops the cached draft after publishing so the next post starts fresh", async () => {
+  const { createPost, getPostDraft, client } = setup("professional", { ...draft, body: "Publish me", step: 2, reached: 2 });
+  await screen.findByRole("button", { name: /^Publish (demo )?post$/ });
+  expect(getPostDraft).toHaveBeenCalledTimes(1);
+  expect(client.getQueryData(["post-draft", "professional", "post"])).toMatchObject({ step: 2 });
+  fireEvent.click(screen.getByRole("button", { name: /^Publish (demo )?post$/ }));
+  await waitFor(() => expect(createPost).toHaveBeenCalledTimes(1));
+  // Removed from the cache: a remounted editor must fetch the new empty draft, never reuse this one.
+  await waitFor(() => expect(client.getQueryState(["post-draft", "professional", "post"])).toBeUndefined());
 });

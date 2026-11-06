@@ -1,0 +1,14 @@
+/*
+ * Single stylesheet entry for the root layout. Every sheet is imported here, in the same order the
+ * layout used to import them, so Turbopack builds ONE CSS graph and one chunk. With separate entry
+ * imports (globals.css and prototype/index.css side by side) the dev server could emit two chunks
+ * with the same name and one overwrote the other whenever both graphs changed in a compile, which
+ * showed up as "the whole UI broke". Add new sheets to globals.css (app) or prototype/index.css
+ * (prototype), never as another import in layout.tsx.
+ */
+@import "../styles/fonts.css";
+@import "../styles/auth-validation.css";
+@import "../styles/prototype/index.css";
+@import "../styles/toasts.css";
+@import "./globals.css";
+@import "../styles/dropdowns.css";

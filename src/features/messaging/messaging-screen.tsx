@@ -1,5 +1,7 @@
 "use client";
 
+import { MessageText } from "./message-text";
+import { SharedEntryCard } from "./shared-entry-card";
 import { ContentSkeleton } from "@/components/ui/skeleton";
 import { QueryFeedback } from "@/components/ui/query-view";
 
@@ -381,7 +383,7 @@ export function MessagingScreen({ role }: { role: Role }) {
               <Avatar person={c.contact} />
               <div className="grow">
                 <h2>{c.contact.name}</h2>
-                <p className="application-company-line">
+                <p className="application-company-line message-head-bio">
                   {recruiter ? c.contact.headline : <><span>{c.company}</span><VerifiedCompanyMark company={{ verified: c.companyVerified, name: c.company }} /></>}
                   {c.flags.muted ? " · Muted" : ""}
                   {c.flags.blocked ? " · Blocked" : ""}
@@ -441,7 +443,8 @@ export function MessagingScreen({ role }: { role: Role }) {
                             {m.id?.startsWith("pending-") ? null : <time>{formatTime(m.time)}</time>}
                             {tick && <span className={"message-status" + (tick === "seen" ? " is-seen" : "")} aria-label={tickLabel(tick)}><Icon name={tick === "clock" ? "clock" : tick === "sent" ? "check" : "ticks"} /></span>}
                           </div>
-                          {m.text && <p>{m.text}</p>}
+                          {m.text && <MessageText text={m.text} />}
+                          {m.entry ? <SharedEntryCard entry={m.entry} role={role} /> : null}
                           {(m.attachments || []).map((a) => (
                             <ChatAttachment a={a} key={a.id} real={real} />
                           ))}

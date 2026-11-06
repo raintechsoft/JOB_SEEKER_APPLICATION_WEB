@@ -1,7 +1,7 @@
 import type { PersonSummary } from "@/types/api";
-import type { Conversation, DemoDatabase, Role } from "@/types/domain";
+import type { Conversation, DemoDatabase, Id, Role, SharedEntryCard } from "@/types/domain";
 import { commit, getDb } from "@/mocks/store/demo-db";
-import { feedPerson, personSummary } from "@/mocks/store/presenters";
+import { feedPerson, jobCompany, personSummary } from "@/mocks/store/presenters";
 import { blockedInMock } from "@/services/feed/feed.mock";
 import { me, ME_ID, person } from "@/mocks/store/selectors";
 import { uid } from "@/lib/utils/id";
@@ -16,11 +16,39 @@ const contact = (db: DemoDatabase, c: Conversation, role: Role): PersonSummary =
 
 const self = (db: DemoDatabase, role: Role): PersonSummary => (role === "recruiter" ? { id: "r0", name: db.companies[0].recruiter, color: "#E4E9EF" } : personSummary(me(db)));
 
+const excerpt = (text: string) => {
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length > 200 ? clean.slice(0, 199).trimEnd() + "\u2026" : clean;
+};
+
+/** Demo twin of the API card: resolved from the current demo data, so a removed entry degrades. */
+export function sharedEntryCard(db: DemoDatabase, id: Id): SharedEntryCard {
+  const empty: SharedEntryCard = { id, available: false, type: null, title: "", excerpt: "", body: "", publishedAt: null, authorName: "", authorHeadline: "", authorPicture: "", image: "", imageAlt: "", media: null, mediaAspect: null };
+  const post = db.social.posts.find((p) => p.id === id);
+  if (post) {
+    const who = feedPerson(db, post.owner);
+    const first = post.attachments?.find((m) => m.type === "image" || m.type === "video");
+    const media = first ? { type: first.type as "image" | "video", src: first.src, alt: first.alt } : post.video ? { type: "video" as const, src: post.video, alt: post.imageAlt ?? "" } : post.image ? { type: "image" as const, src: post.image, alt: post.imageAlt ?? "" } : null;
+    return { ...empty, available: true, type: "post", title: post.title.trim(), excerpt: excerpt(post.body), body: post.body.trim().slice(0, 2000), publishedAt: post.createdAt, authorName: who.name, authorHeadline: who.headline ?? "", authorPicture: who.picture ?? "", image: media?.type === "image" ? media.src : "", imageAlt: media?.type === "image" ? media.alt : "", media, mediaAspect: post.mediaAspect ?? null };
+  }
+  const update = db.updates.find((u) => u.id === id);
+  if (update) {
+    const who = feedPerson(db, update.owner);
+    return { ...empty, available: true, type: "update", title: update.title.trim(), excerpt: excerpt(update.description), body: update.description.trim().slice(0, 2000), publishedAt: update.date, authorName: who.name, authorHeadline: who.headline ?? "", authorPicture: who.picture ?? "" };
+  }
+  const job = db.social.jobs.find((j) => j.id === id);
+  if (job) {
+    const company = jobCompany(db, job);
+    return { ...empty, available: true, type: "job", title: job.title.trim(), excerpt: excerpt(job.description), body: job.description.trim().slice(0, 2000), authorName: company.name, authorHeadline: company.industry ?? "", authorPicture: company.logoUrl ?? "", image: company.logoUrl ?? "" };
+  }
+  return empty;
+}
+
 function conversationView(db: DemoDatabase, c: Conversation, role: Role): ConversationView {
   const messages = c.messages.map((message, index) => {
     const own = message.senderId ? message.senderId === mockIdentity(role) : message.sender === role;
     const sequence = index + 1;
-    return { ...message, own, sequence, status: own ? (message.status ?? "delivered") : null };
+    return { ...message, own, sequence, status: own ? (message.status ?? "delivered") : null, ...(message.sharedEntryId ? { entry: sharedEntryCard(db, message.sharedEntryId) } : {}) };
   });
   const lastOwn = Math.max(0, ...messages.filter((m) => m.own).map((m) => m.sequence ?? 0));
   const latestPeer = Math.max(0, ...messages.filter((m) => !m.own).map((m) => m.sequence ?? 0));

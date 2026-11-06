@@ -1,10 +1,13 @@
 /* Aspect-aware post media: landscape fills card width; portrait uses a mid-width
    column sized from max height × aspect so vertical content stays readable. */
+/* Instagram-style feed: image frames are width-driven (see .post-carousel-frame), so this cap
+   only limits single videos, documents and placeholders. Pixel values: the viewport height must
+   never change how a post is framed. */
 body.professional-theme .feed-post {
-  --feed-media-max-height: min(70vh, 720px);
+  --feed-media-max-height: 720px;
 }
 body.professional-theme #post-live-preview .feed-post {
-  --feed-media-max-height: min(52vh, 420px);
+  --feed-media-max-height: 520px;
 }
 body .post-carousel .post-carousel-stage,
 body.professional-theme .post-carousel .post-carousel-stage {
@@ -18,21 +21,19 @@ body.professional-theme .post-carousel .post-carousel-stage {
   overflow: hidden;
   background-color: #2a2f36;
 }
-body .post-carousel .post-carousel-frame {
+/* Instagram rule: the frame spans the card width; its height follows the (banded) ratio. */
+body .post-carousel .post-carousel-frame,
+body.professional-theme .post-carousel .post-carousel-frame {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-inline: auto;
-  width: min(100%, calc(var(--feed-media-max-height, 720px) * var(--media-aspect, 1.7777778)));
+  width: 100%;
   max-width: 100%;
-  max-height: var(--feed-media-max-height, 720px);
+  max-height: none;
   aspect-ratio: var(--media-aspect-ratio, 16 / 9);
   background-color: #2a2f36;
-}
-body .post-carousel .post-carousel-frame[data-orientation="portrait"] {
-  /* Prefer height-driven mid column for tall media. */
-  width: min(100%, calc(var(--feed-media-max-height, 720px) * var(--media-aspect, 0.5625)));
 }
 body .post-carousel .post-carousel-slide,
 body.professional-theme .post-carousel .post-carousel-slide {
@@ -49,6 +50,27 @@ body.professional-theme .post-carousel .post-carousel-slide {
 body .post-carousel .post-carousel-slide[hidden] {
   display: none;
 }
+/* The outgoing and incoming photos share the frame and travel together. */
+body .post-carousel .post-carousel-frame.is-sliding {
+  overflow: hidden;
+}
+body .post-carousel .post-carousel-frame.is-sliding > .post-carousel-slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+body .post-carousel .post-carousel-frame.is-dragging > .post-carousel-slide {
+  transition: none;
+}
+body .post-carousel .post-carousel-frame.is-sliding:not(.is-dragging) > .post-carousel-slide {
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  body .post-carousel .post-carousel-frame.is-sliding:not(.is-dragging) > .post-carousel-slide {
+    transition: none;
+  }
+}
 /* Main media fills the frame; backdrop is excluded so it never sits in flex flow beside it. */
 body .post-carousel .post-carousel-slide :is(img, video, .media-image, .media-fallback):not(.post-carousel-backdrop),
 body.professional-theme .post-carousel .post-carousel-slide :is(img, video, .media-image, .media-fallback):not(.post-carousel-backdrop) {
@@ -58,7 +80,8 @@ body.professional-theme .post-carousel .post-carousel-slide :is(img, video, .med
   height: 100%;
   max-width: none;
   max-height: none;
-  object-fit: contain;
+  /* Media fills the frame; the crop editor decides what is kept. Cropped exports match exactly. */
+  object-fit: cover;
   object-position: center;
   background: transparent;
   display: block;
@@ -77,7 +100,7 @@ body .post-carousel .post-media-frame > img:not(.post-carousel-backdrop) {
   z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
 }
 body .post-carousel .post-carousel-slide .post-carousel-backdrop,

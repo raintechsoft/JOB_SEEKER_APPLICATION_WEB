@@ -37,6 +37,15 @@ body.professional-theme .org-summary {display:flex;flex-direction:column;align-i
 .org-summary-title-row .org-verified-mark {width:24px;height:24px;}
 .org-recruiter-company .org-verified-mark {width:18px;height:18px;}
 .org-recruiter-company,.feed-org-name,.rail-job-company-name,.network-company-name,.explore-job-company,.job-page-company-line,.job-sheet-about-company-name,.job-sheet-similar-company,.job-sheet-company-name,.application-company-line,.search-company-name,.suggestion-card-name {display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px;min-width:0;}
+/* Chat header bio must stay a normal block: the shared inline-flex row collapses it on desktop and wraps it on a phone. */
+body.professional-theme .direct-message-head > .grow {display:flex;flex-direction:column;justify-content:center;min-width:0;}
+body.professional-theme .direct-message-head .message-head-bio {display:block;width:100%;max-width:100%;min-width:0;flex-wrap:nowrap;overflow:visible;white-space:normal;text-overflow:clip;line-height:1.35;}
+@media (max-width:680px) {
+  body.professional-theme .direct-message-head {padding:6px 8px;gap:8px;min-height:0;}
+  body.professional-theme .direct-message-head > .avatar {width:28px;height:28px;}
+  body.professional-theme .direct-message-head h2 {font-size:14px;line-height:1.2;margin:0;}
+  body.professional-theme .direct-message-head .message-head-bio {overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;line-height:1.3;margin:0;}
+}
 /* Profile title is a heading — keep it on its own line under the logo, not beside it. */
 .feed-profile-details > h2.feed-org-name {display:flex;width:100%;}
 .rail-job-company-name .org-verified-mark,.explore-job-company .org-verified-mark,.job-page-company-line .org-verified-mark,.job-sheet-similar-company .org-verified-mark,.job-sheet-company-name .org-verified-mark,.network-company-name .org-verified-mark,.feed-org-name .org-verified-mark,.application-company-line .org-verified-mark,.search-company-name .org-verified-mark,.suggestion-card-name .org-verified-mark {width:16px;height:16px;}
@@ -361,11 +370,12 @@ body:has(.org-workspace,.org-public-page,.org-recruiter-public) #toasts {pointer
   body.professional-theme .org-summary{padding:0;gap:0;}
   .org-summary-cover{height:110px;}
   .org-summary-cover-edit{right:10px;bottom:10px;padding:6px 10px;font-size:12px;}
-  .org-summary-body{padding:14px 16px 16px;gap:14px;}
+  .org-summary-body{flex-direction:column;align-items:stretch;padding:14px 16px 16px;gap:14px;}
+  .org-summary-main{width:100%;}
   .org-summary-logo{width:64px;height:64px;border-width:1px;}
   .org-summary-logo-wrap{margin-top:0;}
   .org-summary-copy{padding-top:2px;}
-  .org-summary-progress{width:100%;padding-top:4px;}
+  .org-summary-progress{width:100%;min-width:0;max-width:none;flex:none;align-self:stretch;padding-top:2px;}
   .org-summary-edit{width:28px;height:28px;}
   .org-summary-edit>.icon{width:12px;height:12px;}
 }

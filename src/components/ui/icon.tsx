@@ -65,6 +65,7 @@ const PATHS = {
   image: "M3 3h18v18H3z M3 17l6-6 4 4 3-3 5 5 M16 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4",
   camera: "M3 6h4l2-3h6l2 3h4v15H3z M12 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8",
   rotate: "M3 10a9 9 0 1 1 2 8 M3 3v7h7",
+  crop: "M6 2v14a2 2 0 0 0 2 2h14 M2 6h14a2 2 0 0 1 2 2v14",
   flip: "M12 3v3m0 3v3m0 3v3m0 3v1 M3 7l5 5-5 5z M21 7l-5 5 5 5z",
   pin: "M8 3h8l-1 7 4 4H5l4-4z M12 14v8",
   userMinus: "M17 8h6 M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M3 21v-2a7 7 0 0 1 14 0v2",

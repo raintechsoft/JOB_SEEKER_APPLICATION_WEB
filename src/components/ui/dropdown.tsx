@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
 
 export type DropdownOption = { value: string; label: string };
@@ -22,8 +22,11 @@ export function Dropdown({ label, value, options, allowCustom = false, placehold
   const [draft, setDraft] = useState(value);
   const [active, setActive] = useState(0);
   const root = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const id = useId();
+  const [menuBox, setMenuBox] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null);
   const selected = options.find(option => option.value === value);
   const visible = allowCustom && draft.trim()
     ? options.filter(option => option.label.toLocaleLowerCase().includes(draft.trim().toLocaleLowerCase()) || option.value.toLocaleLowerCase().includes(draft.trim().toLocaleLowerCase()))
@@ -35,6 +38,45 @@ export function Dropdown({ label, value, options, allowCustom = false, placehold
   const triggerText = !value && trigger === "value" ? label : !value ? label : trigger === "value" ? selected?.label ?? value : `${label}: ${selected?.label ?? value}`;
 
   useEffect(() => { if (open) setDraft(allowCustom ? value : ""); }, [open, allowCustom, value]);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const anchor = triggerRef.current?.getBoundingClientRect();
+      const panel = menu.current;
+      if (!anchor || !panel) return;
+      const viewport = window.visualViewport;
+      const viewLeft = viewport?.offsetLeft ?? 0;
+      const viewTop = viewport?.offsetTop ?? 0;
+      const viewWidth = viewport?.width ?? window.innerWidth;
+      const viewHeight = viewport?.height ?? window.innerHeight;
+      const margin = 8;
+      panel.style.width = "max-content";
+      panel.style.minWidth = "0";
+      panel.style.maxWidth = "none";
+      const contentWidth = Math.ceil(panel.getBoundingClientRect().width);
+      const width = Math.min(Math.max(anchor.width, contentWidth), viewWidth - margin * 2);
+      const maxHeight = Math.max(120, viewHeight - margin * 2);
+      const height = Math.min(panel.offsetHeight, maxHeight);
+      const left = Math.max(viewLeft + margin, Math.min(anchor.left, viewLeft + viewWidth - width - margin));
+      let top = anchor.bottom + 4;
+      if (top + height > viewTop + viewHeight - margin) top = Math.max(viewTop + margin, anchor.top - height - 4);
+      setMenuBox(previous => previous && previous.left === left && previous.top === top && previous.width === width && previous.maxHeight === maxHeight ? previous : { left, top, width, maxHeight });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    window.visualViewport?.addEventListener("resize", place);
+    window.visualViewport?.addEventListener("scroll", place);
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(place) : null;
+    if (menu.current) observer?.observe(menu.current);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      window.visualViewport?.removeEventListener("resize", place);
+      window.visualViewport?.removeEventListener("scroll", place);
+      observer?.disconnect();
+    };
+  }, [open, items.length]);
   useEffect(() => {
     if (!open) return;
     input.current?.focus();
@@ -53,6 +95,7 @@ export function Dropdown({ label, value, options, allowCustom = false, placehold
   return (
     <div ref={root} className="ui-dropdown">
       <button
+        ref={triggerRef}
         type="button"
         className="search-filter-control"
         disabled={disabled}
@@ -68,7 +111,23 @@ export function Dropdown({ label, value, options, allowCustom = false, placehold
         <Icon name="chevron" />
       </button>
       {open && (
-        <div className="ui-dropdown-menu" id={id} role="listbox" aria-label={label}>
+        <div
+          ref={menu}
+          className="ui-dropdown-menu"
+          id={id}
+          role="listbox"
+          aria-label={label}
+          style={{
+            position: "fixed",
+            left: menuBox?.left ?? 0,
+            top: menuBox?.top ?? 0,
+            width: menuBox?.width,
+            minWidth: menuBox?.width,
+            maxWidth: menuBox?.width,
+            maxHeight: menuBox?.maxHeight,
+            visibility: menuBox ? "visible" : "hidden",
+          }}
+        >
           {allowCustom && (
             <input
               ref={input}

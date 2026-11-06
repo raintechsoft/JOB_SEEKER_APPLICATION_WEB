@@ -36,7 +36,7 @@ for (const role of ["professional", "recruiter"] as const) test(`${role} drafts,
   await check(preview.locator('.post-carousel-slide')).toHaveCount(1);
   if(role==='professional')await preview.screenshot({path:'test-results/post-selected-preview.png'});
   const firstPreview=await preview.locator('.post-carousel-slide img').getAttribute('src');
-  await preview.getByRole('button',{name:'Next media',exact:true}).click();
+  await preview.getByRole('button',{name:'Show media 2',exact:true}).click();
   await check(preview.locator('.post-carousel-slide')).toHaveCount(1);
   await check(preview.locator('.post-carousel-slide img')).not.toHaveAttribute('src',firstPreview!);
   await page.getByRole("button", { name: "Remove first.png", exact: true }).click();

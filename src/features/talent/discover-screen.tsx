@@ -1,5 +1,6 @@
 "use client";
 
+import { useRetainedList } from "@/components/suggestions/use-retained-list";
 import { QueryFeedback } from "@/components/ui/query-view";
 
 import { Suspense, useEffect, useRef } from "react";
@@ -23,7 +24,10 @@ import { SuggestionCardGrid, SuggestionCardsSkeleton } from "@/components/sugges
 function TalentResults({ publicMode, role = "recruiter" }: { publicMode: boolean; role?: "recruiter" | "professional" }) {
   const filters = useUiStore((s) => s.talent);
   const setTalent = useUiStore((s) => s.setTalent);
-  const { data: list,isError,error,refetch } = useServiceQuery(["talent", "search", filters], (s) => s.talent.search(filters),{keepPreviousData:false});
+  const { data: fetched,isError,error,refetch } = useServiceQuery(["talent", "search", filters], (s) => s.talent.search(filters),{keepPreviousData:false});
+  // Discovery excludes people already followed; a card followed just now stays until the filters change.
+  const retained = useRetainedList(fetched ?? [], JSON.stringify(filters));
+  const list = fetched ? retained : undefined;
   const tracked = useRef("");
   useEffect(() => {
     const key = JSON.stringify(filters);

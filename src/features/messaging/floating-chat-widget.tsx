@@ -1,5 +1,7 @@
 "use client";
 
+import { MessageText } from "./message-text";
+import { SharedEntryCard } from "./shared-entry-card";
 import { Fragment, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -294,7 +296,8 @@ export function FloatingChatWidget({ chat }: { chat: FloatingChat }) {
                           </span>
                         ) : null}
                       </div>
-                      {m.text ? <p>{m.text}</p> : null}
+                      {m.text ? <MessageText text={m.text} /> : null}
+                      {m.entry ? <SharedEntryCard entry={m.entry} role={role} /> : null}
                       {(m.attachments || []).map((a) => (
                         <ChatAttachment a={a} key={a.id} real={real} />
                       ))}

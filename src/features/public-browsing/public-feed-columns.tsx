@@ -47,20 +47,22 @@ export function PublicJobsRail(){
     <button type="button" className="jobs-mobile-toggle" onClick={()=>setOpen(value=>!value)} aria-expanded={open}><span><Icon name="briefcase"/>Latest jobs{items.length>0&&<b>{items.length} open</b>}</span><Icon name={open?"up":"down"}/></button>
     <div className="jobs-rail-content">
       <section className="card relevant-jobs-card">
-        <header className="rail-heading"><span className="eyebrow">OPEN OPPORTUNITIES</span><h2>Latest jobs</h2><p>Fresh roles from hiring teams on Skillora.</p></header>
+        <header className="rail-heading"><div className="row between"><h2>Latest jobs</h2></div><p>Fresh roles from hiring teams on Skillora.</p></header>
         <div className="rail-job-list">
           {latest.isPending&&<LoadingRegion label="Loading latest jobs"><TextSkeleton lines={4}/></LoadingRegion>}
           {latest.isError&&<ErrorState compact error={latest.error} onRetry={()=>latest.refetch()} title="Jobs couldn’t load" description="Something interrupted the request. Please try again." homeHref="/jobs" homeLabel="See all jobs"/>}
           {latest.isSuccess&&!items.length&&<EmptyPanel compact icon="briefcase" title="No open roles right now" description="New roles appear here as soon as hiring teams publish them." action={<LinkButton href="/">Browse the feed</LinkButton>}/>}
-          {items.map(entry=>{const job=entry.job!,company=entry.company,logo=company?.logo?publicMediaUrl(company.logo.downloadPath):undefined;return <article className="rail-job" key={entry.id}>
-            <div className="rail-job-company"><CompanyAvatar company={{id:company?.id??entry.id,name:company?.name??"Company",logoUrl:logo,confidential:company?.confidential,verified:company?.verified}}/><div><span className="rail-job-company-name">{company?.name??"Company"}<VerifiedCompanyMark company={company}/></span><small>{postedAgo(entry.publishedAt)}</small></div></div>
-            <button type="button" className="rail-job-title" onClick={()=>jobs.view(job.id,"public-jobs-rail")}>{job.title} <Icon name="arrowUp"/></button>
-            {(job.location.trim()||job.arrangement)&&<p>{job.location.trim()&&<Icon name="location"/>}{[job.location.trim(),job.arrangement].filter(Boolean).join(" · ")}</p>}
-            <div className="rail-job-tags">{job.employment&&<span>{job.employment}</span>}<span>{job.compensationLabel}</span></div>
-            <div className="rail-job-actions"><button type="button" onClick={()=>jobs.view(job.id,"public-jobs-rail")}>View opportunity <Icon name="arrow"/></button></div>
+          {items.map(entry=>{const job=entry.job!,company=entry.company,name=company?.name??"Company",logo=company?.logo?publicMediaUrl(company.logo.downloadPath):undefined,location=job.location.trim(),arrangement=job.arrangement.trim();return <article className="rail-job" key={entry.id}>
+            <div className="rail-job-logo"><CompanyAvatar company={{id:company?.id??entry.id,name,logoUrl:logo,confidential:company?.confidential,verified:company?.verified}}/></div>
+            <div className="rail-job-copy">
+              <button type="button" className="rail-job-title" title={job.title} onClick={()=>jobs.view(job.id,"public-jobs-rail")}>{job.title}</button>
+              <div className="rail-job-company"><span className="rail-job-company-name"><span className="rail-job-company-label" title={name}>{name}</span><VerifiedCompanyMark company={company}/></span></div>
+              {(location||arrangement)&&<p className="rail-job-meta">{location&&<span>{location}</span>}{location&&arrangement&&<span className="rail-job-meta-sep" aria-hidden="true"/>}{arrangement&&<span>{arrangement}</span>}</p>}
+              <time className="rail-job-posted" dateTime={entry.publishedAt} title={entry.publishedAt}>{postedAgo(entry.publishedAt)}</time>
+            </div>
           </article>;})}
         </div>
-        <Link href="/jobs" className="rail-manage-alerts">See all jobs <Icon name="arrow"/></Link>
+        {items.length>0&&<div className="rail-view-all"><LinkButton href="/jobs" variant="text sm">View all</LinkButton></div>}
       </section>
     </div>
   </aside>;

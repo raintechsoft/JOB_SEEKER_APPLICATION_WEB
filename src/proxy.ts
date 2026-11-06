@@ -147,7 +147,7 @@ export async function proxy(request: NextRequest) {
 
 // Check prefetches too: client-supplied headers cannot skip prerequisite guards.
 export const config = { matcher: [
-  "/((?!api(?:/|$)|_next(?:/|$)|images(?:/|$)|fonts(?:/|$)|favicon.ico$|icon.svg$|robots.txt$|sitemap.xml$).*)",
+  "/((?!api(?:/|$)|public-media(?:/|$)|_next(?:/|$)|images(?:/|$)|fonts(?:/|$)|favicon.ico$|icon.svg$|robots.txt$|sitemap.xml$).*)",
   // Opening an API/asset URL in the address bar is departure too. Ordinary
   // subresource requests remain excluded and never cancel password recovery.
   { source: "/:path*", has: [{ type: "header", key: "sec-fetch-dest", value: "document" }] },

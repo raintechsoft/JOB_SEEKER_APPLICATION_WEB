@@ -1,0 +1,117 @@
+/* Create Post media editor: same shell as the profile photo editor (photo-editor / photo-crop-stage /
+   photo-zoom-control / photo-editor-tools / modal-footer) plus a ratio picker and a thumbnail strip. */
+
+/* ---- Ratio picker ---- */
+.post-aspect-selector {display:flex;gap:6px;flex-wrap:wrap;}
+.post-aspect-selector.is-compact {flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:2px;}
+.post-aspect-selector.is-compact::-webkit-scrollbar {display:none;}
+.post-aspect-option {
+  display:flex;flex-direction:column;align-items:center;gap:3px;min-width:68px;padding:8px 10px 6px;
+  border:1px solid var(--line, #DAE1EB);border-radius:10px;background:var(--paper, #FFF);color:var(--ink, #202A36);cursor:pointer;
+  transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease;
+}
+.post-aspect-option:hover:not(:disabled) {border-color:var(--accent, #315EF4);background:var(--accent-soft, #EDF3FF);}
+.post-aspect-option:focus-visible {outline:3px solid var(--accent, #315EF4);outline-offset:2px;}
+.post-aspect-option.is-selected {border-color:var(--accent, #315EF4);background:var(--accent-soft, #EDF3FF);box-shadow:inset 0 0 0 1px var(--accent, #315EF4);}
+.post-aspect-option:disabled {opacity:.5;cursor:not-allowed;}
+.post-aspect-shape {display:grid;place-items:center;width:22px;height:22px;}
+.post-aspect-rect {display:block;border:1.5px solid currentColor;border-radius:2px;color:#4A5361;}
+.post-aspect-option.is-selected .post-aspect-rect {color:var(--accent, #315EF4);background:#315EF41A;}
+.post-aspect-rect.is-original {border-style:dashed;}
+.post-aspect-label {font-size:12px;font-weight:650;line-height:1.2;}
+.post-aspect-name {font-size:10px;color:var(--muted, #6A7482);line-height:1.2;white-space:nowrap;}
+.post-aspect-option.is-selected .post-aspect-name {color:#1F3F9E;}
+
+/* ---- Media step: Edit media sits in the heading's top-right corner ---- */
+.post-upload-heading-end {display:inline-flex;align-items:center;gap:10px;}
+.post-upload-heading-end > span {font-size:10px;color:#626B76;}
+.post-upload-heading-end .btn {min-height:28px;padding:4px 10px;font-size:12px;}
+
+/* Tile: small Edit button + processing overlay */
+.post-media-crop {
+  position:absolute;left:5px;bottom:5px;z-index:1;display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;
+  border:1px solid #D7DEE8;border-radius:999px;background:#FFFFFFEE;color:#202A36;font-size:10px;font-weight:650;box-shadow:0 1px 4px #202a361a;
+}
+.post-media-crop .icon {width:11px;height:11px;color:inherit;}
+.post-media-crop:hover {background:#EDF3FF;color:#1F3F9E;border-color:#B9C8DE;}
+.post-media-crop:focus-visible {outline:2px solid #315EF4;outline-offset:-3px;}
+.post-media-crop.is-cropped {background:#315EF4;color:#FFF;border-color:#315EF4;}
+.post-media-processing {
+  position:absolute;inset:0;z-index:2;display:grid;place-items:center;background:#FFFFFFB8;color:#1F3F9E;font-size:10px;font-weight:650;backdrop-filter:blur(1px);
+}
+
+/* ---- Editor dialog (photo-editor shell), two columns: media left, controls right ---- */
+dialog.profile-photo-dialog:has(.photo-editor.is-post-media) {width:min(700px,calc(100vw - 28px));}
+.post-crop-layout {display:grid;grid-template-columns:minmax(0,1fr) 196px;gap:14px;align-items:start;}
+.post-crop-main {display:flex;flex-direction:column;gap:12px;min-width:0;}
+.post-crop-side {display:flex;flex-direction:column;gap:12px;padding:10px;border:1px solid var(--line, #DAE1EB);border-radius:12px;background:#F8FAFC;}
+/* Icon-only ratio row: glyphs, no badges; the selected one is accent-coloured with a dot beneath. */
+.post-aspect-selector.is-icons {display:flex;flex-direction:row;flex-wrap:nowrap;gap:2px;justify-content:space-between;}
+.post-aspect-icon {
+  position:relative;display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:8px;background:transparent;color:#6A7482;cursor:pointer;
+  transition:color .12s ease,background-color .12s ease;
+}
+.post-aspect-icon:hover:not(:disabled) {color:var(--ink, #202A36);background:#EEF2FA;}
+.post-aspect-icon:focus-visible {outline:2px solid var(--accent, #315EF4);outline-offset:2px;}
+.post-aspect-icon.is-selected {color:var(--accent, #315EF4);}
+.post-aspect-icon.is-selected::after {content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--accent, #315EF4);}
+.post-aspect-icon .post-aspect-rect {color:inherit;border-width:1.5px;}
+.post-aspect-icon.is-selected .post-aspect-rect {background:#315EF41A;}
+.post-aspect-icon:disabled {opacity:.5;cursor:not-allowed;}
+.post-crop-side-group {display:flex;flex-direction:column;gap:8px;}
+.post-crop-side .post-crop-row-label {font-size:12px;font-weight:650;color:var(--muted, #6A7482);text-transform:uppercase;letter-spacing:.04em;}
+.post-aspect-selector.is-vertical {flex-direction:column;gap:6px;}
+.post-aspect-option.is-row {flex-direction:row;justify-content:flex-start;gap:10px;width:100%;min-width:0;padding:8px 10px;text-align:left;}
+.post-aspect-option.is-row .post-aspect-label {min-width:44px;}
+.post-aspect-option.is-row .post-aspect-name {font-size:11px;}
+.post-crop-side .photo-zoom-control {margin:0;flex-direction:column;align-items:stretch;gap:8px;}
+.post-crop-side .photo-zoom-control output {text-align:left;}
+.post-crop-side .photo-editor-tools {flex-direction:column;}
+.post-crop-side .photo-editor-tools .btn {justify-content:center;}
+/* Fixed-height stage: changing the ratio reshapes only the frame inside it, never the dialog. */
+.photo-editor.is-post-media .photo-crop-stage.is-post-media {
+  /* Sized so the whole dialog (head, stage, strip, hint, footer) fits a 768px-tall desktop without scrolling. */
+  --post-crop-stage-h:min(36vh,300px);
+  height:calc(var(--post-crop-stage-h) + 20px);padding:10px;box-sizing:border-box;align-items:center;
+}
+.photo-editor.is-post-media .photo-crop-circle.is-post-media {
+  /* Fit the frame inside both the dialog width and a sane height while keeping its exact ratio. */
+  position:relative;width:min(100%,calc(var(--post-crop-stage-h,540px) * var(--post-crop-aspect,1.333)));max-height:100%;border-radius:10px;overflow:hidden;background:#15181D;
+  cursor:grab;touch-action:none;user-select:none;box-shadow:0 0 0 2px var(--paper, #fff),0 0 0 3px var(--line, #e8e9ee);
+}
+.photo-editor.is-post-media .photo-crop-circle.is-post-media:active {cursor:grabbing;}
+.photo-editor.is-post-media .reactEasyCrop_Container {border-radius:10px;}
+.photo-editor.is-post-media .reactEasyCrop_CropArea {border:0;box-shadow:none;color:transparent;}
+.photo-editor.is-post-media .reactEasyCrop_CropAreaGrid::before,.photo-editor.is-post-media .reactEasyCrop_CropAreaGrid::after {border-color:#FFFFFF55;}
+.photo-editor.is-post-media .photo-editor-empty {position:absolute;inset:0;display:grid;place-items:center;color:#C5CCD6;font-size:13px;background:transparent;border:0;}
+.post-crop-loading {position:absolute;inset:0;display:grid;place-items:center;color:#C5CCD6;font-size:13px;pointer-events:none;}
+.photo-editor.is-post-media .photo-editor-hint {margin:0;font-size:11px;line-height:1.5;}
+.photo-editor.is-post-media .modal-footer {margin-top:12px;}
+.photo-editor.is-post-media .post-crop-side .photo-zoom-control {gap:6px;font-size:12px;}
+.post-crop-row {display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 6px;}
+.post-crop-row-label {font-size:13px;color:var(--ink, #202A36);min-width:88px;}
+.photo-editor.is-post-media .photo-zoom-control {margin:14px 0 16px;}
+.post-crop-strip {display:flex;gap:8px;overflow-x:auto;padding:2px;scrollbar-width:thin;}
+.post-crop-thumb {
+  position:relative;flex:0 0 42px;width:42px;height:42px;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;background:#EEF1F5;cursor:pointer;
+}
+.post-crop-thumb img,.post-crop-thumb video {width:100%;height:100%;object-fit:cover;display:block;}
+.post-crop-thumb.is-active {border-color:var(--accent, #315EF4);}
+.post-crop-thumb:focus-visible {outline:3px solid var(--accent, #315EF4);outline-offset:2px;}
+.post-crop-thumb .post-crop-thumb-index {position:absolute;left:3px;top:3px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#202A36E8;color:#FFF;font-size:10px;font-weight:650;display:grid;place-items:center;}
+.post-crop-thumb .post-crop-thumb-edited {position:absolute;right:3px;bottom:3px;width:8px;height:8px;border-radius:50%;background:var(--accent, #315EF4);border:1.5px solid #FFF;}
+
+@media (max-width: 760px) {
+  .post-crop-layout {grid-template-columns:1fr;gap:14px;}
+  .post-crop-side {padding:12px;}
+  .post-aspect-selector.is-vertical {flex-direction:row;flex-wrap:nowrap;overflow-x:auto;}
+  .post-aspect-option.is-row {flex-direction:column;width:auto;min-width:68px;padding:8px 10px 6px;}
+  .post-crop-side .photo-editor-tools {flex-direction:row;}
+}
+@media (max-width: 680px) {
+  .photo-editor.is-post-media .photo-crop-stage.is-post-media {padding:12px;}
+  .photo-editor.is-post-media .photo-crop-stage.is-post-media {--post-crop-stage-h:min(40vh,300px);}
+  .post-aspect-option {min-width:60px;padding:6px 8px 5px;}
+  .post-crop-row-label {min-width:0;width:100%;}
+  .photo-editor.is-post-media .modal-footer {position:sticky;bottom:0;background:var(--paper, #fff);padding-bottom:4px;}
+}

@@ -32,6 +32,8 @@ import { FeedArtwork } from "@/components/feed/feed-artwork";
 import { useProjectDialogs, useUpdateDialogs } from "@/features/work/dialogs";
 import { useJobActions } from "./job-dialogs";
 import { usePostDialogs } from "./post-dialogs";
+import { RepostDialog } from "./repost-dialog";
+import { modal } from "@/stores/modal-store";
 import { commentSchema } from "@/lib/validation/social";
 import { useFormAction } from "@/hooks/use-form-action";
 import { apiConfig } from "@/services/api/config";
@@ -268,9 +270,20 @@ function ActivityMenu({ entry, role, onHide, onWhy }: { entry: FeedEntry; role: 
     router.push("/app/posts/new?id=" + encodeURIComponent(entry.id));
   };
   const remove = () => {
-    if (role === "recruiter") return job ? router.push("/recruiter/applications") : posts.remove(role, entry.id, entry.version);
+    // Jobs are never deleted from the feed: closing, editing and applicants live in the jobs manager.
+    if (role === "recruiter") return job ? router.push("/recruiter/jobs?job=" + encodeURIComponent(entry.id)) : posts.remove(role, entry.id, entry.version);
     return entry.type === "update" ? updates.remove(entry.id) : posts.remove(role, entry.id, entry.version);
   };
+  const run = useServiceAction();
+  const isRepost = !!entry.repost;
+  const canRepost = !job && (entry.viewer.canRepost ?? true);
+  // Removes only this person's own repost record; the original and other reposts stay.
+  const removeRepost = async () => {
+    const removed = await run((s) => s.feed.removeRepost(role, entry.id), { invalidate: ["feed", "feed-entry", "activity"] });
+    if (removed === undefined) return;
+    toast(removed ? "Repost removed from your feed." : "This repost was already removed.");
+  };
+  const repostWithThoughts = () => modal.show("Repost", <RepostDialog entry={entry} role={role} />);
   return (
     <details className="activity-post-menu" ref={ref}>
       <summary aria-label={"Post actions for " + entry.title}>
@@ -291,12 +304,22 @@ function ActivityMenu({ entry, role, onHide, onWhy }: { entry: FeedEntry; role: 
             Why am I seeing this?
           </Button>
         )}
-        {own && (
+        {canRepost && (
+          <Button variant="text sm" icon="repost" onClick={repostWithThoughts}>
+            Repost with your thoughts
+          </Button>
+        )}
+        {own && isRepost && (
+          <Button variant="text sm" icon="trash" onClick={() => void removeRepost()}>
+            Remove repost
+          </Button>
+        )}
+        {own && !isRepost && (
           <>
             <Button variant="text sm" icon="edit" onClick={edit}>
-              Edit post
+              {job ? "Edit job" : "Edit post"}
             </Button>
-            <Button variant="text sm" icon="trash" onClick={remove}>
+            <Button variant="text sm" icon={job ? "briefcase" : "trash"} onClick={remove}>
               {job ? "Manage job" : "Delete post"}
             </Button>
           </>
@@ -341,7 +364,11 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
   const { expanded } = useUiStore((s) => s.feed);
   const toggleFeedList = useUiStore((s) => s.toggleFeedList);
   const shareSheet = useShareSheet();
-  const like = useFeedInteraction(entry, role, "liked");
+  // A plain repost shares the original's likes and comments; a repost with thoughts has its own.
+  const interactionId = entry.interactionId ?? entry.id;
+  const interactionEntry = useMemo(() => (interactionId === entry.id ? entry : { ...entry, id: interactionId }), [entry, interactionId]);
+  const like = useFeedInteraction(interactionEntry, role, "liked");
+  // Reposting from any entry in a chain reposts the original (the server resolves the root).
   const repost = useFeedInteraction(entry, role, "reposted");
   const ref = useImpression<HTMLElement>(() => {if(noTracking)return;if(entry.analyticsContext)track("recommendation_exposed",entry.analyticsContext);else track("feed_item_impression", { itemId: entry.id, itemType: entry.type, surface, position });},entry.analyticsContext?.requestId);
   // Watch history (views, reading time, clicks) personalises "For you"; only contract surfaces are sent.
@@ -384,21 +411,23 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
     if (open) return;
     // Bring the comment box into view once it renders, then focus it without a second jump.
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      const field = document.getElementById("comment-" + entry.id);
+      const field = document.getElementById("comment-" + interactionId);
       const target = field ?? document.getElementById("feed-" + entry.id)?.querySelector(".feed-comments");
       const smooth = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
       target?.scrollIntoView?.({ behavior: smooth ? "smooth" : "auto", block: "center" });
       field?.focus({ preventScroll: true });
     }));
   };
-  const share = () => shareSheet.open(role, entry.id);
+  const share = () => shareSheet.open(role, entry.rootId ?? entry.id);
   const { data: identity } = useServiceQuery(["feed", "identity", role], async (s) => (role === "recruiter" ? (await s.workspace.getRecruiterShell()).identity : (await s.workspace.getProfessionalShell()).person));
-  const reposter = repost.enabled ? identity ?? entry.repost?.author : entry.repost?.author;
+  // A repost entry names its own reposter; an original the viewer just reposted shows the viewer.
+  const reposter = entry.repost ? entry.repost.author ?? undefined : repost.enabled ? identity : undefined;
+  const reposterIsViewer = entry.repost ? entry.viewer.own : repost.enabled;
   const contextLine = job ? "An opportunity to do meaningful work" : entry.viewer.own ? "Your professional story" : firstName(p.name) + " is part of your network";
   const headline = JOB_HEADLINES[entry.job?.art ?? ""] ?? ["Make room", "for bold ideas."];
   const followers = job ? (entry.company?.confidential ? undefined : entry.company?.followerCount) : entry.author?.followerCount;
   const followerText = followers == null ? "" : formatFollowers(followers);
-  const reposterLink = reposter ? (repost.enabled ? (role === "recruiter" ? "/recruiter/profile" : "/app/profile") : personHref(role, reposter)) : undefined;
+  const reposterLink = reposter ? (reposterIsViewer ? (role === "recruiter" ? "/recruiter/profile" : "/app/profile") : personHref(role, reposter)) : undefined;
 
   if (hidden) {
     return (
@@ -424,7 +453,10 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
         {reposter ? (
           <>
             {reposterLink ? <Link href={reposterLink} aria-label={"View " + reposter.name + " profile"}><Avatar person={reposter} /></Link> : <Avatar person={reposter} />}
-            <span>{reposterLink ? <Link href={reposterLink}><strong>{reposter.name}</strong></Link> : <strong>{reposter.name}</strong>} reposted this</span>
+            <span>
+              {reposterLink ? <Link href={reposterLink}><strong>{reposter.name}</strong></Link> : <strong>{reposter.name}</strong>} reposted this
+              {entry.repost ? <> · <time dateTime={entry.repost.createdAt} title={entry.repost.createdAt}>{timeAgo(entry.repost.createdAt)}</time></> : null}
+            </span>
           </>
         ) : (
           <>
@@ -433,6 +465,37 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
           </>
         )}
       </div>
+      {entry.repost ? (
+        <>
+          {entry.repost.commentary ? (
+            <blockquote className="feed-repost-commentary" data-testid="repost-commentary">
+              <LinkifiedText text={entry.repost.commentary} />
+            </blockquote>
+          ) : null}
+          {entry.repost.chain?.length ? (
+            <details className="feed-repost-chain" data-testid="repost-chain">
+              <summary>
+                Reposted from {entry.repost.chain[0].removed ? "a removed repost" : entry.repost.chain[0].author?.name ?? "a removed account"}
+                {entry.repost.chain.length > 1 ? ` and ${entry.repost.chain.length - 1} earlier ${entry.repost.chain.length - 1 === 1 ? "repost" : "reposts"}` : ""}
+              </summary>
+              <ol>
+                {entry.repost.chain.map((link) => (
+                  <li key={link.id}>
+                    {link.removed ? (
+                      <span className="muted">{link.author?.name ? link.author.name + " removed their repost" : "Repost removed"}</span>
+                    ) : (
+                      <>
+                        <strong>{link.author?.name ?? "Removed account"}</strong> · <time dateTime={link.createdAt}>{timeAgo(link.createdAt)}</time>
+                        {link.commentary ? <p>{link.commentary}</p> : <span className="muted"> · reposted without comment</span>}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </details>
+          ) : null}
+        </>
+      ) : null}
       <header className="feed-post-header">
         <div className="row">
           {job ? (
@@ -656,7 +719,7 @@ export function FeedCard({ entry, role, surface = "feed", position = 0, highligh
         </button>
         {repostUnavailable && <span id={repostReasonId} className="sr-only">{repostUnavailableReason}</span>}
       </div>
-      {open && entry.commentsEnabled !== false && <Comments entry={entry} role={role} focusIds={highlightIds} />}
+      {open && entry.commentsEnabled !== false && <Comments entry={interactionEntry} role={role} focusIds={highlightIds} />}
     </article>
   );
 }

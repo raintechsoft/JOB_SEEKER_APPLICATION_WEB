@@ -1075,6 +1075,9 @@ body.professional-theme .professional-search kbd {font-size:11px;color:var(--tex
 body.professional-theme .professional-account-menu {color:#202A36;}
 body.professional-theme .professional-account-menu :is(a,button) {font-size:15px;}
 body.professional-theme .professional-main :is(p,.profile-body-copy) {line-height:1.75;}
+/* The shared paragraph line-height leaves a blank band under a comment name when designation is missing, and a tall gap when it is present. */
+body.professional-theme .professional-main .feed-comment-byline {margin:0;min-height:0;line-height:1.25;white-space:nowrap;}
+body.professional-theme .professional-main .feed-comment-text {margin-top:4px;line-height:1.45;}
 body.professional-theme .card {border-color:#E4E9EF;box-shadow:0 3px 16px #202a3606;}
 body.professional-theme .feed-profile-cover {background:#E4E9EF;}
 body.professional-theme .feed-profile-cover i {background:#c1cfdf;}
@@ -1101,8 +1104,8 @@ body.professional-theme .feed-post-header .feed-org-name a {color:inherit;text-d
 body.professional-theme .feed-post-header > .row {flex:1 1 auto;min-width:0;}
 body.professional-theme .feed-post-header .grow {flex:1 1 auto;min-width:0;}
 body.professional-theme .feed-post-header {align-items:flex-start;}
-body.professional-theme .feed-post {container-type:inline-size;container-name:feed-post;--feed-media-max-height:min(70vh,720px);}
-body.professional-theme #post-live-preview .feed-post {--feed-media-max-height:min(52vh,420px);}
+body.professional-theme .feed-post {container-type:inline-size;container-name:feed-post;--feed-media-max-height:720px;}
+body.professional-theme #post-live-preview .feed-post {--feed-media-max-height:520px;}
 body.professional-theme .feed-upload,
 body.professional-theme .feed-video {display:flex;align-items:center;justify-content:center;width:100%;max-height:var(--feed-media-max-height,720px);overflow:hidden;}
 body.professional-theme .feed-upload .media-image,
@@ -1164,7 +1167,7 @@ body.professional-theme .rail-job-tabs>button {font-size:14px;}
  body.professional-theme .professional-header .brand {font-size:23px;}
  body.professional-theme .professional-search {display:none;}
  body.professional-theme .professional-header-tools {gap:10px;}
- body.professional-theme .professional-main {padding-left:16px;padding-right:16px;}
+ body.professional-theme .professional-main {padding-left:8px;padding-right:8px;}
  body.professional-theme .profile-management-grid {display:block;}
  body.professional-theme .professional-profile-summary {flex-direction:column;}
  body.professional-theme .profile-header-body {width:100%;}
@@ -1404,6 +1407,8 @@ body.professional-theme .rail-view-all {display:flex;justify-content:center;padd
 body.professional-theme .rail-view-all .btn {font-size:12px;font-weight:650;min-height:0;padding:4px 8px;color:#315EF4;border:0;box-shadow:none;text-decoration:none;}
 body.professional-theme .rail-view-all .btn:hover,
 body.professional-theme .rail-view-all .btn:focus-visible {border:0;box-shadow:none;text-decoration:none;background:transparent;}
+body.professional-theme .public-jobs-rail .rail-job-list > :is(.loading-region, .state-panel) {padding-left:19px;padding-right:19px;}
+body.professional-theme .public-jobs-rail .rail-manage-alerts {display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin:0;padding:12px 19px 16px;text-align:center;text-decoration:none;}
 
 /* Floating “New posts” chip overlays the feed and bobs until hovered. */
 body.professional-theme .feed-timeline {position:relative;}
@@ -1693,6 +1698,13 @@ body.professional-theme .activity-workspace {max-width:none;}
 body.professional-theme :is(.professional-feed-layout,.activity-layout) {grid-template-columns:var(--feed-side-width) minmax(0,1fr) var(--feed-rail-width);gap:var(--feed-column-gap);}
 body.professional-theme .activity-sidebar {grid-column:1;}
 body.professional-theme .activity-content {grid-column:2;}
+/* Testing: cap the main post column track on desktop (not the child alone). */
+@media (min-width:1051px) {
+ body.professional-theme :is(.professional-feed-layout,.activity-layout) {
+  grid-template-columns:var(--feed-side-width) minmax(0,650px) var(--feed-rail-width);
+  justify-content:space-between;
+ }
+}
 body.professional-theme .activity-workspace>.page-heading {margin-right:calc(var(--feed-rail-width) + var(--feed-column-gap));}
 body.professional-theme .feed-post-header .grow>time {display:block;font-size:13px;line-height:1.25;color:#626B76;margin-top:1px;}
 body.professional-theme .feed-post-header .grow>.feed-post-meta {display:block;max-width:100%;margin-top:1px;font-size:13px;line-height:1.25;color:#626B76;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
@@ -1735,7 +1747,7 @@ body.professional-theme .activity-post-menu-items>p {font-size:13px;color:#626B7
  body.professional-theme .activity-content-heading {position:relative;z-index:6;}
 }
 @media(max-width:680px){
- body.professional-theme .professional-main {--feed-page-padding:16px;--feed-column-gap:19px;}
+ body.professional-theme .professional-main {--feed-page-padding:8px;--feed-column-gap:19px;}
  body.professional-theme .professional-feed-layout {grid-template-columns:minmax(0,1fr);}
  body.professional-theme .professional-feed-layout > .feed-profile-column,
  body.professional-theme .professional-feed-layout > .feed-jobs-column,
@@ -1748,6 +1760,13 @@ body.professional-theme .activity-post-menu-items>p {font-size:13px;color:#626B7
  }
  body.professional-theme .activity-layout,
  body.professional-theme .activity-workspace>.page-heading {max-width:550px;}
+}
+@media(max-width:480px){
+ body.professional-theme .feed-post-header h2 {font-size:15px;}
+ body.professional-theme .feed-post-header .feed-post-byline {font-size:12px;}
+ body.professional-theme .feed-post-header .grow>.feed-post-meta {font-size:12px;}
+ body.professional-theme .feed-post-body>p,
+ body.professional-theme .feed-post-body .feed-read-more {font-size:14px;}
 }
 
 /* Saved state changes only the bookmark fill; retain the standard action styling. */
